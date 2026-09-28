@@ -8,7 +8,7 @@ import DIC from './pages/DIC'
 import './App.css'
 
 function App() {
-  return <BrowserRouter><Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic" element={<DIC />} /><Route path="/dic/register" element={<DIC />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout></BrowserRouter>
+  return <BrowserRouter><Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/*" element={<DIC />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout></BrowserRouter>
 }
 
 function PlaceholderPage() {
