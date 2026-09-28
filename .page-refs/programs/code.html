@@ -1,0 +1,555 @@
+<!DOCTYPE html><html lang="en" style="scroll-behavior: smooth;"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html{scroll-behavior:smooth;}html,body{margin:0;padding:0;min-height:100%;}section{scroll-margin-top:100px;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={"darkMode":"class","theme":{"extend":{"colors":{"error":"#ba1a1a","surface-dim":"#d2dcd8","on-tertiary":"#ffffff","on-surface-variant":"#404944","on-secondary-fixed":"#261900","tertiary":"#003524","on-tertiary-fixed":"#002115","surface-container":"#e5f0ec","on-tertiary-container":"#7bbfa0","inverse-surface":"#283230","on-secondary-container":"#755400","on-tertiary-fixed-variant":"#00513a","on-secondary-fixed-variant":"#5d4200","on-primary":"#ffffff","on-error":"#ffffff","on-error-container":"#93000a","on-surface":"#141d1b","surface-container-low":"#ebf6f1","secondary-container":"#fcca66","on-background":"#141d1b","background":"#f1fcf7","tertiary-fixed":"#abf1d0","surface":"#f1fcf7","primary-container":"#0f4d38","surface-tint":"#306952","on-primary-fixed-variant":"#14503b","on-primary-container":"#83bda2","outline-variant":"#c0c9c2","surface-container-high":"#e0ebe6","surface-variant":"#dae5e0","on-primary-fixed":"#002115","error-container":"#ffdad6","tertiary-container":"#004e37","secondary":"#7b5900","inverse-primary":"#98d3b7","primary":"#003524","tertiary-fixed-dim":"#90d5b5","primary-fixed":"#b3efd2","on-secondary":"#ffffff","primary-fixed-dim":"#98d3b7","secondary-fixed-dim":"#f0bf5c","secondary-fixed":"#ffdea4","outline":"#707973","surface-container-highest":"#dae5e0","inverse-on-surface":"#e8f3ee","surface-bright":"#f1fcf7","surface-container-lowest":"#ffffff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"3rem","space-2xl":"4rem","space-3xl":"6rem","space-md":"1.5rem","space-lg":"2rem","gutter-desktop":"2rem","space-2xs":"0.5rem","gutter-mobile":"1rem","margin-mobile":"1.25rem","space-sm":"1rem","margin-desktop":"4rem","space-xs":"0.75rem","space-3xs":"0.25rem"},"fontFamily":{"body-lg":["Plus Jakarta Sans"],"headline-md":["Playfair Display"],"headline-lg-mobile":["Playfair Display"],"title-md":["Plus Jakarta Sans"],"display-lg":["Playfair Display"],"label-sm":["Plus Jakarta Sans"],"headline-lg":["Playfair Display"],"body-md":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-sm":["Playfair Display"],"display-lg-mobile":["Playfair Display"]},"fontSize":{"body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],"headline-md":["28px",{"lineHeight":"36px","fontWeight":"500"}],"headline-lg-mobile":["30px",{"lineHeight":"38px","letterSpacing":"-0.01em","fontWeight":"600"}],"title-md":["18px",{"lineHeight":"26px","fontWeight":"600"}],"display-lg":["56px",{"lineHeight":"68px","letterSpacing":"-0.02em","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"16px","letterSpacing":"0.08em","fontWeight":"700"}],"headline-lg":["40px",{"lineHeight":"48px","letterSpacing":"-0.015em","fontWeight":"600"}],"body-md":["15px",{"lineHeight":"24px","fontWeight":"400"}],"label-md":["14px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-sm":["22px",{"lineHeight":"30px","fontWeight":"600"}],"display-lg-mobile":["38px",{"lineHeight":"46px","letterSpacing":"-0.01em","fontWeight":"600"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container"><header class="fixed top-0 left-0 w-full z-50">
+<!-- 1. TOP IDENTITY BAR -->
+<div class="w-full bg-[#0b3d2c] text-xs py-1.5 px-4 sm:px-6 lg:px-8 border-b border-[#134e3a]">
+<div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center text-xs tracking-wide">
+<span class="text-[#c59b27] font-bold text-sm leading-none mr-2">•</span>
+<span class="font-bold tracking-wider text-xs uppercase text-[#d1e6dc]">DAWANA ISLAMIC FOUNDATION</span>
+<span class="text-xs text-[#a3c2b5] mx-1">•</span>
+<span class="text-xs text-[#a3c2b5]">Established 1994 · Formerly The Islamic Front</span>
+</div>
+<div class="flex items-center text-xs">
+<span class="text-xs font-serif text-[#e0ede7] mr-2" dir="rtl">« رِضْوَانُ اللَّهِ أَكْبَرُ »</span>
+<span class="text-xs text-[#a3c2b5] mx-1">•</span>
+<span class="text-xs italic text-[#d1e6dc]">“Allah’s Pleasure is the greatest”</span>
+</div>
+</div>
+</div>
+<!-- 2. MAIN HEADER BAR -->
+<div class="w-full bg-white/95 backdrop-blur-sm border-b border-[#e2ece7] shadow-sm">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+<!-- Left: Authentic Logo -->
+<a class="flex items-center gap-2 focus:outline-none flex-shrink-0" href="#">
+<img alt="Da'wãnã Islamic Foundation" class="h-12 md:h-14 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXmq9NQVTjSI_Me8mjCQ-0woQDjquzv16peL24mBbPOhqYb51ni-QQymLR1VpdTYlZeci_r-Ah8RFKud7eZvHaTmDuRvA1o29dHZ089yXmVVeUL1yYALBzyp1rJeyDyKx3ZGZhOrm_CL_UWGrLfrs4rBvua34lhr6b0GS-4v05X4W-twc0kz83YZZRUO2YoCqwWGbNlhVVu36t5ZX8MQVziO3hmKYRTsDniqH9YALrA_euKP1YvXQNJpFVg9OsipFvrQ">
+</a>
+<!-- Center: Rounded Pill Navigation Container -->
+<nav class="hidden lg:flex items-center space-x-1 bg-[#ebf5f0] border border-[#d6e8df] p-1.5 rounded-full text-sm font-medium">
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition" href="#">Home</a>
+<div class="relative group">
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition inline-flex items-center gap-1" href="#">
+            About
+            <svg class="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</a>
+</div>
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition" href="#">What We Do</a>
+<a aria-current="page" class="px-4 py-1.5 rounded-full bg-[#0f4d38] text-white shadow-sm font-semibold transition" href="#">Programs</a>
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition" href="#">Events</a>
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition" href="#">Projects</a>
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition" href="#">DIC</a>
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition" href="#">Media</a>
+<div class="relative group">
+<a class="px-3.5 py-1.5 rounded-full text-[#1b3d2f] hover:text-[#0f4d38] transition inline-flex items-center gap-1" href="#">
+            Get Involved
+            <svg class="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</a>
+</div>
+</nav>
+<!-- Right: Actions & Hamburger Button -->
+<div class="flex items-center space-x-4">
+<div class="hidden lg:flex items-center space-x-5">
+<a class="text-[#1b3d2f] hover:text-[#0f4d38] font-medium text-sm transition" href="#">Login</a>
+<a class="bg-[#0f4d38] hover:bg-[#0b3d2c] text-white px-5 py-2 rounded-lg font-medium text-sm transition shadow-sm" href="#">Donate</a>
+</div>
+<button aria-controls="mobileMenu" aria-expanded="false" aria-label="Toggle navigation" class="lg:hidden p-2 rounded-lg text-[#0f4d38] hover:bg-[#ebf5f0] transition-colors focus:outline-none" id="mobileMenuBtn" onclick="const menu = document.getElementById('mobileMenu'); const isHidden = menu.classList.contains('hidden'); if(isHidden){ menu.classList.remove('hidden'); document.getElementById('menuIconOpen').classList.add('hidden'); document.getElementById('menuIconClose').classList.remove('hidden'); this.setAttribute('aria-expanded', 'true'); } else { menu.classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); this.setAttribute('aria-expanded', 'false'); document.body.style.overflow = ''; }">
+<svg class="w-6 h-6 stroke-current stroke-2" fill="none" id="menuIconOpen" viewBox="0 0 24 24">
+<line stroke-linecap="round" x1="3" x2="21" y1="6" y2="6"></line>
+<line stroke-linecap="round" x1="3" x2="21" y1="12" y2="12"></line>
+<line stroke-linecap="round" x1="3" x2="21" y1="18" y2="18"></line>
+</svg>
+<svg class="w-6 h-6 stroke-current stroke-2 hidden" fill="none" id="menuIconClose" viewBox="0 0 24 24">
+<line stroke-linecap="round" x1="18" x2="6" y1="6" y2="18"></line>
+<line stroke-linecap="round" x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<!-- 3. MOBILE NAVIGATION DRAWER -->
+<div class="hidden lg:hidden bg-[#0b3d2c] text-white px-6 py-6 border-t border-[#134e3a] space-y-4 shadow-xl max-h-[calc(100vh-100px)] overflow-y-auto" id="mobileMenu">
+<div class="flex flex-col space-y-2">
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">Home</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">About</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">What We Do</a>
+<a class="px-3 py-2 rounded-lg bg-[#0f4d38] text-white font-semibold text-base shadow-sm" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">Programs</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">Events</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">Projects</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">DIC</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">Media</a>
+<a class="px-3 py-2 rounded-lg text-white/90 hover:bg-[#0f4d38] transition font-medium text-base" href="#" onclick="document.getElementById('mobileMenu').classList.add('hidden'); document.getElementById('menuIconOpen').classList.remove('hidden'); document.getElementById('menuIconClose').classList.add('hidden'); document.body.style.overflow = '';">Get Involved</a>
+</div>
+<div class="pt-4 border-t border-white/10 flex flex-col gap-3">
+<a class="text-center py-2 text-white font-medium hover:text-[#fcca66] transition" href="#">Login</a>
+<a class="text-center py-2.5 bg-[#0f4d38] text-white font-bold rounded-lg hover:bg-[#0c3b2b] transition shadow-sm" href="#">Donate</a>
+</div>
+</div>
+</header><main class="w-full pt-28 bg-surface min-h-screen">
+<!-- EDITORIAL HERO SECTION -->
+<section class="relative bg-gradient-to-b from-[#ebf6f1] via-[#f1fcf7] to-surface border-b border-[#dae5e0] overflow-hidden pt-10 pb-12 md:py-16"><div class="absolute inset-0 pointer-events-none opacity-[0.03] flex items-center justify-center"><svg class="w-[850px] h-[850px]" fill="currentColor" viewBox="0 0 100 100"><polygon points="50,0 62,25 90,10 75,38 100,50 75,62 90,90 62,75 50,100 38,75 10,90 25,62 0,50 25,38 10,10 38,25"></polygon></svg></div><div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"><div class="lg:col-span-2 text-left"><span class="inline-block tracking-widest text-xs font-semibold text-[#0f4d38] bg-[#e1f3ea] px-3 py-1 rounded mb-3 uppercase">PROGRAMS &amp; INITIATIVES</span><h1 class="text-left text-4xl sm:text-5xl font-serif text-[#0f4d38] font-bold tracking-tight mb-4">Programs</h1><p class="text-left text-base sm:text-lg text-[#374e44] max-w-2xl leading-relaxed">Dawana Islamic Foundation’s programs and initiatives for Islamic learning, spiritual development, Da’wah, youth engagement, and community development.</p></div><div class="lg:col-span-1"><div class="bg-white rounded-xl border border-[#d6e8df] p-6 shadow-sm"><h3 class="text-base font-semibold text-[#003524] mb-2">Explore Dawana’s Programs &amp; Initiatives</h3><p class="text-xs sm:text-sm text-on-surface-variant leading-relaxed mb-4">Discover the educational, spiritual, Da’wah, youth and community initiatives of Dawana Islamic Foundation.</p><div class="flex items-center gap-2 text-xs font-medium text-[#0f4d38]"><span class="material-symbols-outlined text-[18px]">verified</span><span class="">Authentic Foundation Initiatives</span></div></div></div></div><div class="mt-8 pt-6 border-t border-[#dae5e0] flex flex-wrap items-center justify-start gap-2" id="filterContainer"><button class="filter-tab px-4 py-1.5 rounded-full text-xs font-medium transition bg-[#0f4d38] text-white shadow-sm" data-category="all">All Programs</button><button class="filter-tab px-4 py-1.5 rounded-full text-xs font-medium transition bg-white text-[#14503b] border border-[#c0c9c2] hover:bg-[#ebf5f0]" data-category="learning">Islamic Learning</button><button class="filter-tab px-4 py-1.5 rounded-full text-xs font-medium transition bg-white text-[#14503b] border border-[#c0c9c2] hover:bg-[#ebf5f0]" data-category="spiritual">Spiritual Development &amp; Tarbiyah</button><button class="filter-tab px-4 py-1.5 rounded-full text-xs font-medium transition bg-white text-[#14503b] border border-[#c0c9c2] hover:bg-[#ebf5f0]" data-category="dawah">Da’wah &amp; Outreach</button><button class="filter-tab px-4 py-1.5 rounded-full text-xs font-medium transition bg-white text-[#14503b] border border-[#c0c9c2] hover:bg-[#ebf5f0]" data-category="youth">Youth &amp; Major Initiatives</button></div></div></section>
+<!-- CATALOG WRAPPER -->
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- 1. Physical Usrah -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="learning">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#e8f3ee] text-[#0f4d38]">
+                Islamic Learning
+              </span>
+<span class="text-[11px] font-medium text-[#707973] flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                Every Sunday
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Physical Usrah</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-4">Weekly &amp; ongoing study circles</p>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">place</span>
+<span class="">Held physically in designated masjids.</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">check_circle</span>
+<span class="">Registration: Not required • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            View Overview
+          </a>
+</article>
+<!-- 2. Tarbiyah Sessions -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="spiritual">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#e8f3ee] text-[#0f4d38]">
+                Spiritual Development
+              </span>
+<span class="text-[11px] font-medium text-[#707973] flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                Periodic Circles
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Tarbiyah Sessions</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-4">Weekly &amp; ongoing study circles</p>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">favorite</span>
+<span class="">Spiritual nurture &amp; character refinement</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">check_circle</span>
+<span class="">Registration: Not required • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            View Overview
+          </a>
+</article>
+<!-- 3. Tadhkirah -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="dawah spiritual">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#e8f3ee] text-[#0f4d38]">
+                Da’wah &amp; Spiritual Development
+              </span>
+<span class="text-[11px] font-medium text-[#707973] flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                Friday Evenings • After Asr
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Tadhkirah</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-4">Weekly &amp; ongoing study circles</p>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38] mt-0.5">mosque</span>
+<span class="">Iponri Central Mosque, Iponri, Surulere, Lagos</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">check_circle</span>
+<span class="">Registration: Not required • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            Venue &amp; Assembly Details
+          </a>
+</article>
+<!-- 4. Online Explanation of Usūl ath-Thalāthah -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="learning">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#e8f3ee] text-[#0f4d38]">
+                Islamic Learning
+              </span>
+<span class="text-[11px] font-medium text-[#707973] flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                Fridays • 9:00 PM • Online
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Online Explanation of Usūl ath-Thalāthah</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-3">Weekly &amp; ongoing study circles</p>
+<div class="bg-[#f1fcf7] border border-[#d6e8df] rounded-lg p-2.5 mb-4 text-xs text-[#14503b]">
+<span class="font-semibold">Note:</span> Alternates weekly with the online explanation of Urjūzatul Mi’iyyah.
+            </div>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">devices</span>
+<span class="">Virtual Broadcast via DAWANA Live Stream</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">check_circle</span>
+<span class="">Registration: Not required • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            Session Stream Info
+          </a>
+</article>
+<!-- 5. Online Explanation of Urjūzatul Mi’iyyah -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="learning">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#e8f3ee] text-[#0f4d38]">
+                Islamic Learning
+              </span>
+<span class="text-[11px] font-medium text-[#707973] flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                Fridays • 9:00 PM • Online
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Online Explanation of Urjūzatul Mi’iyyah</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-3">Weekly &amp; ongoing study circles</p>
+<div class="bg-[#f1fcf7] border border-[#d6e8df] rounded-lg p-2.5 mb-4 text-xs text-[#14503b]">
+<span class="font-semibold">Note:</span> Alternates weekly with the online explanation of Usūl ath-Thalāthah.
+            </div>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">auto_stories</span>
+<span class="">Focus: Prophetic Biography (As-Seerah)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">check_circle</span>
+<span class="">Registration: Not required • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            Session Stream Info
+          </a>
+</article>
+<!-- 6. Youth Outreach -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="youth dawah">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#ebf5f0] text-[#0f4d38]">
+                Youth Development &amp; Empowerment
+              </span>
+<span class="text-[11px] font-semibold text-[#7b5900] bg-[#fcca66]/30 px-2 py-0.5 rounded">
+                Registration Required
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Youth Outreach</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-3">
+              Dawana Islamic Foundation’s youth-focused outreach initiative.
+            </p>
+<div class="bg-[#ebf6f1] border border-[#d6e8df] rounded-lg p-2.5 mb-4 text-xs text-[#14503b]">
+<span class="font-semibold">Note:</span> Youth Outreach 2.0 is intended as a continuation of this initiative.
+            </div>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">groups</span>
+<span class="">Target: Adolescents, secondary &amp; university youth</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">assignment</span>
+<span class="">Registration: Required when open • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            Inquire / Waitlist
+          </a>
+</article>
+<!-- 7. Symposiums -->
+<article class="program-card bg-surface-container-lowest rounded-xl border border-[#d6e8df] p-6 flex flex-col justify-between hover:shadow-md transition-shadow" data-category="youth learning">
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#ebf5f0] text-[#0f4d38]">
+                Youth &amp; Major Initiatives
+              </span>
+<span class="text-[11px] font-semibold text-[#7b5900] bg-[#fcca66]/30 px-2 py-0.5 rounded">
+                Registration Required
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Symposiums</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-3">
+              Academic and Islamic knowledge-focused symposiums organised by Dawana Islamic Foundation.
+            </p>
+<div class="bg-[#f1fcf7] border border-[#d6e8df] rounded-lg p-2.5 mb-4 text-xs text-[#14503b]">
+<span class="font-semibold">Schedule:</span> Details to be announced.
+            </div>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">school</span>
+<span class="">Thematic discourses &amp; intellectual panels</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">assignment</span>
+<span class="">Registration: Required • Payment: Free</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg border border-[#0f4d38] text-[#0f4d38] font-medium text-sm hover:bg-[#ebf5f0] transition" href="#">
+            Announcement Notifications
+          </a>
+</article>
+<!-- 8. Darul Islam Camp (DIC) -->
+<article class="program-card bg-[#f8fdfa] rounded-xl border-2 border-[#0f4d38]/30 p-6 flex flex-col justify-between relative shadow-sm hover:shadow-md transition-shadow" data-category="youth">
+<div class="absolute -top-3 right-4 bg-[#0f4d38] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow">
+            Major Initiative
+          </div>
+<div>
+<div class="flex items-center justify-between gap-2 mb-3">
+<span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#0f4d38] text-white">
+                Major Initiative
+              </span>
+<span class="text-[11px] font-semibold text-[#7b5900] bg-[#fcca66]/40 px-2 py-0.5 rounded">
+                Registration &amp; Fee
+              </span>
+</div>
+<h3 class="text-xl font-headline-sm font-semibold text-[#003524] mb-2">Darul Islam Camp (DIC)</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-3">
+              A major initiative of Dawana Islamic Foundation bringing participants together for Islamic learning, spiritual development and community engagement.
+            </p>
+<div class="bg-white border border-[#b8d6c7] rounded-lg p-3 mb-4 text-xs text-[#0f4d38]">
+<span class="font-bold">Process:</span> Registration → Review → Payment → Confirmation
+            </div>
+<div class="border-t border-[#dae5e0] pt-3 text-xs text-[#404944] space-y-1.5 mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">verified</span>
+<span class="">Comprehensive residential / intensive model</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-[#0f4d38]">payments</span>
+<span class="">Registration: Required • Payment: Required</span>
+</div>
+</div>
+</div>
+<a class="w-full text-center py-2.5 px-4 rounded-lg bg-[#0f4d38] hover:bg-[#0b3d2c] text-white font-semibold text-sm shadow transition" href="#">Learn More / Register</a>
+</article>
+</div></section>
+<!-- PARTICIPATION & ACCESS FRAMEWORK -->
+<section class="bg-[#ebf6f1] border-y border-[#dae5e0] py-14">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center max-w-2xl mx-auto mb-10">
+<span class="text-xs font-bold uppercase tracking-wider text-[#0f4d38]">Participation Architecture</span>
+<h2 class="text-2xl sm:text-3xl font-headline-md text-[#003524] mt-1 font-semibold">
+          How to Participate &amp; Engage
+        </h2>
+<p class="text-sm text-on-surface-variant mt-2">
+          Clear, straightforward access paths to all Dawana programs and learning assemblies.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Step 1 -->
+<div class="bg-white rounded-xl p-6 border border-[#d6e8df] relative flex flex-col">
+<div class="w-10 h-10 rounded-full bg-[#0f4d38] text-white flex items-center justify-center font-bold text-base mb-4">
+            1
+          </div>
+<h3 class="text-lg font-headline-sm font-semibold text-[#003524] mb-2">Open Weekly Halāqāt</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed flex-grow">
+            Physical Usrah, Friday Tadhkirah at Iponri Central Mosque, and alternating Friday night online treatises are open to the entire Muslim community. Attend freely without any prior registration.
+          </p>
+<div class="mt-4 pt-3 border-t border-[#dae5e0] text-xs font-medium text-[#14503b] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">door_open</span>
+            Open Admission · Free of Charge
+          </div>
+</div>
+<!-- Step 2 -->
+<div class="bg-white rounded-xl p-6 border border-[#d6e8df] relative flex flex-col">
+<div class="w-10 h-10 rounded-full bg-[#0f4d38] text-white flex items-center justify-center font-bold text-base mb-4">
+            2
+          </div>
+<h3 class="text-lg font-headline-sm font-semibold text-[#003524] mb-2">Cohort &amp; Specialty Programs</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed flex-grow">
+            Targeted initiatives like Youth Outreach (including Youth Outreach 2.0) and academic Symposiums require a brief delegate registration when enrollment windows open.
+          </p>
+<div class="mt-4 pt-3 border-t border-[#dae5e0] text-xs font-medium text-[#14503b] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">how_to_reg</span>
+            Online Application · Free of Charge
+          </div>
+</div>
+<!-- Step 3 -->
+<div class="bg-white rounded-xl p-6 border border-[#d6e8df] relative flex flex-col">
+<div class="w-10 h-10 rounded-full bg-[#0f4d38] text-white flex items-center justify-center font-bold text-base mb-4">
+            3
+          </div>
+<h3 class="text-lg font-headline-sm font-semibold text-[#003524] mb-2">Darul Islam Camp (DIC) Intake</h3>
+<p class="text-sm text-on-surface-variant leading-relaxed flex-grow">
+            Registration for DIC follows an administrative workflow: complete the digital intake form, undergo application review, fulfill required delegate dues, and receive confirmed delegate access.
+          </p>
+<div class="mt-4 pt-3 border-t border-[#dae5e0] text-xs font-medium text-[#14503b] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">verified_user</span>
+            Vetting → Payment → Badge Issuance
+          </div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECRETARIAT DESK & ENQUIRIES -->
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+<div class="bg-gradient-to-r from-[#0f4d38] to-[#0c3b2b] text-white rounded-2xl p-8 md:p-12 shadow-md relative overflow-hidden">
+<!-- Background Graphic Accents -->
+<div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+<svg class="w-72 h-72" fill="currentColor" viewBox="0 0 100 100">
+<circle cx="50" cy="50" r="48" stroke="white" stroke-width="2"></circle>
+<polygon points="50,10 60,35 85,35 65,50 72,75 50,60 28,75 35,50 15,35 40,35"></polygon>
+</svg>
+</div>
+<div class="relative max-w-3xl">
+<span class="text-xs font-bold uppercase tracking-wider text-[#98d3b7]">Administrative Liaison Desk</span>
+<h2 class="text-2xl sm:text-3xl font-headline-md text-white mt-1 mb-3 font-semibold">
+          Questions Regarding Study Circles or Cohort Registration?
+        </h2>
+<p class="text-sm sm:text-base text-[#d1e6dc] leading-relaxed mb-6">
+          The Secretariat Desk is available to guide prospective students, delegates, and community members regarding Halāqah venues, lecture streams, and upcoming admissions.
+        </p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm text-[#ebf5f0] mb-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#98d3b7]">mail</span>
+<a class="hover:underline" href="mailto:secretariat@dawanafoundation.org">secretariat@dawanafoundation.org</a>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#98d3b7]">call</span>
+<a class="hover:underline" href="tel:+234800329262">+234 (0) 800 329 262</a>
+</div>
+<div class="flex items-center gap-3 sm:col-span-2">
+<span class="material-symbols-outlined text-[#98d3b7]">location_on</span>
+<span class="">Central Area, Abuja FCT &amp; Surulere, Lagos, Nigeria</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-3">
+<a class="px-5 py-2.5 bg-white text-[#0f4d38] font-semibold text-sm rounded-lg hover:bg-[#f1fcf7] transition shadow-sm" href="mailto:secretariat@dawanafoundation.org">
+            Contact Secretariat
+          </a>
+<a class="px-5 py-2.5 bg-transparent border border-white/40 text-white font-medium text-sm rounded-lg hover:bg-white/10 transition" href="#">
+            Download Program Guide (PDF)
+          </a>
+</div>
+</div>
+</div>
+</section>
+</main><!-- APPROVED DAWANA INSTITUTIONAL FOOTER (EXACT HOMEPAGE PARITY) -->
+<footer class="bg-[#0b3d2c] text-white border-t border-[#134e3a] pt-16 pb-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
+<!-- Col 1: Identity & Watchword -->
+<div class="lg:col-span-2 space-y-4">
+<a class="inline-flex items-center gap-3 bg-white p-2 rounded-lg" href="#">
+<img alt="Da'wãnã Islamic Foundation" class="h-10 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQU67_OCaXPLLbsfMR884j0lsJiD4m8lwjbxh0hmcishNnFwEgWIwUIp2Rkh3WXB__54zt5UcwXczD3X7qSO8F3b76guc3bV5JeQYdujMPXbiTORb6zdBZVVzAxnFcpHYjeRaYbAVp6VW7wLI8xRMkzzAt3DsqbXZ9KSqBp0XRcqR-KrrcsrQJgSYCLnh8aAoxWL2ACJzgksAQESSSGvjwAvV7kZ9LC4kwsCKtA6AvkSxE0XVYPox3NC-hWgVR5QHBPg">
+</a>
+<div class="space-y-1">
+<p class="text-sm font-semibold tracking-wide text-white uppercase">Dawana Islamic Foundation</p>
+<p class="text-xs text-[#a3c2b5]">Established 1994 · Formerly The Islamic Front</p>
+</div>
+<div class="pt-2 text-xs text-[#d1e6dc] border-t border-[#14503b]">
+<span class="font-serif italic text-sm text-[#e0ede7]">« رِضْوَانُ اللَّهِ أَكْبَرُ »</span>
+<p class="mt-0.5 text-xs text-[#a3c2b5]">“Allah’s Pleasure is the greatest”</p>
+</div>
+<p class="text-xs text-[#a3c2b5] leading-relaxed pt-1">
+          Dedicated to authentic Islamic learning, spiritual development, community outreach, and social welfare in Nigeria.
+        </p>
+</div>
+<!-- Col 2: Core Programs -->
+<div>
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#98d3b7] mb-4">Core Programs</h3>
+<ul class="space-y-2.5 text-xs text-[#d1e6dc]">
+<li class=""><a class="hover:text-white transition" href="#">Physical Usrah</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Tarbiyah Sessions</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Friday Tadhkirah</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Usūl ath-Thalāthah (Online)</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Urjūzatul Mi’iyyah (Online)</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Youth Outreach</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Darul Islam Camp (DIC)</a></li>
+</ul>
+</div>
+<!-- Col 3: Navigation Links -->
+<div>
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#98d3b7] mb-4">Quick Links</h3>
+<ul class="space-y-2.5 text-xs text-[#d1e6dc]">
+<li class=""><a class="hover:text-white transition" href="#">About Dawana</a></li>
+<li class=""><a class="hover:text-white transition" href="#">What We Do</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Events &amp; Halāqāt</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Projects</a></li>
+<li class=""><a class="hover:text-white transition" href="#">DIC Portal</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Media Library</a></li>
+<li class=""><a class="hover:text-white transition" href="#">Get Involved</a></li>
+</ul>
+</div>
+<!-- Col 4: Contact & Locations -->
+<div>
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#98d3b7] mb-4">Headquarters</h3>
+<div class="space-y-3 text-xs text-[#d1e6dc]">
+<div>
+<p class="font-semibold text-white">Abuja Liaison Office</p>
+<p class="text-[#a3c2b5] mt-0.5">Central Business District, Abuja FCT, Nigeria</p>
+</div>
+<div>
+<p class="font-semibold text-white">Lagos Liaison Secretariat</p>
+<p class="text-[#a3c2b5] mt-0.5">Iponri Central Mosque, Surulere, Lagos</p>
+</div>
+<div class="pt-1">
+<p class="text-white font-medium">Enquiries:</p>
+<p class="text-[#a3c2b5]">secretariat@dawanafoundation.org</p>
+<p class="text-[#a3c2b5]">+234 (0) 800 329 262</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Bar -->
+<div class="border-t border-[#134e3a] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#a3c2b5]">
+<div class="">
+        © 2025 Dawana Islamic Foundation. All rights reserved.
+      </div>
+<div class="flex items-center gap-6">
+<a class="hover:text-white transition" href="#">Privacy Policy</a>
+<a class="hover:text-white transition" href="#">Terms of Use</a>
+<a class="hover:text-white transition" href="#">FAQ</a>
+</div>
+</div>
+</div>
+</footer>
+<!-- Interactive category tab filtering script -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const tabs = document.querySelectorAll('.filter-tab');
+    const cards = document.querySelectorAll('.program-card');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function () {
+        // Active class toggle
+        tabs.forEach(t => {
+          t.classList.remove('bg-[#0f4d38]', 'text-white', 'shadow-sm');
+          t.classList.add('bg-white', 'text-[#14503b]', 'border', 'border-[#c0c9c2]');
+        });
+        this.classList.remove('bg-white', 'text-[#14503b]', 'border', 'border-[#c0c9c2]');
+        this.classList.add('bg-[#0f4d38]', 'text-white', 'shadow-sm');
+
+        const filter = this.getAttribute('data-category');
+
+        cards.forEach(card => {
+          const cardCategories = card.getAttribute('data-category') || '';
+          if (filter === 'all' || cardCategories.includes(filter)) {
+            card.style.display = 'flex';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+  });
+</script>
+
+</body></html>

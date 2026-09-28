@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0F4D38;
+  --color-primary-dark: #003524;
+  --color-primary-light: #186047;
+
+  --color-gold: #C89B3C;
+  --color-gold-light: #FCCA66;
+
+  --color-canvas: #FBFBFA;
+  --color-surface: #F5F7F5;
+  --color-surface-green: #F1FCF7;
+
+  --color-text: #2D3734;
+  --color-border: #E2E8E4;
+
+  --font-heading: "Playfair Display", serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-arabic: "Amiri", serif;
+}
+
+:root {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  color: #2D3734;
+  background: #FBFBFA;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #FBFBFA;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input { font: inherit; }

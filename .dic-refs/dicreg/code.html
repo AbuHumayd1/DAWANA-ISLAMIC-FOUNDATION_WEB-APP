@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+
+<html class="h-auto" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Darul Islam Camp Registration | Dawana Islamic Foundation</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-error": "#ffffff",
+            "on-secondary": "#ffffff",
+            "primary-fixed": "#b3efd2",
+            "secondary-fixed": "#ffdea4",
+            "surface-container-low": "#ebf6f1",
+            "on-secondary-fixed": "#261900",
+            "surface-variant": "#dae5e0",
+            "on-surface-variant": "#404944",
+            "tertiary-fixed": "#abf1d0",
+            "surface-container-lowest": "#ffffff",
+            "on-background": "#141d1b",
+            "primary": "#003524",
+            "surface-bright": "#f1fcf7",
+            "on-primary-container": "#83bda2",
+            "surface-tint": "#306952",
+            "on-tertiary-fixed": "#002115",
+            "tertiary": "#003524",
+            "surface": "#f1fcf7",
+            "on-surface": "#141d1b",
+            "on-secondary-fixed-variant": "#5d4200",
+            "on-primary": "#ffffff",
+            "surface-container-high": "#e0ebe6",
+            "background": "#f1fcf7",
+            "on-error-container": "#93000a",
+            "surface-dim": "#d2dcd8",
+            "on-tertiary-container": "#7bbfa0",
+            "on-primary-fixed-variant": "#14503b",
+            "outline-variant": "#c0c9c2",
+            "error": "#ba1a1a",
+            "on-primary-fixed": "#002115",
+            "surface-container": "#e5f0ec",
+            "secondary": "#7b5900",
+            "inverse-on-surface": "#e8f3ee",
+            "tertiary-fixed-dim": "#90d5b5",
+            "on-tertiary": "#ffffff",
+            "primary-container": "#0f4d38",
+            "on-secondary-container": "#755400",
+            "inverse-surface": "#283230",
+            "secondary-fixed-dim": "#f0bf5c",
+            "secondary-container": "#fcca66",
+            "inverse-primary": "#98d3b7",
+            "on-tertiary-fixed-variant": "#00513a",
+            "tertiary-container": "#004e37",
+            "primary-fixed-dim": "#98d3b7",
+            "surface-container-highest": "#dae5e0",
+            "error-container": "#ffdad6",
+            "outline": "#707973"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "space-2xs": "0.5rem",
+            "margin-mobile": "1.25rem",
+            "space-xl": "3rem",
+            "space-md": "1.5rem",
+            "space-3xs": "0.25rem",
+            "space-3xl": "6rem",
+            "space-lg": "2rem",
+            "margin-desktop": "4rem",
+            "space-xs": "0.75rem",
+            "space-2xl": "4rem",
+            "gutter-desktop": "2rem",
+            "gutter-mobile": "1rem",
+            "space-sm": "1rem"
+          },
+          fontFamily: {
+            "title-md": ["Plus Jakarta Sans"],
+            "headline-md": ["Playfair Display"],
+            "label-md": ["Plus Jakarta Sans"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "display-lg": ["Playfair Display"],
+            "display-lg-mobile": ["Playfair Display"],
+            "headline-lg": ["Playfair Display"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "headline-lg-mobile": ["Playfair Display"],
+            "headline-sm": ["Playfair Display"]
+          },
+          fontSize: {
+            "title-md": ["18px", { lineHeight: "26px", fontWeight: "600" }],
+            "headline-md": ["28px", { lineHeight: "36px", fontWeight: "500" }],
+            "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "600" }],
+            "body-sm": ["13px", { lineHeight: "20px", fontWeight: "400" }],
+            "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+            "body-md": ["15px", { lineHeight: "24px", fontWeight: "400" }],
+            "display-lg": ["56px", { lineHeight: "68px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "display-lg-mobile": ["38px", { lineHeight: "46px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "headline-lg": ["40px", { lineHeight: "48px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "label-sm": ["11px", { lineHeight: "16px", letterSpacing: "0.08em", fontWeight: "700" }],
+            "headline-lg-mobile": ["30px", { lineHeight: "38px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "headline-sm": ["22px", { lineHeight: "30px", fontWeight: "600" }]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    html, body {
+      min-height: 100%;
+      height: auto !important;
+      overflow-y: visible !important;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen flex flex-col">
+<!-- ==================== HEADER ==================== -->
+<header class="sticky top-0 left-0 w-full z-50 bg-surface shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+<!-- Top Identity Bar -->
+<div class="bg-primary text-on-primary text-[11px] leading-[16px] tracking-wider py-1.5 px-gutter-mobile lg:px-margin-desktop">
+<div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-left">
+<span class="font-label-sm uppercase tracking-widest text-primary-fixed">• DAWANA ISLAMIC FOUNDATION • EST. 1994 NIGERIA</span>
+<span class="font-body-sm text-secondary-fixed text-xs font-medium tracking-wide">« رِضْوَانُ اللَّهِ أَكْبَرُ » | “Allah’s Pleasure is the greatest”</span>
+</div>
+</div>
+<!-- Main Navigation Bar -->
+<div class="h-20 bg-surface/95 backdrop-blur-md border-b border-surface-variant/40">
+<div class="max-w-7xl h-full mx-auto px-gutter-mobile lg:px-margin-desktop flex items-center justify-between gap-4">
+<a class="flex items-center gap-3 shrink-0" data-path="home" href="#">
+<img alt="Dawana Islamic Foundation Logo" class="w-8 h-8 object-contain shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNGCCDGHn1Nj5mqFdHijC1eXzQYD5AIvPq40N3fMrmd922JS_0qGk9Xb5ocbrx39J2Rwxk9N24e9R4R5zo9Zsq7YmK8uUSCx7kamdXgiLdbKdG-q1Wzo2JITB8ryjCcqqTr2kQjHeLIqhV9ajHQvXfqBD1li5zjv0_gwtofFrPVkW4nAbMcV-mzocN71kL7f0ABRjFU3E1KHJNEmrq9451YaPQkDKqgrapX4wRkrUEhwLhhhmXo0pNXsYK7kSgsrX-gQ"/>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-primary leading-none tracking-tight">Dawana</span>
+<span class="font-label-sm text-[10px] leading-tight tracking-[0.14em] text-secondary font-bold uppercase mt-0.5">ISLAMIC FOUNDATION</span>
+</div>
+</a>
+<!-- Desktop Navigation -->
+<nav class="hidden xl:flex items-center gap-1.5">
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="home" href="#">Home</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="about" href="#">About</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="what-we-do" href="#">What We Do</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="programs" href="#">Programs</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="events" href="#">Events</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="projects" href="#">Projects</a>
+<a aria-current="page" class="transition-colors bg-primary-container text-on-primary font-semibold rounded-lg px-3.5 py-1.5" data-path="dic" href="#">DIC</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="media" href="#">Media</a>
+<a class="px-2.5 py-1.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" data-path="get-involved" href="#">Get Involved</a>
+</nav>
+<div class="hidden md:flex items-center gap-4 shrink-0">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors px-2 py-1" data-path="login" href="#">Login</a>
+<a class="bg-primary-container hover:bg-tertiary-container text-on-primary font-label-md text-label-md px-5 py-2.5 rounded shadow-sm hover:shadow transition-all" data-path="donate" href="#">Donate</a>
+</div>
+<div class="flex xl:hidden items-center gap-3">
+<a class="bg-primary-container text-on-primary font-label-md text-label-md px-3.5 py-1.5 rounded text-sm" data-path="donate" href="#">Donate</a>
+<button aria-label="Open menu" class="p-2 text-primary hover:bg-surface-container rounded-lg transition-colors" onclick="document.getElementById('mobile-drawer').classList.remove('hidden');" type="button">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+</div>
+</header>
+<!-- Mobile Drawer -->
+<div class="hidden fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm" id="mobile-drawer">
+<div class="fixed inset-y-0 right-0 w-full max-w-sm bg-surface shadow-2xl flex flex-col p-6 overflow-y-auto">
+<div class="flex items-center justify-between pb-4 border-b border-surface-variant">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-primary leading-none">Dawana</span>
+<span class="font-label-sm text-[10px] tracking-[0.14em] text-secondary font-bold uppercase mt-0.5">ISLAMIC FOUNDATION</span>
+</div>
+<button aria-label="Close menu" class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full" onclick="document.getElementById('mobile-drawer').classList.add('hidden');" type="button">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<nav class="flex flex-col gap-1 py-6">
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="home" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Home</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="about" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">About</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="what-we-do" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">What We Do</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="programs" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Programs</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="events" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Events</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="projects" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Projects</a>
+<a aria-current="page" class="px-4 py-3 bg-primary-container text-on-primary font-semibold rounded-lg" data-path="dic" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">DIC</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="media" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Media</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="get-involved" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Get Involved</a>
+<a class="px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md" data-path="login" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Login</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-surface-variant">
+<a class="block text-center bg-primary-container text-on-primary font-label-md text-label-md py-3 rounded" data-path="donate" href="#" onclick="document.getElementById('mobile-drawer').classList.add('hidden');">Donate to Cause</a>
+</div>
+</div>
+</div>
+<!-- ==================== MAIN DOCUMENT CONTENT ==================== -->
+<main class="w-full flex-grow bg-surface py-space-md sm:py-space-xl px-gutter-mobile lg:px-margin-desktop">
+<div class="max-w-5xl mx-auto flex flex-col gap-space-lg">
+<!-- Breadcrumb & Context Header -->
+<header class="flex flex-col gap-space-xs">
+<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
+<a class="hover:text-primary transition-colors flex items-center gap-1" data-path="home" href="#">
+<span class="material-symbols-outlined text-sm">home</span>
+<span>Home</span>
+</a>
+<span class="material-symbols-outlined text-xs text-outline">chevron_right</span>
+<a class="hover:text-primary transition-colors" data-path="dic" href="#">DIC</a>
+<span class="material-symbols-outlined text-xs text-outline">chevron_right</span>
+<span aria-current="page" class="text-primary font-semibold">Registration</span>
+</nav>
+<!-- Institutional Header Banner with Islamic Star Motif -->
+<div class="bg-surface-container-low rounded-xl p-space-md sm:p-space-lg shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-space-md relative overflow-hidden">
+<div class="relative z-10 flex flex-col gap-2 max-w-2xl">
+<div class="inline-flex items-center gap-2 self-start bg-secondary-fixed/50 px-3 py-1 rounded-full text-on-secondary-fixed font-label-sm text-label-sm tracking-widest uppercase">
+<span class="material-symbols-outlined text-xs text-secondary">verified</span>
+<span>DARUL ISLAM CAMP • DIC REGISTRATION</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">Darul Islam Camp Registration</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+              A major initiative of Dawana Islamic Foundation. Register to participate in Darul Islam Camp.
+            </p>
+</div>
+<!-- Official Notice Card -->
+<div class="relative z-10 w-full md:w-auto shrink-0 bg-surface-container-highest/60 rounded-lg p-space-sm flex items-start gap-3 max-w-sm">
+<span class="material-symbols-outlined text-secondary shrink-0 mt-0.5">info</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+              Please provide the required information below to complete your DIC registration. Camp details to be announced.
+            </p>
+</div>
+<!-- Subtle Background Star Motif -->
+<div class="absolute right-0 bottom-0 translate-x-12 translate-y-12 opacity-5 pointer-events-none text-primary">
+<svg aria-hidden="true" fill="currentColor" height="240" viewbox="0 0 100 100" width="240">
+<polygon points="50 0, 62 38, 100 38, 69 62, 81 100, 50 76, 19 100, 31 62, 0 38, 38 38"></polygon>
+<circle cx="50" cy="50" fill="none" r="28" stroke="currentColor" stroke-width="3"></circle>
+</svg>
+</div>
+</div>
+</header>
+<!-- 4-Step Registration Progress Indicator -->
+<nav aria-label="Registration Progress" class="w-full">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<!-- Step 1 -->
+<div class="step-tab bg-primary text-on-primary rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300 shadow-sm" id="step-tab-1">
+<div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-title-md text-title-md shrink-0">
+              01
+            </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary-fixed truncate">Current</span>
+<span class="font-label-md text-label-md truncate">Registration</span>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="step-tab bg-surface-container text-on-surface-variant rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300" id="step-tab-2">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center font-title-md text-title-md shrink-0">
+              02
+            </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline truncate">Verification</span>
+<span class="font-label-md text-label-md truncate">Review</span>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="step-tab bg-surface-container text-on-surface-variant rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300" id="step-tab-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center font-title-md text-title-md shrink-0">
+              03
+            </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline truncate">Fee Status</span>
+<span class="font-label-md text-label-md truncate">Payment</span>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="step-tab bg-surface-container text-on-surface-variant rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300" id="step-tab-4">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center font-title-md text-title-md shrink-0">
+              04
+            </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline truncate">Finalized</span>
+<span class="font-label-md text-label-md truncate">Confirmation</span>
+</div>
+</div>
+</div>
+</nav>
+<!-- Main Step Forms & Containers -->
+<div class="w-full flex flex-col">
+<!-- ==================== STEP 01: REGISTRATION ==================== -->
+<section class="step-view flex flex-col gap-space-lg w-full" id="step-view-1">
+<div class="bg-surface-container-lowest rounded-xl p-space-md sm:p-space-xl shadow-md flex flex-col gap-space-lg">
+<!-- Form Header -->
+<div class="flex flex-col gap-1 pb-space-xs">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<h2 class="font-headline-md text-headline-md text-primary">Participant Information</h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Please provide accurate information to register for Darul Islam Camp.
+              </p>
+</div>
+<form class="flex flex-col gap-space-xl" id="dic-reg-form" onsubmit="event.preventDefault(); goToStep(2);">
+<!-- Section A: Personal Information -->
+<fieldset class="flex flex-col gap-space-md">
+<legend class="font-title-md text-title-md text-primary flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-lg">badge</span>
+<span>Section A: Personal Information</span>
+</legend>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Full Name -->
+<div class="flex flex-col gap-1.5 md:col-span-2">
+<label class="font-label-md text-label-md text-on-surface flex items-center justify-between" for="reg-fullname">
+<span>Full Name <span aria-hidden="true" class="text-error">*</span></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-xs">As legally recognized</span>
+</label>
+<input class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-fullname" name="fullname" placeholder="Enter your legal full name" required="" type="text"/>
+</div>
+<!-- Address -->
+<div class="flex flex-col gap-1.5 md:col-span-2">
+<label class="font-label-md text-label-md text-on-surface" for="reg-address">
+                      Address <span aria-hidden="true" class="text-error">*</span>
+</label>
+<textarea class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38] resize-y" id="reg-address" name="address" placeholder="Residential address, city, state" required="" rows="3"></textarea>
+</div>
+<!-- Phone Number -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-phone">
+                      Phone Number <span aria-hidden="true" class="text-error">*</span>
+</label>
+<input class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-phone" name="phone" placeholder="+234 ..." required="" type="tel"/>
+</div>
+<!-- Email Address -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-email">
+                      Email Address <span aria-hidden="true" class="text-error">*</span>
+</label>
+<input class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-email" name="email" placeholder="name@example.com" required="" type="email"/>
+</div>
+<!-- Date of Birth -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-dob">
+                      Date of Birth <span aria-hidden="true" class="text-error">*</span>
+</label>
+<input class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-dob" name="dob" required="" type="date"/>
+</div>
+<!-- Sex (Male or Female) -->
+<div class="flex flex-col gap-1.5">
+<span class="font-label-md text-label-md text-on-surface">
+                      Sex <span aria-hidden="true" class="text-error">*</span>
+</span>
+<div class="grid grid-cols-2 gap-3 pt-1">
+<label class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="accent-primary w-4 h-4" name="sex" required="" type="radio" value="Male"/>
+<span class="font-body-md text-body-md text-on-surface">Male</span>
+</label>
+<label class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="accent-primary w-4 h-4" name="sex" required="" type="radio" value="Female"/>
+<span class="font-body-md text-body-md text-on-surface">Female</span>
+</label>
+</div>
+</div>
+</div>
+</fieldset>
+<!-- Section B: Physical Information -->
+<fieldset class="flex flex-col gap-space-md">
+<legend class="font-title-md text-title-md text-primary flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-secondary text-lg">accessibility_new</span>
+<span>Section B: Physical Information</span>
+</legend>
+<div class="bg-surface-container-low/70 rounded-lg p-3 text-on-surface-variant font-body-sm text-body-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-secondary">info</span>
+<span>Required for camp logistics and activity planning.</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Height (cm) -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-height">
+                      Height <span aria-hidden="true" class="text-error">*</span>
+</label>
+<div class="relative flex items-center">
+<input class="w-full bg-surface-container-low text-on-surface rounded-lg pl-4 pr-14 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-height" max="260" min="50" name="height" placeholder="e.g. 175" required="" step="1" type="number"/>
+<span class="absolute right-3 bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm px-2 py-1 rounded">cm</span>
+</div>
+</div>
+<!-- Weight (kg) -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-weight">
+                      Weight <span aria-hidden="true" class="text-error">*</span>
+</label>
+<div class="relative flex items-center">
+<input class="w-full bg-surface-container-low text-on-surface rounded-lg pl-4 pr-14 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-weight" max="250" min="20" name="weight" placeholder="e.g. 70" required="" step="0.5" type="number"/>
+<span class="absolute right-3 bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm px-2 py-1 rounded">kg</span>
+</div>
+</div>
+</div>
+</fieldset>
+<!-- Section C: Academic & Occupational Information -->
+<fieldset class="flex flex-col gap-space-md">
+<legend class="font-title-md text-title-md text-primary flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-lg">school</span>
+<span>Section C: Academic &amp; Occupational Information</span>
+</legend>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<!-- Academic Status -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-academic">
+                      Academic Status <span aria-hidden="true" class="text-error">*</span>
+</label>
+<select class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-academic" name="academic_status" required="">
+<option disabled="" selected="" value="">Select your current status</option>
+<option value="Student — Primary">Student — Primary</option>
+<option value="Student — Secondary">Student — Secondary</option>
+<option value="Student — Tertiary">Student — Tertiary</option>
+</select>
+</div>
+<!-- Occupation -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-md text-label-md text-on-surface" for="reg-occupation">
+                      Occupation <span aria-hidden="true" class="text-error">*</span>
+</label>
+<select class="w-full bg-surface-container-low text-on-surface rounded-lg px-4 py-3 font-body-md text-body-md transition-shadow focus:outline-none focus:bg-surface-container-lowest focus:shadow-[0_0_0_2px_#0f4d38]" id="reg-occupation" name="occupation" required="">
+<option disabled="" selected="" value="">Select your occupation</option>
+<option value="Civil Servant">Civil Servant</option>
+<option value="Business">Business</option>
+<option value="Trader">Trader</option>
+<option value="Entrepreneur">Entrepreneur</option>
+</select>
+</div>
+</div>
+</fieldset>
+<!-- Section D: Marital Status -->
+<fieldset class="flex flex-col gap-space-md">
+<legend class="font-title-md text-title-md text-primary flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-lg">diversity_1</span>
+<span>Section D: Marital Status</span>
+</legend>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<label class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="accent-primary w-4 h-4" name="marital_status" required="" type="radio" value="Single"/>
+<span class="font-body-md text-body-md text-on-surface">Single</span>
+</label>
+<label class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="accent-primary w-4 h-4" name="marital_status" required="" type="radio" value="Married"/>
+<span class="font-body-md text-body-md text-on-surface">Married</span>
+</label>
+<label class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="accent-primary w-4 h-4" name="marital_status" required="" type="radio" value="Divorcee"/>
+<span class="font-body-md text-body-md text-on-surface">Divorcee</span>
+</label>
+<label class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="accent-primary w-4 h-4" name="marital_status" required="" type="radio" value="Widow / Widower"/>
+<span class="font-body-md text-body-md text-on-surface">Widow / Widower</span>
+</label>
+</div>
+</fieldset>
+<!-- Data & Privacy Notice -->
+<div class="bg-surface-container-low p-4 rounded-lg flex items-start gap-3">
+<span class="material-symbols-outlined text-primary shrink-0 mt-0.5">shield</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Your information will be used to process your DIC registration and manage your participation. By continuing, you agree to our 
+                  <a class="underline text-primary font-semibold hover:text-primary-container" href="#">Privacy Policy</a>.
+                </p>
+</div>
+<!-- Form Actions -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-space-sm">
+<a class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary font-label-md text-label-md py-3 px-4 rounded-lg transition-colors" data-path="dic" href="#">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+<span>Back to DIC</span>
+</a>
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-tertiary-container text-on-primary font-label-md text-label-md px-8 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all" type="submit">
+<span>Continue to Review</span>
+<span class="material-symbols-outlined text-base">arrow_forward</span>
+</button>
+</div>
+</form>
+</div>
+</section>
+<!-- ==================== STEP 02: REVIEW ==================== -->
+<section class="step-view hidden flex flex-col gap-space-lg w-full" id="step-view-2">
+<div class="bg-surface-container-lowest rounded-xl p-space-md sm:p-space-xl shadow-md flex flex-col gap-space-lg">
+<div class="flex flex-col gap-1 pb-space-xs">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<h2 class="font-headline-md text-headline-md text-primary">Review Your Registration Details</h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Please verify all entered information before proceeding to payment preparation.
+              </p>
+</div>
+<!-- Review Details Grid -->
+<div class="flex flex-col gap-space-md">
+<!-- Section A Review -->
+<div class="bg-surface-container-low/60 rounded-lg p-space-md flex flex-col gap-3">
+<div class="flex items-center justify-between pb-2 border-b border-surface-variant/40">
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-base">badge</span>
+<span>Personal Information</span>
+</h3>
+<button class="text-secondary hover:text-primary font-label-md text-label-md inline-flex items-center gap-1" onclick="goToStep(1)" type="button">
+<span class="material-symbols-outlined text-xs">edit</span>
+<span>Edit</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Full Name</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-fullname">[Not provided]</p>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Sex</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-sex">[Not provided]</p>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Phone Number</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-phone">[Not provided]</p>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Email Address</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-email">[Not provided]</p>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Date of Birth</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-dob">[Not provided]</p>
+</div>
+<div class="md:col-span-2">
+<span class="font-label-sm text-label-sm uppercase text-outline">Residential Address</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-address">[Not provided]</p>
+</div>
+</div>
+</div>
+<!-- Section B Review -->
+<div class="bg-surface-container-low/60 rounded-lg p-space-md flex flex-col gap-3">
+<div class="flex items-center justify-between pb-2 border-b border-surface-variant/40">
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-base">accessibility_new</span>
+<span>Physical Information</span>
+</h3>
+<button class="text-secondary hover:text-primary font-label-md text-label-md inline-flex items-center gap-1" onclick="goToStep(1)" type="button">
+<span class="material-symbols-outlined text-xs">edit</span>
+<span>Edit</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Height</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-height">[Not provided]</p>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Weight</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-weight">[Not provided]</p>
+</div>
+</div>
+</div>
+<!-- Section C Review -->
+<div class="bg-surface-container-low/60 rounded-lg p-space-md flex flex-col gap-3">
+<div class="flex items-center justify-between pb-2 border-b border-surface-variant/40">
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-base">school</span>
+<span>Academic &amp; Occupational Information</span>
+</h3>
+<button class="text-secondary hover:text-primary font-label-md text-label-md inline-flex items-center gap-1" onclick="goToStep(1)" type="button">
+<span class="material-symbols-outlined text-xs">edit</span>
+<span>Edit</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Academic Status</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-academic">[Not provided]</p>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase text-outline">Occupation</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-occupation">[Not provided]</p>
+</div>
+</div>
+</div>
+<!-- Section D Review -->
+<div class="bg-surface-container-low/60 rounded-lg p-space-md flex flex-col gap-3">
+<div class="flex items-center justify-between pb-2 border-b border-surface-variant/40">
+<h3 class="font-title-md text-title-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-base">diversity_1</span>
+<span>Marital Status</span>
+</h3>
+<button class="text-secondary hover:text-primary font-label-md text-label-md inline-flex items-center gap-1" onclick="goToStep(1)" type="button">
+<span class="material-symbols-outlined text-xs">edit</span>
+<span>Edit</span>
+</button>
+</div>
+<div class="pt-2">
+<span class="font-label-sm text-label-sm uppercase text-outline">Selected Status</span>
+<p class="font-body-md text-body-md text-on-surface font-medium" id="review-marital">[Not provided]</p>
+</div>
+</div>
+</div>
+<!-- Review Actions -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-space-sm">
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-on-surface-variant hover:text-primary font-label-md text-label-md py-3 px-4 rounded-lg transition-colors" onclick="goToStep(1)" type="button">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+<span>Back to Edit</span>
+</button>
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-tertiary-container text-on-primary font-label-md text-label-md px-8 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all" onclick="goToStep(3)" type="button">
+<span>Continue to Payment</span>
+<span class="material-symbols-outlined text-base">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- ==================== STEP 03: PAYMENT ==================== -->
+<section class="step-view hidden flex flex-col gap-space-lg w-full" id="step-view-3">
+<div class="bg-surface-container-lowest rounded-xl p-space-md sm:p-space-xl shadow-md flex flex-col gap-space-lg">
+<div class="flex flex-col gap-1 pb-space-xs">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<h2 class="font-headline-md text-headline-md text-primary">Camp Registration Fee</h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                Payment status and fee transmission pipeline for Darul Islam Camp.
+              </p>
+</div>
+<!-- Fee Announcement Card -->
+<div class="bg-surface-container-low rounded-xl p-space-md sm:p-space-lg flex flex-col gap-space-md items-center text-center">
+<div class="w-16 h-16 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-3xl">payments</span>
+</div>
+<div class="flex flex-col gap-1 max-w-lg">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">REGISTRATION FEE</span>
+<h3 class="font-headline-lg text-headline-lg text-primary">To be announced</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">
+                  Official camp logistics and delegate fees are currently undergoing foundational review. Payment gateway integration will be active once official fees are published.
+                </p>
+</div>
+<div class="bg-surface-container p-4 rounded-lg text-left max-w-md w-full flex items-start gap-3">
+<span class="material-symbols-outlined text-primary shrink-0 mt-0.5">verified_user</span>
+<p class="font-body-sm text-body-sm text-on-surface">
+                  Your participant record has been securely drafted in the DIC delegate system. You may submit your reservation now and receive payment instructions once finalized.
+                </p>
+</div>
+</div>
+<!-- Step 3 Actions -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-space-sm">
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-on-surface-variant hover:text-primary font-label-md text-label-md py-3 px-4 rounded-lg transition-colors" onclick="goToStep(2)" type="button">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+<span>Back to Review</span>
+</button>
+<button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-tertiary-container text-on-primary font-label-md text-label-md px-8 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all" onclick="goToStep(4)" type="button">
+<span class="material-symbols-outlined text-base">check_circle</span>
+<span>Complete Registration</span>
+</button>
+</div>
+</div>
+</section>
+<!-- ==================== STEP 04: CONFIRMATION ==================== -->
+<section class="step-view hidden flex flex-col gap-space-lg w-full" id="step-view-4">
+<div class="bg-surface-container-lowest rounded-xl p-space-md sm:p-space-2xl shadow-md flex flex-col items-center text-center gap-space-lg">
+<div class="relative flex items-center justify-center">
+<div class="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-lg">
+<span class="material-symbols-outlined text-4xl">task_alt</span>
+</div>
+</div>
+<div class="flex flex-col gap-2 max-w-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">ALHAMDULILLAH</span>
+<h2 class="font-headline-lg text-headline-lg text-primary">Registration Confirmed</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-2">
+                Your registration for Darul Islam Camp has been successfully completed. Official delegate communiqués will be transmitted to your email once registration closes.
+              </p>
+</div>
+<!-- Metadata Box -->
+<div class="bg-surface-container-low rounded-lg p-space-md max-w-md w-full flex flex-col gap-3 text-left">
+<div class="flex justify-between items-center pb-2 border-b border-surface-variant/30">
+<span class="font-label-sm text-label-sm text-outline uppercase">Initiative</span>
+<span class="font-label-md text-label-md text-primary font-semibold">Darul Islam Camp (DIC)</span>
+</div>
+<div class="flex justify-between items-center pb-2 border-b border-surface-variant/30">
+<span class="font-label-sm text-label-sm text-outline uppercase">Delegate Name</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold" id="conf-name">[Participant]</span>
+</div>
+<div class="flex justify-between items-center pb-2 border-b border-surface-variant/30">
+<span class="font-label-sm text-label-sm text-outline uppercase">Status</span>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary font-bold bg-primary-fixed/50 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-xs">check</span> RECORD CREATED
+                </span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-label-sm text-label-sm text-outline uppercase">Camp Details</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">To be announced</span>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row gap-4 pt-space-xs">
+<a class="inline-flex items-center justify-center gap-2 bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md px-6 py-3 rounded-lg transition-colors" data-path="dic" href="#">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+<span>Return to DIC Portal</span>
+</a>
+<a class="inline-flex items-center justify-center gap-2 bg-primary hover:bg-tertiary-container text-on-primary font-label-md text-label-md px-6 py-3 rounded-lg transition-colors" data-path="home" href="#">
+<span>Dawana Foundation Home</span>
+<span class="material-symbols-outlined text-base">home</span>
+</a>
+</div>
+</div>
+</section>
+</div>
+<!-- Institutional Assurance Note -->
+<div class="text-center py-4 text-on-surface-variant font-body-sm text-body-sm">
+        Dawana Islamic Foundation • Preserving Sacred Knowledge • Uplifting Communities
+      </div>
+</div>
+</main>
+<!-- ==================== GLOBAL FOOTER ==================== -->
+<footer class="w-full bg-tertiary text-on-tertiary pt-space-xl pb-space-lg mt-auto">
+<div class="max-w-7xl mx-auto px-gutter-mobile lg:px-margin-desktop">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-space-lg pb-space-lg border-b border-tertiary-container">
+<!-- Logo & Mission -->
+<div class="md:col-span-2 flex flex-col gap-space-xs">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-surface-bright">Dawana</span>
+<span class="font-label-sm text-[10px] text-secondary-fixed uppercase tracking-widest">ISLAMIC FOUNDATION</span>
+</div>
+<p class="font-body-md text-body-md text-on-tertiary-container max-w-md">
+            Dedicated to classical Islamic scholarship, compassionate humanitarian engagement, and community empowerment across Nigeria since 1994.
+          </p>
+<div class="pt-space-2xs">
+<span class="inline-block px-3 py-1 rounded bg-tertiary-container font-body-sm text-secondary-fixed font-medium">
+              « رِضْوَانُ اللَّهِ أَكْبَرُ » | “Allah’s Pleasure is the greatest”
+            </span>
+</div>
+</div>
+<!-- Institutional Links -->
+<div class="flex flex-col gap-space-2xs">
+<span class="font-label-md text-label-md text-secondary-fixed uppercase tracking-wider mb-2">Institutional</span>
+<nav class="flex flex-col gap-2">
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="about" href="#">About the Foundation</a>
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="what-we-do" href="#">What We Do</a>
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="dic" href="#">Dawana Islamic Centre (DIC)</a>
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="programs" href="#">Educational Programs</a>
+</nav>
+</div>
+<!-- Engagement Links -->
+<div class="flex flex-col gap-space-2xs">
+<span class="font-label-md text-label-md text-secondary-fixed uppercase tracking-wider mb-2">Engagement</span>
+<nav class="flex flex-col gap-2">
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="projects" href="#">Civic Projects</a>
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="events" href="#">Events Calendar</a>
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="media" href="#">Media &amp; Archives</a>
+<a class="font-body-sm text-body-sm text-on-tertiary-container hover:text-on-tertiary transition-colors" data-path="get-involved" href="#">Get Involved</a>
+<a class="font-body-sm text-body-sm text-secondary-fixed hover:underline transition-colors" data-path="donate" href="#">Support Our Work</a>
+</nav>
+</div>
+</div>
+<div class="pt-space-md flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+<p class="font-body-sm text-body-sm text-on-tertiary-container">© 1994–2025 Dawana Islamic Foundation. All rights reserved.</p>
+<p class="font-body-sm text-body-sm text-on-tertiary-container">Preserving Sacred Knowledge • Uplifting Communities</p>
+</div>
+</div>
+</footer>
+<script>
+    function goToStep(stepNumber) {
+      if (stepNumber === 2) {
+        const fullname = document.getElementById('reg-fullname').value || '[Not provided]';
+        const address = document.getElementById('reg-address').value || '[Not provided]';
+        const phone = document.getElementById('reg-phone').value || '[Not provided]';
+        const email = document.getElementById('reg-email').value || '[Not provided]';
+        const dob = document.getElementById('reg-dob').value || '[Not provided]';
+        
+        const sexInput = document.querySelector('input[name="sex"]:checked');
+        const sex = sexInput ? sexInput.value : '[Not provided]';
+        
+        const height = document.getElementById('reg-height').value ? document.getElementById('reg-height').value + ' cm' : '[Not provided]';
+        const weight = document.getElementById('reg-weight').value ? document.getElementById('reg-weight').value + ' kg' : '[Not provided]';
+        
+        const academic = document.getElementById('reg-academic').value || '[Not provided]';
+        const occupation = document.getElementById('reg-occupation').value || '[Not provided]';
+        
+        const maritalInput = document.querySelector('input[name="marital_status"]:checked');
+        const marital = maritalInput ? maritalInput.value : '[Not provided]';
+
+        document.getElementById('review-fullname').textContent = fullname;
+        document.getElementById('review-address').textContent = address;
+        document.getElementById('review-phone').textContent = phone;
+        document.getElementById('review-email').textContent = email;
+        document.getElementById('review-dob').textContent = dob;
+        document.getElementById('review-sex').textContent = sex;
+        document.getElementById('review-height').textContent = height;
+        document.getElementById('review-weight').textContent = weight;
+        document.getElementById('review-academic').textContent = academic;
+        document.getElementById('review-occupation').textContent = occupation;
+        document.getElementById('review-marital').textContent = marital;
+
+        const confName = document.getElementById('conf-name');
+        if (confName) confName.textContent = fullname;
+      }
+
+      for (let i = 1; i <= 4; i++) {
+        const view = document.getElementById('step-view-' + i);
+        const tab = document.getElementById('step-tab-' + i);
+        
+        if (view) {
+          if (i === stepNumber) {
+            view.classList.remove('hidden');
+          } else {
+            view.classList.add('hidden');
+          }
+        }
+
+        if (tab) {
+          if (i === stepNumber) {
+            tab.className = 'step-tab bg-primary text-on-primary rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300 shadow-sm';
+            const indicator = tab.querySelector('div:first-child');
+            if (indicator) indicator.className = 'w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-title-md text-title-md shrink-0';
+            const sublabel = tab.querySelector('span:first-child');
+            if (sublabel) sublabel.className = 'font-label-sm text-label-sm uppercase tracking-wider text-secondary-fixed truncate';
+          } else if (i < stepNumber) {
+            tab.className = 'step-tab bg-surface-container-high text-primary rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300 cursor-pointer';
+            const indicator = tab.querySelector('div:first-child');
+            if (indicator) indicator.className = 'w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-title-md text-title-md shrink-0';
+            const sublabel = tab.querySelector('span:first-child');
+            if (sublabel) sublabel.className = 'font-label-sm text-label-sm uppercase tracking-wider text-outline truncate';
+            tab.onclick = () => goToStep(i);
+          } else {
+            tab.className = 'step-tab bg-surface-container text-on-surface-variant rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all duration-300 opacity-60';
+            const indicator = tab.querySelector('div:first-child');
+            if (indicator) indicator.className = 'w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center font-title-md text-title-md shrink-0';
+            const sublabel = tab.querySelector('span:first-child');
+            if (sublabel) sublabel.className = 'font-label-sm text-label-sm uppercase tracking-wider text-outline truncate';
+            tab.onclick = null;
+          }
+        }
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body></html>

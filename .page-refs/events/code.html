@@ -1,0 +1,307 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><style>@layer base { html, body { margin: 0; padding: 0; min-height: 100%; } body { overflow-y: auto; } } ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: #f1fcf7; } ::-webkit-scrollbar-thumb { background: #c0c9c2; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #707973; }</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      "colors": {
+        "surface-container-low": "#ebf6f1",
+        "primary-container": "#0f4d38",
+        "primary-fixed": "#b3efd2",
+        "on-primary-fixed-variant": "#14503b",
+        "error-container": "#ffdad6",
+        "secondary": "#7b5900",
+        "on-tertiary-fixed-variant": "#00513a",
+        "on-secondary-fixed": "#261900",
+        "error": "#ba1a1a",
+        "primary": "#003524",
+        "outline-variant": "#c0c9c2",
+        "on-primary-container": "#83bda2",
+        "surface-tint": "#306952",
+        "tertiary-fixed-dim": "#90d5b5",
+        "on-secondary-fixed-variant": "#5d4200",
+        "secondary-fixed": "#ffdea4",
+        "inverse-on-surface": "#e8f3ee",
+        "inverse-surface": "#283230",
+        "outline": "#707973",
+        "on-primary-fixed": "#002115",
+        "primary-fixed-dim": "#98d3b7",
+        "tertiary-fixed": "#abf1d0",
+        "surface-container": "#e5f0ec",
+        "on-tertiary": "#ffffff",
+        "on-surface-variant": "#404944",
+        "surface-variant": "#dae5e0",
+        "surface-container-lowest": "#ffffff",
+        "secondary-container": "#fcca66",
+        "tertiary-container": "#004e37",
+        "surface-container-high": "#e0ebe6",
+        "on-secondary-container": "#755400",
+        "on-tertiary-fixed": "#002115",
+        "on-secondary": "#ffffff",
+        "surface-dim": "#d2dcd8",
+        "on-tertiary-container": "#7bbfa0",
+        "surface": "#f1fcf7",
+        "background": "#f1fcf7",
+        "on-primary": "#ffffff",
+        "secondary-fixed-dim": "#f0bf5c",
+        "on-surface": "#141d1b",
+        "on-background": "#141d1b",
+        "surface-container-highest": "#dae5e0",
+        "tertiary": "#003524",
+        "on-error": "#ffffff",
+        "surface-bright": "#f1fcf7",
+        "on-error-container": "#93000a",
+        "inverse-primary": "#98d3b7"
+      },
+      "borderRadius": {
+        "DEFAULT": "0.25rem",
+        "lg": "0.5rem",
+        "xl": "0.75rem",
+        "full": "9999px"
+      },
+      "spacing": {
+        "space-md": "1.5rem",
+        "space-lg": "2rem",
+        "space-2xs": "0.5rem",
+        "margin-desktop": "4rem",
+        "space-xl": "3rem",
+        "space-3xl": "6rem",
+        "space-sm": "1rem",
+        "gutter-desktop": "2rem",
+        "margin-mobile": "1.25rem",
+        "gutter-mobile": "1rem",
+        "space-2xl": "4rem",
+        "space-xs": "0.75rem",
+        "space-3xs": "0.25rem"
+      },
+      "fontFamily": {
+        "headline-sm": ["Playfair Display"],
+        "label-sm": ["Plus Jakarta Sans"],
+        "body-sm": ["Plus Jakarta Sans"],
+        "display-lg": ["Playfair Display"],
+        "label-md": ["Plus Jakarta Sans"],
+        "body-lg": ["Plus Jakarta Sans"],
+        "headline-lg": ["Playfair Display"],
+        "body-md": ["Plus Jakarta Sans"],
+        "headline-lg-mobile": ["Playfair Display"],
+        "display-lg-mobile": ["Playfair Display"],
+        "title-md": ["Plus Jakarta Sans"],
+        "headline-md": ["Playfair Display"]
+      },
+      "fontSize": {
+        "headline-sm": ["22px", { "lineHeight": "30px", "fontWeight": "600" }],
+        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "700" }],
+        "body-sm": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+        "display-lg": ["56px", { "lineHeight": "68px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+        "headline-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+        "body-md": ["15px", { "lineHeight": "24px", "fontWeight": "400" }],
+        "headline-lg-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+        "display-lg-mobile": ["38px", { "lineHeight": "46px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+        "title-md": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+        "headline-md": ["28px", { "lineHeight": "36px", "fontWeight": "500" }]
+      }
+    }
+  }
+};</script></head><body class="bg-background text-on-surface font-body-md selection:bg-secondary-fixed selection:text-on-secondary-fixed min-h-screen flex flex-col antialiased overflow-y-auto">
+<!-- 1. APPROVED GLOBAL HEADER & BRANDING -->
+<header class="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+<!-- Top Identity Bar (#0c3b2b) -->
+<div class="bg-[#0c3b2b] text-white py-1.5 px-4 sm:px-8 text-[11px] font-label-sm tracking-wider">
+<div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1">
+<div class="flex items-center gap-1.5 text-primary-fixed">
+<span class="">• DAWANA ISLAMIC FOUNDATION • Established 1994 · Formerly The Islamic Front</span>
+</div>
+<div class="flex items-center gap-2 text-surface">
+<span class="font-medium">« رِضْوَانُ اللَّهِ أَكْبَرُ »</span>
+<span class="opacity-90">• “Allah’s Pleasure is the greatest”</span>
+</div>
+</div>
+</div>
+<!-- Main Navigation Row -->
+<div class="h-20 max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between gap-4">
+<!-- Left: Official Approved Brand Logo Lockup -->
+<a class="flex items-center gap-3 shrink-0 focus:outline-none" href="#"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbelbr3gVsmIhowJ86mYNUY_VqH-CC6ZqBDARSuYCbM-6WwpyNypO2PwYWwvALsx6GvcrTr0IitSKRVMIZAx_V6CSdk1_LoDa46xGTHDG1zK0Do-gwryqd0K7FIZewpS5CcE2FsCndppXWDHYJggCCnEImJKkOI7A4nV7-nOoVGiuyu0T1WPEvjGv6_2O-rvEo0VafjD_E4UiH1G3BpCHJHVA0imzunF2so6ogCjfs9823zu7hM-EZzcYv1hIIQMqGFw" alt="Da'wãnã Islamic Foundation" class="h-12 w-auto object-contain"><div class="flex flex-col"><span class="font-serif font-bold text-lg md:text-xl text-[#0f4d38] tracking-tight leading-tight">Da'wãnã</span><span class="text-[10px] tracking-[0.2em] font-sans font-bold uppercase text-secondary">ISLAMIC FOUNDATION</span></div></a>
+<!-- Center Navigation: Rounded Pill Container -->
+<nav class="hidden lg:flex items-center bg-[#ebf5f0] border border-[#d6e8df] rounded-full px-2 py-1 gap-1 shadow-sm">
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">Home</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">About</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">What We Do</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">Programs</a>
+<a aria-current="page" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#0f4d38] text-white shadow-sm transition-colors" href="#">Events</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">Projects</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">DIC</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">Media</a>
+<a class="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#003524] hover:bg-[#dcedea] transition-colors" href="#">Get Involved</a>
+</nav>
+<!-- Right: Login & Donate -->
+<div class="flex items-center gap-3">
+<a class="hidden sm:inline-flex text-xs font-semibold text-[#003524] hover:text-[#0f4d38] transition-colors px-2 py-1" href="#">Login</a>
+<a class="inline-flex items-center justify-center px-4 py-2 bg-[#0f4d38] hover:bg-[#0c3b2b] text-white rounded-lg text-xs font-bold shadow-sm transition-all" href="#">Donate</a>
+<!-- Accessible Cross-Browser Hamburger Button -->
+<button aria-label="Open Navigation Menu" class="lg:hidden p-2 text-[#003524] hover:bg-surface-container rounded-lg focus:outline-none flex items-center justify-center" onclick="toggleMobileNav(true)" type="button">
+<svg class="w-6 h-6 stroke-current stroke-2" fill="none" viewBox="0 0 24 24">
+<line stroke-linecap="round" x1="3" x2="21" y1="6" y2="6"></line>
+<line stroke-linecap="round" x1="3" x2="21" y1="12" y2="12"></line>
+<line stroke-linecap="round" x1="3" x2="21" y1="18" y2="18"></line>
+</svg>
+</button>
+</div>
+</div>
+</header>
+<!-- Mobile Navigation Modal / Full-Width Drawer -->
+<div class="fixed inset-0 z-50 bg-[#0b3d2c] text-white hidden flex-col justify-between overflow-y-auto" id="mobileDrawer">
+<div class="p-6 flex flex-col gap-6">
+<!-- Drawer Header -->
+<div class="flex items-center justify-between border-b border-[#14503b] pb-4">
+<div class="flex items-center gap-2.5"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUSC1jb7bvCkBfLL3UuWt_Crfw9DufvGpFHOql5ivJyB-WNp5tUwAzCpj57wtfF8UXs5fmFqcceYXBzW-n4zkWECwY7Nkxc2T10KQNe2xmT8V_VqQu8nPd4jYpXZNWiTgo6iF3OWfTImJiSZM61CQPFvBUFDJz4lNDzJhICTb9IeURU8yCyiTpk-ki29TcwPDBKOfyogPR_EAZluRCzMxvgSqzL_yfLHn-adqoKMK8tMpdRC0IWFefvVMSLZl-2hFjWQ" alt="Da'wãnã Islamic Foundation" class="h-10 w-auto object-contain"><div class="flex flex-col"><span class="text-xl font-bold font-serif text-white leading-none">Da'wãnã</span><span class="text-[9px] uppercase font-bold tracking-[0.2em] text-[#f0bf5c] mt-1">ISLAMIC FOUNDATION</span></div></div>
+<button aria-label="Close Navigation Menu" class="p-2 rounded-lg text-white/90 hover:text-white hover:bg-[#14503b] transition-colors focus:outline-none" onclick="toggleMobileNav(false)" type="button">
+<svg class="w-6 h-6 stroke-current stroke-2" fill="none" viewBox="0 0 24 24">
+<line stroke-linecap="round" x1="18" x2="6" y1="6" y2="18"></line>
+<line stroke-linecap="round" x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+</div>
+<!-- Navigation Links -->
+<nav class="flex flex-col gap-1.5 font-medium text-base">
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">Home</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">About</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">What We Do</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">Programs</a>
+<a class="px-4 py-2.5 rounded-lg bg-[#0f4d38] text-white font-semibold flex items-center justify-between shadow-sm" href="#" onclick="toggleMobileNav(false)">
+<span class="">Events</span>
+<span class="w-2 h-2 rounded-full bg-secondary-fixed"></span>
+</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">Projects</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">DIC</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">Media</a>
+<a class="px-4 py-2.5 rounded-lg hover:bg-[#14503b] transition-colors" href="#" onclick="toggleMobileNav(false)">Get Involved</a>
+</nav>
+</div>
+<!-- Bottom Drawer Actions -->
+<div class="p-6 border-t border-[#14503b] flex flex-col gap-3 bg-[#082e21]">
+<div class="flex items-center justify-between text-xs text-primary-fixed mb-1">
+<span class="">« رِضْوَانُ اللَّهِ أَكْبَرُ »</span>
+<span class="">Est. 1994</span>
+</div>
+<a class="w-full text-center py-2.5 rounded-lg border border-primary-fixed/40 text-sm font-semibold text-primary-fixed hover:bg-[#14503b]" href="#" onclick="toggleMobileNav(false)">Login</a>
+<a class="w-full text-center py-3 bg-[#fcca66] hover:bg-[#f0bf5c] text-[#261900] rounded-lg font-bold text-sm shadow-md transition-colors" href="#" onclick="toggleMobileNav(false)">Donate</a>
+</div>
+</div>
+<script>
+  function toggleMobileNav(open) {
+    const drawer = document.getElementById('mobileDrawer');
+    if (!drawer) return;
+    if (open) {
+      drawer.classList.remove('hidden');
+      drawer.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    } else {
+      drawer.classList.add('hidden');
+      drawer.classList.remove('flex');
+      document.body.style.overflow = '';
+    }
+  }
+</script>
+<!-- MAIN CONTENT WRAPPER WITH NATURAL VERTICAL FLOW -->
+<main class="w-full pt-28 bg-surface flex-grow">
+<div class="flex flex-col w-full">
+<!-- 2. HERO SECTION: LEFT-ALIGNED EDITORIAL LAYOUT -->
+<section class="w-full bg-surface px-gutter-mobile lg:px-gutter-desktop py-space-xl relative overflow-hidden border-b border-surface-container">
+<!-- Subtle Islamic Geometric Rosette Tracery in Background -->
+<div class="absolute -right-20 -top-20 w-96 h-96 pointer-events-none opacity-[0.04] text-primary">
+<svg class="w-full h-full" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 200 200">
+<rect height="130" transform="rotate(0 100 100)" width="130" x="35" y="35"></rect>
+<rect height="130" transform="rotate(45 100 100)" width="130" x="35" y="35"></rect>
+<circle cx="100" cy="100" r="50"></circle>
+<circle cx="100" cy="100" r="80"></circle>
+<polygon points="100,20 120,80 180,100 120,120 100,180 80,120 20,100 80,80"></polygon>
+</svg>
+</div>
+<div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-start lg:items-end justify-between gap-space-lg relative z-10">
+<!-- Left Editorial Column -->
+<div class="max-w-3xl flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-2xs">
+<span class="h-0.5 w-6 bg-secondary"></span>
+<span class="font-label-sm text-label-sm text-secondary uppercase font-bold tracking-widest">Events</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary font-serif tracking-tight">
+            Events
+          </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed pt-1">
+            Stay informed about Dawana Islamic Foundation’s scheduled events, seminars, Ramadan activities and annual itinerary.
+          </p>
+</div>
+<!-- Right Supporting Editorial Panel -->
+
+</div>
+</section>
+<!-- 3. SCHEDULED & RECURRING EVENTS SECTION -->
+<section class="w-full bg-surface px-gutter-mobile lg:px-gutter-desktop py-space-2xl">
+<div class="max-w-7xl mx-auto flex flex-col gap-space-lg">
+<!-- Left-Aligned Section Header -->
+<div class="flex flex-col gap-1 max-w-2xl">
+<h2 class="font-headline-md text-headline-md text-primary font-serif">
+            Scheduled &amp; Recurring Events
+          </h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Key seminars and periodic assemblies organized by Dawana Islamic Foundation.
+          </p>
+</div>
+<!-- Distinct Event Cards Grid (Strict Authenticity) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- Event Card 1: Monthly Da’wah Seminar -->
+<article class="flex flex-col justify-between rounded-xl bg-surface-container-lowest border border-outline-variant/50 p-space-md shadow-sm hover:border-primary/40 transition-colors"><div class="flex flex-col gap-space-sm"><div class="flex items-center justify-between"><span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[11px] font-semibold uppercase tracking-wider">Recurring Seminar</span><span class="material-symbols-outlined text-secondary text-lg">event_repeat</span></div><div class="flex flex-col gap-1"><h3 class="font-headline-sm text-headline-sm text-primary font-serif">Monthly Da’wah Seminar</h3><p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">A recurring monthly Da’wah seminar.</p></div><div class="mt-2 p-3 rounded-lg bg-surface-container-low flex flex-col gap-2 font-body-sm text-xs border border-surface-container"><div class="flex items-start justify-between gap-2"><span class="text-on-surface-variant">Date:</span><span class="text-on-surface font-semibold text-right">To be announced</span></div></div></div><div class="pt-space-md mt-space-sm border-t border-surface-container"><div class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="">Periodic Assembly</span></div></div></article>
+<!-- Event Card 2: Quarterly Da’wah Seminar -->
+<article class="flex flex-col justify-between rounded-xl bg-surface-container-lowest border border-outline-variant/50 p-space-md shadow-sm hover:border-primary/40 transition-colors"><div class="flex flex-col gap-space-sm"><div class="flex items-center justify-between"><span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[11px] font-semibold uppercase tracking-wider">Recurring Seminar</span><span class="material-symbols-outlined text-secondary text-lg">calendar_view_month</span></div><div class="flex flex-col gap-1"><h3 class="font-headline-sm text-headline-sm text-primary font-serif">Quarterly Da’wah Seminar</h3><p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">A recurring quarterly Da’wah seminar.</p></div><div class="mt-2 p-3 rounded-lg bg-surface-container-low flex flex-col gap-2 font-body-sm text-xs border border-surface-container"><div class="flex items-start justify-between gap-2"><span class="text-on-surface-variant">Date:</span><span class="text-on-surface font-semibold text-right">To be announced</span></div></div></div><div class="pt-space-md mt-space-sm border-t border-surface-container"><div class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="">Quarterly Cadence</span></div></div></article>
+<!-- Event Card 3: Ramadan Tafseer at Iponri -->
+<article class="flex flex-col justify-between rounded-xl bg-surface-container-lowest border border-outline-variant/50 p-space-md shadow-sm hover:border-primary/40 transition-colors"><div class="flex flex-col gap-space-sm"><div class="flex items-center justify-between"><span class="px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-[11px] font-bold uppercase tracking-wider">Ramadan Observance</span><span class="material-symbols-outlined text-secondary text-lg">auto_stories</span></div><div class="flex flex-col gap-1"><h3 class="font-headline-sm text-headline-sm text-primary font-serif">Ramadan Tafseer at Iponri</h3><p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">Ramadan Tafseer at Iponri.</p></div><div class="mt-2 p-3 rounded-lg bg-surface-container-low flex flex-col gap-2 font-body-sm text-xs border border-surface-container"><div class="flex items-start justify-between gap-2"><span class="text-on-surface-variant">Location:</span><span class="text-on-surface font-semibold text-right">Iponri Central Mosque, Iponri, Surulere, Lagos</span></div><div class="flex items-start justify-between gap-2"><span class="text-on-surface-variant">Date:</span><span class="text-primary font-semibold text-right">To be announced</span></div></div></div><div class="pt-space-md mt-space-sm border-t border-surface-container"><div class="inline-flex items-center gap-1.5 text-xs font-semibold text-secondary"><span class="w-2 h-2 rounded-full bg-secondary"></span><span class="">Annual Seasonal Series</span></div></div></article>
+<!-- Event Card 4: Other Scheduled Events -->
+<article class="flex flex-col justify-between rounded-xl bg-surface-container-low/70 border border-dashed border-outline-variant p-space-md"><div class="flex flex-col gap-space-sm"><div class="flex items-center justify-between"><span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[11px] font-semibold uppercase tracking-wider">Upcoming Announcements</span><span class="material-symbols-outlined text-outline text-lg">schedule</span></div><div class="flex flex-col gap-1"><h3 class="font-headline-sm text-headline-sm text-primary font-serif">Other Scheduled Events</h3><p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">Other events will be announced as details become available.</p></div><div class="mt-2 p-3 rounded-lg bg-surface-container-low flex items-center justify-between gap-2 text-xs border border-surface-container"><span class="text-on-surface-variant">Details:</span><span class="text-on-surface font-semibold">To be announced</span></div></div><div class="pt-space-md mt-space-sm border-t border-surface-container"><span class="text-xs font-medium text-on-surface-variant">Status: Pending Schedule</span></div></article>
+</div>
+</div>
+</section>
+<!-- 4. ANNUAL ITINERARY / YEARLY CALENDAR SECTION -->
+<section class="w-full bg-surface-container-low px-gutter-mobile lg:px-gutter-desktop py-space-2xl border-t border-surface-container">
+<div class="max-w-7xl mx-auto flex flex-col gap-space-lg">
+<!-- Section Header -->
+<div class="flex flex-col gap-1 max-w-2xl">
+<div class="flex items-center gap-space-2xs text-secondary font-label-sm text-xs font-bold uppercase tracking-wider">
+<span class="material-symbols-outlined text-sm">event_note</span>
+<span class="">Annual Calendar</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-primary font-serif">
+            Annual Itinerary
+          </h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">Dates and details will be added as the yearly programme is confirmed.</p>
+</div>
+<!-- Chronological Quarterly Matrix / Timeline Grid -->
+<div class="w-full rounded-2xl bg-surface-container-lowest border border-outline-variant/50 p-space-xl flex flex-col items-center justify-center text-center shadow-sm"><div class="w-12 h-12 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-space-xs"><span class="material-symbols-outlined text-2xl">event_note</span></div><h3 class="font-headline-sm text-headline-sm text-primary font-serif mb-1">Yearly Programme in Preparation</h3><p class="font-body-md text-body-md text-on-surface-variant max-w-lg leading-relaxed">Dates and details will be added as the yearly programme is confirmed.</p></div>
+<!-- Authentic Notice Footer Strip -->
+<div class="p-4 rounded-xl bg-surface-container border border-outline-variant/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-on-surface-variant"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-base">info</span><span class="">Event details will be announced when confirmed.</span></div></div>
+</div>
+</section>
+</div>
+</main>
+<!-- 6. UNIFIED DAWANA INSTITUTIONAL FOOTER -->
+<footer class="w-full bg-surface-container-low mt-auto shadow-[0_-1px_8px_rgba(0,0,0,0.02)]">
+<div class="bg-surface-container py-space-sm px-gutter-mobile lg:px-margin-desktop">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-space-xs text-center md:text-left">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary">auto_stories</span>
+<span class="font-headline-sm text-headline-sm text-primary font-serif">Faith, Education &amp; Empowerment</span>
+</div>
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant">
+<span class="text-secondary font-bold">WATCHWORD:</span>
+<span class="font-medium text-primary">رِضْوَانُ اللهِ أَكْبَرُ</span>
+<span class="italic">— “Allah's Pleasure is the greatest”</span>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-gutter-mobile lg:px-gutter-desktop py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex items-center gap-3"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbelbr3gVsmIhowJ86mYNUY_VqH-CC6ZqBDARSuYCbM-6WwpyNypO2PwYWwvALsx6GvcrTr0IitSKRVMIZAx_V6CSdk1_LoDa46xGTHDG1zK0Do-gwryqd0K7FIZewpS5CcE2FsCndppXWDHYJggCCnEImJKkOI7A4nV7-nOoVGiuyu0T1WPEvjGv6_2O-rvEo0VafjD_E4UiH1G3BpCHJHVA0imzunF2so6ogCjfs9823zu7hM-EZzcYv1hIIQMqGFw" alt="Da'wãnã Islamic Foundation" class="h-10 w-auto object-contain"><div class="flex flex-col"><span class="font-serif font-bold text-lg text-[#0f4d38] tracking-tight leading-tight">Da'wãnã</span><span class="text-[9px] tracking-[0.2em] font-sans font-bold uppercase text-secondary">ISLAMIC FOUNDATION</span></div></div><nav class="flex flex-wrap items-center justify-center gap-space-xs md:gap-space-sm text-xs font-semibold text-[#003524]"><a class="hover:text-[#0f4d38] transition-colors" href="#">Home</a><a class="hover:text-[#0f4d38] transition-colors" href="#">About</a><a class="hover:text-[#0f4d38] transition-colors" href="#">What We Do</a><a class="hover:text-[#0f4d38] transition-colors" href="#">Programs</a><a class="hover:text-[#0f4d38] transition-colors" href="#">Events</a><a class="hover:text-[#0f4d38] transition-colors" href="#">Projects</a><a class="hover:text-[#0f4d38] transition-colors" href="#">DIC</a><a class="hover:text-[#0f4d38] transition-colors" href="#">Media</a><a class="hover:text-[#0f4d38] transition-colors" href="#">Get Involved</a></nav></div>
+<div class="bg-surface-container-high py-space-sm px-gutter-mobile lg:px-margin-desktop">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-space-xs font-label-sm text-label-sm text-on-surface-variant"><p class="">© Dawana Islamic Foundation. All rights reserved.</p></div>
+</div>
+</footer>
+
+
+</body></html>
