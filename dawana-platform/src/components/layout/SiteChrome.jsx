@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 const navigation = [
   ['Home', '/'],
@@ -38,6 +38,25 @@ export function Navbar() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const navigationTimer = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [open])
+
+  useEffect(() => () => window.clearTimeout(navigationTimer.current), [])
+
+  function closeAndNavigate(event, href) {
+    event.preventDefault()
+    window.clearTimeout(navigationTimer.current)
+    setOpen(false)
+    navigationTimer.current = window.setTimeout(() => navigate(href), 220)
+  }
 
   function goToHash(event, href) {
     setOpen(false)
@@ -70,11 +89,17 @@ export function Navbar() {
           <div className="nav-actions">
             <Link className="login-link" to="/login">Login</Link>
             <Link className="button button-small" to="/donate">Donate</Link>
-            <button className="menu-button" type="button" aria-label="Toggle navigation" aria-expanded={open} onClick={() => setOpen(!open)}><span /><span /><span /></button>
+            <button className="menu-button" type="button" aria-label={open ? 'Close navigation' : 'Open navigation'} aria-controls="mobile-navigation" aria-expanded={open} onClick={() => { window.clearTimeout(navigationTimer.current); setOpen((current) => !current) }}><span /><span /><span /></button>
           </div>
         </Container>
-        {open && <nav className="mobile-nav" aria-label="Mobile navigation"><span className="mobile-nav-label">Navigation</span>{navigation.map(([label, href]) => href.startsWith('/#') ? <a key={label} href={href} onClick={(event) => goToHash(event, href)}>{label}</a> : <NavLink key={label} to={href} className={({ isActive }) => isActive ? 'active' : undefined} onClick={() => setOpen(false)}>{label}</NavLink>)}<Link className="mobile-login" to="/login" onClick={() => setOpen(false)}>Login</Link><Link className="button button-gold" to="/donate" onClick={() => setOpen(false)}>Donate</Link></nav>}
       </header>
+      <button className={`mobile-menu-backdrop ${open ? 'is-visible' : ''}`} type="button" aria-label="Close navigation" aria-hidden="true" tabIndex={-1} onClick={() => setOpen(false)} />
+      <nav id="mobile-navigation" className={`mobile-nav ${open ? 'is-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!open}>
+        <div className="mobile-nav-heading"><span className="mobile-nav-label">Explore Dawana</span><span>DA&apos;WÃ£NÃ£ ISLAMIC FOUNDATION</span></div>
+        <div className="mobile-nav-links">{navigation.map(([label, href], index) => href.startsWith('/#') ? <a key={label} href={href} style={{ '--menu-index': index }} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></a> : <Link key={label} to={href} style={{ '--menu-index': index }} className={label === 'DIC' && location.pathname.startsWith('/dic') ? 'active' : undefined} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></Link>)}</div>
+        <div className="mobile-menu-actions"><Link to="/login" onClick={(event) => closeAndNavigate(event, '/login')}>Login</Link><Link className="button button-gold" to="/donate" onClick={(event) => closeAndNavigate(event, '/donate')}>Donate <span aria-hidden="true">↗</span></Link></div>
+        <div className="mobile-nav-footer"><span className="mobile-nav-mark">✦</span><span>Knowledge · Faith · Service · Community</span></div>
+      </nav>
     </>
   )
 }
