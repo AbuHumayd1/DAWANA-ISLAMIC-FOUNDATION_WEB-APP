@@ -99,5 +99,55 @@ export function Layout({ children }) {
     return () => window.removeEventListener('hashchange', scrollToHash)
   }, [location.hash, location.pathname])
 
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return
+
+    const revealSelectors = [
+      'main section:not(.hero)',
+      '.hero-art',
+      '.hero-copy > p',
+      '.hero-actions > *',
+      '.hero-meta > *',
+      '.area-grid .area-card',
+      '.media-grid .media-card',
+      '.involved-grid .involved-card',
+      '.catalog-grid .catalog-card',
+      '.dic-area-grid > article',
+      '.dic-process-grid > article',
+      '.participant-card',
+      '.summary-box',
+      '.checkout-box',
+      '.confirmation-box',
+      '.footer-grid > div',
+    ]
+    const targets = [...document.querySelectorAll(revealSelectors.join(','))]
+    const staggeredSelectors = new Set([
+      '.hero-actions > *', '.hero-meta > *', '.area-grid .area-card',
+      '.media-grid .media-card', '.involved-grid .involved-card',
+      '.catalog-grid .catalog-card', '.dic-area-grid > article', '.dic-process-grid > article',
+      '.footer-grid > div',
+    ])
+
+    targets.forEach((target) => {
+      const groupSelector = [...staggeredSelectors].find((selector) => target.matches(selector))
+      if (groupSelector) {
+        const siblings = [...target.parentElement.querySelectorAll(`:scope > ${groupSelector.split(' ').at(-1)}`)]
+        target.style.setProperty('--reveal-delay', `${Math.min(siblings.indexOf(target), 5) * 55}ms`)
+      }
+      target.classList.add('motion-ready')
+    })
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.dataset.visible = 'true'
+        observer.unobserve(entry.target)
+      })
+    }, { rootMargin: '0px 0px 14% 0px', threshold: 0.08 })
+
+    targets.forEach((target) => observer.observe(target))
+    return () => observer.disconnect()
+  }, [location.key])
+
   return <><Navbar /><main>{children}</main><Footer /></>
 }
