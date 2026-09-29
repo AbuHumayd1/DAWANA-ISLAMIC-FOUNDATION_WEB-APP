@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 const navigation = [
   ['Home', '/'],
@@ -85,6 +85,17 @@ export function Footer() {
 
 export function Layout({ children }) {
   const location = useLocation()
+
+  useEffect(() => {
+    const previousRestoration = window.history.scrollRestoration
+    window.history.scrollRestoration = 'manual'
+    return () => { window.history.scrollRestoration = previousRestoration }
+  }, [])
+
+  useLayoutEffect(() => {
+    // Hash destinations retain the shared smooth section-navigation behavior.
+    if (!location.hash) window.scrollTo(0, 0)
+  }, [location.pathname, location.hash])
 
   useEffect(() => {
     const scrollToHash = () => {

@@ -234,6 +234,17 @@ body { background: var(--mint); }
   *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .motion-ready { opacity: 1; transform: none; will-change: auto; }
 }
+
+/* Keep the registration timeline compact while retaining the centered nodes and connector. */
+.dic-steps { width: min(100%, 820px); margin: 12px auto 16px; gap: 4px; }
+.dic-steps::before { top: 20px; }
+.dic-steps > div { gap: 5px; padding: 4px 4px; }
+.dic-steps > div > b { flex-basis: 32px; width: 32px; height: 32px; border-width: 2px; }
+.dic-steps > div > span { font-size: 9px; }
+@media (max-width: 700px) {
+  .dic-steps { width: 100%; gap: 4px 8px; margin-block: 12px; }
+  .dic-steps > div:nth-child(odd):not(:last-child)::after { top: 20px; left: calc(50% + 18px); right: calc(-50% + 18px); }
+}
 @media (max-width: 700px) {
 	.hero-meta { grid-template-columns: repeat(2, 1fr); gap: 12px 8px; }
 	.section-heading { margin-bottom: 30px; }

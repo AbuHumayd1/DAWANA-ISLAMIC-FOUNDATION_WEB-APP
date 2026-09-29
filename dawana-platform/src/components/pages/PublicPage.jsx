@@ -10,7 +10,7 @@ export function StatusBadge({ children, tone = 'green' }) {
 }
 
 export function ProgramCard({ program }) {
-  return <article className={`catalog-card program-card ${program.featured ? 'program-featured' : ''}`}><div><div className="card-topline"><StatusBadge tone={program.registration ? 'gold' : 'green'}>{program.category}</StatusBadge><span className="card-schedule">{program.schedule}</span></div><h2>{program.title}</h2><p className="card-summary">{program.summary}</p>{program.note && <p className="card-note"><strong>Note:</strong> {program.note}</p>}<div className="card-details"><span>◉ &nbsp;{program.detail}</span><span>✓ &nbsp;Registration: {program.registration ? 'Required' : 'Not required'} · Payment: {program.payment ? 'Required' : 'Free'}</span></div></div><Link className={`card-cta ${program.featured ? 'card-cta-primary' : ''}`} to="/programs">{program.cta}</Link></article>
+  return <article className={`catalog-card program-card ${program.featured ? 'program-featured' : ''}`}><div><div className="card-topline"><StatusBadge tone={program.registration ? 'gold' : 'green'}>{program.category}</StatusBadge><span className="card-schedule">{program.schedule}</span></div><h2>{program.title}</h2><p className="card-summary">{program.summary}</p>{program.note && <p className="card-note"><strong>Note:</strong> {program.note}</p>}<div className="card-details"><span>◉ &nbsp;{program.detail}</span><span>✓ &nbsp;Registration: {program.registration ? 'Required' : 'Not required'} · Payment: {program.payment ? 'Required' : 'Free'}</span></div></div><Link className={`card-cta ${program.featured ? 'card-cta-primary' : ''}`} to={program.featured ? '/dic' : '/programs'}>{program.cta}</Link></article>
 }
 
 export function EventCard({ event }) {
