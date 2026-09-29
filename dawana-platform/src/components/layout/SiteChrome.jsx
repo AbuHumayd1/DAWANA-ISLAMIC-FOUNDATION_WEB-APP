@@ -19,15 +19,37 @@ function BrandLogo() {
   return <span className="brand-lockup"><img src={logoSrc} alt="Da'wãnã Islamic Foundation" /><span><strong>Da&apos;wãnã</strong><small>ISLAMIC FOUNDATION</small></span></span>
 }
 
+let activeScrollFrame = null
+
 function scrollToHashTarget(hash) {
-  window.setTimeout(() => {
-    const target = document.getElementById(hash.replace(/^#/, ''))
-    if (!target) return
-    const header = document.querySelector('.watchword-bar')
-    const navbar = document.querySelector('.navbar')
-    const offset = (header?.getBoundingClientRect().height || 0) + (navbar?.getBoundingClientRect().height || 0) + 10
-    window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth' })
-  }, 50)
+  const target = document.getElementById(hash.replace(/^#/, ''))
+  if (!target) return
+
+  const header = document.querySelector('.watchword-bar')
+  const navbar = document.querySelector('.navbar')
+  const offset = (header?.getBoundingClientRect().height || 0) + (navbar?.getBoundingClientRect().height || 0) + 12
+  const start = window.scrollY
+  const destination = Math.max(0, target.getBoundingClientRect().top + start - offset)
+  const distance = destination - start
+  if (Math.abs(distance) < 2) return
+
+  if (activeScrollFrame !== null) window.cancelAnimationFrame(activeScrollFrame)
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.scrollTo(0, destination)
+    return
+  }
+
+  const isMobile = window.matchMedia('(max-width: 1100px)').matches
+  const duration = Math.min(isMobile ? 1080 : 940, Math.max(isMobile ? 740 : 640, 520 + Math.abs(distance) * 0.24))
+  const startedAt = performance.now()
+  const animate = (now) => {
+    const progress = Math.min((now - startedAt) / duration, 1)
+    const eased = 1 - (1 - progress) ** 3
+    window.scrollTo(0, start + distance * eased)
+    if (progress < 1) activeScrollFrame = window.requestAnimationFrame(animate)
+    else activeScrollFrame = null
+  }
+  activeScrollFrame = window.requestAnimationFrame(animate)
 }
 
 export function Container({ children, className = '' }) {
@@ -55,15 +77,22 @@ export function Navbar() {
     event.preventDefault()
     window.clearTimeout(navigationTimer.current)
     setOpen(false)
-    navigationTimer.current = window.setTimeout(() => navigate(href), 220)
+    navigationTimer.current = window.setTimeout(() => {
+      if (href.startsWith('/#') && location.pathname === '/' && location.hash === href.slice(1)) {
+        scrollToHashTarget(href.slice(href.indexOf('#') + 1))
+      } else {
+        navigate(href)
+      }
+    }, 220)
   }
 
   function goToHash(event, href) {
     setOpen(false)
-    if (location.pathname === '/') {
+    event.preventDefault()
+    if (location.pathname === '/' && location.hash === href.slice(1)) {
+      scrollToHashTarget(href.slice(href.indexOf('#') + 1))
       return
     }
-    event.preventDefault()
     navigate(href)
   }
 
@@ -95,7 +124,7 @@ export function Navbar() {
       </header>
       <button className={`mobile-menu-backdrop ${open ? 'is-visible' : ''}`} type="button" aria-label="Close navigation" aria-hidden="true" tabIndex={-1} onClick={() => setOpen(false)} />
       <nav id="mobile-navigation" className={`mobile-nav ${open ? 'is-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!open}>
-        <div className="mobile-nav-heading"><span className="mobile-nav-label">Explore Dawana</span><span>DA&apos;WÃ£NÃ£ ISLAMIC FOUNDATION</span></div>
+        <div className="mobile-nav-heading"><span className="mobile-nav-label">Explore Da&apos;w&#227;n&#227;</span><span>ISLAMIC FOUNDATION</span></div>
         <div className="mobile-nav-links">{navigation.map(([label, href], index) => href.startsWith('/#') ? <a key={label} href={href} style={{ '--menu-index': index }} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></a> : <Link key={label} to={href} style={{ '--menu-index': index }} className={label === 'DIC' && location.pathname.startsWith('/dic') ? 'active' : undefined} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></Link>)}</div>
         <div className="mobile-menu-actions"><Link to="/login" onClick={(event) => closeAndNavigate(event, '/login')}>Login</Link><Link className="button button-gold" to="/donate" onClick={(event) => closeAndNavigate(event, '/donate')}>Donate <span aria-hidden="true">↗</span></Link></div>
         <div className="mobile-nav-footer"><span className="mobile-nav-mark">✦</span><span>Knowledge · Faith · Service · Community</span></div>
@@ -126,9 +155,7 @@ export function Layout({ children }) {
     const scrollToHash = () => {
       const hash = window.location.hash
       if (!hash) return
-      window.setTimeout(() => {
-        scrollToHashTarget(hash)
-      }, 100)
+      window.requestAnimationFrame(() => scrollToHashTarget(hash))
     }
     window.addEventListener('hashchange', scrollToHash)
     scrollToHash()
