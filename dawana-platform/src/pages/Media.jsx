@@ -1,9 +1,10 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import { PageHero } from '../components/pages/PublicPage'
 
 const categories = [
+  { label: 'DIC Lectures', glyph: '*', description: 'Lecture recordings and learning resources from Darul Islam Camp.' },
   { label: 'Videos', glyph: '*', description: 'A home for recorded talks and educational sessions.' },
   { label: 'Audio', glyph: '*', description: 'Audio reminders, sermons, and study sessions.' },
   { label: 'Lectures', glyph: '*', description: 'A catalogue for lectures and scholarly addresses.' },
@@ -15,6 +16,7 @@ const categories = [
 
 // Placeholder records define the fields ready for verified media assets later.
 const mediaItems = [
+  { id: 'dic-lecture-placeholder', category: 'DIC Lectures', type: 'DIC LECTURE', glyph: '*', title: 'DIC lecture content to be added', description: 'Darul Islam Camp lecture recordings and study materials will be added when verified content is available.', format: 'Video / Audio', speaker: 'To be announced', date: 'To be announced', duration: 'To be announced', thumbnail: '', externalUrl: '', embedUrl: '', downloadUrl: '' },
   { id: 'video-placeholder', category: 'Videos', type: 'VIDEO', glyph: '*', title: 'Video content to be added', description: 'Recorded talks and educational sessions will appear here when official content is available.', format: 'Video', speaker: 'To be announced', date: 'To be announced', duration: 'To be announced', thumbnail: '', externalUrl: '', embedUrl: '', downloadUrl: '' },
   { id: 'audio-placeholder', category: 'Audio', type: 'AUDIO', glyph: '*', title: 'Audio content to be added', description: 'Audio materials will be added to this archive when they are ready for publication.', format: 'Audio', speaker: 'To be announced', date: 'To be announced', duration: 'To be announced', thumbnail: '', externalUrl: '', embedUrl: '', downloadUrl: '' },
   { id: 'lecture-placeholder', category: 'Lectures', type: 'LECTURE', glyph: '*', title: 'Lecture content to be added', description: 'Lecture recordings and study materials will be listed here once officially published.', format: 'Video / Audio', speaker: 'To be announced', date: 'To be announced', duration: 'To be announced', thumbnail: '', externalUrl: '', embedUrl: '', downloadUrl: '' },
@@ -45,7 +47,7 @@ function ArchiveFeature({ title, eyebrow, copy, icon, action, to }) {
 
 function ArchiveSections() {
   return <>
-    <section className="media-archive-section"><Container><div className="media-section-heading"><div><span className="eyebrow">Programme archive</span><h2>Darul Islam Camp (DIC) Lectures</h2><p>Lectures and educational resources related to Darul Islam Camp.</p></div><Link className="button button-small" to="/dic">Explore DIC <span aria-hidden="true">&gt;</span></Link></div><ArchiveFeature eyebrow="Camp lecture archive" title="DIC lecture content to be added." copy="Lecture recordings, study notes, and related resources can be listed here when official materials are supplied." icon="" action="Explore DIC" to="/dic" /></Container></section>
+    <section className="media-archive-section"><Container><div className="media-section-heading"><div><span className="eyebrow">Programme archive</span><h2>Darul Islam Camp (DIC) Lectures</h2><p>Lectures and educational resources related to Darul Islam Camp.</p></div><Link className="button button-small" to="/media?category=dic-lectures">View DIC Lectures <span aria-hidden="true">&gt;</span></Link></div><ArchiveFeature eyebrow="Camp lecture archive" title="DIC lecture content to be added." copy="Lecture recordings, study notes, and related resources can be listed here when official materials are supplied." icon="" action="Browse DIC Lectures" to="/media?category=dic-lectures" /></Container></section>
     <section className="media-archive-section media-archive-alt"><Container><div className="media-section-heading"><div><span className="eyebrow">Annual archive</span><h2>Ramadan Tafseer</h2><p>Ramadan Tafseer materials from Dawana Islamic Foundation.</p></div><span className="media-meta-caption">Details to be announced</span></div><div className="media-ramadan-grid"><article><MediaTypeBadge>Past series archive</MediaTypeBadge><h3>Ramadan Tafseer archive</h3><p>Archive content to be added when verified recordings and notes are available.</p><div><span>Status</span><strong>To be announced</strong></div><div><span>Repository</span><strong>To be announced</strong></div></article><article><MediaTypeBadge>Programme information</MediaTypeBadge><h3>Ramadan Tafseer resources</h3><p>Information and materials will be added when officially supplied.</p><div><span>Status</span><strong>To be announced</strong></div><div><span>Repository</span><strong>To be announced</strong></div></article></div></Container></section>
   </>
 }
@@ -68,6 +70,15 @@ function ResourceAndGallery() {
 }
 
 export default function Media() {
-  const [activeCategory, setActiveCategory] = useState('All')
-  return <div className="public-page media-page"><PageHero eyebrow="Media" title="Media" description="Explore Islamic lectures, reminders, educational sessions, and other media from Dawana Islamic Foundation." /><FeaturedMedia /><ArchiveSections /><section className="media-explore-section" id="media-collection"><Container><div className="media-section-heading"><div><span className="eyebrow">Explore media</span><h2>Browse the learning archive</h2><p>Choose a category to explore. Placeholder entries are clearly marked until official content is available.</p></div><button className="media-filter-reset" type="button" aria-pressed={activeCategory === 'All'} onClick={() => setActiveCategory('All')}>{activeCategory === 'All' ? 'All media selected' : 'View all media'}</button></div><MediaCategoryFilter activeCategory={activeCategory} onChange={setActiveCategory} /><MediaGrid activeCategory={activeCategory} /></Container></section><ResourceAndGallery /><section className="media-support"><Container><div><span className="eyebrow gold-eyebrow">Knowledge  Faith  Service</span><h2>Support the work of Dawana Islamic Foundation.</h2><p>Contribute to educational dissemination, knowledge preservation, and community programmes.</p></div><Link className="button button-gold" to="/programs">Explore programs <span aria-hidden="true">&gt;</span></Link></Container></section></div>
+  const [searchParams, setSearchParams] = useSearchParams()
+  const categorySlugs = Object.fromEntries(categories.map(({ label }) => [label, label.toLowerCase().replace(/[^a-z0-9]+/g, '-')]))
+  const requestedCategory = searchParams.get('category')
+  const activeCategory = categories.find(({ label }) => categorySlugs[label] === requestedCategory)?.label ?? 'All'
+  const selectCategory = (label) => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (label === 'All') nextParams.delete('category')
+    else nextParams.set('category', categorySlugs[label])
+    setSearchParams(nextParams)
+  }
+  return <div className="public-page media-page"><PageHero eyebrow="Media" title="Media" description="Explore Islamic lectures, reminders, educational sessions, and other media from Dawana Islamic Foundation." /><FeaturedMedia /><ArchiveSections /><section className="media-explore-section" id="media-collection"><Container><div className="media-section-heading"><div><span className="eyebrow">Explore media</span><h2>Browse the learning archive</h2><p>Choose a category to explore. Placeholder entries are clearly marked until official content is available.</p></div><button className="media-filter-reset" type="button" aria-pressed={activeCategory === 'All'} onClick={() => selectCategory('All')}>{activeCategory === 'All' ? 'All media selected' : 'View all media'}</button></div><MediaCategoryFilter activeCategory={activeCategory} onChange={selectCategory} /><MediaGrid activeCategory={activeCategory} /></Container></section><ResourceAndGallery /><section className="media-support"><Container><div><span className="eyebrow gold-eyebrow">Knowledge  Faith  Service</span><h2>Support the work of Dawana Islamic Foundation.</h2><p>Contribute to educational dissemination, knowledge preservation, and community programmes.</p></div><Link className="button button-gold" to="/programs">Explore programs <span aria-hidden="true">&gt;</span></Link></Container></section></div>
 }
