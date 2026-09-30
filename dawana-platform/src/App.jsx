@@ -5,10 +5,11 @@ import Programs from './pages/Programs'
 import Events from './pages/Events'
 import Projects from './pages/Projects'
 import DIC from './pages/DIC'
+import Media from './pages/Media'
 import './App.css'
 
 function App() {
-  return <BrowserRouter><Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/*" element={<DIC />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout></BrowserRouter>
+  return <BrowserRouter><Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/*" element={<DIC />} /><Route path="/media" element={<Media />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout></BrowserRouter>
 }
 
 function PlaceholderPage() {
