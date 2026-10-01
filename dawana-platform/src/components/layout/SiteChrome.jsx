@@ -10,6 +10,7 @@ const navigation = [
   ['Projects', '/projects'],
   ['DIC', '/dic'],
   ['Media', '/media'],
+  ['Contact', '/contact'],
   ['Get Involved', '/get-involved'],
 ]
 
