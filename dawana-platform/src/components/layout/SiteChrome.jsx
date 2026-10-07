@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 const navigation = [
   ['Home', '/'],
-  ['About', '/about'],
+  ['About', '/#who-we-are'],
   ['What We Do', '/#what-we-do'],
   ['Programs', '/programs'],
   ['Events', '/events'],
@@ -117,7 +117,7 @@ export function Navbar() {
             {navigation.map(([label, href]) => href.startsWith('/#') ? <a key={label} href={href} onClick={(event) => goToHash(event, href)}>{label}</a> : <NavLink key={label} to={href} className={({ isActive }) => isActive ? 'active' : undefined}>{label}</NavLink>)}
           </nav>
           <div className="nav-actions">
-            <Link className="login-link" to="/login">Login</Link>
+            <a className="login-link" aria-disabled="true" title="Login is not currently available">Login unavailable</a>
             <Link className="button button-small" to="/donate">Donate</Link>
             <button className="menu-button" type="button" aria-label={open ? 'Close navigation' : 'Open navigation'} aria-controls="mobile-navigation" aria-expanded={open} onClick={() => { window.clearTimeout(navigationTimer.current); setOpen((current) => !current) }}><span /><span /><span /></button>
           </div>
@@ -127,7 +127,7 @@ export function Navbar() {
       <nav id="mobile-navigation" className={`mobile-nav ${open ? 'is-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!open}>
         <div className="mobile-nav-heading"><span className="mobile-nav-label">Explore Da&apos;w&#227;n&#227;</span><span>ISLAMIC FOUNDATION</span></div>
         <div className="mobile-nav-links">{navigation.map(([label, href], index) => href.startsWith('/#') ? <a key={label} href={href} style={{ '--menu-index': index }} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></a> : <Link key={label} to={href} style={{ '--menu-index': index }} className={label === 'DIC' && location.pathname.startsWith('/dic') ? 'active' : undefined} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></Link>)}</div>
-        <div className="mobile-menu-actions"><Link to="/login" onClick={(event) => closeAndNavigate(event, '/login')}>Login</Link><Link className="button button-gold" to="/donate" onClick={(event) => closeAndNavigate(event, '/donate')}>Donate <span aria-hidden="true">↗</span></Link></div>
+        <div className="mobile-menu-actions"><a aria-disabled="true" title="Login is not currently available">Login unavailable</a><Link className="button button-gold" to="/donate" onClick={(event) => closeAndNavigate(event, '/donate')}>Donate <span aria-hidden="true">↗</span></Link></div>
         <div className="mobile-nav-footer"><span className="mobile-nav-mark">✦</span><span>Knowledge · Faith · Service · Community</span></div>
       </nav>
     </>
@@ -135,7 +135,7 @@ export function Navbar() {
 }
 
 export function Footer() {
-  return <footer className="footer"><Container><div className="footer-grid"><div><Link className="brand footer-brand" to="/"><BrandLogo /></Link><p>Promoting Islamic knowledge, spiritual development and community wellbeing.</p><span className="footer-arabic arabic">رِضْوَانُ اللهِ أَكْبَرُ</span></div><div><h3>Explore</h3><Link to="/about">About</Link><Link to="/programs">Programs</Link><Link to="/events">Events</Link><Link to="/projects">Projects</Link><Link to="/dic">DIC</Link></div><div><h3>Engagement</h3><Link to="/media">Media &amp; Knowledge Library</Link><Link to="/get-involved">Get Involved</Link><Link to="/contact">Contact</Link><span className="muted">Official social channels TBA</span></div><div><h3>Support</h3><Link to="/donate">Donate</Link><Link to="/faq">FAQ</Link><span>Privacy Policy</span><span>Terms of Use</span></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Da&apos;wãnã Islamic Foundation</span><span>Knowledge · Faith · Service · Community</span></div></Container></footer>
+  return <footer className="footer"><Container><div className="footer-grid"><div><Link className="brand footer-brand" to="/"><BrandLogo /></Link><p>Promoting Islamic knowledge, spiritual development and community wellbeing.</p><span className="footer-arabic arabic">رِضْوَانُ اللهِ أَكْبَرُ</span></div><div><h3>Explore</h3><Link to="/#who-we-are">About</Link><Link to="/programs">Programs</Link><Link to="/events">Events</Link><Link to="/projects">Projects</Link><Link to="/dic">DIC</Link></div><div><h3>Engagement</h3><Link to="/media">Media &amp; Knowledge Library</Link><Link to="/get-involved">Get Involved</Link><Link to="/contact">Contact</Link><span className="muted">Official social channels TBA</span></div><div><h3>Support</h3><Link to="/donate">Donate</Link><Link to="/faq">FAQ</Link><span>Privacy Policy</span><span>Terms of Use</span></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Da&apos;wãnã Islamic Foundation</span><span>Knowledge · Faith · Service · Community</span></div></Container></footer>
 }
 
 export function Layout({ children }) {
