@@ -1,4 +1,17 @@
 :root { --spruce: #0F4D38; --deep: #003524; --light: #186047; --gold: #C89B3C; --gold-light: #FCCA66; --canvas: #FBFBFA; --surface: #F5F7F5; --mint: #F1FCF7; --ink: #2D3734; --border: #E2E8E4; --shadow: 0 4px 16px rgba(15,77,56,.06); }
+
+.dic-info-card .button:disabled,.dic-register-bar .button:disabled { cursor: not-allowed; opacity: .56; }
+.dic-flow-message { margin: 14px 0; padding: 12px 15px; border: 1px solid #d6e8df; border-radius: 7px; background: #fff; color: var(--deep); font-size: 11px; line-height: 1.6; }
+.dic-flow-message.is-error { border-color: #e8c6c4; background: #fff8f7; color: #8d2929; }
+.dic-flow-message.is-success { border-color: #c5dfd2; background: #f3faf6; color: var(--deep); }
+.dic-checkout-link { display: inline-flex; width: fit-content; margin-top: 12px; }
+.dic-payment-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.dic-form-actions .button:disabled { cursor: wait; opacity: .65; }
+@media (max-width: 700px) {
+  .dic-payment-actions { width: 100%; flex-direction: column-reverse; }
+  .dic-payment-actions .button { width: 100%; }
+  .dic-checkout-link { width: 100%; justify-content: center; }
+}
 * { box-sizing: border-box; }
 body { overflow-x: hidden; }
 main { padding-top: 108px; }

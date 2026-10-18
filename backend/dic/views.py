@@ -2,7 +2,6 @@ import hmac
 import json
 import uuid
 
-from django.core import signing
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
@@ -18,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from .access import require_order_access
 from .models import (
     CampEdition,
     Participant,
@@ -26,7 +26,7 @@ from .models import (
     RegistrationOrder,
     RegistrationOrderItem,
 )
-from .security import digest_value, order_access_token
+from .security import digest_value, new_order_access_token, order_access_token_expiry
 from .serializers import (
     ActiveEditionSerializer,
     RegistrationOrderCreateSerializer,
@@ -114,15 +114,17 @@ def _create_order(*, key_digest, fingerprint, payload):
         if existing:
             if not hmac.compare_digest(existing.request_fingerprint, fingerprint):
                 raise IdempotencyConflict()
-            token = order_access_token(existing.public_id)
-            if not hmac.compare_digest(
-                existing.access_token_digest,
-                digest_value(token),
-            ):
-                raise IdempotencyConflict(
-                    "Order credentials could not be safely replayed. Use the "
-                    "original order access token."
+            if existing.access_token_revoked_at is not None:
+                raise IdempotencyConflict("Order access has been revoked.")
+            token = new_order_access_token()
+            existing.access_token_digest = digest_value(token)
+            existing.access_token_expires_at = order_access_token_expiry()
+            existing.save(
+                update_fields=(
+                    "access_token_digest",
+                    "access_token_expires_at",
                 )
+            )
             return existing, token, True
 
         edition = (
@@ -166,7 +168,7 @@ def _create_order(*, key_digest, fingerprint, payload):
         registrant_data = payload.get("primary_registrant", {})
         registrant = PrimaryRegistrant.objects.create(**registrant_data)
         public_id = uuid.uuid4()
-        token = order_access_token(public_id)
+        token = new_order_access_token()
         order = RegistrationOrder.objects.create(
             public_id=public_id,
             primary_registrant=registrant,
@@ -174,6 +176,7 @@ def _create_order(*, key_digest, fingerprint, payload):
             idempotency_key_digest=key_digest,
             request_fingerprint=fingerprint,
             access_token_digest=digest_value(token),
+            access_token_expires_at=order_access_token_expiry(),
         )
 
         for data in participant_data:
@@ -240,11 +243,17 @@ class RegistrationOrderCreateView(APIView):
                 raise
             if not hmac.compare_digest(existing.request_fingerprint, fingerprint):
                 raise IdempotencyConflict()
-            token = order_access_token(existing.public_id)
-            if not hmac.compare_digest(existing.access_token_digest, digest_value(token)):
-                raise IdempotencyConflict(
-                    "Order credentials could not be safely replayed."
+            if existing.access_token_revoked_at is not None:
+                raise IdempotencyConflict("Order access has been revoked.")
+            token = new_order_access_token()
+            existing.access_token_digest = digest_value(token)
+            existing.access_token_expires_at = order_access_token_expiry()
+            existing.save(
+                update_fields=(
+                    "access_token_digest",
+                    "access_token_expires_at",
                 )
+            )
             order, replayed = existing, True
 
         response = Response(
@@ -275,23 +284,7 @@ class RegistrationOrderDetailView(APIView):
         if not order:
             raise NotFound("Order not found.")
 
-        authorization = request.headers.get("Authorization", "")
-        scheme, separator, token = authorization.partition(" ")
-        if not separator or scheme.lower() != "bearer" or not token.strip():
-            raise NotFound("Order not found.")
-
-        try:
-            signed_public_id = signing.Signer(
-                salt="dic.registration-order-access.v1"
-            ).unsign(token.strip())
-        except signing.BadSignature:
-            raise NotFound("Order not found.")
-
-        if signed_public_id != str(order.public_id) or not hmac.compare_digest(
-            order.access_token_digest,
-            digest_value(token.strip()),
-        ):
-            raise NotFound("Order not found.")
+        require_order_access(request, order)
 
         response = Response(RegistrationOrderReadSerializer(order).data)
         response["Cache-Control"] = "no-store"

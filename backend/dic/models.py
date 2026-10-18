@@ -2,7 +2,10 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, Sum
+from django.conf import settings
 from django.utils import timezone
+
+from .security import order_access_token_expiry
 
 
 class CampEdition(models.Model):
@@ -11,6 +14,10 @@ class CampEdition(models.Model):
         OPEN = "open", "Open"
         PAUSED = "paused", "Paused"
         CLOSED = "closed", "Closed"
+
+    class AllocationStrategy(models.TextChoices):
+        DISABLED = "disabled", "Disabled"
+        BALANCED = "balanced", "Balanced available capacity"
 
     name = models.CharField(max_length=150)
     year = models.PositiveSmallIntegerField(unique=True)
@@ -24,6 +31,21 @@ class CampEdition(models.Model):
         default=RegistrationStatus.DRAFT,
     )
     is_active = models.BooleanField(default=False)
+    allocation_strategy = models.CharField(
+        max_length=12,
+        choices=AllocationStrategy.choices,
+        default=AllocationStrategy.DISABLED,
+    )
+    allocation_strategy_approved_at = models.DateTimeField(null=True, blank=True)
+    allocation_strategy_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="approved_dic_allocation_strategies",
+        null=True,
+        blank=True,
+    )
+    allocation_strategy_approval_note = models.TextField(blank=True)
+    allocation_approved_configuration = models.CharField(max_length=64, blank=True)
     general_information = models.JSONField(
         default=dict,
         blank=True,
@@ -60,7 +82,6 @@ class CampEdition(models.Model):
     def clean(self):
         super().clean()
         errors = {}
-
         if (
             self.camp_start_date
             and self.camp_end_date
@@ -195,6 +216,15 @@ class House(models.Model):
         help_text="Edition-specific eligibility configuration as a JSON object.",
     )
     eligibility_notes = models.TextField(blank=True)
+    reserve_authorized_at = models.DateTimeField(null=True, blank=True)
+    reserve_authorized_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="authorized_dic_reserve_houses",
+        null=True,
+        blank=True,
+    )
+    reserve_authorization_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -221,6 +251,18 @@ class House(models.Model):
     def clean(self):
         super().clean()
         errors = {}
+        if self.pk:
+            occupied = self.allocations.filter(
+                status=HouseAllocation.Status.ALLOCATED
+            ).count()
+            if self.capacity is not None and occupied > self.capacity:
+                errors["capacity"] = (
+                    "Capacity cannot be reduced below the current active occupancy."
+                )
+            if self.status == self.Status.INACTIVE and occupied:
+                errors["status"] = (
+                    "Release or reassign active allocations before deactivating this house."
+                )
 
         if (
             self.purpose == self.Purpose.FATHERS_AND_ADMINS
@@ -293,11 +335,24 @@ class Participant(models.Model):
     academic_status = models.CharField(max_length=50, choices=AcademicStatus.choices)
     occupation = models.CharField(max_length=32, choices=Occupation.choices)
     marital_status = models.CharField(max_length=20, choices=MaritalStatus.choices)
+    eligible_for_dedicated_accommodation = models.BooleanField(
+        default=False,
+        help_text=(
+            "Must be explicitly set by an authorised administrator; eligibility "
+            "is never inferred from participant details."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ("full_name",)
+        permissions = [
+            (
+                "can_authorize_dedicated_accommodation",
+                "Can authorize participants for dedicated accommodation",
+            ),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=Q(height_cm__gt=0),
@@ -350,6 +405,10 @@ class RegistrationOrder(models.Model):
     idempotency_key_digest = models.CharField(max_length=64, unique=True)
     request_fingerprint = models.CharField(max_length=64)
     access_token_digest = models.CharField(max_length=64)
+    access_token_expires_at = models.DateTimeField(
+        default=order_access_token_expiry,
+    )
+    access_token_revoked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     submitted_at = models.DateTimeField(default=timezone.now)
 
@@ -473,3 +532,287 @@ class RegistrationOrderItem(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Registration order items cannot be deleted.")
+
+
+class HouseAllocation(models.Model):
+    class Status(models.TextChoices):
+        ALLOCATED = "allocated", "Allocated"
+        REASSIGNED = "reassigned", "Reassigned"
+        RELEASED = "released", "Released"
+
+    class Source(models.TextChoices):
+        ADMIN = "admin", "Administrator"
+        SYSTEM = "system", "Allocation process"
+
+    participant = models.ForeignKey(
+        Participant,
+        on_delete=models.PROTECT,
+        related_name="house_allocations",
+    )
+    edition = models.ForeignKey(
+        CampEdition,
+        on_delete=models.PROTECT,
+        related_name="house_allocations",
+    )
+    house = models.ForeignKey(
+        House,
+        on_delete=models.PROTECT,
+        related_name="allocations",
+    )
+    status = models.CharField(
+        max_length=12,
+        choices=Status.choices,
+        default=Status.ALLOCATED,
+    )
+    allocated_at = models.DateTimeField(default=timezone.now)
+    allocated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="dic_house_allocations",
+        null=True,
+        blank=True,
+    )
+    released_at = models.DateTimeField(null=True, blank=True)
+    released_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="released_dic_house_allocations",
+        null=True,
+        blank=True,
+    )
+    source = models.CharField(
+        max_length=8,
+        choices=Source.choices,
+        default=Source.ADMIN,
+    )
+    previous_allocation = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="subsequent_allocations",
+        null=True,
+        blank=True,
+    )
+    change_reason = models.TextField(blank=True)
+    resolution_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ("-allocated_at", "-pk")
+        permissions = [
+            ("can_allocate_participants", "Can allocate DIC participants"),
+            ("can_reassign_allocations", "Can reassign DIC house allocations"),
+            ("can_release_allocations", "Can release DIC house allocations"),
+            ("can_activate_reserve_houses", "Can authorize DIC reserve houses"),
+            ("can_approve_allocation_strategy", "Can approve DIC allocation strategies"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("participant", "edition"),
+                condition=Q(status="allocated"),
+                name="dic_one_active_house_allocation",
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=("allocated", "reassigned", "released")),
+                name="dic_house_allocation_status_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.participant} — {self.house} ({self.get_status_display()})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.edition_id and self.house_id and self.house.edition_id != self.edition_id:
+            errors["house"] = "The house must belong to the allocation edition."
+        if self.participant_id and self.edition_id:
+            paid_order_exists = RegistrationOrderItem.objects.filter(
+                participant_id=self.participant_id,
+                order__edition_id=self.edition_id,
+                order__payment_status=RegistrationOrder.PaymentStatus.PAID,
+            ).exclude(order__status=RegistrationOrder.Status.CANCELLED).exists()
+            if not paid_order_exists:
+                errors["participant"] = (
+                    "Only participants on a paid order for this edition can be allocated."
+                )
+        if self.previous_allocation_id and self.participant_id and self.edition_id:
+            previous = self.previous_allocation
+            if (
+                previous.participant_id != self.participant_id
+                or previous.edition_id != self.edition_id
+            ):
+                errors["previous_allocation"] = (
+                    "Allocation history must belong to the same participant and edition."
+                )
+        if (
+            self.participant_id
+            and self.house_id
+            and self.participant.sex.lower() != self.house.gender
+        ):
+            errors["house"] = "The house designation must match the participant's sex."
+        if (
+            self.house_id
+            and self.house.purpose == House.Purpose.FATHERS_AND_ADMINS
+            and not self.participant.eligible_for_dedicated_accommodation
+        ):
+            errors["house"] = (
+                "Dedicated accommodation requires explicit administrator-approved "
+                "participant eligibility."
+            )
+        if (
+            self.house_id
+            and self.house.status == House.Status.INACTIVE
+            and self.status == self.Status.ALLOCATED
+        ):
+            errors["house"] = "Participants cannot be allocated to an inactive house."
+        if (
+            self.house_id
+            and self.house.status == House.Status.RESERVE
+            and not self.house.reserve_authorized_at
+            and self.status == self.Status.ALLOCATED
+        ):
+            errors["house"] = "The reserve house has not been authorised for use."
+        if self.house_id and self.house.eligibility_rules and self.status == self.Status.ALLOCATED:
+            errors["house"] = (
+                "This house has eligibility rules without an approved evaluator; "
+                "allocation is blocked."
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).values(
+                "participant_id",
+                "edition_id",
+                "house_id",
+                "allocated_at",
+                "allocated_by_id",
+                "source",
+                "previous_allocation_id",
+                "status",
+            ).first()
+            if previous:
+                immutable_fields = (
+                    "participant_id",
+                    "edition_id",
+                    "house_id",
+                    "allocated_at",
+                    "allocated_by_id",
+                    "source",
+                    "previous_allocation_id",
+                )
+                if any(previous[field] != getattr(self, field) for field in immutable_fields):
+                    raise ValidationError(
+                        "Allocation identity and assignment details are immutable; "
+                        "create a reassignment record instead."
+                    )
+                if previous["status"] != self.Status.ALLOCATED and previous["status"] != self.status:
+                    raise ValidationError("Allocation history records cannot be reopened.")
+                if (
+                    previous["status"] == self.Status.ALLOCATED
+                    and self.status
+                    not in (self.Status.ALLOCATED, self.Status.REASSIGNED, self.Status.RELEASED)
+                ):
+                    raise ValidationError("Invalid allocation status transition.")
+        super().save(*args, **kwargs)
+
+
+class PaymentAttempt(models.Model):
+    class Status(models.TextChoices):
+        INITIALIZING = "initializing", "Initializing"
+        PENDING = "pending", "Pending"
+        INITIALIZATION_UNKNOWN = "init_unknown", "Initialization unknown"
+        VERIFICATION_PENDING = "verify_pending", "Verification pending"
+        FAILED = "failed", "Failed"
+        AMOUNT_MISMATCH = "amount_mismatch", "Amount mismatch"
+        SUCCESSFUL = "successful", "Successful"
+        DUPLICATE_SUCCESS = "duplicate_success", "Duplicate successful charge"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(
+        RegistrationOrder,
+        on_delete=models.PROTECT,
+        related_name="payment_attempts",
+    )
+    reference = models.CharField(max_length=80, unique=True)
+    amount_kobo = models.PositiveBigIntegerField()
+    currency = models.CharField(max_length=3, default="NGN")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.INITIALIZING,
+    )
+    authorization_url = models.URLField(max_length=500, blank=True)
+    provider_transaction_id = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True,
+    )
+    provider_status = models.CharField(max_length=32, blank=True)
+    failure_code = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(amount_kobo__gt=0),
+                name="dic_payment_attempt_amount_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(currency="NGN"),
+                name="dic_payment_attempt_currency_ngn",
+            ),
+            models.UniqueConstraint(
+                fields=("order",),
+                condition=Q(
+                    status__in=(
+                        "initializing",
+                        "pending",
+                        "init_unknown",
+                        "verify_pending",
+                        "amount_mismatch",
+                    )
+                ),
+                name="dic_one_unresolved_payment_per_order",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} — {self.status}"
+
+
+class PaystackWebhookEvent(models.Model):
+    class ProcessingStatus(models.TextChoices):
+        RECEIVED = "received", "Received"
+        PROCESSED = "processed", "Processed"
+        IGNORED = "ignored", "Ignored"
+        RETRY = "retry", "Retry required"
+
+    id = models.BigAutoField(primary_key=True)
+    event_type = models.CharField(max_length=80)
+    reference = models.CharField(max_length=80, blank=True)
+    payload_digest = models.CharField(max_length=64, unique=True)
+    processing_status = models.CharField(
+        max_length=12,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.RECEIVED,
+    )
+    payment_attempt = models.ForeignKey(
+        PaymentAttempt,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="webhook_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.event_type} — {self.processing_status}"

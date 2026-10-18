@@ -1,13 +1,17 @@
 import hashlib
+import secrets
+from datetime import timedelta
 
-from django.core import signing
-
-
-def order_access_token(public_id):
-    return signing.Signer(salt="dic.registration-order-access.v1").sign(
-        str(public_id)
-    )
+from django.utils import timezone
 
 
 def digest_value(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def new_order_access_token():
+    return secrets.token_urlsafe(32)
+
+
+def order_access_token_expiry():
+    return timezone.now() + timedelta(days=30)

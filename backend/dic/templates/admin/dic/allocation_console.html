@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+  <div id="content-main">
+    <p>Edition: <strong>{{ edition }}</strong></p>
+    <p>Strategy: {{ edition.get_allocation_strategy_display }}.
+      {% if strategy_approved %}
+        Approved {{ edition.allocation_strategy_approved_at }} by {{ edition.allocation_strategy_approved_by }}.
+      {% else %}
+        Automatic allocation is disabled until an administrator records committee approval.
+      {% endif %}
+    </p>
+    <h2>House occupancy</h2>
+    <div class="results">
+      <table>
+        <thead><tr><th>House</th><th>Gender</th><th>Purpose</th><th>Status</th><th>Occupancy</th><th>Capacity</th><th>Reserve authorization</th></tr></thead>
+        <tbody>
+          {% for house in houses %}
+            <tr>
+              <td>{{ house.name }}</td><td>{{ house.get_gender_display }}</td>
+              <td>{{ house.get_purpose_display }}</td><td>{{ house.get_status_display }}</td>
+              <td>{{ house.occupied_count }}</td><td>{{ house.capacity|default_if_none:"Unlimited" }}</td>
+              <td>{% if house.reserve_authorized_at %}Authorized{% elif house.status == "reserve" %}Not authorized{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7">No houses are configured for this edition.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Unallocated participants with paid registrations</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="results">
+        <table>
+          <thead><tr><th></th><th>Participant</th><th>Sex</th><th>Accommodation authorization</th></tr></thead>
+          <tbody>
+            {% for participant in unallocated %}
+              <tr>
+                <td><input type="checkbox" name="participant_ids" value="{{ participant.pk }}" aria-label="Select {{ participant.full_name }}"></td>
+                <td>{{ participant.full_name }}</td><td>{{ participant.get_sex_display }}</td>
+                <td>{% if participant.eligible_for_dedicated_accommodation %}Explicitly authorised{% else %}Not authorised{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4">No paid unallocated participants.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="submit-row">
+        <input type="submit" value="Allocate selected using approved balanced strategy" class="default" {% if not strategy_approved %}disabled{% endif %}>
+        <a href="{% url 'admin:dic_campedition_change' edition.pk %}" class="closelink">Return to edition</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+  <div id="content-main">
+    <p>{{ action_label }} for <strong>{{ object_label }}</strong>.</p>
+    {% if needs_confirmation %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if action_value %}<input type="hidden" name="action" value="{{ action_value }}">{% endif %}
+        {% if houses %}
+          <div class="form-row">
+            <label for="id_house">New house</label>
+            <select id="id_house" name="house" required>
+              <option value="">Select a house</option>
+              {% for house in houses %}
+                <option value="{{ house.pk }}" {% if house.pk == current_house_id %}selected{% endif %}>
+                  {{ house.name }} — {{ house.get_gender_display }} — {{ house.get_status_display }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+        <div class="form-row">
+          <label for="id_reason">
+            {% if action_value == "release" or action_value == "reassign" %}Reason (required){% else %}Approval / authorization reason (required){% endif %}
+          </label>
+          <textarea id="id_reason" name="reason" rows="4" required></textarea>
+        </div>
+        <div class="form-row">
+          <label><input type="checkbox" name="confirm" value="yes" required> I confirm this action is authorised.</label>
+        </div>
+        <div class="submit-row">
+          <input type="submit" value="{{ action_label }}" class="default">
+          <a href="{{ cancel_url }}" class="closelink">Cancel</a>
+        </div>
+      </form>
+    {% else %}
+      <p>Confirm this action in a POST request.</p>
+      <a href="{{ cancel_url }}">Return</a>
+    {% endif %}
+  </div>
+{% endblock %}
