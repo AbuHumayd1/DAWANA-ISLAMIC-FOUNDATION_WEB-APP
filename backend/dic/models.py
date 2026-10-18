@@ -1,4 +1,8 @@
+import re
 import uuid
+from decimal import Decimal
+from zoneinfo import ZoneInfo
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, Sum
@@ -6,6 +10,9 @@ from django.conf import settings
 from django.utils import timezone
 
 from .security import order_access_token_expiry
+
+
+LAGOS_TIME_ZONE = ZoneInfo("Africa/Lagos")
 
 
 class CampEdition(models.Model):
@@ -23,8 +30,33 @@ class CampEdition(models.Model):
     year = models.PositiveSmallIntegerField(unique=True)
     camp_start_date = models.DateField()
     camp_end_date = models.DateField()
-    registration_open_date = models.DateField()
-    registration_close_date = models.DateField()
+    registration_open_date = models.DateField(null=True, blank=True)
+    registration_close_date = models.DateField(null=True, blank=True)
+    venue_name = models.CharField(max_length=150, blank=True)
+    venue_directions_address = models.CharField(max_length=255, blank=True)
+    venue_google_place_id = models.CharField(max_length=255, blank=True)
+    venue_latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    venue_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    venue_directions_verified = models.BooleanField(default=False)
+    venue_directions_verified_at = models.DateTimeField(null=True, blank=True)
+    venue_directions_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="verified_dic_venues",
+        null=True,
+        blank=True,
+    )
+    early_bird_cutoff_at = models.DateTimeField(null=True, blank=True)
     registration_status = models.CharField(
         max_length=10,
         choices=RegistrationStatus.choices,
@@ -58,6 +90,9 @@ class CampEdition(models.Model):
         ordering = ("-year",)
         verbose_name = "camp edition"
         verbose_name_plural = "camp editions"
+        permissions = [
+            ("can_edit_confirmed_dic_details", "Can edit confirmed DIC edition details"),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=Q(camp_end_date__gte=models.F("camp_start_date")),
@@ -98,6 +133,42 @@ class CampEdition(models.Model):
                 "The registration close date must not precede its opening date."
             )
 
+        if bool(self.venue_latitude is not None) != bool(self.venue_longitude is not None):
+            errors["venue_longitude"] = (
+                "Enter both coordinates or leave both coordinates blank."
+            )
+        if self.venue_latitude is not None and not Decimal("-90") <= self.venue_latitude <= Decimal("90"):
+            errors["venue_latitude"] = "Latitude must be between -90 and 90."
+        if self.venue_longitude is not None and not Decimal("-180") <= self.venue_longitude <= Decimal("180"):
+            errors["venue_longitude"] = "Longitude must be between -180 and 180."
+        if self.venue_google_place_id and not re.fullmatch(
+            r"[A-Za-z0-9_-]{1,255}",
+            self.venue_google_place_id,
+        ):
+            errors["venue_google_place_id"] = (
+                "Enter a valid Google Maps place identifier."
+            )
+        destinations = sum(
+            bool(value)
+            for value in (
+                self.venue_directions_address.strip(),
+                self.venue_google_place_id.strip(),
+                self.venue_latitude is not None and self.venue_longitude is not None,
+            )
+        )
+        if destinations > 1:
+            errors["venue_directions_address"] = (
+                "Configure only one verified directions destination."
+            )
+        if self.venue_directions_verified and not destinations:
+            errors["venue_directions_verified"] = (
+                "A directions destination is required before it can be verified."
+            )
+        if self.early_bird_cutoff_at and timezone.is_naive(self.early_bird_cutoff_at):
+            errors["early_bird_cutoff_at"] = (
+                "The early-bird cutoff must include a timezone."
+            )
+
         if not isinstance(self.general_information, dict):
             errors["general_information"] = (
                 "General information must be a JSON object."
@@ -105,6 +176,66 @@ class CampEdition(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def pricing_configuration_errors(self):
+        errors = {}
+        if not self.registration_open_date or not self.registration_close_date:
+            errors["registration_open_date"] = (
+                "Registration dates must be configured before opening registration."
+            )
+        if self.registration_open_date and self.registration_close_date:
+            if self.registration_close_date < self.registration_open_date:
+                errors["registration_close_date"] = (
+                    "The registration close date must not precede its opening date."
+                )
+        categories = list(
+            self.registration_categories.filter(is_active=True).all()
+        ) if self.pk else []
+        if not categories:
+            errors["registration_status"] = (
+                "At least one active category is required before opening registration."
+            )
+        for category in categories:
+            if category.fee_ngn is None or category.fee_ngn <= 0:
+                errors["registration_status"] = (
+                    "Every active category must have a positive regular fee."
+                )
+                break
+        if self.early_bird_cutoff_at and any(
+            category.early_bird_fee_ngn is None
+            for category in categories
+        ):
+            errors["early_bird_cutoff_at"] = (
+                "Configure an early-bird fee for every active category or remove "
+                "the edition cutoff."
+            )
+        if any(
+            category.early_bird_fee_ngn is not None
+            and (
+                self.early_bird_cutoff_at is None
+                or category.early_bird_fee_ngn <= 0
+                or category.early_bird_fee_ngn >= category.fee_ngn
+            )
+            for category in categories
+        ):
+            errors["early_bird_cutoff_at"] = (
+                "Early-bird fees must be positive, lower than regular fees, and "
+                "have an edition cutoff."
+            )
+        return errors
+
+    @property
+    def pricing_configuration_is_complete(self):
+        return not self.pricing_configuration_errors()
+
+    @property
+    def pricing_configuration_status(self):
+        errors = self.pricing_configuration_errors()
+        if errors:
+            return "Incomplete: " + "; ".join(errors.values())
+        if self.registration_status == self.RegistrationStatus.OPEN:
+            return "Open and fully configured"
+        return "Ready but closed"
 
 
 class RegistrationCategory(models.Model):
@@ -121,10 +252,19 @@ class RegistrationCategory(models.Model):
     fee_ngn = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+        null=True,
+        blank=True,
         help_text=(
-            "Current configured fee in NGN. Registration orders must copy this "
-            "value into an immutable fee snapshot when the order is created."
+            "Regular fee in NGN. Leave blank until approved. Historical order "
+            "quotes and payments retain immutable snapshots."
         ),
+    )
+    early_bird_fee_ngn = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Committee-approved early-bird fee in NGN; never infer a value.",
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -138,8 +278,13 @@ class RegistrationCategory(models.Model):
                 name="dic_category_name_unique_per_edition",
             ),
             models.CheckConstraint(
-                condition=Q(fee_ngn__gte=0),
+                condition=Q(fee_ngn__isnull=True) | Q(fee_ngn__gte=0),
                 name="dic_category_fee_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(early_bird_fee_ngn__isnull=True)
+                | Q(early_bird_fee_ngn__gte=0),
+                name="dic_category_early_bird_fee_nonnegative",
             ),
             models.CheckConstraint(
                 condition=Q(minimum_age__isnull=True) | Q(minimum_age__gte=0),
@@ -164,14 +309,33 @@ class RegistrationCategory(models.Model):
 
     def clean(self):
         super().clean()
+        errors = {}
         if (
             self.minimum_age is not None
             and self.maximum_age is not None
             and self.maximum_age < self.minimum_age
         ):
-            raise ValidationError(
-                {"maximum_age": "Maximum age must not be less than minimum age."}
-            )
+            errors["maximum_age"] = "Maximum age must not be less than minimum age."
+        if self.early_bird_fee_ngn is not None:
+            if self.fee_ngn is None or self.early_bird_fee_ngn >= self.fee_ngn:
+                errors["early_bird_fee_ngn"] = (
+                    "An early-bird fee must be lower than a configured regular fee."
+                )
+            if self.early_bird_fee_ngn <= 0:
+                errors["early_bird_fee_ngn"] = "The early-bird fee must be positive."
+        if errors:
+            raise ValidationError(errors)
+
+    def current_price(self, at=None):
+        at = at or timezone.now()
+        cutoff = self.edition.early_bird_cutoff_at
+        if (
+            self.early_bird_fee_ngn is not None
+            and cutoff is not None
+            and at < cutoff
+        ):
+            return self.early_bird_fee_ngn, "early_bird"
+        return self.fee_ngn, "regular"
 
 
 class House(models.Model):
@@ -392,6 +556,13 @@ class RegistrationOrder(models.Model):
         on_delete=models.PROTECT,
         related_name="registration_orders",
     )
+    current_price_revision = models.ForeignKey(
+        "RegistrationOrderPriceRevision",
+        on_delete=models.PROTECT,
+        related_name="current_for_orders",
+        null=True,
+        blank=True,
+    )
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
@@ -432,6 +603,8 @@ class RegistrationOrder(models.Model):
 
     @property
     def total_amount_ngn(self):
+        if self.current_price_revision_id:
+            return self.current_price_revision.total_amount_ngn
         total = self.items.aggregate(total=Sum("fee_snapshot_ngn"))["total"]
         return total or 0
 
@@ -511,7 +684,8 @@ class RegistrationOrderItem(models.Model):
         else:
             if self.category_id:
                 self.category_name_snapshot = self.category.name
-                self.fee_snapshot_ngn = self.category.fee_ngn
+                if self.fee_snapshot_ngn is None:
+                    self.fee_snapshot_ngn = self.category.fee_ngn
             if self.participant_id:
                 participant = self.participant
                 self.participant_snapshot = {
@@ -532,6 +706,114 @@ class RegistrationOrderItem(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Registration order items cannot be deleted.")
+
+
+class RegistrationOrderPriceRevision(models.Model):
+    order = models.ForeignKey(
+        RegistrationOrder,
+        on_delete=models.PROTECT,
+        related_name="price_revisions",
+    )
+    revision_number = models.PositiveSmallIntegerField()
+    early_bird_cutoff_at = models.DateTimeField(null=True, blank=True)
+    total_amount_ngn = models.DecimalField(max_digits=14, decimal_places=2)
+    created_at = models.DateTimeField(default=timezone.now)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("revision_number",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("order", "revision_number"),
+                name="dic_order_price_revision_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(total_amount_ngn__gte=0),
+                name="dic_order_price_revision_total_nonnegative",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.order} — price revision {self.revision_number}"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).values().first()
+            if previous and any(
+                previous[field] != getattr(self, field)
+                for field in (
+                    "order_id",
+                    "revision_number",
+                    "early_bird_cutoff_at",
+                    "total_amount_ngn",
+                    "created_at",
+                )
+            ):
+                raise ValidationError("Price revision details are immutable.")
+            if (
+                previous
+                and previous["accepted_at"] is not None
+                and previous["accepted_at"] != self.accepted_at
+            ):
+                raise ValidationError("Accepted price revisions cannot be reopened.")
+        super().save(*args, **kwargs)
+
+
+class RegistrationOrderPriceItem(models.Model):
+    class PriceType(models.TextChoices):
+        EARLY_BIRD = "early_bird", "Early bird"
+        REGULAR = "regular", "Regular"
+
+    revision = models.ForeignKey(
+        RegistrationOrderPriceRevision,
+        on_delete=models.PROTECT,
+        related_name="items",
+    )
+    order_item = models.ForeignKey(
+        RegistrationOrderItem,
+        on_delete=models.PROTECT,
+        related_name="price_revision_items",
+    )
+    category_name_snapshot = models.CharField(max_length=120)
+    early_bird_fee_snapshot_ngn = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    regular_fee_snapshot_ngn = models.DecimalField(max_digits=12, decimal_places=2)
+    fee_snapshot_ngn = models.DecimalField(max_digits=12, decimal_places=2)
+    price_type = models.CharField(max_length=10, choices=PriceType.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("revision", "order_item"),
+                name="dic_price_revision_order_item_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(fee_snapshot_ngn__gte=0),
+                name="dic_price_revision_item_fee_nonnegative",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).values().first()
+            if previous and any(
+                previous[field] != getattr(self, field)
+                for field in (
+                    "revision_id",
+                    "order_item_id",
+                    "category_name_snapshot",
+                    "early_bird_fee_snapshot_ngn",
+                    "regular_fee_snapshot_ngn",
+                    "fee_snapshot_ngn",
+                    "price_type",
+                )
+            ):
+                raise ValidationError("Price revision line items are immutable.")
+        super().save(*args, **kwargs)
 
 
 class HouseAllocation(models.Model):
@@ -603,6 +885,7 @@ class HouseAllocation(models.Model):
             ("can_release_allocations", "Can release DIC house allocations"),
             ("can_activate_reserve_houses", "Can authorize DIC reserve houses"),
             ("can_approve_allocation_strategy", "Can approve DIC allocation strategies"),
+            ("can_verify_venue_directions", "Can verify DIC venue directions"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -725,6 +1008,8 @@ class PaymentAttempt(models.Model):
         VERIFICATION_PENDING = "verify_pending", "Verification pending"
         FAILED = "failed", "Failed"
         AMOUNT_MISMATCH = "amount_mismatch", "Amount mismatch"
+        SUPERSEDED = "superseded", "Superseded quote"
+        RECONCILIATION_REQUIRED = "reconcile", "Reconciliation required"
         SUCCESSFUL = "successful", "Successful"
         DUPLICATE_SUCCESS = "duplicate_success", "Duplicate successful charge"
 
@@ -733,6 +1018,13 @@ class PaymentAttempt(models.Model):
         RegistrationOrder,
         on_delete=models.PROTECT,
         related_name="payment_attempts",
+    )
+    price_revision = models.ForeignKey(
+        RegistrationOrderPriceRevision,
+        on_delete=models.PROTECT,
+        related_name="payment_attempts",
+        null=True,
+        blank=True,
     )
     reference = models.CharField(max_length=80, unique=True)
     amount_kobo = models.PositiveBigIntegerField()
@@ -754,6 +1046,7 @@ class PaymentAttempt(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     verified_at = models.DateTimeField(null=True, blank=True)
+    provider_paid_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
@@ -775,6 +1068,7 @@ class PaymentAttempt(models.Model):
                         "init_unknown",
                         "verify_pending",
                         "amount_mismatch",
+                        "reconcile",
                     )
                 ),
                 name="dic_one_unresolved_payment_per_order",
@@ -816,3 +1110,98 @@ class PaystackWebhookEvent(models.Model):
 
     def __str__(self):
         return f"{self.event_type} — {self.processing_status}"
+
+
+class RegistrationRecoveryChallenge(models.Model):
+    class Channel(models.TextChoices):
+        EMAIL = "email", "Email"
+        SMS = "sms", "SMS"
+        WHATSAPP = "whatsapp", "WhatsApp"
+
+    class DeliveryStatus(models.TextChoices):
+        NOT_SENT = "not_sent", "Not sent"
+        QUEUED = "queued", "Queued"
+        PROCESSING = "processing", "Processing"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+        SUPPRESSED = "suppressed", "Suppressed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contact_digest = models.CharField(max_length=64, db_index=True)
+    channel = models.CharField(max_length=10, choices=Channel.choices)
+    code_digest = models.CharField(max_length=64)
+    encrypted_delivery_payload = models.TextField(blank=True)
+    orders = models.ManyToManyField(
+        RegistrationOrder,
+        related_name="recovery_challenges",
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    resend_after = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    delivery_started_at = models.DateTimeField(null=True, blank=True)
+    delivery_attempts = models.PositiveSmallIntegerField(default=0)
+    delivery_status = models.CharField(
+        max_length=10,
+        choices=DeliveryStatus.choices,
+        default=DeliveryStatus.QUEUED,
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=("contact_digest", "channel", "created_at")),
+            models.Index(fields=("expires_at", "consumed_at")),
+        ]
+
+
+class RegistrationRecoveryGrant(models.Model):
+    token_digest = models.CharField(max_length=64, unique=True)
+    challenge = models.ForeignKey(
+        RegistrationRecoveryChallenge,
+        on_delete=models.CASCADE,
+        related_name="grants",
+    )
+    orders = models.ManyToManyField(
+        RegistrationOrder,
+        related_name="recovery_grants",
+        blank=True,
+        through="RegistrationRecoveryGrantOrder",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=("expires_at", "revoked_at"))]
+
+
+class RegistrationRecoveryGrantOrder(models.Model):
+    grant = models.ForeignKey(
+        RegistrationRecoveryGrant,
+        on_delete=models.CASCADE,
+        related_name="order_grants",
+    )
+    order = models.ForeignKey(
+        RegistrationOrder,
+        on_delete=models.CASCADE,
+        related_name="recovery_order_grants",
+    )
+    redeemed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("grant", "order"),
+                name="dic_recovery_grant_order_unique",
+            )
+        ]
+
+
+class RegistrationRecoveryRateLimit(models.Model):
+    key_digest = models.CharField(max_length=64, unique=True)
+    window_started_at = models.DateTimeField()
+    request_count = models.PositiveSmallIntegerField(default=0)
+    cooldown_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)

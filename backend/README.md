@@ -145,20 +145,121 @@ and returns the existing order. The draft is removed after trusted payment
 verification or when the user resets the registration. Users should keep the
 checkout tab open until verification completes.
 
+## Secure registration recovery
+
+The DIC page provides **Already registered? Recover your registration**. Recovery
+uses the participant or primary-registrant contact already stored on non-cancelled
+orders; it does not create registrations. A verified contact can select only the
+orders matched to that contact and stored on its challenge. Multiple children or
+orders sharing one verified contact are listed only after the one-time code is
+accepted.
+
+The versioned recovery endpoints are:
+
+- `GET /api/v1/dic/recovery/channels/` returns channel availability and the
+  optional configured WhatsApp support link; it never checks a contact.
+- `POST /api/v1/dic/recovery/challenges/` accepts `channel` and `contact`.
+- `POST /api/v1/dic/recovery/challenges/{challenge_id}/resend/` accepts the
+  same channel and contact.
+- `POST /api/v1/dic/recovery/challenges/{challenge_id}/verify/` accepts the
+  six-digit `code` and returns a short-lived, scoped recovery grant.
+- `GET /api/v1/dic/recovery/orders/` requires that grant as a bearer token and
+  returns minimal summaries for only the grant's eligible orders.
+- `POST /api/v1/dic/recovery/orders/{order_id}/restore/` redeems that grant for
+  one selected order and returns its rotated order-access token and authoritative
+  payment status. A grant can restore each listed order once.
+
+After delivery, OTPs and grant values are stored only as keyed hashes; queued
+delivery payloads are encrypted with Fernet and cleared after processing.
+Contact identifiers used for throttling/matching are keyed hashes as well.
+Codes expire after 10 minutes, are single-use, and allow at most five
+verification attempts. Resends invalidate the prior code and are subject to a
+60-second cooldown. Database-backed contact and source-address request buckets
+enforce limits across application workers; the regular DRF scoped throttles
+remain an additional layer. The source address uses `REMOTE_ADDR`; configure a
+trusted reverse proxy to pass the actual client address safely rather than
+trusting arbitrary forwarded headers.
+
+Recovery requests are queued before the generic response is returned; the API
+does not wait for a delivery provider, preventing provider latency from
+revealing whether a contact matches a registration. Delivery payloads are
+Fernet-encrypted at rest and cleared after processing. The worker suppresses
+messages for unknown contacts, so they receive the same response but no code.
+Delivery failures are stored as failed and logged with the channel only—never
+contact details or codes. Enable the worker only when a supervised scheduler
+is running `python backend\manage.py send_dic_recovery_messages` repeatedly
+(recommended interval: five seconds). The command processes a bounded batch
+and exits; multiple worker processes may run concurrently. Channels are
+reported unavailable unless the worker flag and a valid encryption key are
+configured. Generate a key with
+`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+and store it only in the server environment as `DIC_RECOVERY_ENCRYPTION_KEY`.
+Losing or rotating this key invalidates queued deliveries, which will then be
+marked failed; it does not affect sent codes or recovery grants. The periodic
+cleanup command also clears encrypted payloads for expired deliveries. Run
+`python backend\manage.py cleanup_dic_recovery` periodically to remove recovery
+records and rate-limit rows older than one day. This does not modify registration,
+payment, or allocation records.
+
+All recovery channels are disabled by default. Email becomes available only
+when `DIC_EMAIL_RECOVERY_ENABLED=True`, a non-console Django email backend is
+configured, an SMTP host is present when using SMTP, and `DEFAULT_FROM_EMAIL` is
+set, and `DIC_RECOVERY_DELIVERY_WORKER_ENABLED=True` with a valid
+`DIC_RECOVERY_ENCRYPTION_KEY`. The development console and in-memory email
+backends are deliberately not accepted for recovery because they expose
+message bodies locally.
+
+SMS requires `DIC_SMS_RECOVERY_ADAPTER` to name a deployment-provided Python
+class with a `send(destination, code)` method. Select only an approved provider
+and implement its credential handling, timeouts, and safe error behavior before
+enabling it; the adapter is invoked by the supervised recovery-delivery worker.
+
+WhatsApp OTP uses the official WhatsApp Business Cloud API template-message
+endpoint. Configure `DIC_WHATSAPP_ACCESS_TOKEN`,
+`DIC_WHATSAPP_PHONE_NUMBER_ID`, `DIC_WHATSAPP_OTP_TEMPLATE`, and the approved
+template language. The template must be approved for authentication codes and
+support the single body parameter used by the adapter. The API version,
+provider timeout, and verified support number are set with
+`DIC_WHATSAPP_API_VERSION`, `DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS`, and
+`DIC_WHATSAPP_SUPPORT_NUMBER`. WhatsApp recovery remains unavailable until all
+OTP credentials, the approved template, and the recovery worker configuration
+are set. A support chat is never treated as identity verification.
+
+Keep all provider credentials in the server environment. Do not use browser
+storage, query strings, analytics, or client logs for OTPs, recovery grants, or
+order bearer tokens. Recovery never starts payment automatically; the user must
+explicitly request checkout, and only the existing Paystack verification flow
+can confirm payment. Administratively revoked order access cannot be restored
+through this recovery flow.
+
 ## Paystack test-mode payments
 
 Payment initiation and verification are available under `/api/v1/dic/`:
 
+- Configure public camp dates, venue, registration windows, and prices in
+  Django Admin. DIC dates and cutoff inputs use `Africa/Lagos`. Early-bird and
+  regular fees are stored per category; the edition-wide cutoff determines
+  which quote is available. Do not open registration until all approved fees,
+  deadline, and registration dates are configured.
+- If an unpaid early-bird order reaches its cutoff, payment initialization
+  returns a signed, short-lived repricing quote. The registrant must explicitly
+  accept it through `POST /orders/{order_id}/pricing/accept/` before another
+  payment attempt is created. Old Paystack authorizations are not assumed to be
+  cancellable; a later charge against a superseded early-bird quote is held for
+  reconciliation and does not confirm the order.
 - `POST /orders/{order_id}/payments/initialize/` requires the order's bearer
   access token and returns a payment reference, status and Paystack checkout
-  URL. The amount is derived exclusively from immutable order-item fee
-  snapshots, converted from NGN to integer kobo on the server. The billing
-  email is the optional primary registrant email, falling back to the first
-  participant's required email.
+  URL. The amount is derived exclusively from the current accepted immutable
+  price revision and converted from NGN to integer kobo on the server. The
+  billing email is the optional primary registrant email, falling back to the
+  first participant's required email.
 - `POST /orders/{order_id}/payments/{reference}/verify/` requires the same
-  bearer token and verifies the reference directly with Paystack. Only a
-  matching successful provider result (reference, amount and NGN currency)
-  marks the order paid and confirmed. Browser redirects are not trusted.
+  bearer token and verifies the reference directly with Paystack. A verified
+  success must include a valid provider `paid_at` timestamp as well as a
+  matching reference, amount and NGN currency. The provider-confirmed
+  completion time, not order creation time or callback arrival time, enforces
+  the early-bird cutoff. Missing or out-of-window timestamps are held for
+  reconciliation. Browser redirects are not trusted.
 - `POST /payments/paystack/webhook/` verifies `X-Paystack-Signature` against
   the exact request body with HMAC-SHA512, deduplicates events by a body digest,
   and independently verifies `charge.success` with Paystack before settlement.
@@ -178,6 +279,11 @@ Django Admin.
 
 Automated tests mock all provider calls; they never make real payment requests.
 Live keys and transactions are intentionally unsupported in this milestone.
+To set up the confirmed DIC 2026 listing when no edition exists, run
+`python manage.py setup_dic_2026`. The command creates a draft listing with the
+confirmed 23 December 2026–1 January 2027 dates and Faisal Omar Memorial School
+venue; it does not configure registration dates, categories, fees, directions,
+or open registration. It leaves existing editions unchanged.
 For Paystack test-mode verification, configure the test key locally, set an
 HTTPS callback URL, start the backend, create an order and initialize checkout.
 Complete a test-mode payment using Paystack's current test instructions, then

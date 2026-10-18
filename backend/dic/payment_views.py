@@ -1,6 +1,7 @@
 import hashlib
 import json
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from urllib.parse import urlparse
 
@@ -27,6 +28,15 @@ from .payments import (
     PaystackTransportError,
     verify_webhook_signature,
 )
+from .pricing import (
+    PricingConfigurationError,
+    current_order_prices,
+    create_price_revision,
+    lock_order_pricing_configuration,
+    revision_matches_current,
+    sign_repricing_quote,
+    verify_repricing_quote,
+)
 
 
 UNRESOLVED_ATTEMPT_STATUSES = (
@@ -35,6 +45,7 @@ UNRESOLVED_ATTEMPT_STATUSES = (
     PaymentAttempt.Status.INITIALIZATION_UNKNOWN,
     PaymentAttempt.Status.VERIFICATION_PENDING,
     PaymentAttempt.Status.AMOUNT_MISMATCH,
+    PaymentAttempt.Status.RECONCILIATION_REQUIRED,
 )
 
 
@@ -90,10 +101,45 @@ def _safe_provider_status(value):
     )
 
 
+def _provider_paid_at(value):
+    if not isinstance(value, str) or not value or len(value) > 64:
+        return None
+    try:
+        parsed = datetime.fromisoformat(
+            value.strip().replace("Z", "+00:00")
+        )
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
+
+
+def _revision_is_valid_at_payment(revision, paid_at):
+    if revision is None:
+        return False
+    lines = list(revision.items.all())
+    if not lines:
+        return False
+    cutoff = revision.early_bird_cutoff_at
+    for line in lines:
+        if line.price_type == "early_bird":
+            if cutoff is None or paid_at >= cutoff:
+                return False
+        elif line.early_bird_fee_snapshot_ngn is not None:
+            if cutoff is None or paid_at < cutoff:
+                return False
+    return True
+
+
 def _mark_initialization_failure(attempt_id, failure_code, state):
     with transaction.atomic():
         attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt_id)
-        if attempt.status == PaymentAttempt.Status.SUCCESSFUL:
+        if attempt.status in (
+            PaymentAttempt.Status.SUCCESSFUL,
+            PaymentAttempt.Status.DUPLICATE_SUCCESS,
+            PaymentAttempt.Status.SUPERSEDED,
+        ):
             return attempt
         attempt.status = state
         attempt.failure_code = failure_code
@@ -123,6 +169,8 @@ def _apply_verified_transaction(attempt_id, provider_data):
         provider_status = _safe_provider_status(provider_data.get("status"))
         attempt.provider_status = provider_status
         attempt.verified_at = timezone.now()
+        provider_paid_at = _provider_paid_at(provider_data.get("paid_at"))
+        attempt.provider_paid_at = provider_paid_at
         reference_matches = provider_data.get("reference") == attempt.reference
         amount = provider_data.get("amount")
         amount_matches = (
@@ -182,11 +230,55 @@ def _apply_verified_transaction(attempt_id, provider_data):
                 attempt.status = PaymentAttempt.Status.DUPLICATE_SUCCESS
                 attempt.failure_code = "duplicate_successful_charge"
             else:
-                attempt.status = PaymentAttempt.Status.SUCCESSFUL
-                attempt.failure_code = ""
-                order.payment_status = RegistrationOrder.PaymentStatus.PAID
-                order.status = RegistrationOrder.Status.CONFIRMED
-                order.save(update_fields=("payment_status", "status"))
+                paid_at = provider_paid_at
+                revision = attempt.price_revision
+                valid_at_payment = (
+                    paid_at is not None
+                    and _revision_is_valid_at_payment(revision, paid_at)
+                )
+                early_cutoff_payment = (
+                    paid_at is not None
+                    and revision is not None
+                    and any(
+                        line.price_type == "early_bird"
+                        for line in revision.items.all()
+                    )
+                    and revision.early_bird_cutoff_at is not None
+                    and paid_at < revision.early_bird_cutoff_at
+                )
+                superseded = attempt.status == PaymentAttempt.Status.SUPERSEDED
+                if paid_at is None:
+                    attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
+                    attempt.failure_code = "provider_paid_at_missing_or_invalid"
+                elif not valid_at_payment or (superseded and not early_cutoff_payment):
+                    attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
+                    attempt.failure_code = (
+                        "superseded_quote_paid"
+                        if superseded
+                        else "payment_outside_accepted_price_window"
+                    )
+                else:
+                    if superseded:
+                        order.current_price_revision = revision
+                        order.save(update_fields=("current_price_revision",))
+                    attempt.status = PaymentAttempt.Status.SUCCESSFUL
+                    attempt.failure_code = ""
+                    order.payment_status = RegistrationOrder.PaymentStatus.PAID
+                    order.status = RegistrationOrder.Status.CONFIRMED
+                    order.save(update_fields=("payment_status", "status"))
+                    PaymentAttempt.objects.select_for_update().filter(
+                        order=order,
+                        status__in=(
+                            PaymentAttempt.Status.INITIALIZING,
+                            PaymentAttempt.Status.PENDING,
+                            PaymentAttempt.Status.INITIALIZATION_UNKNOWN,
+                            PaymentAttempt.Status.VERIFICATION_PENDING,
+                        ),
+                    ).exclude(pk=attempt.pk).update(
+                        status=PaymentAttempt.Status.SUPERSEDED,
+                        failure_code="order_paid_by_another_attempt",
+                        updated_at=timezone.now(),
+                    )
 
         attempt.save(
             update_fields=(
@@ -195,6 +287,7 @@ def _apply_verified_transaction(attempt_id, provider_data):
                 "status",
                 "failure_code",
                 "provider_transaction_id",
+                "provider_paid_at",
                 "updated_at",
             )
         )
@@ -232,14 +325,6 @@ class PaymentInitializeView(APIView):
 
     def post(self, request, public_id):
         order = _order_for_access(request, public_id)
-        try:
-            client = PaystackClient()
-        except PaystackConfigurationError:
-            return Response(
-                {"detail": "Paystack test credentials are not configured correctly."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
         with transaction.atomic():
             order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
             if order.status == RegistrationOrder.Status.CANCELLED:
@@ -248,6 +333,47 @@ class PaymentInitializeView(APIView):
                 raise ValidationError("This order has already been paid.")
             if order.payment_status == RegistrationOrder.PaymentStatus.REFUNDED:
                 raise ValidationError("Refunded orders cannot be paid.")
+
+            lock_order_pricing_configuration(order)
+            try:
+                prices = current_order_prices(order)
+            except PricingConfigurationError as exc:
+                raise ValidationError({"pricing": str(exc)}) from exc
+            if not revision_matches_current(order.current_price_revision, prices):
+                return Response(
+                    {
+                        "repricing_required": True,
+                        "detail": (
+                            "The quoted price is no longer current. Review and accept "
+                            "the updated amount before starting payment."
+                        ),
+                        "quote": sign_repricing_quote(order, prices),
+                        "total_amount_ngn": str(
+                            sum((price["fee_ngn"] for price in prices), Decimal("0.00"))
+                        ),
+                        "items": [
+                            {
+                                "category_name": price["category_name"],
+                                "fee_ngn": str(price["fee_ngn"]),
+                                "price_type": price["price_type"],
+                            }
+                            for price in prices
+                        ],
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            if PaymentAttempt.objects.filter(
+                order=order,
+                status__in=(
+                    PaymentAttempt.Status.AMOUNT_MISMATCH,
+                    PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+                ),
+            ).exists():
+                raise ValidationError(
+                    "A previous payment attempt requires reconciliation before "
+                    "another charge can be initiated."
+                )
 
             unresolved = (
                 PaymentAttempt.objects.select_for_update()
@@ -270,6 +396,18 @@ class PaymentInitializeView(APIView):
                     }
                 )
 
+            try:
+                client = PaystackClient()
+            except PaystackConfigurationError:
+                return Response(
+                    {
+                        "detail": (
+                            "Paystack test credentials are not configured correctly."
+                        )
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
             total = Decimal(order.total_amount_ngn)
             amount_kobo_decimal = total * 100
             if total <= 0 or amount_kobo_decimal != amount_kobo_decimal.to_integral_value():
@@ -290,6 +428,7 @@ class PaymentInitializeView(APIView):
                 reference=f"DIC{uuid.uuid4().hex}",
                 amount_kobo=amount_kobo,
                 currency="NGN",
+                price_revision=order.current_price_revision,
             )
 
         try:
@@ -357,11 +496,113 @@ class PaymentInitializeView(APIView):
             order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
             if attempt.status == PaymentAttempt.Status.INITIALIZING:
                 attempt.status = PaymentAttempt.Status.PENDING
-                attempt.authorization_url = authorization_url
-                attempt.save(
-                    update_fields=("status", "authorization_url", "updated_at")
-                )
+            attempt.authorization_url = authorization_url
+            attempt.save(
+                update_fields=("status", "authorization_url", "updated_at")
+            )
         return _attempt_response(attempt, order)
+
+
+class OrderRepricingAcceptView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "dic_payment_initiate"
+
+    def post(self, request, public_id):
+        order = _order_for_access(request, public_id)
+        quote = request.data.get("quote")
+        if not isinstance(quote, str) or not quote:
+            raise ValidationError({"quote": "A current pricing quote is required."})
+
+        with transaction.atomic():
+            order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
+            if (
+                order.status == RegistrationOrder.Status.CANCELLED
+                or order.payment_status
+                in (
+                    RegistrationOrder.PaymentStatus.PAID,
+                    RegistrationOrder.PaymentStatus.REFUNDED,
+                )
+            ):
+                raise ValidationError("This order cannot be repriced.")
+            lock_order_pricing_configuration(order)
+            try:
+                prices = current_order_prices(order)
+            except PricingConfigurationError as exc:
+                raise ValidationError({"pricing": str(exc)}) from exc
+            if not verify_repricing_quote(quote, order, prices):
+                return Response(
+                    {
+                        "repricing_required": True,
+                        "detail": (
+                            "The pricing offer changed or expired. Review the current "
+                            "amount and confirm it again."
+                        ),
+                        "quote": sign_repricing_quote(order, prices),
+                        "total_amount_ngn": str(
+                            sum((price["fee_ngn"] for price in prices), Decimal("0.00"))
+                        ),
+                        "items": [
+                            {
+                                "category_name": price["category_name"],
+                                "fee_ngn": str(price["fee_ngn"]),
+                                "price_type": price["price_type"],
+                            }
+                            for price in prices
+                        ],
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            if revision_matches_current(order.current_price_revision, prices):
+                return Response(
+                    {
+                        "accepted": True,
+                        "idempotent_replay": True,
+                        "total_amount_ngn": str(order.total_amount_ngn),
+                    }
+                )
+
+            if PaymentAttempt.objects.filter(
+                order=order,
+                status__in=(
+                    PaymentAttempt.Status.AMOUNT_MISMATCH,
+                    PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+                ),
+            ).exists():
+                raise ValidationError(
+                    "A previous payment attempt requires reconciliation before "
+                    "the order can be repriced."
+                )
+
+            PaymentAttempt.objects.select_for_update().filter(
+                order=order,
+                status__in=(
+                    PaymentAttempt.Status.INITIALIZING,
+                    PaymentAttempt.Status.PENDING,
+                    PaymentAttempt.Status.INITIALIZATION_UNKNOWN,
+                    PaymentAttempt.Status.VERIFICATION_PENDING,
+                ),
+            ).update(
+                status=PaymentAttempt.Status.SUPERSEDED,
+                failure_code="quote_superseded_by_accepted_repricing",
+                updated_at=timezone.now(),
+            )
+            revision = create_price_revision(
+                order,
+                prices,
+                accepted_at=timezone.now(),
+            )
+            return Response(
+                {
+                    "accepted": True,
+                    "idempotent_replay": False,
+                    "revision": revision.revision_number,
+                    "total_amount_ngn": str(revision.total_amount_ngn),
+                    "currency": "NGN",
+                }
+            )
 
 
 class PaymentVerifyView(APIView):

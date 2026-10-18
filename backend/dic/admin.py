@@ -30,6 +30,8 @@ from .models import (
     RegistrationCategory,
     RegistrationOrder,
     RegistrationOrderItem,
+    RegistrationOrderPriceItem,
+    RegistrationOrderPriceRevision,
 )
 
 
@@ -89,7 +91,14 @@ class RegistrationCategoryInline(admin.TabularInline):
     model = RegistrationCategory
     extra = 0
     show_change_link = True
-    fields = ("name", "minimum_age", "maximum_age", "fee_ngn", "is_active")
+    fields = (
+        "name",
+        "minimum_age",
+        "maximum_age",
+        "early_bird_fee_ngn",
+        "fee_ngn",
+        "is_active",
+    )
 
 
 class HouseInline(admin.TabularInline):
@@ -116,6 +125,23 @@ class RegistrationOrderItemInline(admin.TabularInline):
         return False
 
 
+class RegistrationOrderPriceRevisionInline(admin.TabularInline):
+    model = RegistrationOrderPriceRevision
+    extra = 0
+    can_delete = False
+    fields = (
+        "revision_number",
+        "total_amount_ngn",
+        "early_bird_cutoff_at",
+        "created_at",
+        "accepted_at",
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(CampEdition)
 class CampEditionAdmin(admin.ModelAdmin):
     change_form_template = "admin/dic/change_form.html"
@@ -125,6 +151,8 @@ class CampEditionAdmin(admin.ModelAdmin):
         "camp_start_date",
         "camp_end_date",
         "registration_status",
+        "pricing_status",
+        "venue_name",
         "is_active",
         "allocation_strategy",
         "allocation_strategy_approved_at",
@@ -164,7 +192,27 @@ class CampEditionAdmin(admin.ModelAdmin):
                     "camp_end_date",
                     "registration_open_date",
                     "registration_close_date",
+                    "early_bird_cutoff_at",
                 )
+            },
+        ),
+        (
+            "Venue and verified directions",
+            {
+                "fields": (
+                    "venue_name",
+                    "venue_directions_address",
+                    "venue_google_place_id",
+                    "venue_latitude",
+                    "venue_longitude",
+                    "venue_directions_verified",
+                    "venue_directions_verified_at",
+                    "venue_directions_verified_by",
+                ),
+                "description": (
+                    "Only mark a destination verified after checking it with the "
+                    "committee. No directions link is published otherwise."
+                ),
             },
         ),
         ("General information", {"fields": ("general_information",)}),
@@ -178,12 +226,61 @@ class CampEditionAdmin(admin.ModelAdmin):
         "allocation_strategy_approved_by",
         "allocation_strategy_approval_note",
         "allocation_approved_configuration",
+        "venue_directions_verified_at",
+        "venue_directions_verified_by",
     )
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if not request.user.has_perm("dic.can_verify_venue_directions"):
+            fields.append("venue_directions_verified")
+        if (
+            obj
+            and obj.year == 2026
+            and not request.user.has_perm("dic.can_edit_confirmed_dic_details")
+            and not request.user.is_superuser
+        ):
+            fields.extend(
+                (
+                    "year",
+                    "camp_start_date",
+                    "camp_end_date",
+                    "venue_name",
+                )
+            )
+        return fields
+
+    @admin.display(description="Pricing configuration")
+    def pricing_status(self, obj):
+        return obj.pricing_configuration_status
 
     def save_model(self, request, obj, form, change):
         with transaction.atomic():
+            previous = None
             if change:
-                CampEdition.objects.select_for_update().get(pk=obj.pk)
+                previous = CampEdition.objects.select_for_update().get(pk=obj.pk)
+            confirmed_fields = ("year", "camp_start_date", "camp_end_date", "venue_name")
+            confirmed_details_changed = previous and any(
+                getattr(previous, field) != getattr(obj, field)
+                for field in confirmed_fields
+            )
+            may_edit_confirmed_details = (
+                request.user.is_superuser
+                or request.user.has_perm("dic.can_edit_confirmed_dic_details")
+            )
+            if not change and obj.year == 2026:
+                raise ValidationError(
+                    "Create the confirmed DIC 2026 listing with the "
+                    "setup_dic_2026 management command."
+                )
+            if (
+                confirmed_details_changed
+                and (previous.year == 2026 or obj.year == 2026)
+                and not may_edit_confirmed_details
+            ):
+                raise PermissionDenied
+
+            if change:
                 previous_strategy = CampEdition.objects.filter(pk=obj.pk).values_list(
                     "allocation_strategy",
                     flat=True,
@@ -193,6 +290,50 @@ class CampEditionAdmin(admin.ModelAdmin):
                     obj.allocation_strategy_approved_by = None
                     obj.allocation_strategy_approval_note = ""
                     obj.allocation_approved_configuration = ""
+                destination_fields = (
+                    "venue_directions_address",
+                    "venue_google_place_id",
+                    "venue_latitude",
+                    "venue_longitude",
+                )
+                destination_changed = previous and any(
+                    getattr(previous, field) != getattr(obj, field)
+                    for field in destination_fields
+                )
+                if destination_changed:
+                    if (
+                        obj.venue_directions_verified
+                        and request.user.has_perm("dic.can_verify_venue_directions")
+                    ):
+                        obj.venue_directions_verified_at = timezone.now()
+                        obj.venue_directions_verified_by = request.user
+                    else:
+                        obj.venue_directions_verified = False
+                        obj.venue_directions_verified_at = None
+                        obj.venue_directions_verified_by = None
+            if (
+                obj.venue_directions_verified
+                and request.user.has_perm("dic.can_verify_venue_directions")
+                and (
+                    previous is None
+                    or not previous.venue_directions_verified
+                    or any(
+                        getattr(previous, field) != getattr(obj, field)
+                        for field in (
+                            "venue_directions_address",
+                            "venue_google_place_id",
+                            "venue_latitude",
+                            "venue_longitude",
+                        )
+                    )
+                )
+            ):
+                obj.venue_directions_verified_at = timezone.now()
+                obj.venue_directions_verified_by = request.user
+            if obj.registration_status == CampEdition.RegistrationStatus.OPEN:
+                errors = obj.pricing_configuration_errors()
+                if errors:
+                    raise ValidationError(errors)
             super().save_model(request, obj, form, change)
 
     def save_formset(self, request, form, formset, change):
@@ -358,12 +499,18 @@ class RegistrationCategoryAdmin(admin.ModelAdmin):
         "edition",
         "minimum_age",
         "maximum_age",
+        "early_bird_fee_ngn",
         "fee_ngn",
         "is_active",
     )
     list_filter = ("edition", "is_active")
     search_fields = ("name", "edition__name")
     autocomplete_fields = ("edition",)
+
+    def save_model(self, request, obj, form, change):
+        with transaction.atomic():
+            CampEdition.objects.select_for_update().get(pk=obj.edition_id)
+            super().save_model(request, obj, form, change)
 
 
 @admin.register(House)
@@ -609,7 +756,7 @@ class RegistrationOrderAdmin(admin.ModelAdmin):
         "created_at",
         "submitted_at",
     )
-    inlines = (RegistrationOrderItemInline,)
+    inlines = (RegistrationOrderItemInline, RegistrationOrderPriceRevisionInline)
     actions = ("revoke_order_access",)
 
     @admin.display(description="Total (NGN)")
@@ -662,6 +809,7 @@ class PaymentAttemptAdmin(admin.ModelAdmin):
         "amount_kobo",
         "currency",
         "provider_status",
+        "provider_paid_at",
         "created_at",
         "verified_at",
     )
@@ -671,6 +819,34 @@ class PaymentAttemptAdmin(admin.ModelAdmin):
         field.name
         for field in PaymentAttempt._meta.fields
         if field.name != "authorization_url"
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and super().has_change_permission(
+            request,
+            obj,
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(RegistrationOrderPriceItem)
+class RegistrationOrderPriceItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "revision",
+        "category_name_snapshot",
+        "price_type",
+        "fee_snapshot_ngn",
+    )
+    list_filter = ("price_type",)
+    search_fields = ("revision__order__public_id", "category_name_snapshot")
+    readonly_fields = tuple(
+        field.name for field in RegistrationOrderPriceItem._meta.fields
     )
     fields = readonly_fields
 

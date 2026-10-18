@@ -77,6 +77,14 @@ export function initializePayment(orderId, accessToken) {
   })
 }
 
+export function acceptOrderPricing(orderId, quote, accessToken) {
+  return request(`/dic/orders/${encodeURIComponent(orderId)}/pricing/accept/`, {
+    method: 'POST',
+    body: { quote },
+    accessToken,
+  })
+}
+
 export function verifyPayment(orderId, paymentReference, accessToken) {
   return request(
     `/dic/orders/${encodeURIComponent(orderId)}/payments/${encodeURIComponent(paymentReference)}/verify/`,
@@ -86,4 +94,41 @@ export function verifyPayment(orderId, paymentReference, accessToken) {
       accessToken,
     },
   )
+}
+
+export function getRecoveryChannels() {
+  return request('/dic/recovery/channels/')
+}
+
+export function requestRecoveryCode(channel, contact) {
+  return request('/dic/recovery/challenges/', {
+    method: 'POST',
+    body: { channel, contact },
+  })
+}
+
+export function resendRecoveryCode(challengeId, channel, contact) {
+  return request(`/dic/recovery/challenges/${encodeURIComponent(challengeId)}/resend/`, {
+    method: 'POST',
+    body: { channel, contact },
+  })
+}
+
+export function verifyRecoveryCode(challengeId, code) {
+  return request(`/dic/recovery/challenges/${encodeURIComponent(challengeId)}/verify/`, {
+    method: 'POST',
+    body: { code },
+  })
+}
+
+export function getRecoveryOrders(recoveryGrant) {
+  return request('/dic/recovery/orders/', { accessToken: recoveryGrant })
+}
+
+export function restoreRecoveredOrder(orderId, recoveryGrant) {
+  return request(`/dic/recovery/orders/${encodeURIComponent(orderId)}/restore/`, {
+    method: 'POST',
+    body: {},
+    accessToken: recoveryGrant,
+  })
 }

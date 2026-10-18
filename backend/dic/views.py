@@ -26,6 +26,11 @@ from .models import (
     RegistrationOrder,
     RegistrationOrderItem,
 )
+from .pricing import (
+    PricingConfigurationError,
+    create_price_revision,
+    price_for_category,
+)
 from .security import digest_value, new_order_access_token, order_access_token_expiry
 from .serializers import (
     ActiveEditionSerializer,
@@ -43,7 +48,10 @@ class IdempotencyConflict(APIException):
 def _registration_is_open(edition, today):
     return (
         edition.registration_status == CampEdition.RegistrationStatus.OPEN
+        and edition.registration_open_date is not None
+        and edition.registration_close_date is not None
         and edition.registration_open_date <= today <= edition.registration_close_date
+        and edition.pricing_configuration_is_complete
     )
 
 
@@ -85,6 +93,12 @@ def _request_fingerprint(validated_data):
 
 def _order_summary(order, access_token, replayed=False):
     items = list(order.items.select_related("category").all())
+    revision_items = {}
+    if order.current_price_revision_id:
+        revision_items = {
+            item.order_item_id: item
+            for item in order.current_price_revision.items.all()
+        }
     return {
         "order_id": str(order.public_id),
         "access_token": access_token,
@@ -96,7 +110,16 @@ def _order_summary(order, access_token, replayed=False):
         "items": [
             {
                 "category_name": item.category_name_snapshot,
-                "fee_ngn": str(item.fee_snapshot_ngn),
+                "fee_ngn": str(
+                    revision_items[item.pk].fee_snapshot_ngn
+                    if item.pk in revision_items
+                    else item.fee_snapshot_ngn
+                ),
+                "price_type": (
+                    revision_items[item.pk].price_type
+                    if item.pk in revision_items
+                    else "regular"
+                ),
             }
             for item in items
         ],
@@ -135,6 +158,15 @@ def _create_order(*, key_digest, fingerprint, payload):
         today = timezone.localdate()
         if not edition or not _registration_is_open(edition, today):
             raise ValidationError("DIC registration is not currently open.")
+        if edition.pricing_configuration_errors():
+            raise ValidationError(
+                {
+                    "pricing": (
+                        "DIC pricing is incomplete. Registration cannot be opened "
+                        "until an administrator configures approved fees and dates."
+                    )
+                }
+            )
 
         participant_data = payload["participants"]
         category_ids = {item["category_id"] for item in participant_data}
@@ -151,8 +183,17 @@ def _create_order(*, key_digest, fingerprint, payload):
                 "One or more selected categories are unavailable for the active edition."
             )
 
+        prices_by_category = {}
+        price_at = timezone.now()
         for index, data in enumerate(participant_data):
             category = categories[data["category_id"]]
+            try:
+                prices_by_category[category.pk] = price_for_category(
+                    category,
+                    price_at,
+                )
+            except PricingConfigurationError as exc:
+                raise ValidationError({"pricing": str(exc)}) from exc
             age = _age_on(data["date_of_birth"], today)
             if category.minimum_age is not None and age < category.minimum_age:
                 raise ValidationError(
@@ -179,16 +220,23 @@ def _create_order(*, key_digest, fingerprint, payload):
             access_token_expires_at=order_access_token_expiry(),
         )
 
+        prices = []
         for data in participant_data:
             participant_fields = {
                 key: value for key, value in data.items() if key != "category_id"
             }
             participant = Participant.objects.create(**participant_fields)
-            RegistrationOrderItem.objects.create(
+            category = categories[data["category_id"]]
+            price = prices_by_category[category.pk]
+            item = RegistrationOrderItem.objects.create(
                 order=order,
                 participant=participant,
-                category=categories[data["category_id"]],
+                category=category,
+                fee_snapshot_ngn=price["fee_ngn"],
             )
+            prices.append({"order_item": item, **price})
+
+        create_price_revision(order, prices, accepted_at=price_at)
 
         return order, token, False
 
@@ -278,6 +326,7 @@ class RegistrationOrderDetailView(APIView):
                 "primary_registrant",
             )
             .prefetch_related("items")
+            .prefetch_related("current_price_revision__items")
             .filter(public_id=public_id)
             .first()
         )

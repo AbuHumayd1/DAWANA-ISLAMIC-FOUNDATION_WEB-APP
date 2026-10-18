@@ -7,10 +7,30 @@
 .dic-checkout-link { display: inline-flex; width: fit-content; margin-top: 12px; }
 .dic-payment-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .dic-form-actions .button:disabled { cursor: wait; opacity: .65; }
+.dic-recovery-link { display: inline-block; margin-top: 14px; color: var(--spruce); font-size: 12px; font-weight: 700; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 4px; }
+.dic-recovery-card { width: min(720px, 100%); margin: 24px auto 0; padding: clamp(20px, 5vw, 36px); border: 1px solid var(--border); border-radius: 12px; background: white; box-shadow: var(--shadow); }
+.dic-recovery-form { display: grid; gap: 16px; }
+.dic-recovery-form h2,.dic-recovery-orders h2,.dic-recovery-order h2 { margin: 0; color: var(--deep); font: 600 25px 'Playfair Display', serif; }
+.dic-recovery-form > p,.dic-recovery-order > p { margin: 0; color: #52605b; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.dic-recovery-form .dic-field { width: 100%; }
+.dic-recovery-form .button,.dic-recovery-order > .button { justify-self: start; }
+.dic-recovery-orders { display: grid; gap: 14px; }
+.dic-recovery-orders article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.dic-recovery-orders article > div { display: grid; gap: 6px; min-width: 0; }
+.dic-recovery-orders article span,.dic-recovery-orders article small { color: #52605b; font-size: 12px; }
+.dic-recovery-orders article strong { overflow-wrap: anywhere; }
+.dic-recovery-order { display: grid; justify-items: start; gap: 12px; }
+.dic-recovery-order > .text-link { padding: 8px 0; color: var(--spruce); font-weight: 700; }
+.dic-recovery-support,.dic-recovery-back { color: #52605b; font-size: 12px; line-height: 1.7; }
+.dic-recovery-support a,.dic-recovery-back a { color: var(--spruce); font-weight: 700; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; }
+.dic-recovery-back { margin: 18px 0 0; }
 @media (max-width: 700px) {
   .dic-payment-actions { width: 100%; flex-direction: column-reverse; }
   .dic-payment-actions .button { width: 100%; }
   .dic-checkout-link { width: 100%; justify-content: center; }
+  .dic-recovery-orders article { align-items: stretch; flex-direction: column; }
+  .dic-recovery-orders article .button,.dic-recovery-form .button,.dic-recovery-order > .button { width: 100%; }
+  .dic-recovery-card { margin-top: 16px; }
 }
 * { box-sizing: border-box; }
 body { overflow-x: hidden; }
@@ -223,6 +243,11 @@ body { background: var(--mint); }
 .watchword-copy { animation: watchword-arrive 720ms cubic-bezier(.2,.7,.2,1) both; }
 .panel-pattern { animation: pattern-drift 36s linear infinite; }
 .panel-bottom > span { animation: ornament-glow 5s ease-in-out 1.2s infinite alternate; }
+
+.dic-price-list { margin: -4px 0 16px; }
+.dic-price-list p { margin: 0; padding: 10px 0; border-top: 1px solid var(--border); color: #68736f; font-size: 11px; line-height: 1.7; }
+.dic-price-list strong { color: var(--deep); }
+.dic-info-card dd a { color: var(--spruce); text-decoration: underline; text-underline-offset: 3px; }
 .area-card,.media-card,.involved-card,.catalog-card,.participant-card,.dic-area-grid article,.dic-process-grid article { transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease; }
 .area-card:hover,.media-card:hover,.involved-card:hover,.catalog-card:hover,.participant-card:hover,.dic-area-grid article:hover,.dic-process-grid article:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15,77,56,.08); border-color: rgba(200,155,60,.6); }
 .button:focus-visible,.dic-steps button:focus-visible { outline: 3px solid rgba(200,155,60,.7); outline-offset: 3px; }

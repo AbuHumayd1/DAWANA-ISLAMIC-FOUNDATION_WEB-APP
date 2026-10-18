@@ -12,6 +12,7 @@ env = environ.Env(
     DJANGO_ALLOWED_HOSTS=(list, []),
     DB_CONN_MAX_AGE=(int, 60),
     PAYSTACK_HTTP_TIMEOUT_SECONDS=(int, 10),
+    DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS=(int, 8),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -33,6 +34,41 @@ PAYSTACK_MODE = env("PAYSTACK_MODE", default="test")
 PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_CALLBACK_URL = env("PAYSTACK_CALLBACK_URL", default="")
 PAYSTACK_HTTP_TIMEOUT_SECONDS = env.int("PAYSTACK_HTTP_TIMEOUT_SECONDS")
+DIC_EMAIL_RECOVERY_ENABLED = env.bool("DIC_EMAIL_RECOVERY_ENABLED", default=False)
+DIC_RECOVERY_DELIVERY_WORKER_ENABLED = env.bool(
+    "DIC_RECOVERY_DELIVERY_WORKER_ENABLED",
+    default=False,
+)
+DIC_RECOVERY_ENCRYPTION_KEY = env(
+    "DIC_RECOVERY_ENCRYPTION_KEY",
+    default="",
+)
+DIC_SMS_RECOVERY_ADAPTER = env("DIC_SMS_RECOVERY_ADAPTER", default="")
+DIC_WHATSAPP_ACCESS_TOKEN = env("DIC_WHATSAPP_ACCESS_TOKEN", default="")
+DIC_WHATSAPP_PHONE_NUMBER_ID = env("DIC_WHATSAPP_PHONE_NUMBER_ID", default="")
+DIC_WHATSAPP_API_VERSION = env("DIC_WHATSAPP_API_VERSION", default="v23.0")
+DIC_WHATSAPP_OTP_TEMPLATE = env("DIC_WHATSAPP_OTP_TEMPLATE", default="")
+DIC_WHATSAPP_OTP_LANGUAGE = env("DIC_WHATSAPP_OTP_LANGUAGE", default="en")
+DIC_WHATSAPP_SUPPORT_NUMBER = env("DIC_WHATSAPP_SUPPORT_NUMBER", default="")
+DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS = env.int(
+    "DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS"
+)
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="")
+if not 1 <= DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS <= 30:
+    raise ImproperlyConfigured(
+        "DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS must be between 1 and 30."
+    )
+EMAIL_TIMEOUT = DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -121,7 +157,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-gb"
-TIME_ZONE = "Africa/Accra"
+TIME_ZONE = "Africa/Lagos"
 USE_I18N = True
 USE_TZ = True
 
@@ -141,5 +177,10 @@ REST_FRAMEWORK = {
         "dic_payment_initiate": "20/hour",
         "dic_payment_verify": "60/hour",
         "dic_paystack_webhook": "600/minute",
+        "dic_recovery_channels": "60/hour",
+        "dic_recovery_request": "30/hour",
+        "dic_recovery_verify": "30/hour",
+        "dic_recovery_orders": "60/hour",
+        "dic_recovery_restore": "30/hour",
     },
 }

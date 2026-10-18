@@ -2,13 +2,17 @@ import uuid
 import hashlib
 import hmac
 import json
-from datetime import date, timedelta
+import threading
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.management import call_command, CommandError
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.test import RequestFactory
@@ -27,9 +31,13 @@ from .models import (
     RegistrationCategory,
     RegistrationOrder,
     RegistrationOrderItem,
+    RegistrationOrderPriceItem,
+    RegistrationOrderPriceRevision,
 )
 from .payment_views import _apply_verified_transaction
 from .payments import PaystackClient, PaystackTransportError
+from .pricing import current_order_prices, sign_repricing_quote
+from .security import digest_value, new_order_access_token, order_access_token_expiry
 
 
 class CampEditionTests(TestCase):
@@ -110,6 +118,155 @@ class CampEditionTests(TestCase):
 
         with self.assertRaises(ValidationError):
             edition.full_clean()
+
+    def test_google_maps_place_identifier_rejects_invalid_characters(self):
+        edition = self.make_edition(
+            venue_google_place_id="not a valid place id",
+        )
+
+        with self.assertRaises(ValidationError) as raised:
+            edition.full_clean()
+
+        self.assertIn("venue_google_place_id", raised.exception.message_dict)
+
+
+class Dic2026SetupCommandTests(TestCase):
+    def test_creates_confirmed_details_as_a_closed_draft_without_categories(self):
+        call_command("setup_dic_2026")
+        edition = CampEdition.objects.get(year=2026)
+
+        self.assertEqual(edition.camp_start_date, date(2026, 12, 23))
+        self.assertEqual(edition.camp_end_date, date(2027, 1, 1))
+        self.assertEqual(edition.venue_name, "Faisal Omar Memorial School")
+        self.assertTrue(edition.is_active)
+        self.assertEqual(edition.registration_status, CampEdition.RegistrationStatus.DRAFT)
+        self.assertIsNone(edition.registration_open_date)
+        self.assertIsNone(edition.registration_close_date)
+        self.assertIsNone(edition.early_bird_cutoff_at)
+        self.assertEqual(edition.registration_categories.count(), 0)
+
+    def test_rerun_does_not_overwrite_existing_edition_configuration(self):
+        call_command("setup_dic_2026")
+        edition = CampEdition.objects.get(year=2026)
+        edition.general_information = {"committee_note": "preserve"}
+        edition.save(update_fields=("general_information",))
+
+        call_command("setup_dic_2026")
+
+        edition.refresh_from_db()
+        self.assertEqual(edition.general_information, {"committee_note": "preserve"})
+        self.assertEqual(CampEdition.objects.filter(year=2026).count(), 1)
+
+    def test_does_not_displace_an_existing_active_edition(self):
+        CampEdition.objects.create(
+            name="Other Active Camp",
+            year=2025,
+            camp_start_date=date(2025, 12, 1),
+            camp_end_date=date(2025, 12, 7),
+            is_active=True,
+        )
+
+        with self.assertRaises(CommandError):
+            call_command("setup_dic_2026")
+
+        self.assertFalse(CampEdition.objects.filter(year=2026).exists())
+
+
+class CampEditionAdminTests(TestCase):
+    def setUp(self):
+        today = timezone.localdate()
+        self.edition = CampEdition.objects.create(
+            name="Daarul Islam Camp 2026",
+            year=2026,
+            camp_start_date=date(2026, 12, 23),
+            camp_end_date=date(2027, 1, 1),
+            is_active=True,
+            registration_status=CampEdition.RegistrationStatus.DRAFT,
+        )
+        self.admin_instance = admin.site._registry[CampEdition]
+        self.request = RequestFactory().post("/admin/dic/campedition/")
+        self.user = get_user_model().objects.create_superuser(
+            username="config-admin",
+            email="config-admin@example.test",
+            password="not-a-real-password",
+        )
+        self.request.user = self.user
+        self.today = today
+
+    def test_confirmed_details_require_the_dedicated_admin_permission(self):
+        regular_user = get_user_model().objects.create_user(
+            username="regular-admin",
+            password="not-a-real-password",
+            is_staff=True,
+        )
+        self.request.user = regular_user
+        readonly = self.admin_instance.get_readonly_fields(
+            self.request,
+            self.edition,
+        )
+        self.assertIn("year", readonly)
+        self.assertIn("camp_start_date", readonly)
+        self.assertIn("camp_end_date", readonly)
+        self.assertIn("venue_name", readonly)
+
+        permission = self.edition._meta.permissions[0][0]
+        from django.contrib.auth.models import Permission
+
+        can_edit = Permission.objects.get(
+            content_type__app_label="dic",
+            codename=permission,
+        )
+        regular_user.user_permissions.add(can_edit)
+        regular_user = get_user_model().objects.get(pk=regular_user.pk)
+        self.request.user = regular_user
+        readonly = self.admin_instance.get_readonly_fields(
+            self.request,
+            self.edition,
+        )
+        self.assertNotIn("year", readonly)
+        self.assertNotIn("camp_start_date", readonly)
+        self.assertNotIn("camp_end_date", readonly)
+        self.assertNotIn("venue_name", readonly)
+
+    def test_incomplete_pricing_cannot_open_registration(self):
+        self.edition.registration_status = CampEdition.RegistrationStatus.OPEN
+
+        with self.assertRaises(ValidationError):
+            self.admin_instance.save_model(
+                self.request,
+                self.edition,
+                form=None,
+                change=True,
+            )
+
+        self.edition.refresh_from_db()
+        self.assertEqual(
+            self.edition.registration_status,
+            CampEdition.RegistrationStatus.DRAFT,
+        )
+
+    def test_complete_regular_pricing_allows_an_authorized_admin_to_open(self):
+        self.edition.registration_open_date = self.today
+        self.edition.registration_close_date = self.today + timedelta(days=2)
+        self.edition.registration_status = CampEdition.RegistrationStatus.OPEN
+        RegistrationCategory.objects.create(
+            edition=self.edition,
+            name="Committee-approved test category",
+            fee_ngn=Decimal("100.00"),
+        )
+
+        self.admin_instance.save_model(
+            self.request,
+            self.edition,
+            form=None,
+            change=True,
+        )
+
+        self.edition.refresh_from_db()
+        self.assertEqual(
+            self.edition.registration_status,
+            CampEdition.RegistrationStatus.OPEN,
+        )
 
 
 class RegistrationCategoryTests(TestCase):
@@ -338,12 +495,68 @@ class RegistrationApiTests(APITestCase):
 
         response = self.client.get(reverse("dic:registration-options"))
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["year"], self.edition.year)
         self.assertTrue(response.data["registration_is_open"])
         category_ids = {item["id"] for item in response.data["categories"]}
         self.assertEqual(category_ids, {self.category.pk, self.other_category.pk})
         self.assertNotIn(inactive.pk, category_ids)
+
+    def test_edition_details_changed_in_admin_are_returned_by_public_api(self):
+        registration_open = self.edition.registration_open_date
+        registration_close = self.edition.registration_close_date
+        self.edition.year = 2026
+        self.edition.camp_start_date = date(2026, 12, 23)
+        self.edition.camp_end_date = date(2027, 1, 1)
+        self.edition.venue_name = "Faisal Omar Memorial School"
+        self.edition.venue_directions_address = ""
+        self.edition.venue_directions_verified = False
+        user = get_user_model().objects.create_superuser(
+            username="dic-admin",
+            email="dic-admin@example.test",
+            password="not-a-real-password",
+        )
+        request = RequestFactory().post("/admin/dic/campedition/")
+        request.user = user
+        admin.site._registry[CampEdition].save_model(
+            request,
+            self.edition,
+            form=None,
+            change=True,
+        )
+
+        response = self.client.get(reverse("dic:registration-options"))
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["camp_start_date"], "2026-12-23")
+        self.assertEqual(response.data["camp_end_date"], "2027-01-01")
+        self.assertEqual(response.data["venue"], "Faisal Omar Memorial School")
+        self.assertIsNone(response.data["venue_directions_url"])
+        self.assertEqual(response.data["registration_open_date"], registration_open.isoformat())
+        self.assertEqual(response.data["registration_close_date"], registration_close.isoformat())
+
+    def test_verified_directions_are_returned_only_with_a_destination(self):
+        self.edition.venue_name = "Faisal Omar Memorial School"
+        self.edition.venue_directions_verified = True
+        self.edition.save()
+
+        without_destination = self.client.get(reverse("dic:registration-options"))
+        self.assertIsNone(without_destination.data["venue_directions_url"])
+
+        user = get_user_model().objects.create_user(
+            username="venue-verifier",
+            password="not-a-real-password",
+        )
+        self.edition.venue_directions_address = "Verified test destination"
+        self.edition.venue_directions_verified_at = timezone.now()
+        self.edition.venue_directions_verified_by = user
+        self.edition.save()
+
+        with_destination = self.client.get(reverse("dic:registration-options"))
+        self.assertIn(
+            "destination=Verified%20test%20destination",
+            with_destination.data["venue_directions_url"],
+        )
 
     def test_registration_options_are_unavailable_without_an_active_edition(self):
         self.edition.is_active = False
@@ -373,6 +586,47 @@ class RegistrationApiTests(APITestCase):
         self.assertEqual(RegistrationOrderItem.objects.count(), 2)
         self.assertEqual(Participant.objects.count(), 2)
         self.assertEqual(PrimaryRegistrant.objects.count(), 1)
+
+    def test_early_bird_is_selected_before_cutoff_and_regular_at_or_after(self):
+        cutoff = datetime.combine(
+            self.today,
+            datetime.min.time(),
+        ).replace(hour=12, tzinfo=ZoneInfo("Africa/Lagos"))
+        self.edition.early_bird_cutoff_at = cutoff
+        self.edition.save(update_fields=("early_bird_cutoff_at",))
+        self.category.early_bird_fee_ngn = Decimal("10000.00")
+        self.category.save(update_fields=("early_bird_fee_ngn",))
+        self.other_category.early_bird_fee_ngn = Decimal("7000.00")
+        self.other_category.save(update_fields=("early_bird_fee_ngn",))
+
+        cases = (
+            (cutoff - timedelta(seconds=1), "10000.00", "early_bird"),
+            (cutoff, "12500.25", "regular"),
+            (cutoff + timedelta(seconds=1), "12500.25", "regular"),
+        )
+        for when, expected_fee, expected_type in cases:
+            with patch("dic.views.timezone.now", return_value=when):
+                response = self.create_order()
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.data["total_amount_ngn"], expected_fee)
+            order = RegistrationOrder.objects.get(
+                public_id=response.data["order_id"]
+            )
+            price_item = order.current_price_revision.items.get()
+            self.assertEqual(price_item.fee_snapshot_ngn, Decimal(expected_fee))
+            self.assertEqual(price_item.price_type, expected_type)
+
+    def test_incomplete_category_pricing_keeps_registration_closed(self):
+        self.category.fee_ngn = None
+        self.category.save(update_fields=("fee_ngn",))
+
+        options = self.client.get(reverse("dic:registration-options"))
+        order = self.create_order()
+
+        self.assertFalse(options.data["registration_is_open"])
+        self.assertIsNone(options.data["categories"][0]["current_fee_ngn"])
+        self.assertEqual(order.status_code, 400)
+        self.assertEqual(RegistrationOrder.objects.count(), 0)
 
     def test_client_supplied_total_is_rejected(self):
         payload = self.order_payload()
@@ -708,6 +962,7 @@ class PaymentApiTests(APITestCase):
                 }
             ],
         }
+        self.order_payload = payload
         response = self.client.post(
             reverse("dic:order-create"),
             payload,
@@ -736,21 +991,55 @@ class PaymentApiTests(APITestCase):
         return PaymentAttempt.objects.create(
             order=self.order,
             reference=reference,
-            amount_kobo=1_250_025,
+            amount_kobo=int(Decimal(self.order.total_amount_ngn) * 100),
             status=PaymentAttempt.Status.PENDING,
             authorization_url="https://checkout.paystack.com/test-access-code",
+            price_revision=self.order.current_price_revision,
         )
 
     def provider_result(self, expected_reference, **overrides):
+        attempt = PaymentAttempt.objects.filter(reference=expected_reference).first()
         result = {
             "id": 987654,
             "reference": expected_reference,
-            "amount": 1_250_025,
+            "amount": (
+                attempt.amount_kobo
+                if attempt
+                else int(Decimal(self.order.total_amount_ngn) * 100)
+            ),
             "currency": "NGN",
             "status": "success",
+            "paid_at": timezone.now().isoformat(),
         }
         result.update(overrides)
         return result
+
+    def create_early_bird_order(self):
+        cutoff = timezone.now() + timedelta(seconds=30)
+        self.edition.early_bird_cutoff_at = cutoff
+        self.edition.save(update_fields=("early_bird_cutoff_at",))
+        self.category.early_bird_fee_ngn = Decimal("10000.00")
+        self.category.save(update_fields=("early_bird_fee_ngn",))
+        response = self.client.post(
+            reverse("dic:order-create"),
+            self.order_payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
+        )
+        self.assertEqual(response.status_code, 201)
+        self.order_id = response.data["order_id"]
+        self.access_token = response.data["access_token"]
+        self.order = RegistrationOrder.objects.get(public_id=self.order_id)
+        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {self.access_token}"}
+        self.assertEqual(self.order.access_token_digest, hashlib.sha256(self.access_token.encode()).hexdigest())
+        self.assertTrue(self.auth["HTTP_AUTHORIZATION"].startswith("Bearer "))
+        self.assertEqual(
+            self.order.access_token_digest,
+            hashlib.sha256(
+                self.auth["HTTP_AUTHORIZATION"].partition(" ")[2].encode()
+            ).hexdigest(),
+        )
+        return cutoff
 
     def test_payment_init_calculates_kobo_from_order_snapshots(self):
         with patch("dic.payment_views.PaystackClient") as client_factory:
@@ -946,6 +1235,162 @@ class PaymentApiTests(APITestCase):
         self.assertTrue(repeated.data["idempotent_replay"])
         provider.verify_transaction.assert_called_once_with(attempt.reference)
 
+    def test_provider_confirmed_pre_cutoff_payment_settles_after_cutoff(self):
+        cutoff = self.create_early_bird_order()
+        attempt = self.create_pending_attempt()
+        paid_at = cutoff - timedelta(seconds=1)
+        with patch("dic.payment_views.timezone.now", return_value=cutoff + timedelta(seconds=1)):
+            with patch("dic.payment_views.PaystackClient") as client_factory:
+                client_factory.return_value.verify_transaction.return_value = (
+                    self.provider_result(
+                        attempt.reference,
+                        paid_at=paid_at.isoformat(),
+                    )
+                )
+                response = self.client.post(
+                    self.verify_url(attempt.reference),
+                    {},
+                    format="json",
+                    **self.auth,
+                )
+
+        attempt.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(attempt.status, PaymentAttempt.Status.SUCCESSFUL)
+        self.assertEqual(attempt.provider_paid_at, paid_at)
+        self.assertEqual(self.order.payment_status, RegistrationOrder.PaymentStatus.PAID)
+        self.assertEqual(self.order.total_amount_ngn, Decimal("10000.00"))
+
+    def test_early_bird_payment_at_or_after_cutoff_requires_reconciliation(self):
+        cutoff = self.create_early_bird_order()
+        for index, paid_at in enumerate(
+            (cutoff, cutoff + timedelta(seconds=1))
+        ):
+            attempt = self.create_pending_attempt(f"DIC-late-early-{index}")
+            with patch("dic.payment_views.PaystackClient") as client_factory:
+                client_factory.return_value.verify_transaction.return_value = (
+                    self.provider_result(
+                        attempt.reference,
+                        id=987654 + index,
+                        paid_at=paid_at.isoformat(),
+                    )
+                )
+                response = self.client.post(
+                    self.verify_url(attempt.reference),
+                    {},
+                    format="json",
+                    **self.auth,
+                )
+            attempt.refresh_from_db()
+            self.order.refresh_from_db()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                attempt.status,
+                PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+            )
+            self.assertEqual(
+                self.order.payment_status,
+                RegistrationOrder.PaymentStatus.PENDING,
+            )
+            attempt.status = PaymentAttempt.Status.FAILED
+            attempt.save(update_fields=("status",))
+
+    def test_missing_provider_paid_at_requires_reconciliation(self):
+        for index, paid_at in enumerate((None, "not-a-provider-timestamp")):
+            attempt = self.create_pending_attempt(f"DIC-invalid-paid-at-{index}")
+            with patch("dic.payment_views.PaystackClient") as client_factory:
+                client_factory.return_value.verify_transaction.return_value = (
+                    self.provider_result(
+                        attempt.reference,
+                        id=987654 + index,
+                        paid_at=paid_at,
+                    )
+                )
+                response = self.client.post(
+                    self.verify_url(attempt.reference),
+                    {},
+                    format="json",
+                    **self.auth,
+                )
+
+            attempt.refresh_from_db()
+            self.order.refresh_from_db()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                attempt.status,
+                PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+            )
+            self.assertEqual(
+                attempt.failure_code,
+                "provider_paid_at_missing_or_invalid",
+            )
+            self.assertEqual(
+                self.order.payment_status,
+                RegistrationOrder.PaymentStatus.PENDING,
+            )
+            attempt.status = PaymentAttempt.Status.FAILED
+            attempt.save(update_fields=("status",))
+
+    def test_cutoff_crossing_requires_acceptance_and_rejects_late_old_authorization(self):
+        cutoff = self.create_early_bird_order()
+        old_attempt = self.create_pending_attempt("DIC-old-early-authorization")
+        time_after_cutoff = cutoff + timedelta(seconds=1)
+        with patch("dic.payment_views.timezone.now", return_value=time_after_cutoff):
+            stale = self.client.post(
+                self.initialize_url(),
+                {},
+                format="json",
+                **self.auth,
+            )
+        self.assertEqual(stale.status_code, 409, stale.data)
+        self.assertTrue(stale.data["repricing_required"])
+        self.assertEqual(stale.data["total_amount_ngn"], "12500.25")
+        old_attempt.refresh_from_db()
+        self.assertEqual(old_attempt.status, PaymentAttempt.Status.PENDING)
+
+        with patch("dic.payment_views.timezone.now", return_value=time_after_cutoff):
+            accepted = self.client.post(
+                reverse("dic:pricing-accept", args=[self.order_id]),
+                {"quote": stale.data["quote"]},
+                format="json",
+                **self.auth,
+            )
+        self.assertEqual(accepted.status_code, 200)
+        self.assertTrue(accepted.data["accepted"])
+        self.assertEqual(accepted.data["total_amount_ngn"], "12500.25")
+        old_attempt.refresh_from_db()
+        self.assertEqual(old_attempt.status, PaymentAttempt.Status.SUPERSEDED)
+
+        with patch("dic.payment_views.PaystackClient") as client_factory:
+            client_factory.return_value.verify_transaction.return_value = (
+                self.provider_result(
+                    old_attempt.reference,
+                    paid_at=time_after_cutoff.isoformat(),
+                )
+            )
+            result = self.client.post(
+                self.verify_url(old_attempt.reference),
+                {},
+                format="json",
+                **self.auth,
+            )
+        old_attempt.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(
+            old_attempt.status,
+            PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+        )
+        self.assertEqual(
+            old_attempt.failure_code,
+            "superseded_quote_paid",
+        )
+        self.assertEqual(
+            self.order.payment_status,
+            RegistrationOrder.PaymentStatus.PENDING,
+        )
+
     def test_failed_and_pending_provider_results_do_not_mark_order_paid(self):
         attempt = self.create_pending_attempt()
         with patch("dic.payment_views.PaystackClient") as client_factory:
@@ -1118,6 +1563,43 @@ class PaymentApiTests(APITestCase):
         self.assertEqual(PaystackWebhookEvent.objects.count(), 1)
         provider.verify_transaction.assert_called_once_with(attempt.reference)
 
+    def test_delayed_webhook_honors_verified_pre_cutoff_completion_time(self):
+        cutoff = self.create_early_bird_order()
+        attempt = self.create_pending_attempt("DIC-delayed-early-payment")
+        body = json.dumps(
+            {
+                "event": "charge.success",
+                "data": {"reference": attempt.reference},
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        signature = hmac.new(
+            b"sk_test_unit_mock",
+            body,
+            hashlib.sha512,
+        ).hexdigest()
+        with patch("dic.payment_views.timezone.now", return_value=cutoff + timedelta(seconds=2)):
+            with patch("dic.payment_views.PaystackClient") as client_factory:
+                provider = client_factory.return_value
+                provider.secret_key = "sk_test_unit_mock"
+                provider.verify_transaction.return_value = self.provider_result(
+                    attempt.reference,
+                    paid_at=(cutoff - timedelta(seconds=1)).isoformat(),
+                )
+                response = self.client.post(
+                    reverse("dic:paystack-webhook"),
+                    body,
+                    content_type="application/json",
+                    HTTP_X_PAYSTACK_SIGNATURE=signature,
+                )
+
+        attempt.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(attempt.status, PaymentAttempt.Status.SUCCESSFUL)
+        self.assertEqual(self.order.payment_status, RegistrationOrder.PaymentStatus.PAID)
+        self.assertEqual(self.order.total_amount_ngn, Decimal("10000.00"))
+
     def test_non_success_webhook_is_audited_without_marking_order_paid(self):
         attempt = self.create_pending_attempt()
         body = json.dumps(
@@ -1174,11 +1656,52 @@ class ConcurrentPaymentSettlementTests(TransactionTestCase):
             request_fingerprint=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
             access_token_digest=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
         )
+        category = RegistrationCategory.objects.create(
+            edition=edition,
+            name="Concurrent Category",
+            fee_ngn=Decimal("100.00"),
+        )
+        participant = Participant.objects.create(
+            full_name="Concurrent Participant",
+            address="Test Address",
+            phone="+233200000002",
+            email="concurrent-participant@example.test",
+            date_of_birth=date(today.year - 20, 1, 1),
+            sex=Participant.Sex.MALE,
+            height_cm=Decimal("175.00"),
+            weight_kg=Decimal("70.00"),
+            academic_status=Participant.AcademicStatus.TERTIARY,
+            occupation=Participant.Occupation.BUSINESS,
+            marital_status=Participant.MaritalStatus.SINGLE,
+        )
+        order_item = RegistrationOrderItem.objects.create(
+            order=order,
+            participant=participant,
+            category=category,
+            fee_snapshot_ngn=Decimal("100.00"),
+        )
+        revision = RegistrationOrderPriceRevision.objects.create(
+            order=order,
+            revision_number=1,
+            total_amount_ngn=Decimal("100.00"),
+            accepted_at=timezone.now(),
+        )
+        RegistrationOrderPriceItem.objects.create(
+            revision=revision,
+            order_item=order_item,
+            category_name_snapshot=category.name,
+            regular_fee_snapshot_ngn=Decimal("100.00"),
+            fee_snapshot_ngn=Decimal("100.00"),
+            price_type=RegistrationOrderPriceItem.PriceType.REGULAR,
+        )
+        order.current_price_revision = revision
+        order.save(update_fields=("current_price_revision",))
         attempt = PaymentAttempt.objects.create(
             order=order,
             reference="DIC-concurrent-reference",
             amount_kobo=10_000,
             status=PaymentAttempt.Status.PENDING,
+            price_revision=revision,
         )
         provider_data = {
             "id": 987654,
@@ -1186,6 +1709,7 @@ class ConcurrentPaymentSettlementTests(TransactionTestCase):
             "amount": 10_000,
             "currency": "NGN",
             "status": "success",
+            "paid_at": timezone.now().isoformat(),
         }
 
         def settle():
@@ -1208,6 +1732,139 @@ class ConcurrentPaymentSettlementTests(TransactionTestCase):
         )
         self.assertEqual(attempt.status, PaymentAttempt.Status.SUCCESSFUL)
         self.assertEqual(results.count(PaymentAttempt.Status.SUCCESSFUL), 2)
+
+    def test_concurrent_repricing_and_late_payment_fail_closed(self):
+        from django.db import close_old_connections
+        from rest_framework.test import APIClient
+
+        today = timezone.localdate()
+        cutoff = timezone.now() - timedelta(seconds=2)
+        edition = CampEdition.objects.create(
+            name="Concurrent Repricing Camp",
+            year=today.year,
+            camp_start_date=today + timedelta(days=30),
+            camp_end_date=today + timedelta(days=36),
+            early_bird_cutoff_at=cutoff,
+        )
+        category = RegistrationCategory.objects.create(
+            edition=edition,
+            name="Concurrent Repricing Category",
+            fee_ngn=Decimal("200.00"),
+            early_bird_fee_ngn=Decimal("100.00"),
+        )
+        registrant = PrimaryRegistrant.objects.create(
+            full_name="Concurrent Repricing Registrant",
+            email="repricing@example.test",
+        )
+        token = new_order_access_token()
+        order = RegistrationOrder.objects.create(
+            primary_registrant=registrant,
+            edition=edition,
+            idempotency_key_digest=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
+            request_fingerprint=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
+            access_token_digest=digest_value(token),
+            access_token_expires_at=order_access_token_expiry(),
+        )
+        participant = Participant.objects.create(
+            full_name="Concurrent Repricing Participant",
+            address="Test Address",
+            phone="+233200000003",
+            email="repricing-participant@example.test",
+            date_of_birth=date(today.year - 20, 1, 1),
+            sex=Participant.Sex.MALE,
+            height_cm=Decimal("175.00"),
+            weight_kg=Decimal("70.00"),
+            academic_status=Participant.AcademicStatus.TERTIARY,
+            occupation=Participant.Occupation.BUSINESS,
+            marital_status=Participant.MaritalStatus.SINGLE,
+        )
+        order_item = RegistrationOrderItem.objects.create(
+            order=order,
+            participant=participant,
+            category=category,
+            fee_snapshot_ngn=Decimal("100.00"),
+        )
+        revision = RegistrationOrderPriceRevision.objects.create(
+            order=order,
+            revision_number=1,
+            early_bird_cutoff_at=cutoff,
+            total_amount_ngn=Decimal("100.00"),
+            accepted_at=cutoff - timedelta(minutes=1),
+        )
+        RegistrationOrderPriceItem.objects.create(
+            revision=revision,
+            order_item=order_item,
+            category_name_snapshot=category.name,
+            early_bird_fee_snapshot_ngn=Decimal("100.00"),
+            regular_fee_snapshot_ngn=Decimal("200.00"),
+            fee_snapshot_ngn=Decimal("100.00"),
+            price_type=RegistrationOrderPriceItem.PriceType.EARLY_BIRD,
+        )
+        order.current_price_revision = revision
+        order.save(update_fields=("current_price_revision",))
+        attempt = PaymentAttempt.objects.create(
+            order=order,
+            reference="DIC-concurrent-repricing-reference",
+            amount_kobo=10_000,
+            status=PaymentAttempt.Status.PENDING,
+            price_revision=revision,
+        )
+        prices = current_order_prices(order, timezone.now())
+        quote = sign_repricing_quote(order, prices)
+        provider_data = {
+            "id": 987655,
+            "reference": attempt.reference,
+            "amount": 10_000,
+            "currency": "NGN",
+            "status": "success",
+            "paid_at": (cutoff + timedelta(seconds=1)).isoformat(),
+        }
+        barrier = threading.Barrier(2)
+
+        def accept_repricing():
+            close_old_connections()
+            try:
+                client = APIClient()
+                barrier.wait()
+                response = client.post(
+                    reverse("dic:pricing-accept", args=[order.public_id]),
+                    {"quote": quote},
+                    format="json",
+                    HTTP_AUTHORIZATION=f"Bearer {token}",
+                )
+                return response.status_code
+            finally:
+                close_old_connections()
+
+        def verify_payment():
+            close_old_connections()
+            try:
+                barrier.wait()
+                return _apply_verified_transaction(attempt.pk, provider_data)[0].status
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            repricing_result, payment_result = list(
+                executor.map(
+                    lambda function: function(),
+                    (accept_repricing, verify_payment),
+                )
+            )
+
+        order.refresh_from_db()
+        attempt.refresh_from_db()
+        self.assertIn(repricing_result, (200, 400))
+        self.assertEqual(payment_result, PaymentAttempt.Status.RECONCILIATION_REQUIRED)
+        self.assertEqual(
+            attempt.status,
+            PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+        )
+        self.assertEqual(
+            order.payment_status,
+            RegistrationOrder.PaymentStatus.PENDING,
+        )
+        self.assertIn(order.current_price_revision.revision_number, (1, 2))
 
 
 @override_settings(
