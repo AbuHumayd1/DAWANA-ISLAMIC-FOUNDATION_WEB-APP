@@ -1,0 +1,24 @@
+from django.urls import path
+
+from .views import (
+    RegistrationOptionsView,
+    RegistrationOrderCreateView,
+    RegistrationOrderDetailView,
+)
+
+
+app_name = "dic"
+
+urlpatterns = [
+    path(
+        "registration-options/",
+        RegistrationOptionsView.as_view(),
+        name="registration-options",
+    ),
+    path("orders/", RegistrationOrderCreateView.as_view(), name="order-create"),
+    path(
+        "orders/<uuid:public_id>/",
+        RegistrationOrderDetailView.as_view(),
+        name="order-detail",
+    ),
+]
