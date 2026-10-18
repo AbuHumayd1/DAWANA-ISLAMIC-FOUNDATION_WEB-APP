@@ -1,10 +1,13 @@
+import csv
+from decimal import Decimal
+
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.utils import unquote
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -21,6 +24,7 @@ from .allocation import (
 )
 from .models import (
     CampEdition,
+    DICAdminAuditEvent,
     House,
     HouseAllocation,
     PaymentAttempt,
@@ -33,6 +37,109 @@ from .models import (
     RegistrationOrderPriceItem,
     RegistrationOrderPriceRevision,
 )
+from .operations_exports import (
+    create_word_report,
+    registration_export_rows,
+    spreadsheet_safe,
+)
+from .pricing import PricingConfigurationError, current_order_prices, revision_matches_current
+
+admin.site.site_header = "Dawana System Administration"
+admin.site.site_title = "Dawana Administration"
+admin.site.index_title = "System administration"
+
+
+def _record_admin_event(request, action, target_type, target_id="", details=None):
+    return DICAdminAuditEvent.objects.create(
+        actor=request.user if request.user.is_authenticated else None,
+        action=action,
+        target_type=target_type,
+        target_id=str(target_id),
+        details=details or {},
+    )
+
+
+def _spreadsheet_safe(value):
+    return spreadsheet_safe(value)
+
+
+class RegistrationCategoryFilter(admin.SimpleListFilter):
+    title = "registration category"
+    parameter_name = "registration_category"
+
+    def lookups(self, request, model_admin):
+        return [
+            (category.pk, f"{category.edition.year} — {category.name}")
+            for category in RegistrationCategory.objects.select_related(
+                "edition"
+            ).order_by("edition__year", "name")
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            if queryset.model is Participant:
+                return queryset.filter(
+                    registration_items__category_id=self.value()
+                ).distinct()
+            return queryset.filter(items__category_id=self.value()).distinct()
+        return queryset
+
+
+class RegistrationHouseFilter(admin.SimpleListFilter):
+    title = "allocated house"
+    parameter_name = "allocated_house"
+
+    def lookups(self, request, model_admin):
+        return [
+            (house.pk, f"{house.edition.year} — {house.name}")
+            for house in House.objects.select_related("edition").order_by(
+                "edition__year", "name"
+            )
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            if queryset.model is Participant:
+                return queryset.filter(
+                    house_allocations__house_id=self.value(),
+                    house_allocations__status=HouseAllocation.Status.ALLOCATED,
+                ).distinct()
+            return queryset.filter(
+                items__participant__house_allocations__house_id=self.value(),
+                items__participant__house_allocations__status=HouseAllocation.Status.ALLOCATED,
+            ).distinct()
+        return queryset
+
+
+class ParticipantPaymentFilter(admin.SimpleListFilter):
+    title = "verified payment status"
+    parameter_name = "verified_payment_status"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("paid", "Verified paid"),
+            ("pending", "Pending / unpaid"),
+            ("unverified", "Paid status without verification"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "paid":
+            return queryset.filter(
+                registration_items__order__payment_status=RegistrationOrder.PaymentStatus.PAID,
+                registration_items__order__status=RegistrationOrder.Status.CONFIRMED,
+                registration_items__order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
+            ).distinct()
+        if self.value() == "pending":
+            return queryset.filter(
+                registration_items__order__payment_status=RegistrationOrder.PaymentStatus.PENDING,
+            ).distinct()
+        if self.value() == "unverified":
+            return queryset.filter(
+                registration_items__order__payment_status=RegistrationOrder.PaymentStatus.PAID,
+            ).exclude(
+                registration_items__order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
+            ).distinct()
+        return queryset
 
 
 class HouseAllocationInline(admin.TabularInline):
@@ -117,7 +224,6 @@ class RegistrationOrderItemInline(admin.TabularInline):
         "category",
         "category_name_snapshot",
         "fee_snapshot_ngn",
-        "participant_snapshot",
     )
     readonly_fields = fields
 
@@ -405,14 +511,37 @@ class CampEditionAdmin(admin.ModelAdmin):
         unallocated = unallocated_paid_participants(edition)
         if request.method == "POST":
             try:
-                allocated = allocate_participants(
-                    edition.pk,
-                    request.POST.getlist("participant_ids"),
-                    request.user,
-                )
+                with transaction.atomic():
+                    allocated = allocate_participants(
+                        edition.pk,
+                        request.POST.getlist("participant_ids"),
+                        request.user,
+                    )
+                    _record_admin_event(
+                        request,
+                        "participants_allocated",
+                        "CampEdition",
+                        edition.pk,
+                        {"participant_count": len(allocated)},
+                    )
             except (AllocationError, ValueError) as exc:
                 self.message_user(request, str(exc), level=messages.ERROR)
             else:
+                current = HouseAllocation.objects.filter(
+                    participant_id=allocation.participant_id,
+                    edition_id=allocation.edition_id,
+                    status=HouseAllocation.Status.ALLOCATED,
+                ).first()
+                _record_admin_event(
+                    request,
+                    "allocation_reassigned",
+                    "HouseAllocation",
+                    current.pk if current else allocation.pk,
+                    {
+                        "previous_allocation_id": allocation.pk,
+                        "reason": reason[:500],
+                    },
+                )
                 self.message_user(
                     request,
                     f"Allocated {len(allocated)} paid participant(s).",
@@ -472,6 +601,13 @@ class CampEditionAdmin(admin.ModelAdmin):
                         "allocation_strategy_approval_note",
                         "allocation_approved_configuration",
                     )
+                )
+                _record_admin_event(
+                    request,
+                    "allocation_strategy_approved",
+                    "CampEdition",
+                    edition.pk,
+                    {"approval_note": note[:500]},
                 )
                 self.message_user(request, "Allocation strategy approved.", messages.SUCCESS)
                 return HttpResponseRedirect(
@@ -633,6 +769,13 @@ class HouseAdmin(admin.ModelAdmin):
                         "reserve_authorization_reason",
                     )
                 )
+                _record_admin_event(
+                    request,
+                    f"reserve_house_{action}d",
+                    "House",
+                    house.pk,
+                    {"reason": reason[:500]},
+                )
                 self.message_user(
                     request,
                     f"Reserve authorization {action}d.",
@@ -665,29 +808,55 @@ class HouseAdmin(admin.ModelAdmin):
 class PrimaryRegistrantAdmin(admin.ModelAdmin):
     list_display = ("id", "full_name", "created_at")
     search_fields = ("id", "full_name")
-    readonly_fields = ("id", "created_at")
-    fields = ("id", "full_name", "phone", "email", "created_at")
+    readonly_fields = tuple(
+        field.name for field in PrimaryRegistrant._meta.fields
+    )
+    fields = readonly_fields
+
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if not request.user.has_perm("dic.can_view_dic_contact_information"):
+            fields = [
+                field for field in fields if field not in ("phone", "email")
+            ]
+        return fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and self.has_view_permission(
+            request,
+            obj,
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
     list_display = (
         "full_name",
-        "sex",
-        "academic_status",
-        "eligible_for_dedicated_accommodation",
+        "registration_references",
+        "registration_categories",
+        "verified_payment_status",
         "allocation_overview",
         "created_at",
     )
-    list_filter = ("sex", "academic_status", "occupation", "marital_status")
-    search_fields = ("full_name", "email", "phone")
+    list_filter = (
+        "sex",
+        "academic_status",
+        "created_at",
+        RegistrationCategoryFilter,
+        RegistrationHouseFilter,
+        ParticipantPaymentFilter,
+    )
+    search_fields = ("full_name",)
     readonly_fields = ("id", "created_at", "updated_at")
     fields = (
         "id",
         "full_name",
-        "address",
-        "phone",
-        "email",
         "date_of_birth",
         "sex",
         "height_cm",
@@ -695,18 +864,119 @@ class ParticipantAdmin(admin.ModelAdmin):
         "academic_status",
         "occupation",
         "marital_status",
-        "eligible_for_dedicated_accommodation",
         "created_at",
         "updated_at",
     )
     inlines = (HouseAllocationInline,)
 
-    def get_readonly_fields(self, request, obj=None):
-        fields = list(super().get_readonly_fields(request, obj))
-        permission = "dic.can_authorize_dedicated_accommodation"
-        if not request.user.has_perm(permission):
-            fields.append("eligible_for_dedicated_accommodation")
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related(
+            "registration_items__order__edition",
+            "registration_items__order__payment_attempts",
+            "registration_items__category",
+            "house_allocations__house",
+            "house_allocations__edition",
+        )
+
+    def get_list_display(self, request):
+        fields = list(super().get_list_display(request))
+        if request.user.has_perm("dic.can_view_dic_contact_information"):
+            fields.insert(1, "contact_summary")
         return fields
+
+    def get_search_fields(self, request):
+        fields = list(super().get_search_fields(request))
+        if request.user.has_perm("dic.can_view_dic_contact_information"):
+            fields.extend(("email", "phone"))
+        return fields
+
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if request.user.has_perm("dic.can_view_dic_contact_information"):
+            fields[2:2] = ("email", "phone", "address")
+        fields.insert(-2, "eligible_for_dedicated_accommodation")
+        return fields
+
+    def get_readonly_fields(self, request, obj=None):
+        editable = (
+            {"eligible_for_dedicated_accommodation"}
+            if request.user.has_perm(
+                "dic.can_authorize_dedicated_accommodation"
+            )
+            else set()
+        )
+        return tuple(
+            field.name
+            for field in self.model._meta.fields
+            if field.name not in editable
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return (
+            request.method in ("GET", "HEAD", "POST")
+            and request.user.has_perm(
+                "dic.can_authorize_dedicated_accommodation"
+            )
+        ) or super().has_change_permission(request, obj)
+
+    @transaction.atomic
+    def save_model(self, request, obj, form, change):
+        old_authorization = None
+        if change:
+            old_authorization = Participant.objects.select_for_update().values_list(
+                "eligible_for_dedicated_accommodation",
+                flat=True,
+            ).get(pk=obj.pk)
+        super().save_model(request, obj, form, change)
+        if (
+            change
+            and old_authorization != obj.eligible_for_dedicated_accommodation
+        ):
+            _record_admin_event(
+                request,
+                "dedicated_accommodation_authorized",
+                "Participant",
+                obj.pk,
+                {
+                    "eligible": obj.eligible_for_dedicated_accommodation,
+                },
+            )
+
+    @admin.display(description="Contact information")
+    def contact_summary(self, obj):
+        return ", ".join(value for value in (obj.email, obj.phone) if value)
+
+    @admin.display(description="Registration references")
+    def registration_references(self, obj):
+        return ", ".join(
+            str(item.order.public_id) for item in obj.registration_items.all()
+        ) or "—"
+
+    @admin.display(description="Registration categories")
+    def registration_categories(self, obj):
+        return ", ".join(
+            sorted({item.category_name_snapshot for item in obj.registration_items.all()})
+        ) or "—"
+
+    @admin.display(description="Verified payment")
+    def verified_payment_status(self, obj):
+        orders = {item.order for item in obj.registration_items.all()}
+        if any(
+            order.payment_status == RegistrationOrder.PaymentStatus.PAID
+            and order.status == RegistrationOrder.Status.CONFIRMED
+            and any(
+                attempt.status == PaymentAttempt.Status.SUCCESSFUL
+                for attempt in order.payment_attempts.all()
+            )
+            for order in orders
+        ):
+            return "Verified paid"
+        if any(
+            order.payment_status == RegistrationOrder.PaymentStatus.PENDING
+            for order in orders
+        ):
+            return "Pending / unpaid"
+        return "Not verified"
 
     @admin.display(description="House allocations")
     def allocation_overview(self, obj):
@@ -719,30 +989,31 @@ class ParticipantAdmin(admin.ModelAdmin):
 
 @admin.register(RegistrationOrder)
 class RegistrationOrderAdmin(admin.ModelAdmin):
+    change_list_template = "admin/dic/registrationorder/change_list.html"
     list_display = (
         "public_id",
         "edition",
+        "participant_count",
+        "category_summary",
         "status",
         "payment_status",
+        "payment_verification_status",
         "total_amount",
+        "repricing_status",
+        "recovery_status",
         "created_at",
     )
-    list_filter = ("edition", "status", "payment_status", "created_at")
+    list_filter = (
+        "edition",
+        "status",
+        "payment_status",
+        "created_at",
+        RegistrationCategoryFilter,
+        RegistrationHouseFilter,
+    )
     search_fields = (
         "public_id",
-        "primary_registrant__full_name",
         "items__participant__full_name",
-    )
-    readonly_fields = (
-        "public_id",
-        "primary_registrant",
-        "edition",
-        "payment_status",
-        "total_amount",
-        "access_token_expires_at",
-        "access_token_revoked_at",
-        "created_at",
-        "submitted_at",
     )
     fields = (
         "public_id",
@@ -751,17 +1022,125 @@ class RegistrationOrderAdmin(admin.ModelAdmin):
         "status",
         "payment_status",
         "total_amount",
+        "repricing_status",
+        "recovery_status",
         "access_token_expires_at",
         "access_token_revoked_at",
         "created_at",
         "submitted_at",
     )
     inlines = (RegistrationOrderItemInline, RegistrationOrderPriceRevisionInline)
-    actions = ("revoke_order_access",)
+    actions = (
+        "export_selected_orders_csv",
+        "export_selected_orders_docx",
+        "revoke_order_access",
+    )
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(item_count=Count("items", distinct=True))
+            .select_related("edition", "primary_registrant", "current_price_revision")
+            .prefetch_related(
+                "items__participant",
+                "items__category",
+                "current_price_revision__items",
+                "payment_attempts",
+                "recovery_challenges",
+            )
+        )
+
+    def get_search_fields(self, request):
+        fields = list(super().get_search_fields(request))
+        if request.user.has_perm("dic.can_view_dic_contact_information"):
+            fields.extend(
+                (
+                    "primary_registrant__email",
+                    "primary_registrant__phone",
+                    "items__participant__email",
+                    "items__participant__phone",
+                )
+            )
+        return fields
+
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(field.name for field in self.model._meta.fields) + (
+            "total_amount",
+            "repricing_status",
+            "recovery_status",
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and self.has_view_permission(
+            request,
+            obj,
+        )
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.has_perm("dic.can_export_dic_reports"):
+            actions.pop("export_selected_orders_csv", None)
+            actions.pop("export_selected_orders_docx", None)
+        if not request.user.has_perm("dic.can_manage_registration_access"):
+            actions.pop("revoke_order_access", None)
+        return actions
 
     @admin.display(description="Total (NGN)")
     def total_amount(self, obj):
         return obj.total_amount_ngn
+
+    @admin.display(description="Participants", ordering="item_count")
+    def participant_count(self, obj):
+        return obj.item_count
+
+    @admin.display(description="Categories")
+    def category_summary(self, obj):
+        return ", ".join(
+            sorted({item.category_name_snapshot for item in obj.items.all()})
+        ) or "—"
+
+    @admin.display(description="Payment verification")
+    def payment_verification_status(self, obj):
+        if (
+            obj.payment_status == RegistrationOrder.PaymentStatus.PAID
+            and obj.status == RegistrationOrder.Status.CONFIRMED
+            and any(
+                attempt.status == PaymentAttempt.Status.SUCCESSFUL
+                for attempt in obj.payment_attempts.all()
+            )
+        ):
+            return "Verified paid"
+        if obj.payment_status == RegistrationOrder.PaymentStatus.PAID:
+            return "Unverified — investigate"
+        if obj.payment_status == RegistrationOrder.PaymentStatus.PENDING:
+            return "Pending / unpaid"
+        return obj.get_payment_status_display()
+
+    @admin.display(description="Repricing")
+    def repricing_status(self, obj):
+        if obj.payment_status == RegistrationOrder.PaymentStatus.PAID:
+            return "Not required (paid)"
+        try:
+            prices = current_order_prices(obj)
+        except PricingConfigurationError:
+            return "Pricing configuration needs review"
+        return (
+            "Required"
+            if not revision_matches_current(obj.current_price_revision, prices)
+            else "Current"
+        )
+
+    @admin.display(description="Recovery")
+    def recovery_status(self, obj):
+        challenges = list(obj.recovery_challenges.all())
+        if not challenges:
+            return "No recovery activity"
+        latest = max(challenges, key=lambda challenge: challenge.created_at)
+        grants = list(latest.grants.all())
+        if any(grant.revoked_at is None and grant.expires_at > timezone.now() for grant in grants):
+            return "Recovery access issued"
+        return latest.get_delivery_status_display()
 
     def has_add_permission(self, request):
         return False
@@ -770,10 +1149,116 @@ class RegistrationOrderAdmin(admin.ModelAdmin):
         return False
 
     @admin.action(description="Revoke selected order access tokens")
+    @transaction.atomic
     def revoke_order_access(self, request, queryset):
-        queryset.filter(access_token_revoked_at__isnull=True).update(
-            access_token_revoked_at=timezone.now()
+        if not request.user.has_perm("dic.can_manage_registration_access"):
+            raise PermissionDenied
+        revocable = queryset.filter(access_token_revoked_at__isnull=True)
+        order_ids = list(revocable.values_list("pk", flat=True)[:100])
+        updated = revocable.update(
+            access_token_revoked_at=timezone.now(),
         )
+        _record_admin_event(
+            request,
+            "order_access_revoked",
+            "RegistrationOrder",
+            details={
+                "order_count": updated,
+                "order_ids": order_ids,
+                "order_ids_truncated": updated > len(order_ids),
+            },
+        )
+        self.message_user(request, f"Revoked access for {updated} order(s).")
+
+    def _export_selection(self, request, queryset, export_format):
+        if not request.user.has_perm("dic.can_export_dic_reports"):
+            raise PermissionDenied
+        include_contacts = request.user.has_perm(
+            "dic.can_export_dic_contact_information"
+        )
+        count = queryset.count()
+        if count > 5000:
+            raise ValidationError(
+                "Limit exports to 5,000 registration orders using filters."
+            )
+        headers, rows = registration_export_rows(queryset, include_contacts)
+        filename = f"dic-registrations-{timezone.localtime():%Y%m%d-%H%M}"
+        if export_format == "csv":
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
+            writer = csv.writer(response)
+            response.write("\ufeff")
+            writer.writerow(headers)
+            writer.writerows(
+                [[_spreadsheet_safe(value) for value in row] for row in rows]
+            )
+        else:
+            edition_names = sorted(
+                set(queryset.values_list("edition__name", flat=True))
+            )
+            content = create_word_report(
+                "DIC Registrations Report",
+                ", ".join(edition_names),
+                {key: request.GET.get(key) for key in request.GET if key not in ("action", "index", "select_across")},
+                headers,
+                rows,
+            )
+            response = HttpResponse(
+                content,
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            response["Content-Disposition"] = f'attachment; filename="{filename}.docx"'
+        response["X-Content-Type-Options"] = "nosniff"
+        order_ids = list(queryset.values_list("pk", flat=True)[:100])
+        _record_admin_event(
+            request,
+            "registration_export",
+            "RegistrationOrder",
+            details={
+                "order_count": count,
+                "order_ids": order_ids,
+                "order_ids_truncated": count > len(order_ids),
+                "contact_information_included": include_contacts,
+                "format": export_format,
+                "report_type": "registrations",
+                "record_count": count,
+                "edition_ids": list(queryset.values_list("edition_id", flat=True).distinct()),
+                "filters": {key: request.GET.get(key) for key in request.GET if key not in ("action", "index", "select_across")},
+            },
+        )
+        return response
+
+    @admin.action(
+        description="Export selected registration orders as CSV",
+        permissions=["view"],
+    )
+    @transaction.atomic
+    def export_selected_orders_csv(self, request, queryset):
+        return self._export_selection(request, queryset, "csv")
+
+    @admin.action(
+        description="Export selected registration orders as Word",
+        permissions=["view"],
+    )
+    @transaction.atomic
+    def export_selected_orders_docx(self, request, queryset):
+        return self._export_selection(request, queryset, "docx")
+
+class PaystackWebhookEventInline(admin.TabularInline):
+    model = PaystackWebhookEvent
+    extra = 0
+    can_delete = False
+    fields = (
+        "event_type",
+        "reference",
+        "processing_status",
+        "created_at",
+        "processed_at",
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(RegistrationOrderItem)
@@ -806,10 +1291,13 @@ class PaymentAttemptAdmin(admin.ModelAdmin):
         "reference",
         "order",
         "status",
-        "amount_kobo",
+        "expected_amount_ngn",
+        "provider_amount_ngn",
+        "provider_currency",
         "currency",
         "provider_status",
         "provider_paid_at",
+        "failure_code",
         "created_at",
         "verified_at",
     )
@@ -819,20 +1307,48 @@ class PaymentAttemptAdmin(admin.ModelAdmin):
         field.name
         for field in PaymentAttempt._meta.fields
         if field.name != "authorization_url"
-    )
+    ) + ("expected_amount_ngn", "provider_amount_ngn", "provider_currency")
     fields = readonly_fields
+    inlines = (PaystackWebhookEventInline,)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            "order",
+            "price_revision",
+        )
 
     def has_add_permission(self, request):
         return False
 
     def has_change_permission(self, request, obj=None):
-        return request.method in ("GET", "HEAD") and super().has_change_permission(
-            request,
-            obj,
+        return (
+            request.method in ("GET", "HEAD")
+            and request.user.has_perm("dic.can_view_dic_finance")
+            and super().has_view_permission(request, obj)
         )
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_view_permission(self, request, obj=None):
+        return (
+            request.user.has_perm("dic.can_view_dic_finance")
+            and super().has_view_permission(request, obj)
+        )
+
+    @admin.display(description="Expected amount (NGN)")
+    def expected_amount_ngn(self, obj):
+        return f"{Decimal(obj.amount_kobo) / Decimal(100):.2f}"
+
+    @admin.display(description="Provider-reported amount (NGN)")
+    def provider_amount_ngn(self, obj):
+        if obj.provider_reported_amount_kobo is None:
+            return "Unavailable"
+        return f"{Decimal(obj.provider_reported_amount_kobo) / Decimal(100):.2f}"
+
+    @admin.display(description="Provider-reported currency")
+    def provider_currency(self, obj):
+        return obj.provider_reported_currency or "Unavailable"
 
 
 @admin.register(RegistrationOrderPriceItem)
@@ -863,6 +1379,34 @@ class RegistrationOrderPriceItemAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(DICAdminAuditEvent)
+class DICAdminAuditEventAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "actor", "action", "target_type", "target_id")
+    list_filter = ("action", "created_at")
+    search_fields = ("target_type", "target_id", "actor__username")
+    readonly_fields = tuple(field.name for field in DICAdminAuditEvent._meta.fields)
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return (
+            request.method in ("GET", "HEAD")
+            and request.user.has_perm("dic.can_view_dic_audit")
+            and super().has_view_permission(request, obj)
+        )
+
+    def has_view_permission(self, request, obj=None):
+        return (
+            request.user.has_perm("dic.can_view_dic_audit")
+            and super().has_view_permission(request, obj)
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(PaystackWebhookEvent)
 class PaystackWebhookEventAdmin(admin.ModelAdmin):
     list_display = (
@@ -886,13 +1430,20 @@ class PaystackWebhookEventAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
-        return request.method in ("GET", "HEAD") and super().has_change_permission(
-            request,
-            obj,
+        return (
+            request.method in ("GET", "HEAD")
+            and request.user.has_perm("dic.can_view_dic_finance")
+            and super().has_view_permission(request, obj)
         )
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_view_permission(self, request, obj=None):
+        return (
+            request.user.has_perm("dic.can_view_dic_finance")
+            and super().has_view_permission(request, obj)
+        )
 
 
 @admin.register(HouseAllocation)
@@ -1007,6 +1558,7 @@ class HouseAllocationAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    @transaction.atomic
     def save_model(self, request, obj, form, change):
         if change:
             return
@@ -1019,7 +1571,19 @@ class HouseAllocationAdmin(admin.ModelAdmin):
             source=HouseAllocation.Source.ADMIN,
         )
         obj.pk = allocation.pk
+        _record_admin_event(
+            request,
+            "participant_allocated",
+            "HouseAllocation",
+            allocation.pk,
+            {
+                "participant_id": str(allocation.participant_id),
+                "edition_id": allocation.edition_id,
+                "house_id": allocation.house_id,
+            },
+        )
 
+    @transaction.atomic
     def release_view(self, request, object_id):
         if not request.user.has_perm("dic.can_release_allocations"):
             raise PermissionDenied
@@ -1037,6 +1601,13 @@ class HouseAllocationAdmin(admin.ModelAdmin):
                 except AllocationError as exc:
                     self.message_user(request, str(exc), messages.ERROR)
                 else:
+                    _record_admin_event(
+                        request,
+                        "allocation_released",
+                        "HouseAllocation",
+                        allocation.pk,
+                        {"reason": reason[:500]},
+                    )
                     self.message_user(request, "Allocation released.", messages.SUCCESS)
                     return HttpResponseRedirect(
                         reverse("admin:dic_houseallocation_change", args=(allocation.pk,))
@@ -1059,6 +1630,7 @@ class HouseAllocationAdmin(admin.ModelAdmin):
             },
         )
 
+    @transaction.atomic
     def reassign_view(self, request, object_id):
         if not request.user.has_perm("dic.can_reassign_allocations"):
             raise PermissionDenied

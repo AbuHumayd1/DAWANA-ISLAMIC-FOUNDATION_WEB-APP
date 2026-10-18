@@ -92,6 +92,13 @@ class CampEdition(models.Model):
         verbose_name_plural = "camp editions"
         permissions = [
             ("can_edit_confirmed_dic_details", "Can edit confirmed DIC edition details"),
+            ("can_view_dic_operations", "Can view DIC operations dashboard"),
+            ("can_view_dic_finance", "Can view DIC payment operations"),
+            ("can_view_dic_contact_information", "Can view DIC participant contact information"),
+            ("can_export_dic_reports", "Can export DIC registration reports"),
+            ("can_export_dic_contact_information", "Can export DIC contact information"),
+            ("can_view_dic_audit", "Can view DIC administrative audit events"),
+            ("can_manage_registration_access", "Can revoke DIC registration access"),
         ]
         constraints = [
             models.CheckConstraint(
@@ -912,6 +919,8 @@ class HouseAllocation(models.Model):
                 participant_id=self.participant_id,
                 order__edition_id=self.edition_id,
                 order__payment_status=RegistrationOrder.PaymentStatus.PAID,
+                order__status=RegistrationOrder.Status.CONFIRMED,
+                order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
             ).exclude(order__status=RegistrationOrder.Status.CANCELLED).exists()
             if not paid_order_exists:
                 errors["participant"] = (
@@ -1042,6 +1051,11 @@ class PaymentAttempt(models.Model):
         unique=True,
     )
     provider_status = models.CharField(max_length=32, blank=True)
+    provider_reported_amount_kobo = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+    provider_reported_currency = models.CharField(max_length=16, blank=True)
     failure_code = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1205,3 +1219,38 @@ class RegistrationRecoveryRateLimit(models.Model):
     request_count = models.PositiveSmallIntegerField(default=0)
     cooldown_until = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class DICAdminAuditEvent(models.Model):
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="dic_admin_audit_events",
+        null=True,
+        blank=True,
+    )
+    action = models.CharField(max_length=80)
+    target_type = models.CharField(max_length=100)
+    target_id = models.CharField(max_length=100, blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        indexes = [
+            models.Index(fields=("action", "created_at")),
+            models.Index(fields=("target_type", "target_id")),
+        ]
+
+    def __str__(self):
+        return f"{self.action} — {self.target_type} {self.target_id}"
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("DIC administrative audit events are immutable.")
+        if not isinstance(self.details, dict):
+            raise ValidationError({"details": "Audit details must be a JSON object."})
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("DIC administrative audit events cannot be deleted.")

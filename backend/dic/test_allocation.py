@@ -22,8 +22,10 @@ from .allocation import (
 )
 from .models import (
     CampEdition,
+    DICAdminAuditEvent,
     House,
     HouseAllocation,
+    PaymentAttempt,
     Participant,
     PrimaryRegistrant,
     RegistrationCategory,
@@ -72,6 +74,11 @@ class AllocationFixtures:
                 if paid
                 else RegistrationOrder.PaymentStatus.PENDING
             ),
+            status=(
+                RegistrationOrder.Status.CONFIRMED
+                if paid
+                else RegistrationOrder.Status.SUBMITTED
+            ),
             idempotency_key_digest=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
             request_fingerprint=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
             access_token_digest=hashlib.sha256(uuid.uuid4().bytes).hexdigest(),
@@ -84,6 +91,13 @@ class AllocationFixtures:
             fee_snapshot_ngn=category.fee_ngn,
             participant_snapshot={"full_name": participant.full_name},
         )
+        if paid:
+            PaymentAttempt.objects.create(
+                order=order,
+                reference=f"DIC-{uuid.uuid4()}",
+                amount_kobo=10000,
+                status=PaymentAttempt.Status.SUCCESSFUL,
+            )
         return participant
 
     def make_house(
@@ -143,6 +157,20 @@ class HouseAllocationTests(AllocationFixtures, TestCase):
 
         self.assertFalse(HouseAllocation.objects.exists())
         self.assertFalse(unallocated_paid_participants(self.edition).filter(pk=participant.pk).exists())
+
+    def test_paid_status_without_successful_verified_attempt_is_not_eligible(self):
+        participant = self.make_participant(self.edition, paid=False)
+        item = participant.registration_items.get()
+        RegistrationOrder.objects.filter(pk=item.order_id).update(
+            payment_status=RegistrationOrder.PaymentStatus.PAID,
+            status=RegistrationOrder.Status.CONFIRMED,
+        )
+        house = self.make_house(self.edition)
+
+        with self.assertRaisesMessage(AllocationError, "no verified paid registration"):
+            assign_participant(participant.pk, self.edition.pk, house.pk, self.actor)
+
+        self.assertFalse(HouseAllocation.objects.exists())
 
     def test_gender_must_match_and_editions_must_match(self):
         participant = self.make_participant(self.edition, sex=Participant.Sex.FEMALE)
@@ -513,6 +541,13 @@ class AllocationAdminPermissionTests(AllocationFixtures, TestCase):
         self.assertEqual(allocation.house, house)
         self.assertEqual(allocation.allocated_by, self.admin_user)
         self.assertEqual(allocation.source, HouseAllocation.Source.ADMIN)
+        self.assertTrue(
+            DICAdminAuditEvent.objects.filter(
+                actor=self.admin_user,
+                action="participant_allocated",
+                target_id=str(allocation.pk),
+            ).exists()
+        )
 
     def test_authorized_admin_can_reassign_and_release_with_reasons(self):
         self.admin_user.user_permissions.add(

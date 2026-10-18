@@ -13,14 +13,14 @@ class HealthCheckTests(APITestCase):
         CORS_ALLOWED_ORIGINS=["http://localhost:5173"],
         CORS_URLS_REGEX=r"^/api/.*$",
     )
-    def test_frontend_origin_is_allowed_without_credentials(self):
+    def test_frontend_origin_supports_shared_session_credentials(self):
         response = self.client.get(
             "/api/v1/health/",
             HTTP_ORIGIN="http://localhost:5173",
         )
 
         self.assertEqual(response["Access-Control-Allow-Origin"], "http://localhost:5173")
-        self.assertNotIn("Access-Control-Allow-Credentials", response)
+        self.assertEqual(response["Access-Control-Allow-Credentials"], "true")
 
     @override_settings(
         CORS_ALLOWED_ORIGINS=["http://localhost:5173"],

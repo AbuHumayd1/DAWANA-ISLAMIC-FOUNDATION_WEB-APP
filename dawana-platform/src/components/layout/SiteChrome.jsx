@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import AppearanceControls from './AppearanceControls'
 
 const navigation = [
   ['Home', '/'],
@@ -64,9 +65,19 @@ export function Navbar() {
   const navigationTimer = useRef(null)
 
   useEffect(() => {
+    const navbar = document.querySelector('.navbar')
+    const update = () => document.documentElement.style.setProperty('--nav-bottom', `${navbar.getBoundingClientRect().bottom}px`)
+    const observer = new ResizeObserver(update)
+    observer.observe(navbar)
+    window.addEventListener('scroll', update, { passive: true })
+    update()
+    return () => { observer.disconnect(); window.removeEventListener('scroll', update) }
+  }, [])
+
+  useEffect(() => {
     if (!open) return undefined
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') { setOpen(false); document.querySelector('.menu-button')?.focus() }
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
@@ -213,5 +224,5 @@ export function Layout({ children }) {
     return () => observer.disconnect()
   }, [location.key])
 
-  return <><Navbar /><main>{children}</main><Footer /></>
+  return <><Navbar /><main><div className="appearance-bar"><Container><AppearanceControls /></Container></div>{children}</main><Footer /></>
 }

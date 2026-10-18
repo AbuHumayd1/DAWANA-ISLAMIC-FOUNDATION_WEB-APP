@@ -1,0 +1,12 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{% block title %}{{ title }} | Dawana System Administration{% endblock %}
+{% block dark-mode-vars %}
+<script src="{% static 'appearance.js' %}"></script>
+<link rel="stylesheet" href="{% static 'admin/css/dark_mode.css' %}">
+<link rel="stylesheet" href="{% static 'theme.css' %}">
+{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'dic/admin-appearance.css' %}">{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}">Dawana System Administration</a></div>{% include "admin/appearance_controls.html" %}{% endblock %}
+{% block userlinks %}{% if perms.dic.can_view_dic_operations %}<a href="/dic/operations">Operations Portal</a> / {% endif %}{{ block.super }}{% endblock %}
+{% block nav-global %}{% endblock %}

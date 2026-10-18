@@ -1,0 +1,31 @@
+:root, html[data-theme="light"], html[data-theme="dark"] {
+  --primary: var(--brand-solid); --secondary: var(--brand-deep); --accent: var(--accent-bright);
+  --body-fg: var(--text-main); --body-bg: var(--page); --body-quiet-color: var(--text-muted);
+  --body-loud-color: var(--heading); --header-color: var(--on-brand); --header-branding-color: var(--accent-bright);
+  --header-bg: var(--brand-deep); --header-link-color: var(--on-brand);
+  --breadcrumbs-fg: var(--on-brand); --breadcrumbs-link-fg: var(--accent-bright); --breadcrumbs-bg: var(--brand-solid);
+  --link-fg: var(--heading); --link-hover-color: var(--text-main); --link-selected-fg: var(--heading);
+  --hairline-color: var(--line); --border-color: var(--line); --darkened-bg: var(--panel-soft);
+  --selected-bg: var(--panel-green); --selected-row: var(--panel-green); --close-button-bg: var(--brand-solid);
+  --button-bg: var(--brand-solid); --button-fg: var(--on-brand); --button-hover-bg: var(--brand-hover);
+  --default-button-bg: var(--brand-solid); --default-button-hover-bg: var(--brand-hover);
+  --object-tools-bg: var(--brand-solid); --object-tools-hover-bg: var(--brand-hover);
+  --error-fg: var(--danger-text); --message-error-bg: var(--danger-bg); --message-warning-bg: var(--warning-bg); --message-success-bg: var(--success-bg);
+}
+body { font-family: "Plus Jakarta Sans", system-ui, sans-serif; font-size: 1rem; line-height: 1.65; }
+#header { flex-wrap: wrap; gap: 1rem; padding: 1.2rem 2rem; }
+#header .appearance-controls { width: 100%; justify-content: flex-end; }
+#header .appearance-controls label { color: var(--on-brand); }
+#site-name { font-size: 1.5rem; line-height: 1.3; }
+#user-tools, #user-tools a, #logout-form button, div.breadcrumbs { font-size: .875rem; line-height: 1.6; }
+h1 { color: var(--heading); font-size: 1.8rem; }
+h2, .module h2, .module caption, .inline-group h2 { font-size: 1rem; }
+td, th, label, input, textarea, select, .form-row p, .help, p.help, form .aligned p.help, .paginator { font-size: .9375rem; line-height: 1.65; }
+input, textarea, select { background: var(--panel); color: var(--text-main); border-color: var(--line); }
+input:not([type="checkbox"]):not([type="radio"]), select, .button, input[type="submit"] { min-height: 44px; }
+td, th { padding: .8rem; }
+.form-row { padding: 1rem .8rem; }
+.module, #changelist .actions, #changelist .paginator { background: var(--panel); }
+.help, p.help, .quiet, .small { color: var(--text-muted); }
+#changelist-filter h3, #changelist-filter li { font-size: .9375rem; }
+@media (max-width: 767px) { #header { padding: 1rem; } #header .appearance-controls { justify-content: flex-start; } #content { padding: 1rem; } }

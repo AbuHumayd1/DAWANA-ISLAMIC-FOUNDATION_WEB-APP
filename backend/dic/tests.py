@@ -1259,6 +1259,8 @@ class PaymentApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(attempt.status, PaymentAttempt.Status.SUCCESSFUL)
         self.assertEqual(attempt.provider_paid_at, paid_at)
+        self.assertEqual(attempt.provider_reported_amount_kobo, attempt.amount_kobo)
+        self.assertEqual(attempt.provider_reported_currency, "NGN")
         self.assertEqual(self.order.payment_status, RegistrationOrder.PaymentStatus.PAID)
         self.assertEqual(self.order.total_amount_ngn, Decimal("10000.00"))
 

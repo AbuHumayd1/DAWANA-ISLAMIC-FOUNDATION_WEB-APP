@@ -178,7 +178,20 @@ def _apply_verified_transaction(attempt_id, provider_data):
             and not isinstance(amount, bool)
             and amount == attempt.amount_kobo
         )
+        attempt.provider_reported_amount_kobo = (
+            amount
+            if (
+                isinstance(amount, int)
+                and not isinstance(amount, bool)
+                and 0 <= amount <= 9_223_372_036_854_775_807
+            )
+            else None
+        )
         currency_matches = provider_data.get("currency") == attempt.currency
+        provider_currency = provider_data.get("currency")
+        attempt.provider_reported_currency = (
+            provider_currency[:16] if isinstance(provider_currency, str) else ""
+        )
         transaction_id = provider_data.get("id")
         transaction_id_value = (
             str(transaction_id)[:64]
@@ -287,6 +300,8 @@ def _apply_verified_transaction(attempt_id, provider_data):
                 "status",
                 "failure_code",
                 "provider_transaction_id",
+                "provider_reported_amount_kobo",
+                "provider_reported_currency",
                 "provider_paid_at",
                 "updated_at",
             )

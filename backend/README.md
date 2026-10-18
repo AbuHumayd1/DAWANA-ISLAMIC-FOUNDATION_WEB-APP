@@ -73,6 +73,53 @@ rule format or evaluator has been defined, any house with non-empty rules is
 not allocatable through either batch or manual assignment. Define and approve
 the rule schema before using such restrictions.
 
+## DIC operations and staff access
+
+After applying migrations, create or refresh the standard least-privilege
+groups with:
+
+```powershell
+python backend\manage.py migrate
+python backend\manage.py setup_dic_staff_roles
+```
+
+The command creates **DIC Registration Staff**, **DIC Finance Reviewers**, and
+**DIC Administrators**. It does not create users, enable staff login, or change
+group membership. An authorized administrator assigns existing users to the
+appropriate group. React portal access requires `can_view_dic_operations`;
+it does not require `is_staff`. Only users authorized to use Django Admin
+should receive `is_staff`, alongside their model permissions. The administrators group receives
+all DIC model permissions; grant it only to explicitly authorized committee
+administrators. Re-running the command reapplies the documented permissions
+for these three groups.
+
+Authorized staff can open the private `/admin/dic/operations/` dashboard or
+follow its link from the registration-order list. Registration staff see
+order and participant counts, category and allocation summaries, and payment
+states without provider reconciliation details or contact fields. Finance
+reviewers additionally see read-only Paystack verification attempts and
+reconciliation information. Contact access and contact-bearing report exports
+require separate `dic.can_view_dic_contact_information` and
+`dic.can_export_dic_contact_information` permissions; neither is included in
+the standard registration or finance groups.
+
+Order and participant records are not editable through the operations
+interface. Payment settlement still requires server-side Paystack verification;
+administrators cannot manually mark an order paid. CSV export is limited to
+selected orders in the filtered admin list, is formula-safe, and creates an
+immutable audit event without recording contact values. Allocation changes
+retain their existing actor, reason, and history records, with corresponding
+administrative audit events for sensitive operations. Audit and payment
+records are read-only in Django Admin. The React portal at `/dic/operations`
+and the Admin operations dashboard both offer Word and CSV downloads for
+registrations, participants, payments, categories, houses, and attention
+reports, with backend permission checks and a 5,000-record export limit.
+
+Public pages, the portal and Admin share Light/Dark/System appearance and
+reading-size preferences. Access Admin through the frontend `/admin/` proxy
+to share the same browser-origin preference storage. The frontend public
+directory supplies the shared appearance assets to Django staticfiles.
+
 The backend apps are nested under `backend/`, so specify their labels when
 running the test suite from the repository root. `--keepdb` reuses the
 pre-created `test_dawana_dev` database owned by `dawana_app`; this role does

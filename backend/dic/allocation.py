@@ -10,6 +10,7 @@ from .models import (
     CampEdition,
     House,
     HouseAllocation,
+    PaymentAttempt,
     Participant,
     RegistrationOrder,
     RegistrationOrderItem,
@@ -51,6 +52,8 @@ def paid_participants(edition):
         participant_id=OuterRef("pk"),
         order__edition=edition,
         order__payment_status=RegistrationOrder.PaymentStatus.PAID,
+        order__status=RegistrationOrder.Status.CONFIRMED,
+        order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
     ).exclude(order__status=RegistrationOrder.Status.CANCELLED)
     return Participant.objects.annotate(
         has_paid_registration=Exists(paid_items),
@@ -76,6 +79,8 @@ def _validate_allocation(participant, edition, house):
         participant=participant,
         order__edition=edition,
         order__payment_status=RegistrationOrder.PaymentStatus.PAID,
+        order__status=RegistrationOrder.Status.CONFIRMED,
+        order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
     ).exclude(order__status=RegistrationOrder.Status.CANCELLED).exists():
         raise AllocationError(
             f"{participant.full_name} has no verified paid registration for this edition."

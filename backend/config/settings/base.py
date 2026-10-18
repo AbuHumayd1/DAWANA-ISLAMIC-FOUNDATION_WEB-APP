@@ -27,9 +27,17 @@ CORS_ALLOWED_ORIGINS = env.list(
         else []
     ),
 )
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CORS_URLS_REGEX = r"^/api/.*$"
 CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key")
+CSRF_TRUSTED_ORIGINS = env.list(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    default=CORS_ALLOWED_ORIGINS,
+)
 PAYSTACK_MODE = env("PAYSTACK_MODE", default="test")
 PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_CALLBACK_URL = env("PAYSTACK_CALLBACK_URL", default="")
@@ -100,7 +108,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "dic" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -162,6 +170,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR.parent / "dawana-platform" / "public"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -182,5 +191,6 @@ REST_FRAMEWORK = {
         "dic_recovery_verify": "30/hour",
         "dic_recovery_orders": "60/hour",
         "dic_recovery_restore": "30/hour",
+        "dic_ops_login": "10/hour",
     },
 }

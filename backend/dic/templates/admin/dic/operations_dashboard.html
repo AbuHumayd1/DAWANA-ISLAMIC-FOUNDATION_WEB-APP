@@ -1,0 +1,108 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+  {% if perms.dic.can_export_dic_reports %}
+  <div class="module">
+    <h2>Download reports</h2>
+    <form action="{% url 'dic:operations-report' %}" method="get">
+      <p><label>Report <select name="report">
+        <option value="registrations">Registrations</option>
+        <option value="participants">Participants</option>
+        <option value="categories">Categories</option>
+        <option value="houses">Houses</option>
+        <option value="attention">Operational attention</option>
+        {% if can_view_finance %}<option value="payments">Payments</option>{% endif %}
+      </select></label>
+      <label>Edition <select name="edition">{% for edition in report_editions %}<option value="{{ edition.pk }}">{{ edition.name }}</option>{% endfor %}</select></label></p>
+      <p><label>Search <input name="q" type="search"></label>
+      <label>From <input type="date" name="date_from"></label>
+      <label>To <input type="date" name="date_to"></label></p>
+      <p><button name="format" value="csv" type="submit">Download CSV</button>
+      <button name="format" value="docx" type="submit">Download Word</button></p>
+    </form>
+  </div>
+  {% endif %}
+  <div class="module">
+    <h2>Registration overview</h2>
+    <table>
+      <tbody>
+        <tr><th scope="row">Registration orders</th><td>{{ total_orders }}</td></tr>
+        <tr><th scope="row">Individual participants</th><td>{{ individual_participants }}</td></tr>
+        <tr><th scope="row">Verified paid orders</th><td>{{ verified_paid_orders }}</td></tr>
+        <tr><th scope="row">Participants on verified paid orders</th><td>{{ verified_paid_participants }}</td></tr>
+        <tr><th scope="row">Pending or unpaid orders</th><td>{{ unpaid_orders }}</td></tr>
+        <tr><th scope="row">Orders requiring attention</th><td>{{ attention_count }}</td></tr>
+        {% if can_view_finance %}
+        <tr><th scope="row">Payment reconciliation cases</th><td>{{ reconciliation_count }}</td></tr>
+        <tr><th scope="row">Paid status lacking verified confirmation</th><td>{{ unverified_paid_status_count }}</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="module">
+    <h2>Registrations by category</h2>
+    <table>
+      <thead><tr><th>Edition</th><th>Category snapshot</th><th>Registration items</th><th>Individual participants</th></tr></thead>
+      <tbody>
+        {% for row in category_counts %}
+        <tr>
+          <td>{{ row.order__edition__year }}</td>
+          <td>{{ row.category_name_snapshot }}</td>
+          <td>{{ row.registrations }}</td>
+          <td>{{ row.individual_participants }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No registration items.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="module">
+    <h2>Active house allocations</h2>
+    <table>
+      <thead><tr><th>Edition</th><th>House</th><th>Allocated participants</th></tr></thead>
+      <tbody>
+        {% for row in house_counts %}
+        <tr><td>{{ row.edition__year }}</td><td>{{ row.house__name }}</td><td>{{ row.participants }}</td></tr>
+        {% empty %}
+        <tr><td colspan="3">No active house allocations.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="module">
+    <h2>Administrative attention</h2>
+    <table>
+      <thead><tr><th>Order</th><th>Edition</th><th>Reason</th><th>Submitted</th></tr></thead>
+      <tbody>
+        {% for row in attention_rows %}
+        <tr>
+          <td><a href="{{ row.url }}">{{ row.order.public_id }}</a></td>
+          <td>{{ row.order.edition }}</td>
+          <td>{{ row.reasons|join:", " }}</td>
+          <td>{{ row.order.created_at }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No registrations currently require attention.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="module">
+    <h2>Work queues</h2>
+    <ul class="actionlist">
+      <li><a href="{{ order_list_url }}">Registration orders</a></li>
+      <li><a href="{{ participant_list_url }}">Participant directory</a></li>
+      <li><a href="{{ allocation_list_url }}">House allocations</a></li>
+      {% if can_view_finance %}<li><a href="{{ payment_list_url }}">Payment attempts</a></li>{% endif %}
+      {% if can_view_audit %}<li><a href="{{ audit_list_url }}">Administrative audit events</a></li>{% endif %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

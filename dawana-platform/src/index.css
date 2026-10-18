@@ -1,48 +1,48 @@
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #0F4D38;
-  --color-primary-dark: #003524;
-  --color-primary-light: #186047;
+@theme inline {
+  --color-primary:var(--brand-solid);
+  --color-primary-dark:var(--brand-deep);
+  --color-primary-light:var(--brand-hover);
 
-  --color-gold: #C89B3C;
-  --color-gold-light: #FCCA66;
+  --color-gold:var(--accent);
+  --color-gold-light:var(--accent-bright);
 
-  --color-canvas: #FBFBFA;
-  --color-surface: #F5F7F5;
-  --color-surface-green: #F1FCF7;
+  --color-canvas:var(--page);
+  --color-surface:var(--panel);
+  --color-surface-green:var(--panel-green);
 
-  --color-text: #2D3734;
-  --color-border: #E2E8E4;
+  --color-text:var(--text-main);
+  --color-border:var(--line);
 
-  --font-heading: "Playfair Display", serif;
-  --font-body: "Plus Jakarta Sans", sans-serif;
-  --font-arabic: "Amiri", serif;
+  --font-heading:"Playfair Display", serif;
+  --font-body:"Plus Jakarta Sans", sans-serif;
+  --font-arabic:"Amiri", serif;
 }
 
 :root {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  color: #2D3734;
-  background: #FBFBFA;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  font-family:"Plus Jakarta Sans", sans-serif;
+  color:var(--heading);
+  background:var(--panel);
+  font-synthesis:none;
+  text-rendering:optimizeLegibility;
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior:smooth;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: #FBFBFA;
+  margin:0;
+  min-width:320px;
+  min-height:100vh;
+  background:var(--panel);
 }
 
 button,
 a {
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color:transparent;
 }
 
-button, input { font: inherit; }
+button, input { font:inherit; }

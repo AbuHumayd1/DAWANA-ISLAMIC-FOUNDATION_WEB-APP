@@ -6,6 +6,22 @@ from .payment_views import (
     PaystackWebhookView,
     OrderRepricingAcceptView,
 )
+from .operations_api import (
+    OperationsActivityView,
+    OperationsDashboardView,
+    OperationsFiltersView,
+    OperationsLoginView,
+    OperationsLogoutView,
+    OperationsMeView,
+    OperationsHouseView,
+    OperationsParticipantDetailView,
+    OperationsParticipantListView,
+    OperationsPaymentListView,
+    OperationsRegistrationDetailView,
+    OperationsRegistrationListView,
+    OperationsReportView,
+    operations_csrf,
+)
 from .recovery_views import (
     RecoveryChallengeView,
     RecoveryChannelsView,
@@ -24,6 +40,72 @@ from .views import (
 app_name = "dic"
 
 urlpatterns = [
+    path("operations/auth/csrf/", operations_csrf, name="operations-csrf"),
+    path(
+        "operations/auth/login/",
+        OperationsLoginView.as_view(),
+        name="operations-login",
+    ),
+    path(
+        "operations/auth/logout/",
+        OperationsLogoutView.as_view(),
+        name="operations-logout",
+    ),
+    path(
+        "operations/auth/me/",
+        OperationsMeView.as_view(),
+        name="operations-me",
+    ),
+    path(
+        "operations/dashboard/",
+        OperationsDashboardView.as_view(),
+        name="operations-dashboard",
+    ),
+    path(
+        "operations/filters/",
+        OperationsFiltersView.as_view(),
+        name="operations-filters",
+    ),
+    path(
+        "operations/registrations/",
+        OperationsRegistrationListView.as_view(),
+        name="operations-registrations",
+    ),
+    path(
+        "operations/registrations/<uuid:public_id>/",
+        OperationsRegistrationDetailView.as_view(),
+        name="operations-registration-detail",
+    ),
+    path(
+        "operations/participants/",
+        OperationsParticipantListView.as_view(),
+        name="operations-participants",
+    ),
+    path(
+        "operations/participants/<uuid:participant_id>/",
+        OperationsParticipantDetailView.as_view(),
+        name="operations-participant-detail",
+    ),
+    path(
+        "operations/payments/",
+        OperationsPaymentListView.as_view(),
+        name="operations-payments",
+    ),
+    path(
+        "operations/houses/",
+        OperationsHouseView.as_view(),
+        name="operations-houses",
+    ),
+    path(
+        "operations/activity/",
+        OperationsActivityView.as_view(),
+        name="operations-activity",
+    ),
+    path(
+        "operations/reports/download/",
+        OperationsReportView.as_view(),
+        name="operations-report",
+    ),
     path(
         "registration-options/",
         RegistrationOptionsView.as_view(),
