@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
+import './HomeHero.css'
 
 const areas = [
   ['01', 'Our Educational Platforms', 'Building pathways to authentic Islamic knowledge for learners at every stage.'],
