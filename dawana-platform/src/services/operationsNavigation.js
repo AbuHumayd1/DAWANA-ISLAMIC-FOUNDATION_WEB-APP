@@ -1,4 +1,5 @@
 export const navigation = [
+  { label: 'Participant IDs', to: '/dic/operations/participant-ids', icon: 'users', permission: 'ids' },
   { label: 'Overview', to: '/dic/operations', icon: 'grid' },
   { label: 'Registrations', to: '/dic/operations/registrations', icon: 'clipboard' },
   { label: 'Participants', to: '/dic/operations/participants', icon: 'users' },

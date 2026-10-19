@@ -1,3 +1,5 @@
+import { readApiResponse, readCsrfToken } from './apiResponse.js'
+
 const apiBase = import.meta.env?.VITE_API_BASE_URL || '/api/v1'
 const operationsBase = `${apiBase.replace(/\/$/, '')}/dic/operations`
 let csrfToken
@@ -19,16 +21,12 @@ async function request(path, options = {}) {
     headers,
     credentials: 'include',
   })
+  options.signal?.throwIfAborted()
   if (!response.ok) {
-    let message = `Request failed (${response.status}).`
-    try {
-      const payload = await response.json()
-      message = payload.detail || Object.values(payload).flat().join(' ') || message
-    } catch {
-      // Keep a useful HTTP error when the response is not JSON.
-    }
-    const error = new Error(message)
-    error.status = response.status
+    let error
+    try { await readApiResponse(response) } catch (failure) { error = failure }
+    options.signal?.throwIfAborted()
+    const message = error.message
     if (response.status === 401 || (response.status === 403 && /authentication credentials|CSRF/i.test(message))) {
       window.dispatchEvent(new Event('operations-session-expired'))
     }
@@ -42,15 +40,13 @@ export async function getCsrfToken() {
     credentials: 'include',
     cache: 'no-store',
   })
-  if (!response.ok) throw new Error('Could not initialize secure sign-in.')
-  const payload = await response.json()
-  csrfToken = payload.csrfToken
+  csrfToken = await readCsrfToken(response)
   return csrfToken
 }
 
 export async function getOperationsUser() {
   const response = await request('/auth/me/')
-  return response.json()
+  return readApiResponse(response)
 }
 
 export async function signIn(username, password) {
@@ -60,7 +56,7 @@ export async function signIn(username, password) {
     body: JSON.stringify({ username, password }),
   })
   await getCsrfToken()
-  return response.json()
+  return readApiResponse(response)
 }
 
 export async function signOut() {
@@ -68,9 +64,15 @@ export async function signOut() {
   csrfToken = undefined
 }
 
-export async function getOperationsData(path) {
-  const response = await request(path)
-  return response.json()
+export async function getOperationsData(path, options = {}) {
+  const response = await request(path, options)
+  return readApiResponse(response)
+}
+
+export async function postOperationsData(path, body) {
+  await getCsrfToken()
+  const response = await request(path, { method: 'POST', body: JSON.stringify(body) })
+  return readApiResponse(response)
 }
 
 export async function downloadOperationsReport({ report, format, filters = {} }) {

@@ -39,6 +39,8 @@ CSRF_TRUSTED_ORIGINS = env.list(
     default=CORS_ALLOWED_ORIGINS,
 )
 PAYSTACK_MODE = env("PAYSTACK_MODE", default="test")
+# Set only after an approved original asset is verified; no substitute logo.
+DIC_OFFICIAL_LOGO_URL = env("DIC_OFFICIAL_LOGO_URL", default="")
 PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_CALLBACK_URL = env("PAYSTACK_CALLBACK_URL", default="")
 PAYSTACK_HTTP_TIMEOUT_SECONDS = env.int("PAYSTACK_HTTP_TIMEOUT_SECONDS")
@@ -192,5 +194,8 @@ REST_FRAMEWORK = {
         "dic_recovery_orders": "60/hour",
         "dic_recovery_restore": "30/hour",
         "dic_ops_login": "10/hour",
+        "dic_participant_request": "30/hour",
+        "dic_participant_verify": "60/hour",
+        "dic_participant_session": "300/hour",
     },
 }

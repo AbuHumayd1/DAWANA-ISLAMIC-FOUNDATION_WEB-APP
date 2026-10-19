@@ -502,6 +502,9 @@ def _user_data(user):
             "contact_information": _can(user, "can_view_dic_contact_information"),
             "export_reports": _can(user, "can_export_dic_reports"),
             "export_contacts": _can(user, "can_export_dic_contact_information"),
+            "ids": _can(user, "can_view_dic_ids"),
+            "manage_ids": _can(user, "can_manage_dic_ids"),
+            "review_id_sources": _can(user, "can_review_dic_enrollment_sources"),
         },
     }
 

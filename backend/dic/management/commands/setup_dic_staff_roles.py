@@ -59,7 +59,10 @@ class Command(BaseCommand):
             )
             all_dic_permissions = Permission.objects.filter(
                 content_type__app_label="dic"
-            )
+            ).exclude(content_type__model__in=(
+                "campenrollment", "participantportalchallenge", "participantportalgrant",
+                "participantportalscope", "digitalidissue",
+            ))
             administrator.permissions.add(*all_dic_permissions)
             state = "Created" if created else "Updated"
             self.stdout.write(

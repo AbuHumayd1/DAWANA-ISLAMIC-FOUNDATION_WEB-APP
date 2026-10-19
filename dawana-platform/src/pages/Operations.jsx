@@ -10,6 +10,7 @@ import {
 } from '../services/operationsApi'
 import './Operations.css'
 import AppearanceControls from '../components/layout/AppearanceControls'
+import StaffParticipantIDs from './StaffParticipantIDs'
 
 
 
@@ -142,6 +143,7 @@ function Operations() {
         <Route path="registrations" element={<RegistrationListPage />} />
         <Route path="registrations/:publicId" element={<RegistrationDetailPage />} />
         <Route path="participants" element={<ParticipantListPage />} />
+        <Route path="participant-ids" element={user.permissions.ids ? <StaffParticipantIDs user={user} /> : <EmptyState title="Participant ID lookup permission required" />} />
         <Route path="participants/:participantId" element={<ParticipantDetailPage user={user} />} />
         <Route path="payments" element={user.permissions.finance ? <PaymentsPage /> : <EmptyState title="Finance permission required" />} />
         <Route path="houses" element={<HousesPage />} />

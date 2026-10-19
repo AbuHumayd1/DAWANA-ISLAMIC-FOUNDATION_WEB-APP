@@ -330,6 +330,9 @@ class RegistrationCategory(models.Model):
                 )
             if self.early_bird_fee_ngn <= 0:
                 errors["early_bird_fee_ngn"] = "The early-bird fee must be positive."
+        if (self.pk and self.registration_items.exists()
+                and type(self).objects.filter(pk=self.pk).exclude(edition_id=self.edition_id).exists()):
+            errors["edition"] = "A category referenced by registrations cannot change edition."
         if errors:
             raise ValidationError(errors)
 
@@ -1254,3 +1257,81 @@ class DICAdminAuditEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("DIC administrative audit events cannot be deleted.")
+
+
+class CampEnrollment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participant = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name="enrollments")
+    edition = models.ForeignKey(CampEdition, on_delete=models.PROTECT, related_name="enrollments")
+    source_item = models.ForeignKey(RegistrationOrderItem, on_delete=models.PROTECT, related_name="enrollments")
+    participant_number = models.CharField(max_length=32, unique=True, editable=False)
+    source_review_fingerprint = models.CharField(max_length=64, blank=True)
+    restriction_reason = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("participant", "edition"), name="dic_enrollment_participant_edition_unique")]
+        permissions = [
+            ("can_view_dic_ids", "Can look up DIC participant IDs"),
+            ("can_manage_dic_ids", "Can issue and revoke DIC participant IDs"),
+            ("can_review_dic_enrollment_sources", "Can resolve DIC enrollment sources and restrictions"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.source_item_id and (self.source_item.participant_id != self.participant_id or self.source_item.order.edition_id != self.edition_id or self.source_item.category.edition_id != self.edition_id):
+            raise ValidationError("Enrollment source must belong to the participant and edition.")
+
+
+class ParticipantPortalChallenge(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(RegistrationOrder, null=True, on_delete=models.PROTECT)
+    channel = models.CharField(max_length=10)
+    contact_digest = models.CharField(max_length=64, db_index=True)
+    browser_digest = models.CharField(max_length=64)
+    code_digest = models.CharField(max_length=64)
+    encrypted_delivery_payload = models.TextField(blank=True)
+    delivery_status = models.CharField(max_length=12, default="queued", choices=RegistrationRecoveryChallenge.DeliveryStatus.choices)
+    delivery_started_at = models.DateTimeField(null=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    consumed_at = models.DateTimeField(null=True)
+
+
+class ParticipantPortalGrant(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    credential_digest = models.CharField(max_length=64, unique=True)
+    channel = models.CharField(max_length=10)
+    contact_digest = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True)
+
+
+class ParticipantPortalScope(models.Model):
+    grant = models.ForeignKey(ParticipantPortalGrant, on_delete=models.CASCADE, related_name="scopes")
+    order = models.ForeignKey(RegistrationOrder, on_delete=models.PROTECT)
+    revoked_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("grant", "order"), name="dic_portal_grant_order_unique")]
+
+
+class DigitalIDIssue(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    enrollment = models.ForeignKey(CampEnrollment, on_delete=models.PROTECT, related_name="id_issues")
+    version = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="dic_id_issues")
+    revoked_at = models.DateTimeField(null=True)
+    revoked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="dic_id_revocations")
+    reason = models.CharField(max_length=240, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("enrollment", "version"), name="dic_id_issue_version_unique"),
+            models.UniqueConstraint(fields=("enrollment",), condition=Q(revoked_at__isnull=True), name="dic_one_current_id_issue"),
+            models.CheckConstraint(condition=Q(version__gte=1), name="dic_id_version_positive"),
+        ]

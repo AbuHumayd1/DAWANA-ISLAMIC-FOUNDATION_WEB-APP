@@ -39,7 +39,22 @@ from .views import (
 
 app_name = "dic"
 
+from .participant_api import (
+    portal_csrf, PortalOptionsView, PortalChallengeView, PortalVerifyView, PortalMeView,
+    PortalLogoutView, PortalEnrollmentsView, PortalIDView, StaffEnrollmentView, StaffIDView,
+)
+
 urlpatterns = [
+    path("participant/auth/csrf/", portal_csrf, name="participant-csrf"),
+    path("participant/auth/options/", PortalOptionsView.as_view(), name="participant-options"),
+    path("participant/auth/challenges/", PortalChallengeView.as_view(), name="participant-challenges"),
+    path("participant/auth/verify/", PortalVerifyView.as_view(), name="participant-verify"),
+    path("participant/auth/me/", PortalMeView.as_view(), name="participant-me"),
+    path("participant/auth/logout/", PortalLogoutView.as_view(), name="participant-logout"),
+    path("participant/enrollments/", PortalEnrollmentsView.as_view(), name="participant-enrollments"),
+    path("participant/enrollments/<uuid:enrollment_id>/id/", PortalIDView.as_view(), name="participant-id"),
+    path("operations/enrollments/", StaffEnrollmentView.as_view(), name="operations-enrollments"),
+    path("operations/enrollments/<uuid:enrollment_id>/id/", StaffIDView.as_view(), name="operations-enrollment-id"),
     path("operations/auth/csrf/", operations_csrf, name="operations-csrf"),
     path(
         "operations/auth/login/",
