@@ -1,0 +1,12 @@
+# Tested installed dependency versions; deployment pins avoid drifting the
+# existing bounded cryptography/docx requirements and their shared dependencies.
+asgiref==3.12.1
+sqlparse==0.6.0
+psycopg-binary==3.3.6
+cryptography==46.0.7
+cffi==2.1.1
+pycparser==3.11
+python-docx==1.2.0
+lxml==6.1.3
+typing_extensions==4.16.0
+packaging==26.3

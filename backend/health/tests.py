@@ -1,3 +1,5 @@
+from unittest.mock import patch
+from django.db import OperationalError
 from rest_framework.test import APITestCase
 from django.test import override_settings
 
@@ -8,6 +10,14 @@ class HealthCheckTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
+
+    def test_health_database_failure_is_generic_and_not_cached(self):
+        with patch('health.views.connection.cursor', side_effect=OperationalError('private connection detail')):
+            response = self.client.get('/api/v1/health/')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {'status': 'unavailable'})
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertNotIn('private', response.content.decode())
 
     @override_settings(
         CORS_ALLOWED_ORIGINS=["http://localhost:5173"],

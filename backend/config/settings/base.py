@@ -125,29 +125,24 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-database_name = env("DB_NAME")
-test_database_name = env("DB_TEST_NAME", default=f"test_{database_name}")
-if test_database_name == database_name:
-    raise ImproperlyConfigured(
-        "DB_TEST_NAME must be different from DB_NAME to protect development data."
-    )
-if not test_database_name.startswith("test_"):
-    raise ImproperlyConfigured("DB_TEST_NAME must start with 'test_'.")
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": database_name,
-        "USER": env("DB_USER"),
-        "PASSWORD": env("DB_PASSWORD", default=""),
-        "HOST": env("DB_HOST", default="127.0.0.1"),
-        "PORT": env("DB_PORT", default="5432"),
-        "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE"),
-        "TEST": {
-            "NAME": test_database_name,
-        },
+# Render supplies DATABASE_URL; retain the established DB_* local configuration.
+if env("DATABASE_URL", default=""):
+    database = env.db_url("DATABASE_URL")
+    if database["ENGINE"] != "django.db.backends.postgresql":
+        raise ImproperlyConfigured("Only PostgreSQL DATABASE_URL values are supported.")
+else:
+    database = {
+        "ENGINE": "django.db.backends.postgresql", "NAME": env("DB_NAME"),
+        "USER": env("DB_USER"), "PASSWORD": env("DB_PASSWORD", default=""),
+        "HOST": env("DB_HOST", default="127.0.0.1"), "PORT": env("DB_PORT", default="5432"),
     }
-}
+database_name = database["NAME"]
+test_database_name = env("DB_TEST_NAME", default=f"test_{database_name}")
+if test_database_name == database_name or not test_database_name.startswith("test_"):
+    raise ImproperlyConfigured("DB_TEST_NAME must start with 'test_' and differ from the application database.")
+database.update(CONN_MAX_AGE=env.int("DB_CONN_MAX_AGE"), CONN_HEALTH_CHECKS=True,
+                TEST={"NAME": test_database_name})
+DATABASES = {"default": database}
 
 AUTH_USER_MODEL = "accounts.User"
 
