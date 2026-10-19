@@ -1,19 +1,8 @@
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import AppearanceControls from './AppearanceControls'
 
-const navigation = [
-  ['Home', '/'],
-  ['About', '/#who-we-are'],
-  ['What We Do', '/#what-we-do'],
-  ['Programs', '/programs'],
-  ['Events', '/events'],
-  ['Projects', '/projects'],
-  ['DIC', '/dic'],
-  ['Media', '/media'],
-  ['Contact', '/contact'],
-  ['Get Involved', '/get-involved'],
-]
+import { navigation, primaryNavigation, secondaryNavigation, isNavigationActive } from '../../services/publicNavigation'
 
 const logoSrc = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDCGXJAzZ-UcWviePlSOQS31EaODKnU6pYnNVPZAIb_b-9lqS8LhiVGxnepujEXC4rbBB7dpPXi16s19Sdppz9cRMR-W6-5qoOvKHiyjSLG90SoGGcrEUpx4Z5RaWE6rdOWa_BsxPa57V9ULj-cq7v2VYn_NFMd7eHZVxCDZISlBx1os-S3z_3e7nhljVT48l6trWf8o2hKb0Xdd7Jp-2sNGkPBc-SPgyiJhCh1VyCyCxGmv53SBGIj-DCzsF4BNKzvzA'
 
@@ -60,9 +49,56 @@ export function Container({ children, className = '' }) {
 
 export function Navbar() {
   const [open, setOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [compact, setCompact] = useState(true)
+  const compactRef = useRef(true)
+  const headerRef = useRef(null)
+  const moreRef = useRef(null)
+  const moreButtonRef = useRef(null)
   const navigate = useNavigate()
   const location = useLocation()
   const navigationTimer = useRef(null)
+
+  useLayoutEffect(() => {
+    const header = headerRef.current
+    const row = header.querySelector('.nav-inner')
+    const brand = row.querySelector('.brand')
+    const links = row.querySelector('.desktop-nav')
+    const toggle = row.querySelector('.appearance-controls')
+    const donate = row.querySelector('.nav-donate')
+    let disposed = false
+    const update = () => {
+      if (disposed) return
+      const gap = parseFloat(getComputedStyle(row).columnGap) || 0
+      const actionGap = parseFloat(getComputedStyle(toggle.parentElement).columnGap) || 0
+      const needed = brand.getBoundingClientRect().width + links.getBoundingClientRect().width
+        + toggle.getBoundingClientRect().width + donate.getBoundingClientRect().width + actionGap + gap * 2
+      const next = window.matchMedia('(max-width: 700px)').matches || needed + 8 > row.clientWidth
+      if (compactRef.current !== next) {
+        compactRef.current = next
+        setOpen(false)
+        setMoreOpen(false)
+        setCompact(next)
+      }
+    }
+    const observer = new ResizeObserver(update)
+    ;[row, brand, links, toggle, donate].forEach((element) => observer.observe(element))
+    window.addEventListener('resize', update)
+    document.fonts?.ready.then(update)
+    update()
+    return () => { disposed = true; observer.disconnect(); window.removeEventListener('resize', update) }
+  }, [])
+
+  useEffect(() => {
+    if (!moreOpen) return undefined
+    const outside = (event) => { if (!moreRef.current?.contains(event.target)) setMoreOpen(false) }
+    const escape = (event) => {
+      if (event.key === 'Escape') { setMoreOpen(false); moreButtonRef.current?.focus() }
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape) }
+  }, [moreOpen])
 
   useEffect(() => {
     const navbar = document.querySelector('.navbar')
@@ -89,6 +125,7 @@ export function Navbar() {
     event.preventDefault()
     window.clearTimeout(navigationTimer.current)
     setOpen(false)
+    setMoreOpen(false)
     navigationTimer.current = window.setTimeout(() => {
       if (href.startsWith('/#') && location.pathname === '/' && location.hash === href.slice(1)) {
         scrollToHashTarget(href.slice(href.indexOf('#') + 1))
@@ -100,12 +137,23 @@ export function Navbar() {
 
   function goToHash(event, href) {
     setOpen(false)
+    setMoreOpen(false)
     event.preventDefault()
     if (location.pathname === '/' && location.hash === href.slice(1)) {
       scrollToHashTarget(href.slice(href.indexOf('#') + 1))
       return
     }
     navigate(href)
+  }
+
+  function navigationLink([label, href]) {
+    const active = isNavigationActive(href, location)
+    return <Link key={href} to={href} className={active ? 'active' : undefined} aria-current={active ? 'page' : undefined} onClick={(event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      if (moreRef.current?.contains(event.currentTarget)) moreButtonRef.current?.focus()
+      if (href.startsWith('/#')) goToHash(event, href)
+      else { setOpen(false); setMoreOpen(false) }
+    }}>{label}</Link>
   }
 
   return (
@@ -119,17 +167,21 @@ export function Navbar() {
           </div>
         </Container>
       </div>
-      <header className="navbar">
+      <header className="navbar" ref={headerRef} data-compact={compact}>
         <Container className="nav-inner">
           <Link className="brand" to="/" onClick={() => setOpen(false)}>
             <BrandLogo />
           </Link>
-          <nav className="desktop-nav" aria-label="Primary navigation">
-            {navigation.map(([label, href]) => href.startsWith('/#') ? <a key={label} href={href} onClick={(event) => goToHash(event, href)}>{label}</a> : <NavLink key={label} to={href} className={({ isActive }) => isActive ? 'active' : undefined}>{label}</NavLink>)}
+          <nav className="desktop-nav" aria-label="Primary navigation" inert={compact}>
+            {primaryNavigation.map(navigationLink)}
+            <div className="nav-more" ref={moreRef} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMoreOpen(false) }}>
+              <button ref={moreButtonRef} type="button" className={`nav-more-button${secondaryNavigation.some(([, href]) => isNavigationActive(href, location)) ? ' active' : ''}`} aria-expanded={moreOpen} aria-controls="secondary-navigation" onClick={() => setMoreOpen((current) => !current)}>More <span aria-hidden="true">&#8964;</span></button>
+              <div id="secondary-navigation" className="nav-more-links" hidden={!moreOpen}>{secondaryNavigation.map(navigationLink)}</div>
+            </div>
           </nav>
           <div className="nav-actions">
-            <a className="login-link" aria-disabled="true" title="Login is not currently available">Login unavailable</a>
-            <Link className="button button-small" to="/donate">Donate</Link>
+            <AppearanceControls />
+            <Link className="button button-small nav-donate" to="/donate">Donate</Link>
             <button className="menu-button" type="button" aria-label={open ? 'Close navigation' : 'Open navigation'} aria-controls="mobile-navigation" aria-expanded={open} onClick={() => { window.clearTimeout(navigationTimer.current); setOpen((current) => !current) }}><span /><span /><span /></button>
           </div>
         </Container>
@@ -137,8 +189,8 @@ export function Navbar() {
       <button className={`mobile-menu-backdrop ${open ? 'is-visible' : ''}`} type="button" aria-label="Close navigation" aria-hidden="true" tabIndex={-1} onClick={() => setOpen(false)} />
       <nav id="mobile-navigation" className={`mobile-nav ${open ? 'is-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!open}>
         <div className="mobile-nav-heading"><span className="mobile-nav-label">Explore Da&apos;w&#227;n&#227;</span><span>ISLAMIC FOUNDATION</span></div>
-        <div className="mobile-nav-links">{navigation.map(([label, href], index) => href.startsWith('/#') ? <a key={label} href={href} style={{ '--menu-index': index }} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></a> : <Link key={label} to={href} style={{ '--menu-index': index }} className={label === 'DIC' && location.pathname.startsWith('/dic') ? 'active' : undefined} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></Link>)}</div>
-        <div className="mobile-menu-actions"><a aria-disabled="true" title="Login is not currently available">Login unavailable</a><Link className="button button-gold" to="/donate" onClick={(event) => closeAndNavigate(event, '/donate')}>Donate <span aria-hidden="true">↗</span></Link></div>
+        <div className="mobile-nav-links">{navigation.map(([label, href], index) => href.startsWith('/#') ? <a key={label} href={href} className={isNavigationActive(href, location) ? 'active' : undefined} aria-current={isNavigationActive(href, location) ? 'page' : undefined} style={{ '--menu-index': index }} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></a> : <Link key={label} to={href} style={{ '--menu-index': index }} className={isNavigationActive(href, location) ? 'active' : undefined} aria-current={isNavigationActive(href, location) ? 'page' : undefined} onClick={(event) => closeAndNavigate(event, href)}>{label}<span aria-hidden="true">↗</span></Link>)}</div>
+        <div className="mobile-menu-actions"><Link className="button button-gold" to="/donate" onClick={(event) => closeAndNavigate(event, '/donate')}>Donate <span aria-hidden="true">↗</span></Link></div>
         <div className="mobile-nav-footer"><span className="mobile-nav-mark">✦</span><span>Knowledge · Faith · Service · Community</span></div>
       </nav>
     </>
@@ -224,5 +276,5 @@ export function Layout({ children }) {
     return () => observer.disconnect()
   }, [location.key])
 
-  return <><Navbar /><main><div className="appearance-bar"><Container><AppearanceControls /></Container></div>{children}</main><Footer /></>
+  return <><Navbar /><main>{children}</main><Footer /></>
 }

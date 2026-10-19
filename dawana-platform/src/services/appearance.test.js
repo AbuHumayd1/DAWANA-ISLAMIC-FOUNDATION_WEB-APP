@@ -21,50 +21,56 @@ function environment(saved, dark = false, blocked = false) {
 test('initial system theme resolves before rendering and follows OS changes', () => {
   const e = environment(null, true)
   assert.equal(e.html.dataset.theme, 'dark')
-  assert.equal(e.html.dataset.readingSize, 'comfortable')
+  assert.equal(e.html.dataset.readingSize, undefined)
   e.media.matches = false; e.events.os()
   assert.equal(e.html.dataset.theme, 'light')
-  e.controller.set({ theme: 'dark' }); e.events.os()
+  e.controller.toggle(); e.events.os()
   assert.equal(e.html.dataset.theme, 'dark')
 })
 test('explicit preferences persist across page loads and synchronize tabs', () => {
   const e = environment()
-  e.controller.set({ theme: 'dark', size: 'large' })
+  e.controller.toggle()
   const next = environment(e.storage.get('dawana.appearance'))
   assert.equal(next.html.dataset.theme, 'dark')
-  assert.equal(next.html.dataset.readingSize, 'large')
+  assert.equal(next.html.dataset.readingSize, undefined)
   next.storage.set('dawana.appearance', JSON.stringify({ theme: 'light', size: 'standard' }))
   next.events.storage({ key: 'dawana.appearance' })
   assert.equal(next.html.dataset.theme, 'light')
-  assert.equal(next.html.dataset.readingSize, 'standard')
+  assert.equal(next.html.dataset.readingSize, undefined)
+  assert.equal(JSON.parse(next.storage.get('dawana.appearance')).size, undefined)
 })
 test('invalid preferences and blocked storage remain usable', () => {
   for (const value of ['invalid-json', '{"theme":"unknown","size":"huge"}']) {
-    assert.equal(environment(value).controller.getSnapshot().theme, 'system')
+    assert.equal(environment(value).controller.getSnapshot().theme, 'light')
   }
   const e = environment(null, false, true)
-  assert.doesNotThrow(() => e.controller.set({ theme: 'dark' }))
+  assert.doesNotThrow(() => e.controller.toggle())
   assert.equal(e.html.dataset.theme, 'dark')
 })
-test('selectors notify subscribers and return to system preference', () => {
-  const e = environment(null, true)
+test('toggle notifies subscribers and retires size without losing other preferences', () => {
+  const e = environment('{"theme":"system","size":"large","other":"keep"}', true)
   let notifications = 0
   const unsubscribe = e.controller.subscribe(() => notifications++)
-  e.controller.set({ theme: 'light' })
-  e.controller.set({ theme: 'system' })
+  e.controller.toggle()
+  assert.equal(e.html.dataset.theme, 'light')
+  e.controller.toggle()
   assert.equal(e.html.dataset.theme, 'dark')
   assert.equal(notifications, 2)
-  unsubscribe(); e.controller.set({ size: 'large' })
+  const saved = JSON.parse(e.storage.get('dawana.appearance'))
+  assert.equal(saved.size, undefined)
+  assert.equal(saved.other, 'keep')
+  unsubscribe(); e.controller.toggle()
   assert.equal(notifications, 2)
 })
-test('Admin selectors use the same saved preferences as React', () => {
+
+test('Admin switch uses the same theme persistence as React, including icon clicks', () => {
   const e = environment()
-  e.events.change({ target: { matches: (selector) => selector === '[data-appearance-theme]', value: 'dark' } })
-  e.events.change({ target: { matches: (selector) => selector === '[data-appearance-size]', value: 'large' } })
-  const persisted = JSON.parse(e.storage.get('dawana.appearance'))
-  assert.equal(persisted.theme, 'dark')
-  assert.equal(persisted.size, 'large')
+  e.events.click({ target: { closest: (selector) => selector === '[data-appearance-toggle]' } })
+  assert.equal(JSON.parse(e.storage.get('dawana.appearance')).theme, 'dark')
+  e.events.click({ target: { closest: () => null } })
+  assert.equal(e.html.dataset.theme, 'dark')
 })
+
 test('appearance initialization precedes styles and the React entrypoint', () => {
   const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
   assert.ok(html.indexOf('/appearance.js') < html.indexOf('/theme.css'))
@@ -87,7 +93,7 @@ test('semantic text pairs meet WCAG AA contrast in both palettes', () => {
   const base = palettes[0]
   for (const changes of palettes) {
     const p = { ...base, ...changes }
-    for (const [fg, bg] of [['text-main','page'],['text-muted','page'],['text-muted','panel'],['text-muted','panel-soft'],['heading','panel'],['success-text','success-bg'],['warning-text','warning-bg'],['danger-text','danger-bg'],['on-brand','brand-solid']]) {
+    for (const [fg, bg] of [['text-main','page'],['text-muted','page'],['text-muted','panel'],['text-muted','panel-soft'],['heading','panel'],['success-text','success-bg'],['warning-text','warning-bg'],['danger-text','danger-bg'],['on-brand','brand-solid'],['on-brand','brand-deep'],['text-main','panel-soft'],['text-muted','panel-soft'],['heading','panel-soft'],['accent','panel-soft'],['brand-deep','accent-bright']]) {
       const a = luminance(p[fg]), b = luminance(p[bg])
       assert.ok((Math.max(a,b) + .05) / (Math.min(a,b) + .05) >= 4.5, `${fg} on ${bg}`)
     }

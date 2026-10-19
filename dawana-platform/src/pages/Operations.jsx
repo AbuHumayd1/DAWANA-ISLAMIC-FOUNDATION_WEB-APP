@@ -213,6 +213,7 @@ function OperationsShell({ user, onLogout }) {
         <button className="ops-menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><Icon name="menu" /></button>
         <Link to="/dic/operations" className="ops-top-brand"><BrandLockup /></Link>
         <div className="ops-top-spacer" />
+        <AppearanceControls />
         <span className="ops-edition-chip"><i /> Daarul Islam Camp 2026</span>
         {user.can_access_django_admin && <a className="ops-admin-link" href="/admin/">Django Admin</a>}
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>
@@ -226,7 +227,7 @@ function OperationsShell({ user, onLogout }) {
           </nav>
           <div className="ops-sidebar-footer"><span className="ops-live-dot" />Private staff portal<span>Only authorized staff can access this workspace.</span></div>
         </aside>
-        <main className="ops-main"><AppearanceControls /><Outlet /></main>
+        <main className="ops-main"><Outlet /></main>
       </div>
     </div>
   )
