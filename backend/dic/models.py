@@ -184,7 +184,7 @@ class CampEdition(models.Model):
         if errors:
             raise ValidationError(errors)
 
-    def pricing_configuration_errors(self):
+    def pricing_configuration_errors(self, *, categories=None):
         errors = {}
         if not self.registration_open_date or not self.registration_close_date:
             errors["registration_open_date"] = (
@@ -195,9 +195,12 @@ class CampEdition(models.Model):
                 errors["registration_close_date"] = (
                     "The registration close date must not precede its opening date."
                 )
-        categories = list(
-            self.registration_categories.filter(is_active=True).all()
-        ) if self.pk else []
+        if categories is None:
+            categories = list(
+                self.registration_categories.filter(is_active=True).all()
+            ) if self.pk else []
+        else:
+            categories = [category for category in categories if category.is_active]
         if not categories:
             errors["registration_status"] = (
                 "At least one active category is required before opening registration."

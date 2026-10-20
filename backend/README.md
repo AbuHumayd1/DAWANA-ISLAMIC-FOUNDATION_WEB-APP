@@ -38,6 +38,35 @@ administrator with a hardcoded password; create one interactively with
 
 ## DIC configuration
 
+### Camp Edition Admin save validation
+
+Camp Edition creation for year 2026 deliberately requires the existing
+`setup_dic_2026` management command to preserve confirmed dates and venue.
+The Admin now shows this restriction beside the year field instead of raising
+an uncaught `ValidationError` in `save_model`. This fix does not run that command
+or create a deployed edition.
+
+Opening registration validates dates and fees against the submitted category
+inlines (including additions, edits, and deletions) before saving anything.
+Previously `save_model` inspected only persisted categories, so a new open
+edition failed even with valid submitted categories. Invalid pricing now
+appears as inline validation errors; staff without category inline access get
+parent form errors based on the existing category configuration.
+
+Regression tests (use only a dedicated local PostgreSQL test database):
+
+```powershell
+python backend/manage.py test dic.test_campedition_admin dic.tests.CampEditionAdminTests --keepdb
+python backend/manage.py check
+```
+
+Staging's `RequestPrivacyFilter` intentionally strips exception details. If a
+500 persists after this fix, diagnostic logging should record only exception
+class and traceback frame module/function/line, plus a fixed Camp Edition
+operation label and status. Do not log exception messages, SQL, local variables,
+request bodies, cookies, headers, or credentials; keep `DEBUG=False`. The generic
+Render log alone cannot prove which validation branch the deployed request hit.
+
 The `dic` app provides historical camp editions, edition-specific participant
 categories and NGN fees, and configurable houses. No official category names,
 eligibility ages, fees, house names, or capacities are preloaded. Categories

@@ -194,8 +194,55 @@ class HouseAllocationCreateForm(forms.ModelForm):
         return cleaned
 
 
+class CampEditionAdminForm(forms.ModelForm):
+    validate_pricing_without_inlines = False
+
+    class Meta:
+        model = CampEdition
+        fields = "__all__"
+
+    def clean_year(self):
+        year = self.cleaned_data["year"]
+        if self.instance._state.adding and year == 2026:
+            raise ValidationError(
+                "Create the confirmed DIC 2026 listing with the "
+                "setup_dic_2026 management command."
+            )
+        return year
+
+    def _post_clean(self):
+        super()._post_clean()
+        if (
+            self.validate_pricing_without_inlines
+            and not self.errors
+            and self.instance.registration_status == CampEdition.RegistrationStatus.OPEN
+        ):
+            for field, error in self.instance.pricing_configuration_errors().items():
+                self.add_error(field if field in self.fields else None, error)
+
+
+class RegistrationCategoryInlineFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        if self.instance.registration_status != CampEdition.RegistrationStatus.OPEN:
+            return
+        # Validate the submitted state, including additions, edits and deletions,
+        # before Admin saves the parent or any of its inlines.
+        categories = [
+            form.instance
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE", False)
+        ]
+        errors = self.instance.pricing_configuration_errors(categories=categories)
+        if errors:
+            raise ValidationError(list(errors.values()))
+
+
 class RegistrationCategoryInline(admin.TabularInline):
     model = RegistrationCategory
+    formset = RegistrationCategoryInlineFormSet
     extra = 0
     show_change_link = True
     fields = (
@@ -250,6 +297,7 @@ class RegistrationOrderPriceRevisionInline(admin.TabularInline):
 
 @admin.register(CampEdition)
 class CampEditionAdmin(admin.ModelAdmin):
+    form = CampEditionAdminForm
     change_form_template = "admin/dic/change_form.html"
     list_display = (
         "name",
@@ -324,6 +372,18 @@ class CampEditionAdmin(admin.ModelAdmin):
         ("General information", {"fields": ("general_information",)}),
     )
 
+    def get_form(self, request, obj=None, **kwargs):
+        form_class = super().get_form(request, obj, **kwargs)
+        has_category_inline = any(
+            inline.model is RegistrationCategory
+            for inline in self.get_inline_instances(request, obj)
+        )
+
+        class RequestForm(form_class):
+            validate_pricing_without_inlines = not has_category_inline
+
+        return RequestForm
+
     def has_delete_permission(self, request, obj=None):
         return False
 
@@ -374,11 +434,6 @@ class CampEditionAdmin(admin.ModelAdmin):
                 request.user.is_superuser
                 or request.user.has_perm("dic.can_edit_confirmed_dic_details")
             )
-            if not change and obj.year == 2026:
-                raise ValidationError(
-                    "Create the confirmed DIC 2026 listing with the "
-                    "setup_dic_2026 management command."
-                )
             if (
                 confirmed_details_changed
                 and (previous.year == 2026 or obj.year == 2026)
@@ -436,10 +491,6 @@ class CampEditionAdmin(admin.ModelAdmin):
             ):
                 obj.venue_directions_verified_at = timezone.now()
                 obj.venue_directions_verified_by = request.user
-            if obj.registration_status == CampEdition.RegistrationStatus.OPEN:
-                errors = obj.pricing_configuration_errors()
-                if errors:
-                    raise ValidationError(errors)
             super().save_model(request, obj, form, change)
 
     def save_formset(self, request, form, formset, change):

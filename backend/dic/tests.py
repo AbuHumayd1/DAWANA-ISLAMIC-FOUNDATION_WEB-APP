@@ -229,15 +229,21 @@ class CampEditionAdminTests(TestCase):
         self.assertNotIn("venue_name", readonly)
 
     def test_incomplete_pricing_cannot_open_registration(self):
-        self.edition.registration_status = CampEdition.RegistrationStatus.OPEN
+        from django.forms import inlineformset_factory
+        from .admin import RegistrationCategoryInlineFormSet
 
-        with self.assertRaises(ValidationError):
-            self.admin_instance.save_model(
-                self.request,
-                self.edition,
-                form=None,
-                change=True,
-            )
+        self.edition.registration_status = CampEdition.RegistrationStatus.OPEN
+        formset_class = inlineformset_factory(
+            CampEdition, RegistrationCategory,
+            formset=RegistrationCategoryInlineFormSet,
+            fields=("name", "fee_ngn", "is_active"), extra=0,
+        )
+        formset = formset_class(instance=self.edition, data={
+            "registration_categories-TOTAL_FORMS": "0",
+            "registration_categories-INITIAL_FORMS": "0",
+        })
+        self.assertFalse(formset.is_valid())
+        self.assertIn("At least one active category", str(formset.non_form_errors()))
 
         self.edition.refresh_from_db()
         self.assertEqual(
