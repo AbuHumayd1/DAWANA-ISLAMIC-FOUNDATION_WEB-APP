@@ -27,6 +27,42 @@ td, th { padding: .8rem; }
 .module, #changelist .actions, #changelist .paginator { background: var(--panel); }
 .help, p.help, .quiet, .small { color: var(--text-muted); }
 #changelist-filter h3, #changelist-filter li { font-size: .9375rem; }
+.dawana-password-field {
+  display: inline-flex;
+  align-items: stretch;
+  gap: .5rem;
+  width: 26rem;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 26rem;
+}
+.dawana-password-field > input {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  margin: 0;
+}
+.dawana-password-field > .dawana-password-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  min-height: 44px;
+  width: 44px;
+  padding: .5rem;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: .375rem;
+  background: var(--panel-green);
+  color: var(--heading);
+  cursor: pointer;
+}
+.dawana-password-toggle:hover { background: var(--panel-soft); }
+.dawana-password-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.dawana-password-toggle svg { pointer-events: none; }
 /* Keep action tools in normal flow instead of Django's floated, negative-margin
    row. Shared by change forms and changelists, including DIC allocation tools. */
 #content .object-tools {
