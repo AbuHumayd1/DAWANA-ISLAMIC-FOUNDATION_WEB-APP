@@ -1,0 +1,71 @@
+/* Scoped to the DIC journey; no page chrome or document scroll overrides. */
+.dic-flow, .dic-summary { --dic-radius: 14px; --dic-control-radius: 10px; }
+:is(.dic-flow, .dic-summary) :is(.dic-form, .checkout-box, .summary-box, .confirmation-box) { border-color: var(--line); border-radius: var(--dic-radius); box-shadow: 0 8px 28px color-mix(in srgb, var(--heading) 6%, transparent); }
+.dic-flow .dic-form { padding: clamp(20px, 4vw, 40px); }
+.dic-flow .dic-form-grid { gap: 24px; }
+.dic-flow .dic-form > h3 { margin-block: 32px 20px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 1rem; }
+.dic-flow .dic-form .dic-form-section-title { grid-column: 1 / -1; margin: 8px 0 0; padding-top: 24px; border-top: 1px solid var(--line); font-size: 1rem; }
+:is(.dic-flow, .dic-summary) .dic-field { gap: 9px; }
+:is(.dic-flow, .dic-summary) .dic-field > label { color: var(--heading); font-size: .9375rem; font-weight: 600; }
+.dic-field > label b { color: var(--accent); }
+:is(.dic-flow, .dic-summary) .dic-field input:not([type=radio]), .dic-select-trigger { width: 100%; min-width: 0; min-height: 52px; padding: 13px 16px; border: 1px solid var(--line); border-radius: var(--dic-control-radius, 10px); background: var(--panel); color: var(--text-main); font: inherit; font-size: 1rem; line-height: 1.5; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+:is(.dic-flow, .dic-summary) .dic-field input::placeholder, .dic-select-trigger .is-placeholder { color: var(--text-muted); opacity: 1; }
+:is(.dic-flow, .dic-summary) .dic-field input:hover, .dic-select-trigger:hover { border-color: var(--accent); }
+:is(.dic-flow, .dic-summary) .dic-field input:focus, .dic-select-trigger:focus-visible { border-color: var(--heading); outline: 2px solid var(--focus); outline-offset: 3px; box-shadow: none; }
+:is(.dic-flow, .dic-summary) .dic-input-wrap input { padding-right: 56px; }
+.dic-input-wrap small { pointer-events: none; font-variant-numeric: tabular-nums; }
+.dic-field input[aria-invalid=true], .dic-select-trigger[aria-invalid=true] { border-color: var(--danger-text); }
+.dic-field .dic-field-error { color: var(--danger-text); font-size: .875rem; line-height: 1.5; font-weight: 500; }
+.dic-select-field { position: relative; }
+.dic-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 16px; text-align: left; cursor: pointer; }
+.dic-select-trigger > span { overflow-wrap: anywhere; }
+.dic-select-trigger svg { flex-shrink: 0; transition: transform 160ms ease; }
+.dic-select-trigger[aria-expanded=true] svg { transform: rotate(180deg); }
+.dic-select-native { position: absolute; width: 1px !important; height: 1px !important; min-height: 0 !important; padding: 0 !important; clip-path: inset(50%); overflow: hidden; border: 0 !important; }
+.dic-select-options { position: absolute; z-index: 15; top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 4px; margin: 0; padding: 8px; list-style: none; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 12px 32px color-mix(in srgb, var(--heading) 18%, transparent); visibility: hidden; opacity: 0; transform: translateY(-4px); transition: opacity 140ms ease, transform 140ms ease, visibility 140ms; }
+.dic-select-options.is-open { visibility: visible; opacity: 1; transform: translateY(0); }
+.dic-select-options [role=option] { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 12px; border-radius: 7px; color: var(--text-main); font-size: .9375rem; line-height: 1.5; cursor: pointer; overflow-wrap: anywhere; }
+.dic-select-options [role=option].is-active { background: var(--panel-soft); outline: 2px solid var(--focus); outline-offset: -2px; }
+.dic-select-options [aria-selected=true] { background: var(--panel-green); color: var(--heading); font-weight: 600; }
+.dic-select-options [aria-disabled=true] { color: var(--text-muted); cursor: not-allowed; opacity: .65; }
+.dic-flow .dic-radio-field label { min-height: 52px; border: 1px solid var(--line); border-radius: var(--dic-control-radius); background: var(--panel); padding: 13px 16px; cursor: pointer; transition: background-color 160ms, border-color 160ms; }
+.dic-flow .dic-radio-field label:has(:checked) { background: var(--panel-green); border-color: var(--heading); color: var(--heading); }
+.dic-flow .dic-radio-field label:hover { border-color: var(--accent); }
+.dic-flow .dic-radio-field label:focus-within { outline: 2px solid var(--focus); outline-offset: 3px; }
+.dic-flow .dic-radio-field input { width: 18px; height: 18px; margin: 0; box-shadow: none; }
+:is(.dic-flow, .dic-summary) :is(.button, .text-link, .participant-actions button) { min-height: 48px; border-radius: 10px; line-height: 1.5; white-space: normal; text-align: center; transition: background-color 160ms, border-color 160ms, box-shadow 160ms; }
+:is(.dic-flow, .dic-summary) :is(button, a):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+:is(.dic-flow, .dic-summary) .dic-form-actions { flex-wrap: wrap; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line); }
+.dic-summary .participant-card { gap: 20px; padding: 24px; border-radius: var(--dic-radius); border-color: var(--line); background: var(--panel); }
+.participant-card-copy { min-width: 0; overflow-wrap: anywhere; }
+.dic-summary .participant-card h3 { margin-block: 8px 12px; font-size: 1.375rem; }
+.dic-summary .participant-card p { line-height: 1.7; }
+.dic-summary .participant-number { color: var(--accent); font-weight: 700; letter-spacing: .04em; }
+.dic-summary .participant-actions { flex-wrap: wrap; gap: 10px; }
+.dic-summary .participant-actions button { padding: 10px 18px; }
+.dic-summary .dic-add-note { gap: 20px; padding: 20px; border-radius: 12px; line-height: 1.7; }
+.dic-summary :is(.summary-box, .checkout-box) { padding: clamp(20px, 3vw, 32px); }
+.dic-summary .checkout-row { gap: 20px; padding-block: 20px; font-size: 1rem; align-items: flex-start; }
+.dic-summary .checkout-row > span { min-width: 0; overflow-wrap: anywhere; }
+.dic-summary .checkout-row strong { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.dic-summary .checkout-total { padding: 20px 16px; border-radius: 10px; background: var(--panel-green); }
+.dic-summary .payment-placeholder { padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
+.dic-summary .payment-placeholder > span, .dic-summary .confirmation-box strong { overflow-wrap: anywhere; }
+.dic-summary .confirmation-box { padding: clamp(28px, 5vw, 56px); }
+.dic-summary .confirmation-icon { width: 64px; height: 64px; border: 1px solid var(--accent); background: var(--panel-green); color: var(--heading); }
+.dic-summary .dic-payment-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+:is(.dic-flow, .dic-summary) .dic-flow-message { border-radius: 10px; padding: 16px 20px; line-height: 1.7; }
+.dic-steps [aria-current=step] > span { font-weight: 800; }
+:is(.dic-flow, .dic-summary) .dic-steps > div.is-current > span { color: var(--on-brand); }
+@media (max-width: 700px) {
+  .dic-flow .dic-form-grid { gap: 22px; }
+  .dic-summary .participant-card { padding: 20px; }
+  .dic-summary .checkout-row { flex-wrap: wrap; gap: 8px; }
+  .dic-summary .checkout-row strong { margin-left: auto; }
+  .dic-summary .dic-payment-actions { width: 100%; }
+  .dic-summary .dic-payment-actions > * { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dic-select-options, .dic-select-trigger, .dic-select-trigger svg,
+  :is(.dic-flow, .dic-summary) :is(input, button, a, .dic-radio-field label) { transition: none; }
+}

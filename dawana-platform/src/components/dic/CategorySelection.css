@@ -1,0 +1,41 @@
+.dic-category-selection {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+.dic-category-selection legend { padding: 0; color: var(--heading); font-size: 1.125rem; font-weight: 700; }
+.dic-category-selection legend > span:first-child { color: var(--accent); }
+.dic-category-selection .dic-category-hint { margin: 8px 0 20px; color: var(--text-muted); font-size: .9375rem; line-height: 1.65; }
+.dic-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 16px; }
+.dic-category-card {
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 20px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.dic-category-card:hover { border-color: var(--accent); background: var(--panel-soft); }
+.dic-category-card.is-selected { border-color: var(--heading); background: var(--panel-green); box-shadow: 0 0 0 1px var(--heading); }
+.dic-category-card:focus-within { outline: 3px solid var(--focus); outline-offset: 4px; }
+.dic-category-card > input { width: 1.2rem; height: 1.2rem; min-height: 0; margin: 3px 0 0; padding: 0; accent-color: var(--heading); cursor: pointer; }
+.dic-category-copy, .dic-category-details { display: flex; flex-direction: column; min-width: 0; }
+.dic-category-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.dic-category-name { color: var(--heading); font-size: 1.125rem; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; }
+.dic-category-age { margin-top: 7px; color: var(--text-muted); font-size: .9375rem; line-height: 1.5; }
+.dic-category-pricing { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-top: 20px; }
+.dic-category-fee { color: var(--heading); font-size: 1.625rem; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dic-category-regular { color: var(--text-muted); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.dic-category-price-kind { margin-top: 6px; color: var(--text-muted); font-size: .875rem; line-height: 1.5; }
+.dic-category-badge { display: inline-block; padding: 4px 9px; border: 1px solid var(--accent); border-radius: 99px; color: var(--accent); font-size: .75rem; line-height: 1.4; font-weight: 700; }
+.dic-category-cutoff { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: .875rem; line-height: 1.6; }
+.dic-category-card.is-unavailable { cursor: not-allowed; }
+.dic-category-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 400px) { .dic-category-card { padding: 16px; gap: 10px; } }
+@media (prefers-reduced-motion: reduce) { .dic-category-card { transition: none; } }

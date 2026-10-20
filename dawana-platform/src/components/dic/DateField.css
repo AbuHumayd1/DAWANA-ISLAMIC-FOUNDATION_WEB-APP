@@ -1,0 +1,30 @@
+.dic-date-field { position: relative; }
+.dic-date-input { position: relative; display: flex; align-items: center; }
+.dic-flow .dic-date-input input { padding-right: 54px; font-variant-numeric: tabular-nums; font-weight: 500; }
+.dic-date-input .dic-date-trigger { position: absolute; right: 4px; display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 8px; background: var(--panel-soft); color: var(--heading); cursor: pointer; }
+.dic-date-trigger:hover, .dic-date-trigger[aria-expanded=true] { background: var(--panel-green); }
+.dic-date-field .dic-date-hint { color: var(--text-muted); font-size: .8125rem; line-height: 1.6; font-weight: 400; }
+.dic-calendar { position: absolute; z-index: 18; top: calc(100% + 8px); left: 0; width: min(100%, 24rem); box-sizing: border-box; padding: clamp(10px, 2vw, 20px); border: 1px solid var(--line); border-radius: 16px; background: var(--panel); color: var(--text-main); box-shadow: 0 14px 40px color-mix(in srgb, var(--heading) 18%, transparent); animation: dic-calendar-enter 140ms ease-out; }
+.dic-calendar :is(button, select) { border-radius: 8px; font: inherit; font-size: .9375rem; cursor: pointer; }
+.dic-calendar-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--heading); font-weight: 700; }
+.dic-calendar-title button { min-height: 36px; width: 36px; padding: 0; border: 0; background: transparent; color: var(--text-muted); font-size: 1.5rem; }
+.dic-calendar-selects { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; margin-block: 12px 16px; }
+.dic-calendar-selects label { display: grid; min-width: 0; gap: 6px; font-size: .8125rem; font-weight: 600; color: var(--text-muted); }
+.dic-flow .dic-calendar-selects select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-soft); color: var(--heading); font-size: .9375rem; }
+.dic-calendar-navigation { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; gap: 4px; margin-bottom: 12px; text-align: center; color: var(--heading); }
+.dic-calendar-navigation strong { font-size: .9375rem; }
+.dic-calendar-navigation button { min-height: 36px; padding: 0; border: 1px solid var(--line); background: var(--panel); color: var(--heading); font-size: 1.5rem; }
+.dic-calendar .dic-calendar-grid { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+.dic-calendar-grid th { padding: 6px 0 10px; color: var(--text-muted); font-size: .75rem; font-weight: 600; text-align: center; }
+.dic-calendar-grid td { padding: 0; text-align: center; }
+.dic-calendar .dic-calendar-grid button { width: 100%; min-height: 38px; padding: 2px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-main); font-size: .875rem; font-variant-numeric: tabular-nums; transition: background-color 140ms, border-color 140ms; }
+.dic-calendar .dic-calendar-grid button:hover:not(:disabled) { background: var(--panel-green); border-color: var(--accent); }
+.dic-calendar .dic-calendar-grid [aria-selected=true] button { background: var(--brand-solid); color: var(--on-brand); border-color: var(--accent); font-weight: 700; }
+.dic-calendar .dic-calendar-grid [aria-current=date] { box-shadow: inset 0 0 0 1px var(--accent); }
+.dic-calendar button:disabled { opacity: .35; cursor: not-allowed; }
+.dic-calendar :is(button, select):focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.dic-calendar .dic-calendar-help { margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: .75rem; line-height: 1.6; }
+.dic-calendar .dic-calendar-done { display: block; width: 100%; min-height: 40px; padding: 8px; border: 1px solid var(--line); background: var(--panel-soft); color: var(--heading); font-weight: 600; }
+.dic-calendar-grid tbody { animation: dic-calendar-enter 120ms ease-out; }
+@keyframes dic-calendar-enter { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .dic-calendar, .dic-calendar-grid tbody { animation: none; } .dic-calendar .dic-calendar-grid button { transition: none; } }
