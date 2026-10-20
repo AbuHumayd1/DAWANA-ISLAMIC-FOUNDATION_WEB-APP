@@ -866,6 +866,66 @@ class RegistrationApiTests(APITestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             RegistrationOrder.objects.filter(pk=order.pk).update(payment_status="unknown")
 
+    def test_primary_pupil_can_explicitly_select_not_applicable_in_grouped_order(self):
+        child = self.participant_payload(
+            full_name="Primary pupil",
+            date_of_birth=date(self.today.year - 9, 1, 1).isoformat(),
+            academic_status=Participant.AcademicStatus.PRIMARY,
+            occupation=Participant.Occupation.NOT_APPLICABLE,
+            marital_status=Participant.MaritalStatus.NOT_APPLICABLE,
+        )
+        response = self.create_order(self.order_payload(participants=[child, self.participant_payload()]))
+        self.assertEqual(response.status_code, 201, response.data)
+        participant = Participant.objects.get(full_name="Primary pupil")
+        participant.full_clean()
+        self.assertEqual(participant.occupation, "None")
+        self.assertEqual(participant.marital_status, "None")
+        self.assertEqual(participant.get_occupation_display(), "None (Not applicable)")
+        self.assertEqual(participant.get_marital_status_display(), "None (Not applicable)")
+        order = RegistrationOrder.objects.get(public_id=response.data["order_id"])
+        self.assertEqual(order.items.count(), 2)
+        item = order.items.get(participant=participant)
+        self.assertEqual(item.participant_snapshot["occupation"], "None")
+        self.assertEqual(item.participant_snapshot["marital_status"], "None")
+        detail = self.client.get(
+            reverse("dic:order-detail", args=[response.data["order_id"]]),
+            HTTP_AUTHORIZATION=f"Bearer {response.data['access_token']}",
+        )
+        self.assertEqual(detail.status_code, 200)
+        snapshots = [item["participant_snapshot"] for item in detail.data["items"]]
+        self.assertIn("None", [item["occupation"] for item in snapshots])
+
+    def test_occupation_and_marital_status_still_require_explicit_valid_choices(self):
+        for field in ("occupation", "marital_status"):
+            for invalid in ("", None, "Not applicable", "unknown"):
+                with self.subTest(field=field, invalid=invalid):
+                    payload = self.participant_payload(**{field: invalid})
+                    response = self.create_order(self.order_payload(participants=[payload]))
+                    self.assertEqual(response.status_code, 400)
+            payload = self.participant_payload()
+            del payload[field]
+            self.assertEqual(self.create_order(self.order_payload(participants=[payload])).status_code, 400)
+        self.assertEqual(RegistrationOrder.objects.count(), 0)
+        self.assertEqual(Participant.objects.count(), 0)
+
+    def test_participant_admin_displays_not_applicable_without_changing_edit_permissions(self):
+        user = get_user_model().objects.create_superuser(
+            username="choices-supervisor", email="supervisor@example.test", password="test-only-password"
+        )
+        response = self.create_order(self.order_payload(participants=[self.participant_payload(
+            occupation="None", marital_status="None"
+        )]))
+        self.assertEqual(response.status_code, 201)
+        participant = Participant.objects.get()
+        self.client.force_login(user)
+        response = self.client.get(reverse("admin:dic_participant_change", args=[participant.pk]))
+        self.assertContains(response, "None (Not applicable)", count=2)
+        for field in ("occupation", "marital_status"):
+            model_field = Participant._meta.get_field(field)
+            self.assertFalse(model_field.blank)
+            self.assertFalse(model_field.null)
+            self.assertIn(("None", "None (Not applicable)"), model_field.choices)
+
     def test_required_frontend_participant_fields_are_enforced(self):
         payload = self.participant_payload()
         del payload["marital_status"]

@@ -493,12 +493,14 @@ class Participant(models.Model):
         BUSINESS = "Business", "Business"
         TRADER = "Trader", "Trader"
         ENTREPRENEUR = "Entrepreneur", "Entrepreneur"
+        NOT_APPLICABLE = "None", "None (Not applicable)"
 
     class MaritalStatus(models.TextChoices):
         SINGLE = "Single", "Single"
         MARRIED = "Married", "Married"
         DIVORCEE = "Divorcee", "Divorcee"
         WIDOW_WIDOWER = "Widow / Widower", "Widow / Widower"
+        NOT_APPLICABLE = "None", "None (Not applicable)"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     full_name = models.CharField(max_length=200)
