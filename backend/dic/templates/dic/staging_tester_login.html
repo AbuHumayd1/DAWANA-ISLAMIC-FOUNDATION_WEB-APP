@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% block extrastyle %}{{ block.super }}
+<style>
+  .staging-tester-access { max-width: 32rem; margin: 0 auto; }
+  .staging-tester-access form p { display: grid; gap: .35rem; }
+  .staging-tester-access input { box-sizing: border-box; max-width: 100%; }
+  .staging-tester-access input:not([type="hidden"]) { width: 100%; }
+</style>
+{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<div class="staging-tester-access">
+  <p>Use your individual staging tester account. This access does not open DIC registration.</p>
+  {% if tester_authorized %}
+    <p>Signed in as <strong>{{ user.get_username }}</strong>.</p>
+    <p><a class="button" href="/dic/register">Continue to registration</a></p>
+    <form method="post" action="{% url 'staging-tester-logout' %}">
+      {% csrf_token %}<button type="submit">Sign out</button>
+    </form>
+  {% else %}
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">Sign in</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

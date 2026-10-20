@@ -51,26 +51,94 @@ After an approved deployment, set these **Render-only** environment values:
 
 ```text
 STAGING_DIC_TESTER_RESTRICTION_ENABLED=True
-STAGING_DIC_TESTER_USERNAMES=<comma-separated existing Django usernames>
+STAGING_DIC_TESTER_USERNAMES=DIF,dic-tester-01,dic-tester-02,dic-tester-03,dic-tester-04,dic-tester-05,dic-tester-06,dic-tester-07,dic-tester-08,dic-tester-09
 ```
 
-Each allowlisted user must be active and already have
-`dic.can_view_dic_operations` (superusers qualify). No accounts, memberships,
-permissions or edition records are created by this feature. Do not put login
-passwords or the allowlist in `VITE_*` variables or frontend files.
+Each allowlisted user must be active and either belong to **DIC Staging
+Testers** or already be a superuser. The group is a membership marker and needs
+**no Django permissions**. Keep existing `DIF` as the supervisory superuser;
+do not change its password, flags or permissions. The nine ordinary testers
+must have `is_staff=False`, `is_superuser=False`, no direct permissions and no
+other privileged group memberships. Operations permission is no longer needed.
+There is no ten-user limit; additional individually approved usernames work
+the same way. No accounts or memberships are automatically created on startup.
+Do not put passwords or the allowlist in `VITE_*` variables or frontend files.
+
+Provisioning steps **after separate approval**, on the confirmed Render staging
+service with `DJANGO_SETTINGS_MODULE=config.settings.staging`:
+
+1. Open `python manage.py shell` in a private terminal. Do not use
+   `createsuperuser` for ordinary testers or put passwords in command arguments.
+2. Run the following interactively. It prompts for each separate password,
+   applies Django password validation, refuses to overwrite existing accounts,
+   and aborts if the named group already grants permissions. The example
+   usernames are the exact names in the allowlist above; substitute approved
+   individual names consistently if required.
+
+```python
+from getpass import getpass
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
+
+assert settings.SETTINGS_MODULE == "config.settings.staging"
+User = get_user_model()
+supervisor = User.objects.get(username="DIF")
+assert supervisor.is_active and supervisor.is_superuser
+names = [f"dic-tester-{i:02d}" for i in range(1, 10)]
+assert not User.objects.filter(username__in=names).exists()
+pending = []
+for name in names:
+    password = getpass(f"New individual password for {name}: ")
+    assert password == getpass("Confirm password: ")
+    assert not supervisor.check_password(password)
+    assert all(password != previous for _, previous in pending)
+    validate_password(password, user=User(username=name))
+    pending.append((name, password))
+
+with transaction.atomic():
+    group, _ = Group.objects.get_or_create(name="DIC Staging Testers")
+    assert not group.permissions.exists()
+    for name, password in pending:
+        user = User.objects.create_user(username=name, password=password,
+            is_active=True, is_staff=False, is_superuser=False)
+        user.groups.add(group)
+
+del pending, password
+```
+
+3. Deliver each person's credentials individually through an approved private
+   channel. Do not share accounts or passwords. Existing tester accounts should
+   be reviewed individually rather than recreated; grant only the empty tester
+   group after checking their flags, direct permissions and other memberships.
+4. Configure the exact Render allowlist above and reload the staging service.
+   Group membership alone or allowlisting alone does not authorize an ordinary
+   tester. Removing either revokes gated access on subsequent requests.
+
+No provisioning commands have been executed as part of implementation. These
+steps write authentication records only when separately approved; no schema
+migration is required.
 
 Tester workflow:
 
-1. Open the approved staging **Netlify origin** at `/dic/operations` in another
-   tab and sign in with the existing personal operations account.
+1. Open the approved staging **Netlify origin** at
+   `/api/v1/dic/tester-access/login/` in another tab and sign in with your own
+   account. This dedicated page uses standard Django password authentication
+   and CSRF protection; login attempts are limited to 60/hour per source IP
+   (shared across testers on that IP).
 2. Keep that session signed in and use `/dic/register` on the **same origin and
    browser profile**. The frontend obtains CSRF through the existing operations
    endpoint and retries a staging-gate rejection with the session cookie.
 3. Existing order bearer tokens are still required for payment/repricing;
    a tester session does not grant access to another person's order.
-4. Use the existing operations sign-out action when finished. Removing a username
+4. Use **Sign out** on the tester access page when finished (POST with CSRF).
+   Removing a username
    from the server allowlist also blocks further gated requests after settings
-   are reloaded.
+   are reloaded. Ordinary testers cannot enter Django Admin, operations,
+   registration management or finance screens unless separately granted those
+   privileges. Tester login/logout routes are absent from production settings.
 
 Registration still requires its normal edition status, dates and approved
 prices. This gate does **not** open registration; edition ID 1 remains untouched.

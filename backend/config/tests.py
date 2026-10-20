@@ -27,7 +27,7 @@ class StagingDeploymentTests(SimpleTestCase):
                'PAYSTACK_MODE': 'test', 'PAYSTACK_SECRET_KEY': '', 'STAGING_EMAIL_ENABLED': 'False',
                **(extra or {})}
         code = ('import sys;sys.path[:0]=' + repr(sys.path) + ';import django;django.setup();'
-                'from django.conf import settings as s;import json;'
+                'from django.conf import settings as s;from django.urls import resolve;import json;'
                 'print(json.dumps(dict(debug=s.DEBUG,secure=s.SESSION_COOKIE_SECURE,'
                 'same_site=s.SESSION_COOKIE_SAMESITE,db=s.DATABASES["default"]["NAME"],'
                 'ssl=s.DATABASES["default"]["OPTIONS"]["sslmode"],'
@@ -35,7 +35,8 @@ class StagingDeploymentTests(SimpleTestCase):
                 'whatsapp=s.DIC_WHATSAPP_ACCESS_TOKEN,email=s.EMAIL_HOST,'
                 'cache=s.CACHES["default"]["BACKEND"],middleware=s.MIDDLEWARE,'
                 'tester_gate=s.STAGING_DIC_TESTER_RESTRICTION_ENABLED,'
-                'testers=s.STAGING_DIC_TESTER_USERNAMES)))')
+                'testers=s.STAGING_DIC_TESTER_USERNAMES,'
+                'tester_login=resolve("/api/v1/dic/tester-access/login/").url_name)))')
         return subprocess.run([sys.executable, '-c', code], cwd=Path(__file__).resolve().parents[1],
                               env=env, text=True, capture_output=True, timeout=30)
 
@@ -53,6 +54,7 @@ class StagingDeploymentTests(SimpleTestCase):
         self.assertEqual(data['middleware'][1], 'whitenoise.middleware.WhiteNoiseMiddleware')
         self.assertTrue(data['tester_gate'])
         self.assertEqual(data['testers'], [])
+        self.assertEqual(data['tester_login'], 'staging-tester-login')
         self.assertIn('config.staging_tester_access.DICStagingTesterMiddleware', data['middleware'])
 
     def test_staging_tester_gate_can_be_explicitly_disabled(self):

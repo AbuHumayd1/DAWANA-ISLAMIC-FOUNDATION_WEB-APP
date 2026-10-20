@@ -27,12 +27,13 @@ USE_X_FORWARDED_HOST = False
 DATABASES["default"].setdefault("OPTIONS", {})["sslmode"] = "require"
 MIDDLEWARE = [*MIDDLEWARE]
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
-# Fail closed until existing operations users are explicitly approved. This
+# Fail closed until individual testers are explicitly approved. This
 # middleware is absent from development/production settings.
 STAGING_DIC_TESTER_RESTRICTION_ENABLED = env.bool(
     "STAGING_DIC_TESTER_RESTRICTION_ENABLED", default=True
 )
 STAGING_DIC_TESTER_USERNAMES = env.list("STAGING_DIC_TESTER_USERNAMES", default=[])
+STAGING_DIC_TESTER_ACCESS_AVAILABLE = True
 MIDDLEWARE.append("config.staging_tester_access.DICStagingTesterMiddleware")
 STATIC_URL = "/static/"
 STORAGES = {
@@ -44,6 +45,9 @@ STORAGES = {
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache",
                       "LOCATION": "dawana_staging_cache", "KEY_PREFIX": "dawana-staging"}}
 REST_FRAMEWORK = {**REST_FRAMEWORK, "NUM_PROXIES": 1}
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    **REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"], "dic_staging_tester_login": "60/hour",
+}
 
 # Messaging defaults OFF. Optional test mail may only target explicit .test
 # addresses and a separately configured sandbox SMTP sink. SMS/WhatsApp stay OFF.

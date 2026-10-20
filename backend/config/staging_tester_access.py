@@ -4,6 +4,17 @@ from django.http import JsonResponse
 from django.middleware.csrf import CsrfViewMiddleware
 
 
+TESTER_GROUP = "DIC Staging Testers"
+
+
+def is_staging_tester(user):
+    return (
+        user.is_authenticated and user.is_active
+        and user.get_username() in getattr(settings, "STAGING_DIC_TESTER_USERNAMES", [])
+        and (user.is_superuser or user.groups.filter(name=TESTER_GROUP).exists())
+    )
+
+
 class DICStagingTesterMiddleware:
     protected_views = {
         "order-create", "payment-initialize", "payment-verify", "pricing-accept",
@@ -26,18 +37,14 @@ class DICStagingTesterMiddleware:
         ):
             return None
 
-        user = request.user
-        allowed = (
-            user.is_authenticated and user.is_active
-            and user.get_username() in settings.STAGING_DIC_TESTER_USERNAMES
-            and user.has_perm("dic.can_view_dic_operations")
-        )
+        allowed = is_staging_tester(request.user)
         if not allowed:
             response = JsonResponse({
                 "code": "staging_tester_required",
                 "detail": (
                     "Staging tester access required. Sign in with an approved "
-                    "tester account at /dic/operations, then return to registration."
+                    "tester account at /api/v1/dic/tester-access/login/, "
+                    "then return to registration."
                 ),
             }, status=403)
         else:
