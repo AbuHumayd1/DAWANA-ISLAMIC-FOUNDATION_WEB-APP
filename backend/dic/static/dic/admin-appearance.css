@@ -27,4 +27,52 @@ td, th { padding: .8rem; }
 .module, #changelist .actions, #changelist .paginator { background: var(--panel); }
 .help, p.help, .quiet, .small { color: var(--text-muted); }
 #changelist-filter h3, #changelist-filter li { font-size: .9375rem; }
+/* Keep action tools in normal flow instead of Django's floated, negative-margin
+   row. Shared by change forms and changelists, including DIC allocation tools. */
+#content .object-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: .75rem;
+  float: none;
+  position: static;
+  overflow: visible;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+#content .object-tools li {
+  float: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#content .object-tools a:link,
+#content .object-tools a:visited {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  float: none;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: .6rem 1rem;
+  font-size: .8125rem;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Retain space for Django's built-in action icons. */
+#content .object-tools a.addlink,
+#content .object-tools a.viewsitelink { padding-right: 2rem; }
+@media (max-width: 767px) {
+  #content .object-tools { justify-content: flex-start; }
+}
 @media (max-width: 767px) { #header { padding: 1rem; } #header .appearance-controls { justify-content: flex-start; } #content { padding: 1rem; } }
