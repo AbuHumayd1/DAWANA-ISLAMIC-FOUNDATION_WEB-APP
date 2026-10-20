@@ -94,11 +94,9 @@ def _attempt_response(attempt, order, *, replayed=False):
 def _safe_provider_status(value):
     if not isinstance(value, str):
         return ""
-    return "".join(
-        character
-        for character in value[:32]
-        if character.isalnum() or character in "_-"
-    )
+    if len(value) > 32 or any(not (c.isalnum() or c in "_-") for c in value):
+        return "invalid"
+    return value
 
 
 def _provider_paid_at(value):
@@ -134,12 +132,8 @@ def _revision_is_valid_at_payment(revision, paid_at):
 
 def _mark_initialization_failure(attempt_id, failure_code, state):
     with transaction.atomic():
-        attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt_id)
-        if attempt.status in (
-            PaymentAttempt.Status.SUCCESSFUL,
-            PaymentAttempt.Status.DUPLICATE_SUCCESS,
-            PaymentAttempt.Status.SUPERSEDED,
-        ):
+        _, attempt = _lock_order_attempt(attempt_id)
+        if attempt.status != PaymentAttempt.Status.INITIALIZING:
             return attempt
         attempt.status = state
         attempt.failure_code = failure_code
@@ -147,18 +141,19 @@ def _mark_initialization_failure(attempt_id, failure_code, state):
         return attempt
 
 
+def _lock_order_attempt(attempt_id):
+    """All payment mutations lock the order before any of its attempts."""
+    order_id = PaymentAttempt.objects.values_list("order_id", flat=True).get(pk=attempt_id)
+    order = RegistrationOrder.objects.select_for_update().get(pk=order_id)
+    attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt_id)
+    if attempt.order_id != order.pk:
+        raise PaymentAttempt.DoesNotExist
+    return order, attempt
+
+
 def _apply_verified_transaction(attempt_id, provider_data):
     with transaction.atomic():
-        order_id = PaymentAttempt.objects.values_list("order_id", flat=True).get(
-            pk=attempt_id
-        )
-        order = RegistrationOrder.objects.select_for_update().get(pk=order_id)
-        attempt = (
-            PaymentAttempt.objects.select_for_update()
-            .get(pk=attempt_id)
-        )
-        if attempt.order_id != order.pk:
-            raise PaymentAttempt.DoesNotExist
+        order, attempt = _lock_order_attempt(attempt_id)
 
         if attempt.status in (
             PaymentAttempt.Status.SUCCESSFUL,
@@ -187,16 +182,24 @@ def _apply_verified_transaction(attempt_id, provider_data):
             )
             else None
         )
-        currency_matches = provider_data.get("currency") == attempt.currency
+        currency_matches = provider_data.get("currency") == attempt.currency == "NGN"
+        environment_matches = (
+            settings.PAYSTACK_MODE == "test" and provider_data.get("domain") == "test"
+        )
         provider_currency = provider_data.get("currency")
         attempt.provider_reported_currency = (
             provider_currency[:16] if isinstance(provider_currency, str) else ""
         )
         transaction_id = provider_data.get("id")
         transaction_id_value = (
-            str(transaction_id)[:64]
-            if isinstance(transaction_id, int) and not isinstance(transaction_id, bool)
+            str(transaction_id)
+            if (isinstance(transaction_id, int) and not isinstance(transaction_id, bool)
+                and 0 < transaction_id < 10 ** 64)
             else None
+        )
+        identity_matches = (
+            transaction_id_value is not None
+            and attempt.provider_transaction_id in (None, "", transaction_id_value)
         )
         reused_transaction_id = (
             transaction_id_value is not None
@@ -207,28 +210,57 @@ def _apply_verified_transaction(attempt_id, provider_data):
             .exists()
         )
 
+        if (reference_matches and amount_matches and currency_matches
+                and environment_matches and identity_matches and not reused_transaction_id):
+            # Claim identity before changing order state. The unique constraint,
+            # not an exists() check, arbitrates concurrent claims across orders.
+            try:
+                with transaction.atomic():
+                    PaymentAttempt.objects.filter(pk=attempt.pk).update(
+                        provider_transaction_id=transaction_id_value
+                    )
+            except IntegrityError:
+                if not PaymentAttempt.objects.filter(
+                    provider_transaction_id=transaction_id_value
+                ).exclude(pk=attempt.pk).exists():
+                    raise
+                reused_transaction_id = True
+
         if (
             not reference_matches
             or not amount_matches
             or not currency_matches
+            or not environment_matches
+            or not identity_matches
             or reused_transaction_id
         ):
             attempt.status = PaymentAttempt.Status.AMOUNT_MISMATCH
-            attempt.failure_code = (
-                "provider_transaction_reused"
-                if reused_transaction_id
-                else "provider_data_mismatch"
-            )
+            if reused_transaction_id:
+                attempt.failure_code = "provider_transaction_reused"
+            elif not environment_matches:
+                attempt.failure_code = "provider_environment_mismatch"
+            elif not identity_matches:
+                attempt.failure_code = "provider_transaction_invalid"
+            else:
+                attempt.failure_code = "provider_data_mismatch"
         else:
             attempt.provider_transaction_id = transaction_id_value
-            if provider_status != "success":
-                attempt.failure_code = ""
-                if provider_status == "failed":
+            if provider_data.get("status") != "success":
+                if attempt.status in (
+                    PaymentAttempt.Status.SUPERSEDED,
+                    PaymentAttempt.Status.AMOUNT_MISMATCH,
+                    PaymentAttempt.Status.RECONCILIATION_REQUIRED,
+                    PaymentAttempt.Status.FAILED,
+                ):
+                    pass  # Stale non-success evidence cannot reopen review/closed states.
+                elif provider_data.get("status") == "failed":
+                    attempt.failure_code = ""
                     attempt.status = PaymentAttempt.Status.FAILED
                     if order.payment_status != RegistrationOrder.PaymentStatus.PAID:
                         order.payment_status = RegistrationOrder.PaymentStatus.FAILED
                         order.save(update_fields=("payment_status",))
                 else:
+                    attempt.failure_code = ""
                     attempt.status = PaymentAttempt.Status.PENDING
                     if order.payment_status != RegistrationOrder.PaymentStatus.PAID:
                         order.payment_status = RegistrationOrder.PaymentStatus.PENDING
@@ -293,6 +325,17 @@ def _apply_verified_transaction(attempt_id, provider_data):
                         updated_at=timezone.now(),
                     )
 
+        if attempt.status in UNRESOLVED_ATTEMPT_STATUSES:
+            # Late evidence on a superseded quote may need review while a newer
+            # checkout is pending. Freeze that checkout rather than violate the
+            # one-unresolved-attempt constraint or silently discard the evidence.
+            PaymentAttempt.objects.filter(
+                order=order, status__in=UNRESOLVED_ATTEMPT_STATUSES
+            ).exclude(pk=attempt.pk).update(
+                status=PaymentAttempt.Status.SUPERSEDED,
+                failure_code="another_attempt_requires_review",
+                updated_at=timezone.now(),
+            )
         attempt.save(
             update_fields=(
                 "provider_status",
@@ -314,10 +357,12 @@ def _verify_attempt(attempt, client):
         provider_data = client.verify_transaction(attempt.reference)
     except (PaystackTransportError, PaystackAPIError) as exc:
         with transaction.atomic():
-            locked = PaymentAttempt.objects.select_for_update().get(pk=attempt.pk)
-            if locked.status not in (
-                PaymentAttempt.Status.SUCCESSFUL,
-                PaymentAttempt.Status.DUPLICATE_SUCCESS,
+            _, locked = _lock_order_attempt(attempt.pk)
+            if locked.status in (
+                PaymentAttempt.Status.INITIALIZING,
+                PaymentAttempt.Status.PENDING,
+                PaymentAttempt.Status.INITIALIZATION_UNKNOWN,
+                PaymentAttempt.Status.VERIFICATION_PENDING,
             ):
                 locked.status = PaymentAttempt.Status.VERIFICATION_PENDING
                 locked.failure_code = (
@@ -507,14 +552,13 @@ class PaymentInitializeView(APIView):
             raise PaymentProviderUnavailable(attempt.reference) from None
 
         with transaction.atomic():
-            attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt.pk)
-            order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
+            order, attempt = _lock_order_attempt(attempt.pk)
             if attempt.status == PaymentAttempt.Status.INITIALIZING:
                 attempt.status = PaymentAttempt.Status.PENDING
-            attempt.authorization_url = authorization_url
-            attempt.save(
-                update_fields=("status", "authorization_url", "updated_at")
-            )
+                attempt.authorization_url = authorization_url
+                attempt.save(
+                    update_fields=("status", "authorization_url", "updated_at")
+                )
         return _attempt_response(attempt, order)
 
 

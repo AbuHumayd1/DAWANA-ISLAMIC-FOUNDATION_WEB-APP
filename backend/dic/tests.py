@@ -1007,6 +1007,7 @@ class PaymentApiTests(APITestCase):
         attempt = PaymentAttempt.objects.filter(reference=expected_reference).first()
         result = {
             "id": 987654,
+            "domain": "test",
             "reference": expected_reference,
             "amount": (
                 attempt.amount_kobo
@@ -1713,6 +1714,7 @@ class ConcurrentPaymentSettlementTests(TransactionTestCase):
         )
         provider_data = {
             "id": 987654,
+            "domain": "test",
             "reference": attempt.reference,
             "amount": 10_000,
             "currency": "NGN",
@@ -1821,6 +1823,7 @@ class ConcurrentPaymentSettlementTests(TransactionTestCase):
         quote = sign_repricing_quote(order, prices)
         provider_data = {
             "id": 987655,
+            "domain": "test",
             "reference": attempt.reference,
             "amount": 10_000,
             "currency": "NGN",
