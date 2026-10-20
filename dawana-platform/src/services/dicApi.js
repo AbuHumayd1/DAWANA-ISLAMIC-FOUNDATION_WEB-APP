@@ -1,4 +1,6 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
+import { getCsrfToken } from './operationsApi.js'
+
+const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
 
 export class DicApiError extends Error {
   constructor(message, statusCode, body) {
@@ -22,11 +24,12 @@ function errorMessage(body, fallback) {
   return messages.length ? messages.join(' ') : fallback
 }
 
-async function request(path, { method = 'GET', body, accessToken, idempotencyKey } = {}) {
+async function request(path, { method = 'GET', body, accessToken, idempotencyKey } = {}, testerRetry = false) {
   const headers = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey
+  if (testerRetry) headers['X-CSRFToken'] = await getCsrfToken()
 
   let response
   try {
@@ -34,7 +37,7 @@ async function request(path, { method = 'GET', body, accessToken, idempotencyKey
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-      credentials: 'omit',
+      credentials: testerRetry ? 'include' : 'omit',
       cache: 'no-store',
     })
   } catch {
@@ -46,6 +49,11 @@ async function request(path, { method = 'GET', body, accessToken, idempotencyKey
     data = await response.json()
   } catch {
     if (response.ok) throw new DicApiError('The registration service returned an unreadable response.', response.status, null)
+  }
+  // Retry only a request rejected by the staging gate before any mutation.
+  // Production keeps its existing bearer-only request behavior.
+  if (!testerRetry && response.status === 403 && data?.code === 'staging_tester_required') {
+    return request(path, { method, body, accessToken, idempotencyKey }, true)
   }
   if (!response.ok) {
     throw new DicApiError(errorMessage(data, `The request could not be completed (HTTP ${response.status}).`), response.status, data)

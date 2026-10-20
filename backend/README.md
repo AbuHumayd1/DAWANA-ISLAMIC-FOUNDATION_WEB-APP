@@ -38,6 +38,59 @@ administrator with a hardcoded password; create one interactively with
 
 ## DIC configuration
 
+### Temporary staging tester access
+
+`config.settings.staging` enables a backend tester gate by default. The
+allowlist defaults to empty, so order creation, payment initialization,
+payment verification and repricing acceptance are denied until testers are
+approved. The gate uses resolved Django routes and applies equally to direct
+Render requests and requests through Netlify. Production settings do not
+install this middleware.
+
+After an approved deployment, set these **Render-only** environment values:
+
+```text
+STAGING_DIC_TESTER_RESTRICTION_ENABLED=True
+STAGING_DIC_TESTER_USERNAMES=<comma-separated existing Django usernames>
+```
+
+Each allowlisted user must be active and already have
+`dic.can_view_dic_operations` (superusers qualify). No accounts, memberships,
+permissions or edition records are created by this feature. Do not put login
+passwords or the allowlist in `VITE_*` variables or frontend files.
+
+Tester workflow:
+
+1. Open the approved staging **Netlify origin** at `/dic/operations` in another
+   tab and sign in with the existing personal operations account.
+2. Keep that session signed in and use `/dic/register` on the **same origin and
+   browser profile**. The frontend obtains CSRF through the existing operations
+   endpoint and retries a staging-gate rejection with the session cookie.
+3. Existing order bearer tokens are still required for payment/repricing;
+   a tester session does not grant access to another person's order.
+4. Use the existing operations sign-out action when finished. Removing a username
+   from the server allowlist also blocks further gated requests after settings
+   are reloaded.
+
+Registration still requires its normal edition status, dates and approved
+prices. This gate does **not** open registration; edition ID 1 remains untouched.
+The signed Paystack webhook, order retrieval/confirmation, registration options
+and existing OTP recovery endpoints are not gated. Payment actions after recovery
+still require a tester session while the restriction is enabled. Staging's
+existing sandbox-only recovery delivery settings remain in force.
+
+Keep `VITE_API_BASE_URL=/api/v1` and the existing Netlify `/api/` proxy. Logging
+in directly on the Render origin creates a different browser session and will
+not authorize the Netlify frontend. For direct API testing, authenticate and
+obtain CSRF on that same Render origin; cookie, CSRF and order-bearer checks
+still apply. Forged Origin headers or a bearer token alone do not bypass the gate.
+
+To disable the restriction after explicit approval, set
+`STAGING_DIC_TESTER_RESTRICTION_ENABLED=False` in Render and reload/redeploy the
+service. Public behavior then returns to the normal registration-window and
+order-bearer rules; this does not enable live Paystack payments. Keep the gate
+enabled until public access is intended. No database migrations are needed.
+
 ### Camp Edition Admin save validation
 
 Camp Edition creation for year 2026 deliberately requires the existing

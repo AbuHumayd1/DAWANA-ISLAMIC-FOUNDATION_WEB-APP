@@ -27,6 +27,13 @@ USE_X_FORWARDED_HOST = False
 DATABASES["default"].setdefault("OPTIONS", {})["sslmode"] = "require"
 MIDDLEWARE = [*MIDDLEWARE]
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+# Fail closed until existing operations users are explicitly approved. This
+# middleware is absent from development/production settings.
+STAGING_DIC_TESTER_RESTRICTION_ENABLED = env.bool(
+    "STAGING_DIC_TESTER_RESTRICTION_ENABLED", default=True
+)
+STAGING_DIC_TESTER_USERNAMES = env.list("STAGING_DIC_TESTER_USERNAMES", default=[])
+MIDDLEWARE.append("config.staging_tester_access.DICStagingTesterMiddleware")
 STATIC_URL = "/static/"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},

@@ -33,7 +33,9 @@ class StagingDeploymentTests(SimpleTestCase):
                 'ssl=s.DATABASES["default"]["OPTIONS"]["sslmode"],'
                 'worker=s.DIC_RECOVERY_DELIVERY_WORKER_ENABLED,sms=s.DIC_SMS_RECOVERY_ADAPTER,'
                 'whatsapp=s.DIC_WHATSAPP_ACCESS_TOKEN,email=s.EMAIL_HOST,'
-                'cache=s.CACHES["default"]["BACKEND"],middleware=s.MIDDLEWARE)))')
+                'cache=s.CACHES["default"]["BACKEND"],middleware=s.MIDDLEWARE,'
+                'tester_gate=s.STAGING_DIC_TESTER_RESTRICTION_ENABLED,'
+                'testers=s.STAGING_DIC_TESTER_USERNAMES)))')
         return subprocess.run([sys.executable, '-c', code], cwd=Path(__file__).resolve().parents[1],
                               env=env, text=True, capture_output=True, timeout=30)
 
@@ -49,6 +51,14 @@ class StagingDeploymentTests(SimpleTestCase):
         self.assertEqual((data['sms'], data['whatsapp'], data['email']), ('', '', ''))
         self.assertIn('DatabaseCache', data['cache'])
         self.assertEqual(data['middleware'][1], 'whitenoise.middleware.WhiteNoiseMiddleware')
+        self.assertTrue(data['tester_gate'])
+        self.assertEqual(data['testers'], [])
+        self.assertIn('config.staging_tester_access.DICStagingTesterMiddleware', data['middleware'])
+
+    def test_staging_tester_gate_can_be_explicitly_disabled(self):
+        result = self.settings_process({'STAGING_DIC_TESTER_RESTRICTION_ENABLED': 'False'})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(json.loads(result.stdout)['tester_gate'])
 
     def test_staging_rejects_live_keys_wildcards_insecure_origins_and_sqlite(self):
         for env in [ {'PAYSTACK_MODE': 'live'}, {'PAYSTACK_SECRET_KEY': 'sk_live_not_real'},
