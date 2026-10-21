@@ -1581,6 +1581,31 @@ class PaymentApiTests(APITestCase):
             PaymentAttempt.Status.INITIALIZATION_UNKNOWN,
         )
 
+    @patch("dic.payments.urlopen")
+    def test_upstream_http_rejection_is_diagnosed_without_changing_api_or_attempt_state(self, mocked):
+        from io import BytesIO
+        from urllib.error import HTTPError
+
+        mocked.side_effect = HTTPError(
+            "https://api.paystack.co/transaction/initialize", 401,
+            "sensitive upstream reason", {}, BytesIO(b"sensitive upstream body"),
+        )
+        with self.assertLogs("dic.payments", level="WARNING") as captured:
+            response = self.client.post(self.initialize_url(), {}, format="json", **self.auth)
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.data["detail"], "Payment provider could not complete the request.")
+        attempt = PaymentAttempt.objects.get()
+        self.assertEqual(attempt.status, PaymentAttempt.Status.FAILED)
+        self.assertEqual(attempt.failure_code, "provider_rejected_initialization")
+        self.assertEqual(response.data["payment_reference"], attempt.reference)
+        self.assertEqual(json.loads(captured.records[0].getMessage())["upstream_http_status"], 401)
+        self.assertNotIn(attempt.reference, captured.output[0])
+        self.assertNotIn(self.access_token, captured.output[0])
+        self.assertNotIn("sensitive upstream", captured.output[0])
+        self.order.refresh_from_db()
+        self.assertNotEqual(self.order.payment_status, RegistrationOrder.PaymentStatus.PAID)
+        mocked.assert_called_once()
+
     def test_webhook_rejects_invalid_signature_and_verifies_success_once(self):
         attempt = self.create_pending_attempt()
         payload = {

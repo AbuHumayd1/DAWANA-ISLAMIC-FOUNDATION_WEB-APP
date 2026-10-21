@@ -1,6 +1,8 @@
 import hashlib
 import hmac
 import json
+import logging
+from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
@@ -9,6 +11,14 @@ from django.conf import settings
 
 
 PAYSTACK_API_BASE = "https://api.paystack.co"
+logger = logging.getLogger("dic.payments")
+
+
+def _http_failure_classification(status_code):
+    return {
+        400: "bad_request", 401: "unauthorized", 403: "forbidden",
+        422: "unprocessable_entity", 429: "rate_limited",
+    }.get(status_code, "http_server_error" if status_code >= 500 else "http_error")
 
 
 class PaystackConfigurationError(Exception):
@@ -82,6 +92,20 @@ class PaystackClient:
         self.timeout = settings.PAYSTACK_HTTP_TIMEOUT_SECONDS
 
     def _request(self, method, path, payload=None):
+        started = monotonic()
+        upstream_status = None
+
+        def diagnose(classification):
+            # Only constants, a validated status and elapsed time cross this
+            # boundary. Never serialize requests, exceptions or provider data.
+            if method == "POST" and path == "/transaction/initialize":
+                logger.warning(json.dumps({
+                    "event": "paystack_initialization_failure",
+                    "upstream_http_status": upstream_status,
+                    "failure_classification": classification,
+                    "duration_ms": round(max(0, monotonic() - started) * 1000),
+                }, separators=(",", ":")))
+
         body = None
         headers = {
             "Authorization": f"Bearer {self.secret_key}",
@@ -99,25 +123,41 @@ class PaystackClient:
         )
         try:
             with urlopen(request, timeout=self.timeout) as response:
+                code = response.getcode()
+                if type(code) is int and 100 <= code <= 599:
+                    upstream_status = code
                 response_body = response.read(1_048_577)
                 if len(response_body) > 1_048_576:
+                    diagnose("response_too_large")
                     raise PaystackAPIError("Provider response exceeded the size limit.")
                 response_data = json.loads(response_body)
         except HTTPError as exc:
+            if type(exc.code) is int and 100 <= exc.code <= 599:
+                upstream_status = exc.code
             exc.close()
+            diagnose(_http_failure_classification(upstream_status) if upstream_status is not None else "http_error")
             raise PaystackAPIError(
                 "Payment provider returned an HTTP error.",
                 status_code=exc.code,
             ) from None
-        except (URLError, TimeoutError, OSError):
+        except (URLError, TimeoutError, OSError) as exc:
+            reason = exc.reason if isinstance(exc, URLError) else exc
+            diagnose("timeout" if isinstance(reason, TimeoutError) else "transport_error")
             raise PaystackTransportError(
                 "Payment provider could not be reached."
             ) from None
         except (ValueError, UnicodeDecodeError, RecursionError):
+            diagnose("invalid_json")
             raise PaystackAPIError("Payment provider returned invalid JSON.") from None
 
         if not isinstance(response_data, dict):
+            diagnose("invalid_response_shape")
             raise PaystackAPIError("Payment provider returned an invalid response.")
+        if method == "POST" and path == "/transaction/initialize" and (
+            response_data.get("status") is not True
+            or not isinstance(response_data.get("data"), dict)
+        ):
+            diagnose("rejected_response_envelope")
         return response_data
 
     def initialize_transaction(
