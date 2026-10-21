@@ -5,6 +5,7 @@ import Programs from './pages/Programs'
 import Events from './pages/Events'
 import Projects from './pages/Projects'
 import DIC from './pages/DIC'
+import PaymentReturn from './pages/PaymentReturn'
 import Media from './pages/Media'
 import GetInvolved from './pages/GetInvolved'
 import Contact from './pages/Contact'
@@ -19,7 +20,7 @@ function App() {
 }
 
 function PublicApplication() {
-  return <Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/participant/*" element={<ParticipantPortal />} /><Route path="/dic/*" element={<DIC />} /><Route path="/media" element={<Media />} /><Route path="/get-involved" element={<GetInvolved />} /><Route path="/contact" element={<Contact />} /><Route path="/faq" element={<FAQ />} /><Route path="/donate" element={<Donate />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout>
+  return <Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/participant/*" element={<ParticipantPortal />} /><Route path="/dic/register/payment-return" element={<PaymentReturn />} /><Route path="/dic/register/confirmation" element={<PaymentReturn />} /><Route path="/dic/register/confirmation/:orderId" element={<PaymentReturn />} /><Route path="/dic/*" element={<DIC />} /><Route path="/media" element={<Media />} /><Route path="/get-involved" element={<GetInvolved />} /><Route path="/contact" element={<Contact />} /><Route path="/faq" element={<FAQ />} /><Route path="/donate" element={<Donate />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout>
 }
 
 function PlaceholderPage() {

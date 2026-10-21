@@ -1,0 +1,10 @@
+.dic-payment-return .confirmation-box { max-width: 760px; }
+.dic-payment-return h1 { font-size: clamp(1.75rem, 5vw, 2.5rem); }
+.dic-return-details { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px 20px; margin: 28px 0; text-align: left; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
+.dic-return-details dt { color: var(--text-muted); }
+.dic-return-details dd { margin: 0; font-weight: 600; color: var(--heading); overflow-wrap: anywhere; }
+.dic-return-orders { display: grid; gap: 20px; padding: 0; list-style: none; }
+.dic-return-orders li { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
+.dic-return-orders small { display: block; margin-bottom: 16px; overflow-wrap: anywhere; }
+.dic-payment-return a { overflow-wrap: anywhere; }
+@media (max-width: 480px) { .dic-return-details { grid-template-columns: 1fr; gap: 6px; padding: 16px; } .dic-return-details dd { margin-bottom: 12px; } }

@@ -1101,6 +1101,19 @@ class PaymentAttempt(models.Model):
         return f"{self.reference} — {self.status}"
 
 
+class PaymentReturnGrant(models.Model):
+    """Short-lived browser-session authority; never stores raw order tokens."""
+    order = models.ForeignKey(RegistrationOrder, on_delete=models.CASCADE, related_name="return_grants")
+    session_digest = models.CharField(max_length=64, db_index=True)
+    access_digest = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("order", "session_digest"), name="dic_return_grant_order_session_unique")]
+
+
 class PaystackWebhookEvent(models.Model):
     class ProcessingStatus(models.TextChoices):
         RECEIVED = "received", "Received"

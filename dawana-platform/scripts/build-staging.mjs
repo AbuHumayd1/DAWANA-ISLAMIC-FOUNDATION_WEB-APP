@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { stagingRedirects } from './staging-config.mjs'
+import { assertStagingArtifacts, stagingPaymentHeaders, stagingRedirects } from './staging-config.mjs'
 
 const redirects = stagingRedirects(process.env)
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -12,3 +12,9 @@ const result = spawnSync(process.execPath, [vite, 'build', '--mode', 'staging'],
 if (result.error) throw result.error
 if (result.status !== 0) process.exit(result.status || 1)
 writeFileSync(new URL('../dist/_redirects', import.meta.url), redirects)
+writeFileSync(new URL('../dist/_headers', import.meta.url), stagingPaymentHeaders)
+assertStagingArtifacts(
+  readFileSync(new URL('../dist/_redirects', import.meta.url), 'utf8'),
+  readFileSync(new URL('../dist/_headers', import.meta.url), 'utf8'),
+  process.env,
+)

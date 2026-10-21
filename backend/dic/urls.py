@@ -1,4 +1,5 @@
 from django.urls import path
+from .payment_return import PaymentReturnGrantView, PaymentReturnStatusView
 
 from .payment_views import (
     PaymentInitializeView,
@@ -127,6 +128,8 @@ urlpatterns = [
         name="registration-options",
     ),
     path("orders/", RegistrationOrderCreateView.as_view(), name="order-create"),
+    path("orders/<uuid:public_id>/payment-return-grant/", PaymentReturnGrantView.as_view(), name="payment-return-grant"),
+    path("payments/return/", PaymentReturnStatusView.as_view(), name="payment-return-status"),
     path(
         "orders/<uuid:public_id>/",
         RegistrationOrderDetailView.as_view(),

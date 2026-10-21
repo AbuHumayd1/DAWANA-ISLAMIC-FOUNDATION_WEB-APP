@@ -574,6 +574,20 @@ class RegistrationRecoveryTests(TransactionTestCase):
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.data["order"]["payment_status"], "paid")
         self.assertEqual(restored.data["order"]["status"], "confirmed")
+        # A genuinely contact-verified recovery can establish a fresh browser
+        # return session without a registration draft or a new payment attempt.
+        csrf = self.client.get("/api/v1/dic/operations/auth/csrf/").json()["csrfToken"]
+        granted = self.client.post(
+            reverse("dic:payment-return-grant", args=[order.public_id]), {}, format="json",
+            HTTP_AUTHORIZATION=f"Bearer {restored.data['access_token']}", HTTP_X_CSRFTOKEN=csrf,
+        )
+        self.assertEqual(granted.status_code, 200)
+        confirmation = self.client.post(
+            reverse("dic:payment-return-status"), {"order_id": str(order.public_id)},
+            format="json", HTTP_X_CSRFTOKEN=csrf,
+        )
+        self.assertEqual(confirmation.status_code, 200)
+        self.assertEqual(confirmation.data["order"]["payment_status"], "paid")
         order.refresh_from_db()
         self.assertEqual(order.payment_status, RegistrationOrder.PaymentStatus.PAID)
         self.assertFalse(PaymentAttempt.objects.exists())

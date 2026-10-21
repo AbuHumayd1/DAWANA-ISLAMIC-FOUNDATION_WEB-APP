@@ -18,6 +18,7 @@ def is_staging_tester(user):
 class DICStagingTesterMiddleware:
     protected_views = {
         "order-create", "payment-initialize", "payment-verify", "pricing-accept",
+        "payment-return-grant", "payment-return-status",
     }
 
     def __init__(self, get_response):

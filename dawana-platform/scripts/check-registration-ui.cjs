@@ -22,6 +22,7 @@ const options = {
     const errors = []
     page.on('pageerror', (error) => errors.push(error.message))
     let submitted
+    let initializationCalls = 0, grantCalls = 0
     await page.route('**/*', (route) => {
       const url = route.request().url()
       if (!url.startsWith(base + '/')) return route.abort()
@@ -31,7 +32,18 @@ const options = {
         submitted = route.request().postDataJSON()
         return route.fulfill({ json: { order_id: 'local-mock-order', access_token: 'local-mock-token', payment_status: 'unpaid', total_amount_ngn: '24000.00', items: submitted.participants.map(() => ({ category_name: 'Junior test category', fee_ngn: '12000.00', price_type: 'early_bird' })) } })
       }
-      if (url.includes('/payments/initialize/')) return route.fulfill({ json: { payment_reference: 'local-mock-payment', authorization_url: 'https://example.invalid/mock-checkout' } })
+      if (url.includes('/payment-return-grant/')) {
+        grantCalls += 1
+        return grantCalls === 1
+          ? route.fulfill({ status: 503, json: { detail: 'Synthetic temporary outage' } })
+          : route.fulfill({ json: { ready: true } })
+      }
+      if (url.includes('/dic/payments/return/')) return route.fulfill({ json: { order: { order_id: 'local-mock-order', edition_name: 'Local UI test edition', payment_status: 'paid', status: 'confirmed', total_amount_ngn: '24000.00', currency: 'NGN', participants: submitted.participants.map((participant) => ({ name: participant.full_name, category: 'Junior test category', occupation: participant.occupation === 'None' ? 'None (Not applicable)' : participant.occupation, marital_status: participant.marital_status === 'None' ? 'None (Not applicable)' : participant.marital_status })) } } })
+      if (url.includes('/operations/auth/csrf/')) return route.fulfill({ json: { csrfToken: 'synthetic-csrf' } })
+      if (url.includes('/payments/initialize/')) {
+        initializationCalls += 1
+        return route.fulfill({ json: { payment_reference: 'local-mock-payment', authorization_url: 'https://example.invalid/mock-checkout' } })
+      }
       if (url.includes('/payments/local-mock-payment/verify/')) return route.fulfill({ json: { payment_status: 'paid', attempt_status: 'success' } })
       if (url.includes('/api/')) return route.fulfill({ status: 404, json: { detail: 'Local mock only' } })
       return route.continue()
@@ -207,7 +219,20 @@ const options = {
     if (process.env.DIC_UI_SCREENSHOTS) await page.screenshot({ path: '.tmp-registration-checkout.png', fullPage: true })
     assert.ok(await page.locator('.dic-summary').evaluate((el) => el.scrollWidth <= innerWidth))
     await page.getByRole('button', { name: /Create order and continue to payment/ }).click()
+    await page.getByRole('button', { name: 'Retry secure return setup' }).waitFor()
+    assert.equal(initializationCalls, 1)
+    assert.equal(grantCalls, 1)
+    assert.equal(await page.getByRole('link', { name: /Open Paystack checkout/ }).count(), 0)
+    assert.match(await page.locator('.checkout-box').innerText(), /local-mock-payment/)
+    const draft = await page.evaluate(() => JSON.parse(sessionStorage.getItem('dawana.dic.registration.v1')))
+    assert.equal(draft.paymentReference, 'local-mock-payment')
+    assert.equal(draft.accessToken, undefined)
+    assert.equal(draft.authorizationUrl, undefined)
+    await page.getByRole('button', { name: 'Retry secure return setup' }).click()
     await page.getByRole('link', { name: /Open Paystack checkout/ }).waitFor()
+    assert.equal(initializationCalls, 1)
+    assert.equal(grantCalls, 2)
+    assert.equal(await page.getByRole('link', { name: /Open Paystack checkout/ }).getAttribute('href'), 'https://example.invalid/mock-checkout')
     assert.equal(submitted.participants.length, 2)
     assert.equal(submitted.participants[0].category_id, 37)
     assert.equal(submitted.participants[0].academic_status, 'Primary Student')

@@ -11,3 +11,11 @@ export function stagingRedirects(env) {
   }
   return ['/api/', '/admin/', '/static/'].map((path) => `${path}* ${origin.origin}${path}:splat 200!`).join('\n') + '\n/* /index.html 200\n'
 }
+
+export const stagingPaymentHeaders = '/dic/register/*\n  Referrer-Policy: no-referrer\n'
+
+export function assertStagingArtifacts(redirects, headers, env) {
+  // Compare the actual publish artifacts, not merely the generator's intent.
+  if (redirects !== stagingRedirects(env)) throw new Error('Staging redirects are missing, duplicated or out of order.')
+  if (headers !== stagingPaymentHeaders) throw new Error('Staging payment privacy headers are missing or changed.')
+}
