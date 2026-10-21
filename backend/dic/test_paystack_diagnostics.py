@@ -1,6 +1,7 @@
 import io
 import json
 from urllib.error import HTTPError, URLError
+from urllib.request import Request, build_opener
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
@@ -21,6 +22,29 @@ class PaystackDiagnosticTests(SimpleTestCase):
             reference="private-reference", callback_url="https://example.test/callback",
             metadata={"private": self.sensitive},
         )
+
+    @patch("dic.payments.urlopen")
+    def test_fixed_application_user_agent_is_scoped_to_paystack_requests(self, mocked):
+        default_headers = list(build_opener().addheaders)
+        unrelated = Request("https://example.test/unrelated")
+        response = mocked.return_value.__enter__.return_value
+        response.getcode.return_value = 200
+        response.read.return_value = b'{"status":true,"data":{}}'
+        self.initialize()
+        PaystackClient().verify_transaction("private-reference")
+        self.assertEqual(mocked.call_count, 2)
+        for call in mocked.call_args_list:
+            request = call.args[0]
+            self.assertTrue(request.full_url.startswith("https://api.paystack.co/transaction/"))
+            self.assertEqual(request.get_header("User-agent"), "DawanaDIC/1.0")
+            self.assertEqual(request.get_header("Authorization"), "Bearer sk_test_diagnostic_redaction_sentinel")
+            self.assertEqual(request.get_header("Accept"), "application/json")
+            self.assertEqual(call.kwargs["timeout"], 10)
+            for private in self.sensitive.split() + ["sk_test_diagnostic_redaction_sentinel"]:
+                self.assertNotIn(private, request.get_header("User-agent"))
+        self.assertIsNone(unrelated.get_header("User-agent"))
+        self.assertIsNone(Request("https://example.test/after-paystack").get_header("User-agent"))
+        self.assertEqual(build_opener().addheaders, default_headers)
 
     def assert_safe_record(self, captured, status, classification, kind=None, category=None):
         self.assertEqual(len(captured.records), 1)
@@ -51,6 +75,7 @@ class PaystackDiagnosticTests(SimpleTestCase):
                 self.assertEqual(error.exception.status_code, status)
                 self.assertEqual(error.exception.definitive, 400 <= status < 500)
                 self.assertTrue(body.closed)
+                self.assertEqual(mocked.call_args.args[0].get_header("User-agent"), "DawanaDIC/1.0")
                 self.assert_safe_record(captured, status, classification, "non_json_response", "unknown_provider_rejection")
 
     @patch("dic.payments.urlopen")

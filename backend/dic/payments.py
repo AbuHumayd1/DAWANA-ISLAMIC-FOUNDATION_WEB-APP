@@ -12,6 +12,7 @@ from django.conf import settings
 
 
 PAYSTACK_API_BASE = "https://api.paystack.co"
+PAYSTACK_USER_AGENT = "DawanaDIC/1.0"
 logger = logging.getLogger("dic.payments")
 
 
@@ -182,6 +183,7 @@ class PaystackClient:
         headers = {
             "Authorization": f"Bearer {self.secret_key}",
             "Accept": "application/json",
+            "User-Agent": PAYSTACK_USER_AGENT,
         }
         if payload is not None:
             body = json.dumps(payload, separators=(",", ":")).encode("utf-8")

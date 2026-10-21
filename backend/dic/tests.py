@@ -1996,6 +1996,7 @@ class PaystackClientTests(SimpleTestCase):
         request_body = json.loads(request.data)
         self.assertEqual(request.full_url, "https://api.paystack.co/transaction/initialize")
         self.assertEqual(request.method, "POST")
+        self.assertEqual(request.get_header("User-agent"), "DawanaDIC/1.0")
         self.assertEqual(request.get_header("Authorization"), "Bearer sk_test_unit_mock")
         self.assertEqual(urlopen_mock.call_args.kwargs["timeout"], 10)
         self.assertEqual(request_body["amount"], 12345)
@@ -2023,4 +2024,5 @@ class PaystackClientTests(SimpleTestCase):
             "https://api.paystack.co/transaction/verify/DIC%2Freference",
         )
         self.assertEqual(request.method, "GET")
+        self.assertEqual(request.get_header("User-agent"), "DawanaDIC/1.0")
         self.assertEqual(result, provider_data)
