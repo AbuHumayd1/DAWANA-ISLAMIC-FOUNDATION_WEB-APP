@@ -193,3 +193,10 @@ urlpatterns += [
     path("memories/", MemoriesView.as_view(), name="memories"),
     path("memories/<int:pk>/image/", memory_image, name="memory-image"),
 ]
+
+from .video_views import VideosView, VideoPlaybackView, video_thumbnail
+urlpatterns += [
+    path("videos/", VideosView.as_view(), name="videos"),
+    path("videos/<int:pk>/playback/", VideoPlaybackView.as_view(), name="video-playback"),
+    path("videos/<int:pk>/thumbnail/", video_thumbnail, name="video-thumbnail"),
+]

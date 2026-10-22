@@ -4,8 +4,9 @@ from django.core.exceptions import PermissionDenied, ImproperlyConfigured
 from django.db import transaction
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils import timezone
 
-from .memory_models import CampPhotograph, MemoryActivity
+from .memory_models import CampPhotograph, MemoryActivity, CampVideo
 from .memory_storage import private_memory_storage
 from .models import DICAdminAuditEvent
 
@@ -46,6 +47,9 @@ class MemoryActivityAdmin(admin.ModelAdmin):
                 for photo in obj.campphotograph_set.select_for_update().filter(state="published"):
                     photo.state = "review"
                     photo.save(actor=request.user)
+                for video in obj.campvideo_set.select_for_update().filter(state="published"):
+                    # Categorization edits need renewed approval, including revoked providers.
+                    CampVideo.objects.filter(pk=video.pk).update(state="review", published_at=None, published_by=None, updated_at=timezone.now())
             super().save_model(request, obj, form, change)
 
 

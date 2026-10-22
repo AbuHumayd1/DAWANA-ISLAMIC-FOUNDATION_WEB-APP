@@ -201,3 +201,6 @@ DIC_MEMORY_STORAGE = env("DIC_MEMORY_STORAGE", default="local" if DEBUG else "di
 DIC_MEMORY_S3_BUCKET = env("DIC_MEMORY_S3_BUCKET", default="")
 DIC_MEMORY_S3_ENDPOINT = env("DIC_MEMORY_S3_ENDPOINT", default="")
 DIC_MEMORY_S3_REGION = env("DIC_MEMORY_S3_REGION", default="us-east-1")
+
+# No providers are enabled on a deployment until explicitly approved/configured.
+DIC_VIDEO_APPROVED_PROVIDERS = env.list("DIC_VIDEO_APPROVED_PROVIDERS", default=[])

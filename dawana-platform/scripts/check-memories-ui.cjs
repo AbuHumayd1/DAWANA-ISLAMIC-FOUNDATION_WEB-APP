@@ -39,6 +39,7 @@ const photos = [
     await page.getByLabel('Camp edition', { exact: true }).selectOption('')
     await page.getByLabel('Activity', { exact: true }).selectOption('')
     const opener = page.getByRole('button', { name: 'View photograph: Synthetic memory A', exact: true })
+    await opener.focus() // Focus pauses the decorative sway before pointer interaction.
     await opener.click()
     const viewer = page.getByRole('dialog', { name: 'Camp photograph viewer' })
     await viewer.waitFor()
@@ -56,6 +57,7 @@ const photos = [
       await page.setViewportSize({ width, height: 900 })
       await page.locator('.dic-memories').scrollIntoViewIfNeeded()
       assert.equal(await page.locator('.dic-memories').evaluate(el => el.scrollWidth <= el.clientWidth && [...el.querySelectorAll('.memory-open, select')].every(child => child.getBoundingClientRect().left >= 0 && child.getBoundingClientRect().right <= innerWidth)), true, `gallery overflow at ${width}`)
+      await opener.focus() // Focus pauses the decorative sway before pointer interaction.
       await opener.click()
       assert.equal(await viewer.evaluate(el => el.scrollWidth <= el.clientWidth), true)
       await page.getByRole('button', { name: 'Close photograph viewer' }).click()

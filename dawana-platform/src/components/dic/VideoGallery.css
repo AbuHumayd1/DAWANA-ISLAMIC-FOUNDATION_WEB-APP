@@ -1,0 +1,39 @@
+.dic-videos { padding:clamp(3rem,7vw,6rem) 0; background:var(--panel-green, #edf2ec); color:var(--text-main, #153f2d); }
+.video-heading { max-width:44rem; margin-bottom:2rem; }
+.video-heading h2 { font-size:clamp(2rem,4vw,3.5rem); margin:.6rem 0 1rem; }
+.video-filters { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin-bottom:2rem; }
+.video-filters label { display:grid; gap:.5rem; font-size:.85rem; font-weight:600; }
+.video-filters select { color:inherit; background:var(--panel, #fff); border:1px solid var(--line, #ccc); border-radius:.5rem; padding:.8rem; max-width:100%; }
+.video-filters p { margin-left:auto; font-size:.85rem; }
+.video-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; }
+.video-card { min-width:0; background:var(--panel, #fff); border:1px solid var(--line, #ccc); border-radius:1rem; overflow:hidden; box-shadow:0 8px 24px #0000000a; transition:transform .25s, box-shadow .25s; }
+.video-card:hover, .video-card:focus-within { transform:translateY(-4px); box-shadow:0 16px 32px #00000018; }
+.video-card button { display:block; width:100%; height:100%; border:0; padding:0; color:inherit; background:none; text-align:left; cursor:pointer; }
+.video-poster { display:block; position:relative; background:#142b22; aspect-ratio:16/9; overflow:hidden; }
+.video-poster::after { content:''; position:absolute; inset:0; background:linear-gradient(transparent 40%, #071c18b3); pointer-events:none; }
+.video-poster img { width:100%; height:100%; object-fit:cover; opacity:.85; transition:transform .4s; }
+.video-card:hover img { transform:scale(1.025); }
+.video-play { position:absolute; z-index:1; inset:50% auto auto 50%; transform:translate(-50%,-50%); border:1px solid #ffffff90; border-radius:50%; padding:1.1rem 1.3rem; background:#10251cbd; color:white; font-size:1.1rem; }
+.video-provider { position:absolute; z-index:1; bottom:.8rem; left:1rem; color:white; font-size:.75rem; letter-spacing:.08em; }
+.video-copy { display:grid; gap:.6rem; padding:1.3rem; overflow-wrap:anywhere; }
+.video-copy small, .video-copy > span { color:var(--text-muted, #536357); font-size:.8rem; }
+.video-copy strong { font-size:1.15rem; line-height:1.5; }
+.video-featured { border-color:var(--accent, #a77b36); }
+.video-empty { padding:3rem 1rem; text-align:center; border:1px dashed var(--line, #ccc); border-radius:1rem; }
+.video-empty > span { display:block; font-size:3rem; color:var(--accent, #a77b36); }
+.video-viewer { position:fixed; inset:0; width:100vw; height:100dvh; max-width:none; max-height:none; box-sizing:border-box; border:0; margin:0; padding:4.5rem 1rem 1rem; background:#10251cf7; color:white; }
+.video-viewer::backdrop { background:#10251c; }
+.video-close { position:absolute; top:1rem; right:1rem; }
+.video-stage { max-width:70rem; margin:auto; text-align:center; overflow-wrap:anywhere; }
+.video-stage h3 { color:white; font-size:clamp(1.2rem,3vw,1.8rem); }
+.video-stage > p { color:#e0e9e3; font-size:.85rem; }
+.video-frame { display:block; width:100%; aspect-ratio:16/9; max-height:65dvh; background:#000; border:0; }
+.video-controls { display:flex; gap:1rem; justify-content:center; margin-top:1rem; }
+.video-viewer button { padding:.8rem 1rem; border:0; border-radius:.5rem; background:#fff; color:#153f2d; cursor:pointer; }
+.video-viewer button:disabled { opacity:.5; }
+.video-card:focus-within, .video-filters select:focus-visible, .video-viewer button:focus-visible { outline:3px solid #c29b54; outline-offset:3px; }
+@media(max-width:850px) { .video-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:520px) { .video-grid { grid-template-columns:1fr; } .video-filters label { flex:1; min-width:0; } .video-filters p { flex-basis:100%; margin:0; } .video-filters select { width:100%; } .video-controls { gap:.5rem; } }
+@media(prefers-reduced-motion:reduce) { .video-card, .video-poster img { transition:none; transform:none; } .video-card:hover, .video-card:focus-within { transform:none; } }
+
+@media(prefers-reduced-motion:reduce) { .video-card:hover img { transform:none; } }

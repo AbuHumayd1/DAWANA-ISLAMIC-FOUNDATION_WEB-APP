@@ -1356,4 +1356,4 @@ class DigitalIDIssue(models.Model):
 
 
 # Public camp content is independent of registration and participant records.
-from .memory_models import CampPhotograph, MemoryActivity  # noqa: E402,F401
+from .memory_models import CampPhotograph, MemoryActivity, CampVideo  # noqa: E402,F401
