@@ -1353,3 +1353,7 @@ class DigitalIDIssue(models.Model):
             models.UniqueConstraint(fields=("enrollment",), condition=Q(revoked_at__isnull=True), name="dic_one_current_id_issue"),
             models.CheckConstraint(condition=Q(version__gte=1), name="dic_id_version_positive"),
         ]
+
+
+# Public camp content is independent of registration and participant records.
+from .memory_models import CampPhotograph, MemoryActivity  # noqa: E402,F401

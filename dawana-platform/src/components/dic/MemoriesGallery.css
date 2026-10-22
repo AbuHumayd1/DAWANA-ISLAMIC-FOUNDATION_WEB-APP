@@ -1,0 +1,37 @@
+.dic-memories { padding: clamp(3rem, 7vw, 6rem) 0; background: var(--page, #f8f6ef); overflow: clip; }
+.memories-heading { display:flex; justify-content:space-between; gap:2rem; align-items:center; margin-bottom:2rem; }
+.memories-heading h2 { font-size:clamp(2rem,4vw,3.5rem); margin:.5rem 0 1rem; }
+.memories-heading p { max-width:38rem; }
+.memories-stamp { border:1px solid currentColor; border-radius:50%; padding:1.4rem; transform:rotate(9deg); color:var(--text-muted, #536357); font-size:.8rem; text-align:center; }
+.memories-filters { display:flex; flex-wrap:wrap; gap:1rem; align-items:end; margin-bottom:2.5rem; }
+.memories-filters label { display:grid; gap:.5rem; font-size:.85rem; font-weight:600; }
+.memories-filters select { color:inherit; background:var(--panel, #fff); border:1px solid var(--line, #ccc); border-radius:.5rem; padding:.8rem; min-width:10rem; max-width:100%; }
+.memories-filters p { margin-left:auto; font-size:.85rem; }
+.memories-board { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2.5rem 2rem; padding:1rem .7rem; }
+.memory-card { min-width:0; transform:rotate(var(--tilt)); transform-origin:50% 0; transition:transform .5s, opacity .5s; transition-delay:var(--delay); }
+.memory-card.memories-visible { animation:memory-sway 7s ease-in-out infinite alternate; }
+.memory-card:hover, .memory-card:focus-within { animation-play-state:paused; transform:rotate(0) translateY(-5px); }
+.memory-open { display:block; position:relative; width:100%; padding:.75rem .75rem 0; background:var(--panel, #fff); color:inherit; border:1px solid var(--line, #ddd); box-shadow:0 12px 28px #00000012; cursor:zoom-in; text-align:left; }
+.memory-open img { display:block; width:100%; aspect-ratio:4/3; height:auto; object-fit:cover; }
+.memory-pin { position:absolute; left:50%; top:-.5rem; width:.8rem; height:.8rem; background:#a77b36; border-radius:50%; box-shadow:1px 3px 3px #0005; z-index:1; }
+.memory-caption { display:grid; gap:.4rem; padding:1rem .3rem 1.2rem; overflow-wrap:anywhere; }
+.memory-caption small { color:var(--text-muted, #536357); }
+.memory-caption strong { font-size:1.05rem; }
+.memories-empty { text-align:center; border:1px dashed var(--line, #ccc); border-radius:1rem; padding:3rem 1rem; }
+.memories-empty > span { font-size:3rem; color:#a77b36; }
+.memory-viewer { position:fixed; inset:0; width:100vw; height:100dvh; max-width:none; max-height:none; box-sizing:border-box; border:0; margin:0; padding:4.5rem 1rem 1rem; background:#10251cf5; color:white; }
+.memory-viewer::backdrop { background:#10251c; }
+.memory-close { position:absolute; right:1rem; top:1rem; }
+.memory-viewer button { background:#fff; color:#153f2d; border:0; border-radius:.4rem; padding:.8rem 1rem; cursor:pointer; }
+.memory-viewer button:disabled { opacity:.5; }
+.memory-viewer-content { max-width:75rem; margin:auto; text-align:center; }
+.memory-viewer-content img { max-width:100%; max-height:calc(100dvh - 17rem); object-fit:contain; }
+.memory-viewer-content p { display:grid; gap:.4rem; overflow-wrap:anywhere; }
+.memory-viewer-nav { display:flex; justify-content:center; gap:1rem; }
+.memory-open:focus-visible, .dic-memories select:focus-visible, .memory-viewer button:focus-visible { outline:3px solid #c29b54; outline-offset:4px; }
+@keyframes memory-sway { from { transform:rotate(var(--tilt)); } to { transform:rotate(calc(var(--tilt) * -.5)); } }
+@media (prefers-reduced-motion:no-preference) { .memory-card:not(.memories-visible) { opacity:.75; transform:translateY(14px) rotate(var(--tilt)); } }
+@media (max-width:850px) { .memories-board { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:520px) { .memories-board { grid-template-columns:1fr; gap:2rem; padding:1rem; } .memories-stamp { display:none; } .memories-filters { align-items:stretch; } .memories-filters label { flex:1; min-width:0; } .memories-filters select { min-width:0; width:100%; } .memory-viewer-nav { gap:.5rem; } }
+@media (prefers-reduced-motion:reduce) { .memory-card, .memory-card.memories-visible { animation:none; transition:none; transform:none; opacity:1; } }
+@media (max-width:520px) { .memories-filters p { flex-basis:100%; margin:0; } }

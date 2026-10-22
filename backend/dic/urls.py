@@ -186,3 +186,10 @@ urlpatterns = [
         name="recovery-restore-order",
     ),
 ]
+
+
+from .memory_views import MemoriesView, memory_image
+urlpatterns += [
+    path("memories/", MemoriesView.as_view(), name="memories"),
+    path("memories/<int:pk>/image/", memory_image, name="memory-image"),
+]

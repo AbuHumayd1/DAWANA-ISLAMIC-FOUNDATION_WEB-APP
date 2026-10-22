@@ -194,3 +194,10 @@ REST_FRAMEWORK = {
         "dic_participant_session": "300/hour",
     },
 }
+
+
+# Uploads remain disabled outside development until private object storage is verified.
+DIC_MEMORY_STORAGE = env("DIC_MEMORY_STORAGE", default="local" if DEBUG else "disabled")
+DIC_MEMORY_S3_BUCKET = env("DIC_MEMORY_S3_BUCKET", default="")
+DIC_MEMORY_S3_ENDPOINT = env("DIC_MEMORY_S3_ENDPOINT", default="")
+DIC_MEMORY_S3_REGION = env("DIC_MEMORY_S3_REGION", default="us-east-1")
