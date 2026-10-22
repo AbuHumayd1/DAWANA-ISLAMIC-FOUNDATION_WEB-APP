@@ -200,3 +200,9 @@ urlpatterns += [
     path("videos/<int:pk>/playback/", VideoPlaybackView.as_view(), name="video-playback"),
     path("videos/<int:pk>/thumbnail/", video_thumbnail, name="video-thumbnail"),
 ]
+
+from .showcase_views import ShowcaseView, showcase_image
+urlpatterns += [
+    path("showcase/", ShowcaseView.as_view(), name="showcase"),
+    path("showcase/<str:kind>/<int:pk>/image/", showcase_image, name="showcase-image"),
+]

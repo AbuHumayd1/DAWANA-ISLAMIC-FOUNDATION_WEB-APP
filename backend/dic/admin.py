@@ -1745,3 +1745,5 @@ class HouseAllocationAdmin(admin.ModelAdmin):
 from . import memory_admin  # noqa: E402,F401
 
 from . import video_admin  # noqa: E402,F401
+
+from . import showcase_admin  # noqa: E402,F401
