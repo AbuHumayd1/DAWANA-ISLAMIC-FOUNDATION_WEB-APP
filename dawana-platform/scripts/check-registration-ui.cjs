@@ -11,6 +11,7 @@ const options = {
   early_bird_cutoff_at: '2026-12-01T12:00:00Z',
   categories: [
     { id: 37, name: 'Junior test category', minimum_age: 8, maximum_age: 17, current_fee_ngn: '12000.00', regular_fee_ngn: '15000.00', current_price_type: 'early_bird' },
+    { id: 39, name: 'Alternative junior category', minimum_age: 8, maximum_age: 17, current_fee_ngn: '15000.00', regular_fee_ngn: '15000.00', current_price_type: 'regular' },
     { id: 38, name: 'Adult test category', minimum_age: 18, maximum_age: null, current_fee_ngn: '20000.00', regular_fee_ngn: '20000.00', current_price_type: 'regular' },
   ],
 }
@@ -21,16 +22,19 @@ const options = {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
     const errors = []
     page.on('pageerror', (error) => errors.push(error.message))
+    const categoryFor = participant => options.categories.find(category => category.id === participant.category_id)
+    const mockTotal = () => submitted.participants.reduce((sum, participant) => sum + Math.round(Number(categoryFor(participant).current_fee_ngn) * 100), 0) / 100
     let submitted
-    let initializationCalls = 0, grantCalls = 0
+    let initializationCalls = 0, grantCalls = 0, orderCalls = 0
     await page.route('**/*', (route) => {
       const url = route.request().url()
       if (!url.startsWith(base + '/')) return route.abort()
       if (url.includes('/api/v1/dic/registration-options/')) return route.fulfill({ json: options })
       if (url.includes('/api/v1/dic/recovery/channels/')) return route.fulfill({ json: { channels: [{ id: 'email', label: 'Email', available: true }, { id: 'sms', label: 'SMS', available: false }] } })
       if (url.endsWith('/api/v1/dic/orders/')) {
+        orderCalls += 1
         submitted = route.request().postDataJSON()
-        return route.fulfill({ json: { order_id: 'local-mock-order', access_token: 'local-mock-token', payment_status: 'unpaid', total_amount_ngn: '24000.00', items: submitted.participants.map(() => ({ category_name: 'Junior test category', fee_ngn: '12000.00', price_type: 'early_bird' })) } })
+        return route.fulfill({ json: { order_id: 'local-mock-order', access_token: 'local-mock-token', payment_status: 'unpaid', total_amount_ngn: mockTotal().toFixed(2), items: submitted.participants.map(participant => ({ category_name: categoryFor(participant).name, fee_ngn: categoryFor(participant).current_fee_ngn, price_type: categoryFor(participant).current_price_type })) } })
       }
       if (url.includes('/payment-return-grant/')) {
         grantCalls += 1
@@ -38,7 +42,7 @@ const options = {
           ? route.fulfill({ status: 503, json: { detail: 'Synthetic temporary outage' } })
           : route.fulfill({ json: { ready: true } })
       }
-      if (url.includes('/dic/payments/return/')) return route.fulfill({ json: { order: { order_id: 'local-mock-order', edition_name: 'Local UI test edition', payment_status: 'paid', status: 'confirmed', total_amount_ngn: '24000.00', currency: 'NGN', participants: submitted.participants.map((participant) => ({ name: participant.full_name, category: 'Junior test category', occupation: participant.occupation === 'None' ? 'None (Not applicable)' : participant.occupation, marital_status: participant.marital_status === 'None' ? 'None (Not applicable)' : participant.marital_status })) } } })
+      if (url.includes('/dic/payments/return/')) return route.fulfill({ json: { order: { order_id: 'local-mock-order', edition_name: 'Local UI test edition', payment_status: 'paid', status: 'confirmed', total_amount_ngn: mockTotal().toFixed(2), currency: 'NGN', participants: submitted.participants.map((participant) => ({ name: participant.full_name, category: categoryFor(participant).name, occupation: participant.occupation === 'None' ? 'None (Not applicable)' : participant.occupation, marital_status: participant.marital_status === 'None' ? 'None (Not applicable)' : participant.marital_status })) } } })
       if (url.includes('/operations/auth/csrf/')) return route.fulfill({ json: { csrfToken: 'synthetic-csrf' } })
       if (url.includes('/payments/initialize/')) {
         initializationCalls += 1
@@ -119,8 +123,8 @@ const options = {
     assert.equal(new URL(page.url()).pathname, '/dic/register')
     assert.ok(await page.locator('#fullName[aria-invalid=true]').count())
 
-    async function fillParticipant(name, skipOccupation = false, skipMarital = false) {
-      for (const [id, value] of Object.entries({ fullName: name, address: 'Local test address', phone: '08000000000', email: 'ui-test@example.invalid', dob: '2012-01-01', height: '150', weight: '45' })) await page.locator('#' + id).fill(value)
+    async function fillParticipant(name, skipOccupation = false, skipMarital = false, adult = false) {
+      for (const [id, value] of Object.entries({ fullName: name, address: 'Local test address', phone: '08000000000', email: 'ui-test@example.invalid', dob: adult ? '1990-01-01' : '2012-01-01', height: '150', weight: '45' })) await page.locator('#' + id).fill(value)
       await page.locator('input[name=sex][value=Male]').check()
       const academic = page.getByRole('combobox', { name: /Academic Status/ })
       await academic.focus()
@@ -133,7 +137,7 @@ const options = {
         await page.getByRole('combobox', { name: new RegExp(label) }).click()
         await page.getByRole('option', { name: choice, exact: true }).click()
       }
-      await page.locator('input[name=categoryId][value="37"]').check()
+      await page.locator(`input[name=categoryId][value="${adult ? 38 : 37}"]`).check()
     }
     await fillParticipant('First local participant', true)
     const occupation = page.getByRole('combobox', { name: /Occupation/ })
@@ -186,8 +190,9 @@ const options = {
     await page.getByRole('heading', { name: 'Registration summary', exact: true }).first().waitFor()
     await page.reload()
     assert.ok(await page.getByRole('heading', { name: 'First local participant', exact: true }).count())
+    assert.match(await page.locator('.summary-box').innerText(), /12,000\.00/)
     await page.getByRole('button', { name: '+ Add participant', exact: true }).click()
-    await fillParticipant('Second local participant', false, true)
+    await fillParticipant('Second local participant', false, true, true)
     await page.getByRole('button', { name: /Continue to summary/ }).click()
     assert.equal(await page.locator('#maritalStatus').getAttribute('aria-invalid'), 'true')
     await page.locator('#maritalStatus').click()
@@ -195,17 +200,29 @@ const options = {
     await page.getByRole('button', { name: /Continue to summary/ }).click()
     await page.getByRole('heading', { name: 'Second local participant', exact: true }).waitFor()
     assert.equal(await page.locator('.participant-card').count(), 2)
+    assert.match(await page.locator('.summary-box').innerText(), /32,000\.00/)
     await page.getByRole('button', { name: 'Edit', exact: true }).first().click()
     assert.equal(await page.locator('#fullName').inputValue(), 'First local participant')
     assert.equal(await page.locator('#dob').inputValue(), '2012-01-01')
     assert.match(await page.locator('#academicStatus').innerText(), /Primary Student/)
     for (const id of ['occupation', 'maritalStatus']) assert.match(await page.locator('#' + id).innerText(), /None \(Not applicable\)/)
     assert.equal(await page.locator('input[name=categoryId]:checked').inputValue(), '37')
+    await page.locator('#email').fill('edited-first@example.invalid')
+    await page.locator('#address').fill('Edited first address')
+    await page.locator('input[name=categoryId][value="39"]').check()
     await page.getByRole('button', { name: /Save changes/ }).click()
+    assert.match(await page.locator('.summary-box').innerText(), /35,000\.00/)
+    await page.getByRole('button', { name: 'Edit', exact: true }).last().click()
+    await page.locator('#address').fill('Edited adult address')
+    await page.locator('#phone').fill('08000000099')
+    await page.getByRole('button', { name: /Save changes/ }).click()
+    assert.match(await page.locator('.summary-box').innerText(), /35,000\.00/)
+    assert.match(await page.locator('.participant-card').last().innerText(), /08000000099/)
     await page.getByRole('button', { name: 'Remove', exact: true }).last().click()
     assert.equal(await page.locator('.participant-card').count(), 1)
+    assert.match(await page.locator('.summary-box').innerText(), /15,000\.00/)
     await page.getByRole('button', { name: '+ Add participant', exact: true }).click()
-    await fillParticipant('Second local participant', false, true)
+    await fillParticipant('Second local participant', false, true, true)
     await page.getByRole('button', { name: /Continue to summary/ }).click()
     assert.equal(await page.locator('#maritalStatus').getAttribute('aria-invalid'), 'true')
     await page.locator('#maritalStatus').click()
@@ -213,6 +230,8 @@ const options = {
     await page.getByRole('button', { name: /Continue to summary/ }).click()
     await page.getByRole('heading', { name: 'Second local participant', exact: true }).waitFor()
     assert.match(await page.locator('.participant-card').first().innerText(), /None \(Not applicable\)/)
+    assert.match(await page.locator('.summary-box').innerText(), /35,000\.00/)
+    const summaryDraft = await page.evaluate(() => sessionStorage.getItem('dawana.dic.registration.v1'))
     await page.getByRole('button', { name: /Continue to checkout/ }).click()
     assert.match(await page.locator('.checkout-summary').innerText(), /None \(Not applicable\)/)
     await page.setViewportSize({ width: 390, height: 844 })
@@ -234,7 +253,24 @@ const options = {
     assert.equal(grantCalls, 2)
     assert.equal(await page.getByRole('link', { name: /Open Paystack checkout/ }).getAttribute('href'), 'https://example.invalid/mock-checkout')
     assert.equal(submitted.participants.length, 2)
-    assert.equal(submitted.participants[0].category_id, 37)
+    assert.equal(submitted.participants[0].category_id, 39)
+    assert.equal(submitted.participants[0].email, 'edited-first@example.invalid')
+    assert.equal(submitted.participants[0].address, 'Edited first address')
+    assert.equal(submitted.participants[1].category_id, 38)
+    assert.equal(submitted.participants[1].date_of_birth, '1990-01-01')
+    const firstRow = page.locator('.checkout-row').filter({ hasText: 'First local participant' })
+    const secondRow = page.locator('.checkout-row').filter({ hasText: 'Second local participant' })
+    assert.match(await firstRow.innerText(), /Alternative junior category/)
+    assert.match(await firstRow.innerText(), /15,000\.00/)
+    assert.match(await secondRow.innerText(), /Adult test category/)
+    assert.match(await secondRow.innerText(), /20,000\.00/)
+    assert.match(await page.locator('.checkout-total').innerText(), /35,000\.00/)
+    await page.getByRole('button', { name: /Back to summary/ }).click()
+    assert.match(await page.locator('.participant-card').first().innerText(), /Alternative junior category[\s\S]*15,000\.00/)
+    assert.match(await page.locator('.participant-card').last().innerText(), /Adult test category[\s\S]*20,000\.00/)
+    assert.equal(await page.getByRole('button', { name: 'Edit', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('button', { name: 'Remove', exact: true }).count(), 0)
+    await page.getByRole('button', { name: /Continue to checkout/ }).click()
     assert.equal(submitted.participants[0].academic_status, 'Primary Student')
     assert.equal(submitted.participants[0].occupation, 'None')
     assert.equal(submitted.participants[0].marital_status, 'None')
@@ -250,7 +286,25 @@ const options = {
     const recovery = page.getByRole('combobox', { name: /Verification method/ })
     await recovery.click(); await recovery.press('End'); await recovery.press('Enter')
     assert.match(await recovery.innerText(), /Email/)
+    // A saved draft can outlive a category or its pricing. Never display a partial total.
+    const originalCategories = options.categories.slice()
+    for (const unavailable of ['missing', 'unpriced']) {
+      options.categories = unavailable === 'missing'
+        ? originalCategories.filter(category => category.id !== 39)
+        : originalCategories.map(category => category.id === 39 ? { ...category, current_fee_ngn: null } : category)
+      await page.evaluate(draft => sessionStorage.setItem('dawana.dic.registration.v1', draft), summaryDraft)
+      await page.goto(base + '/dic/register/summary')
+      await page.getByRole('heading', { name: 'First local participant', exact: true }).waitFor()
+      assert.match(await page.locator('.summary-box').innerText(), /Pricing incomplete/)
+      assert.match(await page.locator('.participant-card').first().innerText(), /Not available/)
+      await page.getByRole('button', { name: /Continue to checkout/ }).click()
+      assert.match(await page.locator('.checkout-total').innerText(), /Pricing incomplete/)
+      assert.match(await page.locator('.checkout-row').filter({ hasText: 'First local participant' }).innerText(), /Not available/)
+      assert.equal(await page.getByRole('button', { name: /Create order and continue to payment/ }).isDisabled(), true)
+    }
+    assert.equal(initializationCalls, 1)
+    assert.equal(orderCalls, 1)
     assert.deepEqual(errors, [])
-    console.log('PASS: calendar leap years, invalid/future dates, month/year selection, keyboard/focus/dismissal, 4 widths × 2 themes, reduced motion; required validation, saved DOB/draft, two participants, edit/remove, checkout payload and mock confirmation. No live APIs contacted.')
+    console.log('PASS: calendar leap years, invalid/future dates, month/year selection, keyboard/focus/dismissal, 4 widths × 2 themes, reduced motion; required validation, saved DOB/draft, mixed-category totals after category/detail edits and remove/re-add; participant-to-price association in checkout and locked summary; unavailable pricing blocks submission; checkout payload and mock confirmation. No live APIs contacted.')
   } finally { await browser.close() }
 })().catch((error) => { console.error(error); process.exitCode = 1 })

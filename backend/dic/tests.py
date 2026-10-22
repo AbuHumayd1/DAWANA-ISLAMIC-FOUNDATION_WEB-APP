@@ -575,23 +575,56 @@ class RegistrationApiTests(APITestCase):
     def test_order_accepts_multiple_participants_and_calculates_total(self):
         second = self.participant_payload(
             full_name="Second Participant",
+            address="Second Address",
+            phone="+233200000099",
             email="second@example.test",
             category_id=self.other_category.pk,
             sex=Participant.Sex.FEMALE,
+            date_of_birth=date(self.today.year - 25, 3, 4).isoformat(),
+            height_cm="162.50",
+            weight_kg="58.25",
+            occupation=Participant.Occupation.NOT_APPLICABLE,
+            marital_status=Participant.MaritalStatus.NOT_APPLICABLE,
         )
 
+        submitted = [self.participant_payload(), second]
         response = self.create_order(
-            self.order_payload(participants=[self.participant_payload(), second])
+            self.order_payload(participants=submitted)
         )
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["currency"], "NGN")
         self.assertEqual(response.data["participant_count"], 2)
+        self.assertEqual(len(response.data["items"]), 2)
         self.assertEqual(response.data["total_amount_ngn"], "20800.25")
         self.assertEqual(RegistrationOrder.objects.count(), 1)
         self.assertEqual(RegistrationOrderItem.objects.count(), 2)
         self.assertEqual(Participant.objects.count(), 2)
         self.assertEqual(PrimaryRegistrant.objects.count(), 1)
+        order = RegistrationOrder.objects.get(public_id=response.data["order_id"])
+        items = list(order.items.select_related("participant").order_by("id"))
+        # The frontend pairs draft participants with response items in submission order.
+        revision_items = {line.order_item_id: line for line in order.current_price_revision.items.all()}
+        for index, (data, item) in enumerate(zip(submitted, items)):
+            with self.subTest(participant=index):
+                self.assertEqual(item.category_id, data["category_id"])
+                self.assertEqual(response.data["items"][index]["category_name"], item.category.name)
+                expected = {key: value for key, value in data.items() if key != "category_id"}
+                for field in ("height_cm", "weight_kg"):
+                    expected[field] = str(Decimal(expected[field]).quantize(Decimal("0.01")))
+                self.assertEqual(item.participant_snapshot, expected)
+                for field, value in expected.items():
+                    self.assertEqual(str(getattr(item.participant, field)), str(value))
+                self.assertEqual(revision_items[item.pk].fee_snapshot_ngn, item.fee_snapshot_ngn)
+                self.assertEqual(Decimal(response.data["items"][index]["fee_ngn"]), item.fee_snapshot_ngn)
+        self.assertEqual(order.total_amount_ngn, sum((item.fee_snapshot_ngn for item in items), Decimal("0.00")))
+        detail = self.client.get(
+            reverse("dic:order-detail", args=[order.public_id]),
+            HTTP_AUTHORIZATION=f"Bearer {response.data['access_token']}",
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual([item["participant_snapshot"] for item in detail.data["items"]], [item.participant_snapshot for item in items])
+        self.assertEqual([item["category_id"] for item in detail.data["items"]], [item.category_id for item in items])
 
     def test_early_bird_is_selected_before_cutoff_and_regular_at_or_after(self):
         cutoff = datetime.combine(
@@ -1136,6 +1169,44 @@ class PaymentApiTests(APITestCase):
         attempt = PaymentAttempt.objects.get()
         self.assertEqual(attempt.status, PaymentAttempt.Status.PENDING)
         self.assertEqual(attempt.reference, response.data["payment_reference"])
+
+    def test_mixed_category_payment_uses_exact_combined_kobo(self):
+        other_category = RegistrationCategory.objects.create(
+            edition=self.edition, name="Second Payment Category", fee_ngn=Decimal("8300.10"),
+        )
+        first = self.order_payload["participants"][0].copy()
+        second = {**first, "category_id": other_category.pk, "full_name": "Second Payer", "email": "second@example.test"}
+        created = self.client.post(
+            reverse("dic:order-create"),
+            {"participants": [first, second]}, format="json",
+            HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
+        )
+        self.assertEqual(created.status_code, 201)
+        order = RegistrationOrder.objects.get(public_id=created.data["order_id"])
+        self.assertEqual(order.total_amount_ngn, Decimal("20800.35"))
+        with patch("dic.payment_views.PaystackClient") as factory:
+            provider = factory.return_value
+            provider.initialize_transaction.side_effect = lambda **kwargs: {
+                "authorization_url": "https://checkout.paystack.com/synthetic-grouped",
+                "reference": kwargs["reference"],
+            }
+            response = self.client.post(
+                self.initialize_url(order.public_id),
+                {"amount_kobo": 1, "amount_ngn": "0.01", "total_amount_ngn": "0.01"},
+                format="json", HTTP_AUTHORIZATION=f"Bearer {created.data['access_token']}",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["amount_kobo"], 2_080_035)
+        provider.initialize_transaction.assert_called_once()
+        sent = provider.initialize_transaction.call_args.kwargs
+        self.assertEqual(sent["amount_kobo"], 2_080_035)
+        self.assertIs(type(sent["amount_kobo"]), int)
+        attempt = order.payment_attempts.get()
+        self.assertEqual(attempt.amount_kobo, 2_080_035)
+        self.assertEqual(attempt.currency, "NGN")
+        self.assertEqual(attempt.price_revision_id, order.current_price_revision_id)
+        self.assertEqual(sent["reference"], attempt.reference)
+        provider.verify_transaction.assert_not_called()
 
     def test_payment_init_retry_reuses_existing_pending_attempt(self):
         with patch("dic.payment_views.PaystackClient") as client_factory:
