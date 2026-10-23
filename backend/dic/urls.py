@@ -206,3 +206,11 @@ urlpatterns += [
     path("showcase/", ShowcaseView.as_view(), name="showcase"),
     path("showcase/<str:kind>/<int:pk>/image/", showcase_image, name="showcase-image"),
 ]
+
+from .promo_views import DICEditorialView, editorial_image, promo_stream
+urlpatterns += [
+    path('editorial/', DICEditorialView.as_view(), name='dic-editorial'),
+    path('promotions/<int:pk>/video/', promo_stream, name='promo-stream'),
+    path('promotions/<int:pk>/poster/', editorial_image, {'kind': 'poster'}, name='promo-poster'),
+    path('flyer/<int:pk>/', editorial_image, {'kind': 'flyer'}, name='official-flyer'),
+]

@@ -4,7 +4,8 @@ import { Container } from '../components/layout/SiteChrome'
 import CategorySelection from '../components/dic/CategorySelection'
 import { categoryFee, estimateRegistrationTotal } from '../services/registrationPricing'
 import MemoriesGallery from '../components/dic/MemoriesGallery'
-import VideoGallery from '../components/dic/VideoGallery'
+import DICEditorial from '../components/dic/DICEditorial'
+import DICInfoPanel from '../components/dic/DICCampInfo'
 import CampShowcase from '../components/dic/CampShowcase'
 import { preparePaymentReturn } from '../services/paymentReturnApi'
 import { occupations, maritalOptions, participantChoiceLabel } from '../components/dic/participantOptions'
@@ -171,10 +172,10 @@ function formatDate(value) {
 }
 
 function formatLagosDateTime(value) {
-  if (!value) return 'Not configured'
+  if (!value) return 'To be announced'
   const date = new Date(value)
   return Number.isNaN(date.getTime())
-    ? 'Not configured'
+    ? 'To be announced'
     : new Intl.DateTimeFormat('en-GB', {
       dateStyle: 'long',
       timeStyle: 'short',
@@ -210,35 +211,8 @@ function RegistrationProgress({ current }) {
   return <nav className="dic-steps" aria-label="Registration progress">{steps.map(([label, step], index) => <div className={step === current ? 'is-current' : ''} aria-current={step === current ? 'step' : undefined} key={step}><b>0{index + 1}</b><span>{label}</span></div>)}</nav>
 }
 
-function DICInfoPanel({ options, optionsState, onRegister, onRetry }) {
-  const categories = options?.categories || []
-  const canRegister = optionsState === 'ready' && options?.registration_is_open && categories.length > 0
-  const status = optionsState === 'loading'
-    ? 'Loading registration details…'
-    : optionsState === 'error'
-      ? 'Registration details are temporarily unavailable.'
-      : !options
-        ? 'No active DIC edition is currently configured.'
-        : !options.registration_is_open
-          ? 'Registration is not currently open.'
-          : categories.length === 0
-            ? 'No registration categories are currently available.'
-            : `${categories.length} configured ${categories.length === 1 ? 'category' : 'categories'}`
-  const fees = categories
-    .map((category) => Number(category.current_fee_ngn))
-    .filter((fee, index) => categories[index].current_fee_ngn !== null && Number.isFinite(fee))
-  const feeSummary = fees.length
-    ? fees.length === 1 || Math.min(...fees) === Math.max(...fees)
-      ? formatNgn(Math.min(...fees))
-      : `${formatNgn(Math.min(...fees))}–${formatNgn(Math.max(...fees))}`
-    : 'Not configured'
-  const venue = options?.venue || 'To be announced'
-
-  return <aside className="dic-info-card"><div className="dic-card-top"><span>{canRegister ? 'Registration Open' : 'Registration Information'}</span><small>Portal Status</small></div><h2>{options?.name || 'Camp Information'}</h2><dl><dt>Camp dates</dt><dd>{options ? `${formatDate(options.camp_start_date)} – ${formatDate(options.camp_end_date)}` : 'To be announced'}</dd><dt>Venue</dt><dd>{venue}</dd>{options?.venue_directions_url && <><dt>Directions</dt><dd><a href={options.venue_directions_url} target="_blank" rel="noopener noreferrer">Open Google Maps directions ↗</a></dd></>}{options?.registration_open_date && <><dt>Registration</dt><dd>{formatDate(options.registration_open_date)} – {formatDate(options.registration_close_date)}</dd></>}<dt>Current fees</dt><dd>{feeSummary}</dd></dl>{categories.length > 0 && <div className="dic-price-list">{categories.map((category) => <p key={category.id}><strong>{category.name}</strong><br />Early bird: {category.early_bird_fee_ngn === null ? 'Not configured' : formatNgn(category.early_bird_fee_ngn)} · Regular: {category.regular_fee_ngn === null ? 'Not configured' : formatNgn(category.regular_fee_ngn)}<br />Current price: {category.current_fee_ngn === null ? 'Not configured' : formatNgn(category.current_fee_ngn)}</p>)}</div>}{options?.early_bird_cutoff_at_lagos && <small>Early-bird payment deadline: {formatLagosDateTime(options.early_bird_cutoff_at_lagos)} (Africa/Lagos). The discount applies only when payment is completed before this time.</small>}{optionsState === 'error' ? <button className="button button-outline" type="button" onClick={onRetry}>Retry loading details</button> : <button className="button" type="button" onClick={onRegister} disabled={!canRegister}>Register for DIC <span aria-hidden="true">→</span></button>}<small>{status}</small><Link className="dic-recovery-link" to="/dic/register/payment-return">Already registered? View your registration status</Link></aside>
-}
-
 function DICLanding({ options, optionsState, onRegister, onRetry }) {
-  return <div className="dic-page"><section className="dic-hero"><Container><div className="dic-hero-grid"><div className="dic-hero-copy"><span className="eyebrow">DARUL ISLAM CAMP · DIC</span><h1>Darul Islam Camp</h1><p className="dic-hero-lead">A major initiative of Da&apos;wãnã Islamic Foundation.</p><p>Darul Islam Camp is a platform for intensive Islamic learning, spiritual development, youth engagement, intellectual reflection, community interaction, and personal and social development.</p><span className="dic-hero-meta">✦ &nbsp; Learning · Reflection · Community</span></div><DICInfoPanel options={options} optionsState={optionsState} onRegister={onRegister} onRetry={onRetry} /></div></Container></section><section className="dic-about"><Container><span className="eyebrow">A Foundation initiative</span><h2>Learning, reflection and growth</h2><p>Darul Islam Camp brings participants together for focused Islamic learning, spiritual development, youth engagement and community interaction. It supports personal and social development through a shared space for learning and reflection.</p></Container></section><section className="dic-areas"><Container><span className="eyebrow">Camp focus</span><h2>A space to learn and develop</h2><div className="dic-area-grid">{[['01', 'Intensive Islamic learning', 'A focused platform for learning and engagement with Islamic knowledge.'], ['02', 'Spiritual development', 'Space for reflection and continued personal development.'], ['03', 'Youth engagement', 'Encouraging meaningful participation and connection among young people.'], ['04', 'Community interaction', 'Building connection through shared learning and interaction.']].map(([number, title, copy]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div></Container></section><MemoriesGallery /><VideoGallery /><CampShowcase /><section className="dic-process"><Container><div className="dic-register-bar"><div><strong>Darul Islam Camp registration</strong><span>{options ? `${formatDate(options.camp_start_date)} – ${formatDate(options.camp_end_date)} · ${options.registration_is_open ? 'Registration open' : 'Registration closed'}` : 'Registration information is not currently available.'}</span></div><button className="button" type="button" onClick={onRegister} disabled={optionsState !== 'ready' || !options?.registration_is_open || !options.categories?.length}>Register for DIC <span aria-hidden="true">→</span></button></div>{optionsState === 'error' && <FlowMessage kind="error">Registration information could not be loaded. Please try again later.</FlowMessage>}{optionsState === 'ready' && (!options.registration_is_open || !options.categories.length) && <FlowMessage>{options.registration_is_open ? 'No registration categories are currently available.' : 'Registration is not currently open.'}</FlowMessage>}</Container></section></div>
+  return <div className="dic-page"><section className="dic-hero"><Container><div className="dic-hero-grid"><div className="dic-hero-copy"><span className="eyebrow">DARUL ISLAM CAMP · DIC</span><h1>Darul Islam Camp</h1><p className="dic-hero-lead">A major initiative of Da&apos;wãnã Islamic Foundation.</p><p>Darul Islam Camp is a platform for intensive Islamic learning, spiritual development, youth engagement, intellectual reflection, community interaction, and personal and social development.</p><span className="dic-hero-meta">✦ &nbsp; Learning · Reflection · Community</span></div><DICInfoPanel options={options} optionsState={optionsState} onRegister={onRegister} onRetry={onRetry} /></div></Container></section><DICEditorial onRegister={onRegister} canRegister={optionsState === 'ready' && options?.registration_is_open && !!options.categories?.length} /><section className="dic-about"><Container><span className="eyebrow">A Foundation initiative</span><h2>Learning, reflection and growth</h2><p>Darul Islam Camp brings participants together for focused Islamic learning, spiritual development, youth engagement and community interaction. It supports personal and social development through a shared space for learning and reflection.</p></Container></section><section className="dic-areas"><Container><span className="eyebrow">Camp focus</span><h2>A space to learn and develop</h2><div className="dic-area-grid">{[['01', 'Intensive Islamic learning', 'A focused platform for learning and engagement with Islamic knowledge.'], ['02', 'Spiritual development', 'Space for reflection and continued personal development.'], ['03', 'Youth engagement', 'Encouraging meaningful participation and connection among young people.'], ['04', 'Community interaction', 'Building connection through shared learning and interaction.']].map(([number, title, copy]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div></Container></section><MemoriesGallery compact /><CampShowcase /><section className="dic-process"><Container><div className="dic-register-bar"><div><strong>Darul Islam Camp registration</strong><span>{options ? `${formatDate(options.camp_start_date)} – ${formatDate(options.camp_end_date)} · ${options.registration_is_open ? 'Registration open' : 'Registration closed'}` : 'Registration information is not currently available.'}</span></div><button className="button" type="button" onClick={onRegister} disabled={optionsState !== 'ready' || !options?.registration_is_open || !options.categories?.length}>Register for DIC <span aria-hidden="true">→</span></button></div>{optionsState === 'error' && <FlowMessage kind="error">Registration information could not be loaded. Please try again later.</FlowMessage>}{optionsState === 'ready' && (!options.registration_is_open || !options.categories.length) && <FlowMessage>{options.registration_is_open ? 'No registration categories are currently available.' : 'Registration is not currently open.'}</FlowMessage>}</Container></section></div>
 }
 
 function ParticipantForm({ initial, categories, options, onBack, onSave, isEditing }) {

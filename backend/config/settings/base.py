@@ -204,3 +204,6 @@ DIC_MEMORY_S3_REGION = env("DIC_MEMORY_S3_REGION", default="us-east-1")
 
 # No providers are enabled on a deployment until explicitly approved/configured.
 DIC_VIDEO_APPROVED_PROVIDERS = env.list("DIC_VIDEO_APPROVED_PROVIDERS", default=[])
+
+# Local media validation executable; no external transcoding service.
+DIC_FFPROBE_BINARY = env("DIC_FFPROBE_BINARY", default="ffprobe")

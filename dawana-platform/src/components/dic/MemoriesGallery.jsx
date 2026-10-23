@@ -4,7 +4,7 @@ import './MemoriesGallery.css'
 
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
 
-export default function MemoriesGallery() {
+export default function MemoriesGallery({ compact = false }) {
   const [photos, setPhotos] = useState([])
   const [state, setState] = useState('loading')
   const [edition, setEdition] = useState('')
@@ -17,7 +17,7 @@ export default function MemoriesGallery() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch(`${base}/dic/memories/`, { signal: controller.signal, credentials: 'omit', cache: 'no-store' })
+    fetch(`${base}/dic/memories/${compact ? '?curated=1' : ''}`, { signal: controller.signal, credentials: 'omit', cache: 'no-store' })
       .then(async response => {
         if (!response.ok) throw new Error('Gallery unavailable')
         const data = await response.json()
@@ -26,7 +26,7 @@ export default function MemoriesGallery() {
         setState('ready')
       }).catch(error => { if (error.name !== 'AbortError') setState('error') })
     return () => controller.abort()
-  }, [])
+  }, [compact])
 
   useEffect(() => {
     if (!section.current || typeof IntersectionObserver === 'undefined') return undefined
@@ -62,13 +62,15 @@ export default function MemoriesGallery() {
     setSelected(visible[(index + direction + visible.length) % visible.length].id)
   }
 
+  if (compact && state !== 'loading' && !photos.length) return null
+
   return <section className="dic-memories" ref={section} aria-labelledby="memories-title"><Container>
     <div className="memories-heading"><div><span className="eyebrow">THE CAMP SCRAPBOOK</span><h2 id="memories-title">Moments worth keeping</h2><p>A window into past camp experiences, shared through approved photographs.</p></div><span className="memories-stamp" aria-hidden="true">Learning.<br />Belonging.<br />Memories.</span></div>
     {state === 'loading' && <p role="status">Opening the camp scrapbook…</p>}
     {state === 'error' && <p role="status">The scrapbook is temporarily unavailable. Please visit again later.</p>}
     {state === 'ready' && photos.length === 0 && <div className="memories-empty"><span aria-hidden="true">✧</span><h3>Our scrapbook is being prepared</h3><p>Approved photographs from past camps will appear here when they are available.</p></div>}
     {photos.length > 0 && <>
-      <div className="memories-filters"><label>Camp edition<select aria-label="Camp edition" value={edition} onChange={event => setEdition(event.target.value)}><option value="">All editions</option>{editions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Activity<select aria-label="Activity" value={activity} onChange={event => setActivity(event.target.value)}><option value="">All activities</option>{activities.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><p role="status">{visible.length} {visible.length === 1 ? 'photograph' : 'photographs'}</p></div>
+      {!compact && <div className="memories-filters"><label>Camp edition<select aria-label="Camp edition" value={edition} onChange={event => setEdition(event.target.value)}><option value="">All editions</option>{editions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Activity<select aria-label="Activity" value={activity} onChange={event => setActivity(event.target.value)}><option value="">All activities</option>{activities.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><p role="status">{visible.length} {visible.length === 1 ? 'photograph' : 'photographs'}</p></div>}
       <div className="memories-board">{visible.map((photo, index) => <article className="memory-card" key={photo.id} style={{ '--tilt': `${index % 2 ? 2 : -2}deg`, '--delay': `${index % 4 * 70}ms` }}><button type="button" className="memory-open" aria-label={`View photograph: ${photo.caption}`} onClick={event => { returnFocus.current = event.currentTarget; setSelected(photo.id) }}><span className="memory-pin" aria-hidden="true" /><img src={photo.image_url} alt={photo.alt_text} loading="lazy" decoding="async" width="800" height="600" /><span className="memory-caption"><small>{photo.edition.name}</small><strong>{photo.caption}</strong></span></button></article>)}</div>
       {!visible.length && <p>No approved photographs match these filters.</p>}
     </>}

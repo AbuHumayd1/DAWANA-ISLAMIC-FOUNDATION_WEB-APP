@@ -1359,3 +1359,5 @@ class DigitalIDIssue(models.Model):
 from .memory_models import CampPhotograph, MemoryActivity, CampVideo  # noqa: E402,F401
 
 from .showcase_models import Lecturer, LecturerAppearance, CampActivity  # noqa: E402,F401
+
+from .promo_models import PromoVideo, CampFlyer  # noqa: E402,F401

@@ -28,8 +28,8 @@ class ShowcaseView(APIView):
             if not edition.isascii() or not edition.isdigit() or len(edition) > 9:
                 return Response({"detail": "Invalid edition filter."}, status=400)
             previous = previous.filter(edition_id=int(edition))
-        activities = CampActivity.objects.filter(state="published", published_at__isnull=False, edition__year=2026).select_related("edition")
-        data = {"upcoming": [serialize(item) for item in appearances.filter(participation_type="upcoming", edition__year=2026)[:100]],
+        activities = CampActivity.objects.filter(state="published", published_at__isnull=False, edition__is_active=True).select_related("edition")
+        data = {"upcoming": [serialize(item) for item in appearances.filter(participation_type="upcoming", edition__is_active=True)[:100]],
                 "previous": [serialize(item) for item in previous[:200]],
                 "activities": [{"id": item.pk, "title": item.title, "description": item.description,
                                 "category": item.category, "featured": item.featured, "alt_text": item.alt_text,

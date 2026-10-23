@@ -20,11 +20,14 @@ class MemoriesView(APIView):
                 if not value.isascii() or not value.isdigit() or len(value) > 9:
                     return Response({"detail": "Invalid gallery filter."}, status=400)
                 photos = photos.filter(**{field: int(value)})
+        if request.query_params.get('curated') == '1':
+            photos = photos.filter(featured=True)
+        limit = 6 if request.query_params.get('curated') == '1' else 200
         # Bounded gallery. No draft-derived edition or activity metadata is exposed.
         data = [{"id": photo.pk, "edition": {"id": photo.edition_id, "name": photo.edition.name},
                  "activities": [{"id": tag.pk, "name": tag.name} for tag in photo.activities.all()],
                  "caption": photo.caption, "alt_text": photo.alt_text, "featured": photo.featured,
-                 "image_url": reverse("dic:memory-image", args=[photo.pk])} for photo in photos.distinct()[:200]]
+                 "image_url": reverse("dic:memory-image", args=[photo.pk])} for photo in photos.distinct()[:limit]]
         response = Response({"photographs": data})
         response["Cache-Control"] = "no-store"
         return response

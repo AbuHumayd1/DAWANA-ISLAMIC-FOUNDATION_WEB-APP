@@ -46,7 +46,7 @@ export default function CampShowcase() {
   const previous = data.previous.filter(item => !edition || String(item.edition.id) === edition)
   const feedback = status === 'loading' ? 'Loading approved camp content…' : status === 'error' ? 'Camp content is temporarily unavailable. Please visit again later.' : null
   return <div className="dic-showcase">
-    <section className="showcase-upcoming" aria-labelledby="showcase-upcoming-title"><Container><span className="eyebrow">KNOWLEDGE & REFLECTION</span><h2 id="showcase-upcoming-title">Upcoming DIC 2026 Lecturers</h2><p className="showcase-intro">Approved profiles and topics, with participation status clearly stated.</p>
+    <section className="showcase-upcoming" aria-labelledby="showcase-upcoming-title"><Container><span className="eyebrow">KNOWLEDGE & REFLECTION</span><h2 id="showcase-upcoming-title">Meet the upcoming camp lecturers</h2><p className="showcase-intro">Approved profiles and topics, with participation status clearly stated.</p>
       {feedback && <p role="status">{feedback}</p>}
       {status === 'ready' && !data.upcoming.length && <div className="showcase-empty"><h3>Meet the lecturers when details are approved</h3><p>Lecturer announcements will appear here after editorial approval. No participation is assumed.</p></div>}
       <div className="showcase-lecturer-grid">{data.upcoming.map(item => <LecturerCard key={item.id} lecturer={item} />)}</div>
@@ -57,12 +57,12 @@ export default function CampShowcase() {
       {status === 'ready' && !previous.length && <div className="showcase-empty"><p>No approved historical lecturer profiles are available{edition ? ' for this edition' : ' yet'}.</p></div>}
       <div className="showcase-lecturer-grid">{previous.map(item => <LecturerCard key={item.id} lecturer={item} historical />)}</div>
     </Container></section>
-    <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container><span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to Expect at DIC 2026</h2><p className="showcase-intro">Explore the activities approved for this edition. Programme details are shared only when authorized.</p>
+    <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container><span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to expect at camp</h2><p className="showcase-intro">Explore the activities approved for this edition. Programme details are shared only when authorized.</p>
       {feedback && <p role="status">{feedback}</p>}
       {status === 'ready' && !data.activities.length && <div className="showcase-empty"><h3>The programme is being prepared</h3><p>Committee-approved activities will appear here when ready. No schedule has been announced in this section.</p></div>}
       <div className="showcase-activity-grid">{data.activities.map(item => <article className={`showcase-activity${item.featured ? ' showcase-featured' : ''}`} key={item.id}>
         {item.image_url && <img src={item.image_url} alt={item.alt_text} loading="lazy" decoding="async" width="800" height="600" />}
-        <div><small>{item.category}{item.featured ? ' · Featured activity' : ''}</small><h3>{item.title}</h3><p>{item.description}</p></div>
+        <div><span className="dic-activity-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3 15 9 21 12 15 15 12 21 9 15 3 12 9 9Z" /><circle cx="12" cy="12" r="2" /></svg></span><small>{item.category}{item.featured ? ' · Featured activity' : ''}</small><h3>{item.title}</h3><p>{item.description}</p></div>
       </article>)}</div>
     </Container></section>
   </div>

@@ -1,0 +1,53 @@
+﻿/* Scoped to DIC: green, cream and gold; registration flow styles stay intact. */
+.dic-page .dic-hero { padding-block:clamp(2rem,5vw,4rem); }
+.dic-page .dic-hero-grid { align-items:center; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:clamp(1.5rem,4vw,4rem); }
+.dic-camp-brief { min-width:0; align-self:start; padding:clamp(1.25rem,3vw,2rem); background:var(--panel,#fffdf6); color:var(--text-main,#173f2e); border:1px solid var(--line,#ded8c5); border-top:4px solid var(--accent,#b48a42); border-radius:1.5rem; box-shadow:0 14px 45px #173f2e0c; }
+.dic-brief-heading { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; }
+.dic-brief-heading .eyebrow { font-size:.64rem; }
+.dic-brief-status { font-size:.72rem; padding:.35rem .65rem; border-radius:2rem; background:var(--panel-green,#eef2e8); }
+.dic-brief-status.is-open { background:#dcebdc; color:#174a30; }
+.dic-camp-brief h2 { font-size:clamp(1.35rem,2.5vw,1.9rem); margin:1rem 0; line-height:1.2; }
+.dic-brief-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:0; }
+.dic-brief-facts > div { border-top:1px solid var(--line,#ded8c5); padding-top:.7rem; min-width:0; }
+.dic-brief-facts dt { font-size:.75rem; color:var(--text-muted,#65705d); margin-bottom:.25rem; }
+.dic-brief-facts dd { margin:0; font-size:.93rem; font-weight:600; overflow-wrap:anywhere; }
+.dic-brief-note { font-size:.8rem; line-height:1.5; color:var(--text-muted,#65705d); margin:.9rem 0; }
+.dic-brief-actions { display:flex; align-items:center; flex-wrap:wrap; gap:1rem; }
+.dic-brief-actions .button { min-width:0; }
+.dic-brief-actions > a, .dic-camp-brief .dic-recovery-link { font-size:.8rem; }
+.dic-official-flyer, .dic-promo-section { padding-block:clamp(2rem,5vw,4rem); color:var(--text-main,#173f2e); }
+.dic-official-flyer { background:var(--panel-green,#eef2e8); }
+.dic-flyer-layout { display:grid; grid-template-columns:minmax(0,.65fr) minmax(0,1fr); align-items:center; gap:clamp(1.5rem,5vw,5rem); max-width:1000px; margin:auto; }
+.dic-flyer-layout h2, .dic-promo-section h2 { font-size:clamp(1.7rem,3.5vw,2.7rem); line-height:1.2; }
+.dic-flyer-layout p { max-width:38rem; margin-block:1rem 1.5rem; }
+.dic-flyer-open { padding:0; border:1px solid var(--line,#ddd3b4); border-radius:1rem; overflow:hidden; background:var(--panel,#fff); cursor:zoom-in; box-shadow:0 12px 35px #173f2e16; }
+.dic-flyer-open img { width:100%; height:auto; max-height:430px; object-fit:contain; display:block; }
+.dic-flyer-open span { display:block; padding:.75rem; font-size:.8rem; }
+.dic-flyer-viewer { max-width:min(94vw,1000px); max-height:92dvh; padding:1rem; border:0; border-radius:1rem; background:var(--panel,#fff); color:var(--text-main,#173f2e); }
+.dic-flyer-viewer::backdrop { background:#0c211be6; }
+.dic-flyer-viewer > button { display:block; margin:0 0 1rem auto; padding:.6rem 1rem; cursor:pointer; }
+.dic-flyer-viewer img { display:block; width:100%; height:auto; }
+.dic-promo-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:1.25rem; margin-top:1.5rem; }
+.dic-promo-card { min-width:0; border-radius:1.1rem; border:1px solid var(--line,#ded8c5); overflow:hidden; background:var(--panel,#fffdf6); }
+.dic-promo-screen { aspect-ratio:16/9; background:#10291d; }
+.dic-promo-screen video, .dic-promo-screen img { display:block; width:100%; height:100%; object-fit:contain; }
+.dic-promo-screen > button { position:relative; display:block; width:100%; height:100%; border:0; padding:0; cursor:pointer; background:transparent; }
+.dic-promo-screen img { object-fit:cover; }
+.dic-play-symbol { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:grid; place-items:center; width:3.4rem; height:3.4rem; border-radius:50%; background:#fff5d9ee; color:#15452d; box-shadow:0 0 0 8px #ffffff20; }
+.dic-promo-copy { padding:1.2rem; overflow-wrap:anywhere; }
+.dic-promo-copy h3 { margin:0; font-size:1.1rem; }
+.dic-promo-copy p { font-size:.9rem; margin:.6rem 0 0; }
+.dic-lecture-link { font-size:.9rem; padding-bottom:1.5rem; }
+.dic-page .dic-memories { padding-block:clamp(2rem,5vw,4rem); }
+.dic-page .memories-board { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.dic-page .memory-card { transform:none; }
+.dic-page .memory-card img { aspect-ratio:4/3; object-fit:cover; }
+.dic-page .showcase-activity:nth-child(3n+1) { border-top:4px solid #b78b36; background:var(--panel,#fff9eb); }
+.dic-page .showcase-activity:nth-child(3n+2) { border-top:4px solid #699579; background:var(--panel-green,#eef5ed); }
+.dic-page .showcase-activity:nth-child(3n) { border-top:4px solid #b47763; background:var(--panel,#fbf2ec); }
+.dic-activity-icon { width:2.8rem; height:2.8rem; display:grid; place-items:center; border:1px solid currentColor; border-radius:.8rem; margin-bottom:1rem; color:var(--accent,#986e2e); }
+.dic-activity-icon svg { width:1.4rem; height:1.4rem; }
+.dic-page .showcase-activity p { display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+@media(max-width:800px) { .dic-page .dic-hero-grid { grid-template-columns:1fr; } .dic-page .memories-board { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:560px) { .dic-flyer-layout { grid-template-columns:1fr; } .dic-flyer-open { width:min(100%,330px); margin:auto; } .dic-brief-facts { gap:.8rem; } .dic-brief-actions { align-items:stretch; flex-direction:column; } .dic-page .memories-board { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .dic-page .showcase-activity { transition:none; transform:none; opacity:1; } }
