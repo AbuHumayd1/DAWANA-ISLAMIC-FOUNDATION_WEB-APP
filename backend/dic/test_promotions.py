@@ -19,7 +19,7 @@ class RangeTests(SimpleTestCase):
         self.assertEqual(parse_range('bytes=50-', 100), (50, 99, True))
         self.assertEqual(parse_range('bytes=-10', 100), (90, 99, True))
         self.assertEqual(parse_range('bytes=0-999', 100), (0, 99, True))
-        for value in ('bytes=100-', 'bytes=-0', 'bytes=3-2', 'bytes=0-1,5-6', 'bytes=-', 'invalid'):
+        for value in ('bytes=100-', 'bytes=-0', 'bytes=3-2', 'bytes=0-1,5-6', 'bytes=-', 'bytes=?-?', 'invalid'):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 parse_range(value, 100)
 
@@ -49,7 +49,7 @@ class RangeTests(SimpleTestCase):
         client = storage._client.return_value
         client.head_object.return_value = {'ContentLength': 100}
         asset.return_value.video = SimpleNamespace(storage=storage, name='synthetic')
-        for request, expected in [(RequestFactory().head('/'), 200), (RequestFactory().get('/', HTTP_RANGE='bytes=100-'), 416)]:
+        for request, expected in [(RequestFactory().head('/'), 200), (RequestFactory().head('/', HTTP_RANGE='bytes=10-19'), 200), (RequestFactory().get('/', HTTP_RANGE='bytes=100-'), 416)]:
             self.assertEqual(promo_stream(request, 1).status_code, expected)
         client.get_object.assert_not_called()
 
@@ -143,3 +143,69 @@ class MP4ValidationTests(SimpleTestCase):
         self.assertEqual(payload['IfNoneMatch'], '*')
         self.assertEqual(payload['ContentType'], 'video/mp4')
         self.assertNotIn('ACL', payload)
+
+class PromoStorageReadTests(SimpleTestCase):
+    @override_settings(DIC_MEMORY_STORAGE='s3', DIC_MEMORY_S3_BUCKET='synthetic-bucket')
+    def test_video_open_exceeds_photo_limit_and_closes_provider_body(self):
+        from .promo_storage import PrivatePromoStorage
+        payload = b'v' * (12 * 1024 * 1024 + 1)
+        body = BytesIO(payload)
+        storage = PrivatePromoStorage()
+        client = Mock()
+        client.get_object.return_value = {'Body': body}
+        with patch.object(storage, '_client', return_value=client):
+            with storage.open('memories/promos/synthetic.mp4') as result:
+                self.assertEqual(result.size, len(payload))
+                self.assertEqual(result.read(4), b'vvvv')
+        self.assertTrue(body.closed)
+
+    @override_settings(DIC_MEMORY_STORAGE='s3', DIC_MEMORY_S3_BUCKET='synthetic-bucket')
+    def test_oversized_video_read_is_rejected_and_closed(self):
+        from .promo_storage import PrivatePromoStorage
+        body = BytesIO(b'12345')
+        storage = PrivatePromoStorage()
+        client = Mock()
+        client.get_object.return_value = {'Body': body}
+        with patch.object(storage, '_client', return_value=client), patch('dic.promo_storage.MAX_VIDEO_BYTES', 4):
+            with self.assertRaises(ValidationError):
+                storage.open('memories/promos/synthetic.mp4')
+        self.assertTrue(body.closed)
+
+class FlyerAdminPermissionTests(AllocationFixtures, TransactionTestCase):
+    def setUp(self):
+        from django.contrib import admin
+        from .promo_admin import CampFlyerAdmin
+        self.edition = self.make_edition(year=2026)
+        self.editor = get_user_model().objects.create_user(username='synthetic-editor', is_staff=True)
+        self.publisher = get_user_model().objects.create_superuser(username='synthetic-publisher', email='publisher@example.test', password='synthetic-only')
+        self.admin = CampFlyerAdmin(CampFlyer, admin.AdminSite())
+        self.flyer = CampFlyer.objects.create(edition=self.edition, title='Synthetic flyer', image='memories/synthetic.jpg', alt_text='Synthetic flyer')
+
+    def test_editor_cannot_publish_or_withdraw_through_actions(self):
+        request = RequestFactory().post('/')
+        request.user = self.editor
+        queryset = CampFlyer.objects.filter(pk=self.flyer.pk)
+        for action in (self.admin.publish_selected, self.admin.withdraw_selected):
+            with self.assertRaises(PermissionDenied):
+                action(request, queryset)
+        self.flyer.refresh_from_db()
+        self.assertEqual(self.flyer.state, 'draft')
+
+    def test_published_flyer_is_exposed_and_withdrawal_hides_metadata_and_image(self):
+        CampEdition.objects.filter(pk=self.edition.pk).update(is_active=True)
+        self.flyer.state = 'published'
+        self.flyer.save(actor=self.publisher)
+        self.assertEqual(self.client.get(reverse('dic:dic-editorial')).json()['flyer']['title'], 'Synthetic flyer')
+        request = RequestFactory().post('/')
+        request.user = self.publisher
+        self.admin.withdraw_selected(request, CampFlyer.objects.filter(pk=self.flyer.pk))
+        self.assertIsNone(self.client.get(reverse('dic:dic-editorial')).json()['flyer'])
+        self.assertEqual(self.client.get(reverse('dic:official-flyer', args=[self.flyer.pk])).status_code, 404)
+
+    def test_database_prevents_two_published_flyers(self):
+        from django.db import IntegrityError, transaction
+        self.flyer.state = 'published'
+        self.flyer.save(actor=self.publisher)
+        another = CampFlyer(edition=self.edition, title='Synthetic second', image='memories/second.jpg', alt_text='Synthetic second', state='published')
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            another.save(actor=self.publisher)

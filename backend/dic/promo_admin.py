@@ -5,7 +5,7 @@ from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
-from .models import DICAdminAuditEvent
+from .models import CampEdition, DICAdminAuditEvent
 from .promo_models import PromoVideo, CampFlyer
 from .memory_storage import private_memory_storage
 
@@ -65,6 +65,9 @@ class AssetAdmin(admin.ModelAdmin):
             try:
                 with transaction.atomic():
                     obj = self.model.objects.select_for_update().get(pk=selected.pk)
+                    # Lock before constraint validation: concurrent flyer publication
+                    # should return an admin validation error, not an integrity error.
+                    CampEdition.objects.select_for_update().get(pk=obj.edition_id)
                     obj.state = 'published'
                     obj.full_clean()
                     obj.save(actor=request.user)

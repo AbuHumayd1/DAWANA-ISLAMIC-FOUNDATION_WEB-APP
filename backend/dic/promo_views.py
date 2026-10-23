@@ -56,10 +56,14 @@ def editorial_image(request, pk, kind):
 
 
 def parse_range(value, size):
+    if size <= 0:
+        raise ValueError
     if not value:
         return 0, size - 1, False
-    match = re.fullmatch(r'bytes=(\d*)-(\d*)', value)
-    if not match or not any(match.groups()) or len(value) > 70:
+    if len(value) > 70:
+        raise ValueError
+    match = re.fullmatch(r'bytes=([0-9]*)-([0-9]*)', value)
+    if not match or not any(match.groups()):
         raise ValueError
     left, right = match.groups()
     if left:
@@ -82,7 +86,7 @@ def promo_stream(request, pk):
     client = None if backend else storage._client()
     size = backend.size(key) if backend else client.head_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=key)['ContentLength']
     try:
-        start, end, partial = parse_range(request.headers.get('Range'), size)
+        start, end, partial = parse_range(request.headers.get('Range') if request.method == 'GET' else None, size)
     except ValueError:
         response = HttpResponse(status=416)
         response['Content-Range'] = f'bytes */{size}'

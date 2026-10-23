@@ -1,7 +1,7 @@
 ﻿/* Scoped to DIC: green, cream and gold; registration flow styles stay intact. */
 .dic-page .dic-hero { padding-block:clamp(2rem,5vw,4rem); }
 .dic-page .dic-hero-grid { align-items:center; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:clamp(1.5rem,4vw,4rem); }
-.dic-camp-brief { min-width:0; align-self:start; padding:clamp(1.25rem,3vw,2rem); background:var(--panel,#fffdf6); color:var(--text-main,#173f2e); border:1px solid var(--line,#ded8c5); border-top:4px solid var(--accent,#b48a42); border-radius:1.5rem; box-shadow:0 14px 45px #173f2e0c; }
+.dic-camp-brief { min-width:0; align-self:start; padding:clamp(1.25rem,3vw,2rem); background:var(--panel,#fffdf6); color:var(--heading,#173f2e); border:1px solid var(--line,#ded8c5); border-top:4px solid var(--accent,#b48a42); border-radius:1.5rem; box-shadow:0 14px 45px #173f2e0c; }
 .dic-brief-heading { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; }
 .dic-brief-heading .eyebrow { font-size:.64rem; }
 .dic-brief-status { font-size:.72rem; padding:.35rem .65rem; border-radius:2rem; background:var(--panel-green,#eef2e8); }
@@ -15,7 +15,7 @@
 .dic-brief-actions { display:flex; align-items:center; flex-wrap:wrap; gap:1rem; }
 .dic-brief-actions .button { min-width:0; }
 .dic-brief-actions > a, .dic-camp-brief .dic-recovery-link { font-size:.8rem; }
-.dic-official-flyer, .dic-promo-section { padding-block:clamp(2rem,5vw,4rem); color:var(--text-main,#173f2e); }
+.dic-official-flyer, .dic-promo-section { padding-block:clamp(2rem,5vw,4rem); color:var(--heading,#173f2e); }
 .dic-official-flyer { background:var(--panel-green,#eef2e8); }
 .dic-flyer-layout { display:grid; grid-template-columns:minmax(0,.65fr) minmax(0,1fr); align-items:center; gap:clamp(1.5rem,5vw,5rem); max-width:1000px; margin:auto; }
 .dic-flyer-layout h2, .dic-promo-section h2 { font-size:clamp(1.7rem,3.5vw,2.7rem); line-height:1.2; }
@@ -23,7 +23,7 @@
 .dic-flyer-open { padding:0; border:1px solid var(--line,#ddd3b4); border-radius:1rem; overflow:hidden; background:var(--panel,#fff); cursor:zoom-in; box-shadow:0 12px 35px #173f2e16; }
 .dic-flyer-open img { width:100%; height:auto; max-height:430px; object-fit:contain; display:block; }
 .dic-flyer-open span { display:block; padding:.75rem; font-size:.8rem; }
-.dic-flyer-viewer { max-width:min(94vw,1000px); max-height:92dvh; padding:1rem; border:0; border-radius:1rem; background:var(--panel,#fff); color:var(--text-main,#173f2e); }
+.dic-flyer-viewer { max-width:min(94vw,1000px); max-height:92dvh; padding:1rem; border:0; border-radius:1rem; background:var(--panel,#fff); color:var(--heading,#173f2e); }
 .dic-flyer-viewer::backdrop { background:#0c211be6; }
 .dic-flyer-viewer > button { display:block; margin:0 0 1rem auto; padding:.6rem 1rem; cursor:pointer; }
 .dic-flyer-viewer img { display:block; width:100%; height:auto; }

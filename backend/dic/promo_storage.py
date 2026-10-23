@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import uuid
 from django.conf import settings
+from django.core.files.base import File
 from django.core.exceptions import ValidationError
 from .memory_storage import PrivateMemoryStorage
 
@@ -52,6 +53,32 @@ def validate_mp4(value):
 
 
 class PrivatePromoStorage(PrivateMemoryStorage):
+    def _open(self, name, mode='rb'):
+        if mode != 'rb':
+            raise ValueError('Private promotional videos are read-only.')
+        backend = self._backend()
+        if backend is not None:
+            return backend.open(name, mode)
+        body = self._client().get_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=name)['Body']
+        output = tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024, mode='w+b')
+        try:
+            total = 0
+            while True:
+                chunk = body.read(min(64 * 1024, MAX_VIDEO_BYTES + 1 - total))
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_VIDEO_BYTES:
+                    raise ValidationError('Stored promotional video exceeds the size limit.')
+                output.write(chunk)
+            output.seek(0)
+            return File(output, name=name)
+        except BaseException:
+            output.close()
+            raise
+        finally:
+            body.close()
+
     def _save(self, name, content):
         validate_mp4(content)
         name = f'memories/promos/{uuid.uuid4().hex}.mp4'
