@@ -3,6 +3,7 @@ import { Container } from '../layout/SiteChrome'
 import './MemoriesGallery.css'
 
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
+const localPreview = import.meta.env.DEV && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
 export default function MemoriesGallery({ compact = false }) {
   const [photos, setPhotos] = useState([])
@@ -62,12 +63,13 @@ export default function MemoriesGallery({ compact = false }) {
     setSelected(visible[(index + direction + visible.length) % visible.length].id)
   }
 
-  if (compact && state !== 'loading' && !photos.length) return null
+  if (compact && state !== 'loading' && !photos.length && !localPreview) return null
 
   return <section className="dic-memories" ref={section} aria-labelledby="memories-title"><Container>
     <div className="memories-heading"><div><span className="eyebrow">THE CAMP SCRAPBOOK</span><h2 id="memories-title">Moments worth keeping</h2><p>A window into past camp experiences, shared through approved photographs.</p></div><span className="memories-stamp" aria-hidden="true">Learning.<br />Belonging.<br />Memories.</span></div>
     {state === 'loading' && <p role="status">Opening the camp scrapbook…</p>}
     {state === 'error' && <p role="status">The scrapbook is temporarily unavailable. Please visit again later.</p>}
+    {compact && localPreview && !photos.length && <div className="memories-board">{[0, 1, 2].map(index => <article className="memory-card" key={index} style={{ '--tilt': `${index % 2 ? 2 : -2}deg` }}><div className="memory-open"><span className="memory-pin" aria-hidden="true" /><div className="dic-preview-placeholder"><span aria-hidden="true">✧</span><strong>Awaiting approved photograph</strong><small>Local preview · camp scrapbook</small></div></div></article>)}</div>}
     {state === 'ready' && photos.length === 0 && <div className="memories-empty"><span aria-hidden="true">✧</span><h3>Our scrapbook is being prepared</h3><p>Approved photographs from past camps will appear here when they are available.</p></div>}
     {photos.length > 0 && <>
       {!compact && <div className="memories-filters"><label>Camp edition<select aria-label="Camp edition" value={edition} onChange={event => setEdition(event.target.value)}><option value="">All editions</option>{editions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Activity<select aria-label="Activity" value={activity} onChange={event => setActivity(event.target.value)}><option value="">All activities</option>{activities.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><p role="status">{visible.length} {visible.length === 1 ? 'photograph' : 'photographs'}</p></div>}

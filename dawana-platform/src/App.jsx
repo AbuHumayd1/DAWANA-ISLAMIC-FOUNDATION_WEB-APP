@@ -13,6 +13,7 @@ import FAQ from './pages/FAQ'
 import Donate from './pages/Donate'
 import Operations from './pages/Operations'
 import ParticipantPortal from './pages/ParticipantPortal'
+import CamperFeedback from './pages/CamperFeedback'
 import './App.css'
 
 function App() {
@@ -20,7 +21,7 @@ function App() {
 }
 
 function PublicApplication() {
-  return <Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/participant/*" element={<ParticipantPortal />} /><Route path="/dic/register/payment-return" element={<PaymentReturn />} /><Route path="/dic/register/confirmation" element={<PaymentReturn />} /><Route path="/dic/register/confirmation/:orderId" element={<PaymentReturn />} /><Route path="/dic/*" element={<DIC />} /><Route path="/media" element={<Media />} /><Route path="/get-involved" element={<GetInvolved />} /><Route path="/contact" element={<Contact />} /><Route path="/faq" element={<FAQ />} /><Route path="/donate" element={<Donate />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout>
+  return <Layout><Routes><Route path="/" element={<Home />} /><Route path="/programs" element={<Programs />} /><Route path="/events" element={<Events />} /><Route path="/projects" element={<Projects />} /><Route path="/dic/feedback" element={<CamperFeedback />} /><Route path="/dic/participant/*" element={<ParticipantPortal />} /><Route path="/dic/register/payment-return" element={<PaymentReturn />} /><Route path="/dic/register/confirmation" element={<PaymentReturn />} /><Route path="/dic/register/confirmation/:orderId" element={<PaymentReturn />} /><Route path="/dic/*" element={<DIC />} /><Route path="/media" element={<Media />} /><Route path="/get-involved" element={<GetInvolved />} /><Route path="/contact" element={<Contact />} /><Route path="/faq" element={<FAQ />} /><Route path="/donate" element={<Donate />} /><Route path="*" element={<PlaceholderPage />} /></Routes></Layout>
 }
 
 function PlaceholderPage() {

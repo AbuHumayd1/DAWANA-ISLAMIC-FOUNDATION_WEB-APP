@@ -1,3 +1,7 @@
+import { PortalContinuation } from '../components/dic/PortalPhase3'
+import PrimaryRegistrantFields from '../components/dic/PrimaryRegistrantFields'
+import { primaryRegistrantPayload, registrationCredentialsPayload } from '../services/bookingContact'
+import TutorRegistration from '../components/dic/TutorRegistration'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
@@ -7,9 +11,12 @@ import MemoriesGallery from '../components/dic/MemoriesGallery'
 import DICEditorial from '../components/dic/DICEditorial'
 import DICInfoPanel from '../components/dic/DICCampInfo'
 import CampShowcase from '../components/dic/CampShowcase'
+import CamperBrand from '../components/dic/CamperBrand'
 import { preparePaymentReturn } from '../services/paymentReturnApi'
 import { occupations, maritalOptions, participantChoiceLabel } from '../components/dic/participantOptions'
 import Field, { RegistrationSelect } from '../components/dic/RegistrationField'
+import { AgeDisclosureFields, OptionalMeasurements } from '../components/dic/RegistrationPrivacyFields'
+import { ageOnDate, privacyPayload, privacySummary } from '../services/registrationPrivacy'
 import {
   createRegistrationOrder,
   acceptOrderPricing,
@@ -34,6 +41,7 @@ const emptyParticipant = {
   phone: '',
   email: '',
   dob: '',
+  ageChoice: '',
   sex: '',
   height: '',
   weight: '',
@@ -56,6 +64,7 @@ function newUuidV4() {
 
 function emptyFlow() {
   return {
+    primaryRegistrant: { fullName: '', email: '', phone: '' },
     participants: [],
     idempotencyKey: newUuidV4(),
     orderId: null,
@@ -111,6 +120,7 @@ function saveFlow(flow) {
     sessionStorage.setItem(
       SESSION_KEY,
       JSON.stringify({
+        primaryRegistrant: flow.primaryRegistrant,
         participants: flow.participants,
         idempotencyKey: flow.idempotencyKey,
         orderId: flow.orderId,
@@ -143,10 +153,8 @@ function participantPayload(participant) {
     address: participant.address,
     phone: participant.phone,
     email: participant.email,
-    date_of_birth: participant.dob,
+    ...privacyPayload(participant, localDateInputValue()),
     sex: participant.sex,
-    height_cm: participant.height,
-    weight_kg: participant.weight,
     academic_status: participant.academicStatus,
     occupation: participant.occupation,
     marital_status: participant.maritalStatus,
@@ -215,16 +223,26 @@ function DICLanding({ options, optionsState, onRegister, onRetry }) {
   return <div className="dic-page"><section className="dic-hero"><Container><div className="dic-hero-grid"><div className="dic-hero-copy"><span className="eyebrow">DARUL ISLAM CAMP · DIC</span><h1>Darul Islam Camp</h1><p className="dic-hero-lead">A major initiative of Da&apos;wãnã Islamic Foundation.</p><p>Darul Islam Camp is a platform for intensive Islamic learning, spiritual development, youth engagement, intellectual reflection, community interaction, and personal and social development.</p><span className="dic-hero-meta">✦ &nbsp; Learning · Reflection · Community</span></div><DICInfoPanel options={options} optionsState={optionsState} onRegister={onRegister} onRetry={onRetry} /></div></Container></section><DICEditorial onRegister={onRegister} canRegister={optionsState === 'ready' && options?.registration_is_open && !!options.categories?.length} /><section className="dic-about"><Container><span className="eyebrow">A Foundation initiative</span><h2>Learning, reflection and growth</h2><p>Darul Islam Camp brings participants together for focused Islamic learning, spiritual development, youth engagement and community interaction. It supports personal and social development through a shared space for learning and reflection.</p></Container></section><section className="dic-areas"><Container><span className="eyebrow">Camp focus</span><h2>A space to learn and develop</h2><div className="dic-area-grid">{[['01', 'Intensive Islamic learning', 'A focused platform for learning and engagement with Islamic knowledge.'], ['02', 'Spiritual development', 'Space for reflection and continued personal development.'], ['03', 'Youth engagement', 'Encouraging meaningful participation and connection among young people.'], ['04', 'Community interaction', 'Building connection through shared learning and interaction.']].map(([number, title, copy]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{copy}</p></article>)}</div></Container></section><MemoriesGallery compact /><CampShowcase /><section className="dic-process"><Container><div className="dic-register-bar"><div><strong>Darul Islam Camp registration</strong><span>{options ? `${formatDate(options.camp_start_date)} – ${formatDate(options.camp_end_date)} · ${options.registration_is_open ? 'Registration open' : 'Registration closed'}` : 'Registration information is not currently available.'}</span></div><button className="button" type="button" onClick={onRegister} disabled={optionsState !== 'ready' || !options?.registration_is_open || !options.categories?.length}>Register for DIC <span aria-hidden="true">→</span></button></div>{optionsState === 'error' && <FlowMessage kind="error">Registration information could not be loaded. Please try again later.</FlowMessage>}{optionsState === 'ready' && (!options.registration_is_open || !options.categories.length) && <FlowMessage>{options.registration_is_open ? 'No registration categories are currently available.' : 'Registration is not currently open.'}</FlowMessage>}</Container></section></div>
 }
 
-function ParticipantForm({ initial, categories, options, onBack, onSave, isEditing }) {
-  const [participant, setParticipant] = useState(() => ({ ...emptyParticipant, ...initial }))
-  const update = (event) => setParticipant((current) => ({ ...current, [event.target.name]: event.target.value }))
-  const submit = (event) => { event.preventDefault(); onSave(participant) }
+export function ParticipantForm({ initial, categories, options, onBack, onSave, isEditing, tutor = false }) {
+  const [participant, setParticipant] = useState(() => ({ ...emptyParticipant, ...initial,
+    ageChoice: initial?.ageChoice || (initial?.dob ? ageOnDate(initial.dob, localDateInputValue()) >= 18 ? 'adult_dob' : 'minor' : '') }))
+  const [privacyError, setPrivacyError] = useState('')
+  const update = (event) => {
+    setPrivacyError('')
+    setParticipant((current) => ({ ...current, [event.target.name]: event.target.value,
+      ...(event.target.name === 'ageChoice' && event.target.value === 'adult_private' ? { dob: '' } : {}) }))
+  }
+  const submit = (event) => {
+    event.preventDefault()
+    try { privacyPayload(participant, localDateInputValue()); if (tutor && (participant.ageChoice === 'minor' || (participant.dob && ageOnDate(participant.dob, localDateInputValue()) < 18))) throw new Error('Tutors must be adults aged 18 or older.'); onSave(participant) }
+    catch (error) { setPrivacyError(error.message) }
+  }
   const today = localDateInputValue()
-  return <section className="dic-flow"><Container><p className="dic-breadcrumb"><Link to="/">Home</Link> &nbsp;›&nbsp; <Link to="/dic">DIC</Link> &nbsp;›&nbsp; Registration</p><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · DIC REGISTRATION</span><h1>{isEditing ? 'Edit participant' : 'Participant registration'}</h1><p>{options?.name}: {formatDate(options?.camp_start_date)} – {formatDate(options?.camp_end_date)} · Venue: {options?.venue || 'To be announced'}</p><p>Each participant has an individual registration. Multiple registrations can be grouped at checkout.</p></div><aside className="dic-flow-note">Select an edition category for each participant. The server confirms the final fee when your order is created.</aside></div>{options?.early_bird_cutoff_at_lagos && <FlowMessage>Early-bird price applies only when payment is successfully completed before {formatLagosDateTime(options.early_bird_cutoff_at_lagos)} (Africa/Lagos).</FlowMessage>}<RegistrationProgress current="form" /><form className="dic-form" onSubmit={submit}><h2>Participant information</h2><p>Complete the required details for this participant.</p><h3>Personal information</h3><div className="dic-form-grid"><Field label="Full Name" name="fullName" value={participant.fullName} onChange={update} wide placeholder="Enter full name" /><Field label="Address" name="address" value={participant.address} onChange={update} wide placeholder="Enter address" /><Field label="Phone" name="phone" value={participant.phone} onChange={update} type="tel" placeholder="Phone number" /><Field label="Email" name="email" value={participant.email} onChange={update} type="email" placeholder="name@example.com" /><Field label="Date of Birth" name="dob" value={participant.dob} onChange={update} type="date" max={today} /><fieldset className="dic-field dic-radio-field"><legend>Sex <b>*</b></legend><div>{['Male', 'Female'].map((sex) => <label key={sex}><input type="radio" name="sex" value={sex} checked={participant.sex === sex} onChange={update} required />{sex}</label>)}</div></fieldset><h3 className="dic-form-section-title">Measurements</h3><Field label="Height" name="height" value={participant.height} onChange={update} type="number" min="0.01" step="0.01" placeholder="e.g. 175" unit="cm" /><Field label="Weight" name="weight" value={participant.weight} onChange={update} type="number" min="0.01" step="0.01" placeholder="e.g. 70" unit="kg" /><h3 className="dic-form-section-title">Background</h3><Field label="Academic Status" name="academicStatus" value={participant.academicStatus} onChange={update} options={academicOptions} /><Field label="Occupation" name="occupation" value={participant.occupation} onChange={update} options={occupations} /><Field label="Marital Status" name="maritalStatus" value={participant.maritalStatus} onChange={update} options={maritalOptions} /><CategorySelection categories={categories} value={participant.categoryId} onChange={update} earlyBirdCutoff={options?.early_bird_cutoff_at} /></div><div className="dic-form-actions"><button className="text-link" type="button" onClick={onBack}>← Back</button><button className="button" type="submit">{isEditing ? 'Save changes' : 'Continue to summary'} <span aria-hidden="true">→</span></button></div></form></Container></section>
+  return <section className="dic-flow"><Container><p className="dic-breadcrumb"><Link to="/">Home</Link> &nbsp;›&nbsp; <Link to="/dic">DIC</Link> &nbsp;›&nbsp; Registration</p><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · DIC REGISTRATION</span><h1>{isEditing ? 'Edit participant' : 'Participant registration'}</h1><p>{options?.name}: {formatDate(options?.camp_start_date)} – {formatDate(options?.camp_end_date)} · Venue: {options?.venue || 'To be announced'}</p><p>Each participant has an individual registration. {tutor ? 'Tutor accommodation is arranged offline by the committee.' : 'Multiple registrations can be grouped at checkout.'}</p></div><aside className="dic-flow-note">{tutor ? 'One authorized tutor per invitation. No payment is required.' : 'Select an edition category for each participant. The server confirms the final fee when your order is created.'}</aside></div>{options?.early_bird_cutoff_at_lagos && <FlowMessage>Early-bird price applies only when payment is successfully completed before {formatLagosDateTime(options.early_bird_cutoff_at_lagos)} (Africa/Lagos).</FlowMessage>}{!tutor && <RegistrationProgress current="form" />}<form className="dic-form" onSubmit={submit}><FlowMessage kind="error">{privacyError}</FlowMessage><h2>Participant information</h2><p>Complete the required details for this participant.</p><h3>Personal information</h3><div className="dic-form-grid"><Field label="Full Name" name="fullName" value={participant.fullName} onChange={update} wide placeholder="Enter full name" /><Field label="Address" name="address" value={participant.address} onChange={update} wide placeholder="Enter address" /><Field label="Phone" name="phone" value={participant.phone} onChange={update} type="tel" placeholder="Phone number" /><Field label="Email" name="email" value={participant.email} onChange={update} type="email" placeholder="name@example.com" /><AgeDisclosureFields participant={participant} today={today} onChange={update} adultOnly={tutor} /><fieldset className="dic-field dic-radio-field"><legend>Sex <b>*</b></legend><div>{['Male', 'Female'].map((sex) => <label key={sex}><input type="radio" name="sex" value={sex} checked={participant.sex === sex} onChange={update} required />{sex}</label>)}</div></fieldset><OptionalMeasurements participant={participant} onChange={update} /><h3 className="dic-form-section-title">Background</h3><Field label="Academic Status" name="academicStatus" value={participant.academicStatus} onChange={update} options={academicOptions} /><Field label="Occupation" name="occupation" value={participant.occupation} onChange={update} options={occupations} /><Field label="Marital Status" name="maritalStatus" value={participant.maritalStatus} onChange={update} options={maritalOptions} />{!tutor && <CategorySelection categories={categories} value={participant.categoryId} onChange={update} earlyBirdCutoff={options?.early_bird_cutoff_at} />}</div><div className="dic-form-actions"><button className="text-link" type="button" onClick={onBack}>← Back</button><button className="button" type="submit">{tutor ? 'Complete complimentary registration' : isEditing ? 'Save changes' : 'Continue to summary'} <span aria-hidden="true">→</span></button></div></form></Container></section>
 }
 
 function ParticipantCard({ participant, index, category, fee, priceType, onEdit, onRemove, locked }) {
-  return <article className="participant-card"><div className="participant-card-copy"><span className="participant-number">Participant {index + 1}</span><h3>{participant.fullName}</h3><span className="status-pill">{participant.academicStatus}</span><p>{participant.email} · {participant.phone}</p><p>Occupation: <strong>{participantChoiceLabel(participant.occupation)}</strong></p><p>Marital status: <strong>{participantChoiceLabel(participant.maritalStatus)}</strong></p><p>Category: <strong>{category?.name || 'Unavailable category'}</strong></p><p>Registration fee: <strong>{fee === null ? 'Not available' : formatNgn(fee)}{priceType ? ` · ${priceType === 'early_bird' ? 'Early bird' : 'Regular'}` : ''}</strong></p></div>{!locked && <div className="participant-actions"><button type="button" onClick={onEdit}>Edit</button><button className="remove" type="button" onClick={onRemove}>Remove</button></div>}</article>
+  return <article className="participant-card"><div className="participant-card-copy"><span className="participant-number">Participant {index + 1}</span><h3>{participant.fullName}</h3><span className="status-pill">{participant.academicStatus}</span><p>{participant.email} · {participant.phone}</p><p>{privacySummary(participant)}</p><p>Height: {participant.height ? `${participant.height} cm` : "Not supplied"} ? Weight: {participant.weight ? `${participant.weight} kg` : "Not supplied"}</p><p>Occupation: <strong>{participantChoiceLabel(participant.occupation)}</strong></p><p>Marital status: <strong>{participantChoiceLabel(participant.maritalStatus)}</strong></p><p>Category: <strong>{category?.name || 'Unavailable category'}</strong></p><p>Registration fee: <strong>{fee === null ? 'Not available' : formatNgn(fee)}{priceType ? ` · ${priceType === 'early_bird' ? 'Early bird' : 'Regular'}` : ''}</strong></p></div>{!locked && <div className="participant-actions"><button type="button" onClick={onEdit}>Edit</button><button className="remove" type="button" onClick={onRemove}>Remove</button></div>}</article>
 }
 
 function RegistrationSummary({ flow, categories, onAdd, onEdit, onRemove, onCheckout, options }) {
@@ -242,12 +260,12 @@ function CheckoutSummary({ flow, categories, options }) {
   return <div className="checkout-summary"><h2>Registration summary</h2><p>{options?.name || 'Darul Islam Camp'} · {formatDate(options?.camp_start_date)} – {formatDate(options?.camp_end_date)} · {options?.venue || 'Venue to be announced'}</p>{flow.participants.map((participant, index) => { const category = categories.find((item) => String(item.id) === String(participant.categoryId)); const item = items[index]; const fee = item?.fee_ngn ?? categoryFee(category); return <div className="checkout-row" key={participant.id}><span>{participant.fullName}<small>Occupation: {participantChoiceLabel(participant.occupation)}; marital status: {participantChoiceLabel(participant.maritalStatus)}</small><small>{item?.category_name || category?.name || 'Category unavailable'}{item?.price_type ? ` · ${item.price_type === 'early_bird' ? 'Early-bird price' : 'Regular price'}` : ''}</small></span><strong>{fee === undefined || fee === null ? 'Not available' : formatNgn(fee)}</strong></div>})}<div className="checkout-row checkout-total"><span>{flow.orderSummary ? 'Server-calculated total' : 'Current estimated total'}</span><strong>{total === null ? 'Pricing incomplete' : formatNgn(total)}</strong></div>{total === null && <p role="status">Pricing is incomplete for one or more participants. Review the selected categories before submitting.</p>}{options?.early_bird_cutoff_at_lagos && <small>Early-bird fee is secured only by payment completed before {formatLagosDateTime(options.early_bird_cutoff_at_lagos)} (Africa/Lagos).</small>}</div>
 }
 
-function Checkout({ flow, categories, options, accessToken, busy, error, paymentNotice, repricingOffer, onAcceptRepricing, onBack, onCreateOrder, onResume, onInitialize, onRetryGrant, onVerify, onCheckoutClosed }) {
+function Checkout({ flow, categories, options, accessToken, busy, error, paymentNotice, repricingOffer, onAcceptRepricing, onBack, onCreateOrder, onResume, onInitialize, onRetryGrant, onVerify, onCheckoutClosed, onPrimaryContact, registrationCredentials, onCredentials }) {
   const requiresRecovery = Boolean(flow.orderId && !accessToken)
   const needsOrder = !flow.orderId
   const canVerify = Boolean(accessToken && flow.paymentReference)
   const retryingOrder = needsOrder && flow.submissionUncertain
-  return <section className="dic-summary"><Container><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · REGISTRATION</span><h1>Checkout</h1><p>Review your grouped registration.</p></div></div><RegistrationProgress current="checkout" /><div className="checkout-box"><CheckoutSummary flow={flow} categories={categories} options={options} /><FlowMessage kind="error">{error}</FlowMessage><FlowMessage kind={paymentNotice?.kind || 'info'}>{paymentNotice?.text}</FlowMessage>{repricingOffer && <div className="payment-placeholder" role="alert"><strong>Updated amount requires your approval</strong><p>Your early-bird quote expired before payment was completed. The registration and participant details are preserved. An earlier Paystack authorization may still be active; do not use its old checkout link. A payment will be accepted only if Paystack confirms its amount and completion time.</p>{repricingOffer.items.map((item, index) => <p key={`${item.category_name}-${index}`}>{item.category_name} — {item.price_type === 'early_bird' ? 'Early bird' : 'Regular'}: {formatNgn(item.fee_ngn)}</p>)}<p><strong>Revised total: {formatNgn(repricingOffer.total_amount_ngn)}</strong></p><button className="button" type="button" onClick={onAcceptRepricing} disabled={busy}>{busy ? 'Updating secure quote…' : 'Accept revised amount and continue'}</button></div>}{needsOrder && <div className="payment-placeholder"><strong>{retryingOrder ? 'Retry secure order submission' : 'Secure order creation'}</strong><p>{retryingOrder ? 'The previous request may have completed without a response. Retrying with the same idempotency key prevents creating a duplicate order.' : 'Your registration will be submitted to the Dawana registration service. The order total returned by the server is authoritative.'}</p></div>}{requiresRecovery && <div className="payment-placeholder"><strong>Secure checkout needs to be restored</strong><p>Your bearer token is never saved in browser storage. Restore this short-lived session to obtain a fresh token and resume payment. If your payment was completed, it will be checked before any new payment is offered.</p></div>}{flow.orderId && accessToken && <div className="payment-placeholder"><strong>{flow.paymentStatus === 'paid' ? 'Payment verified' : 'Paystack test-mode checkout'}</strong><p>{flow.paymentStatus === 'paid' ? 'The registration service has confirmed this payment.' : 'Checkout opens in a separate tab so this page can securely verify your payment when you return. A redirect alone never confirms payment.'}</p>{flow.paymentReference && <span>Payment reference: {flow.paymentReference}</span>}{flow.authorizationUrl && flow.returnReady && !repricingOffer && <><a className="button button-outline dic-checkout-link" href={flow.authorizationUrl} target="_blank" rel="noopener noreferrer">Open Paystack checkout in a new tab ↗</a><button className="text-link dic-checkout-closed" type="button" onClick={onCheckoutClosed}>I cancelled or closed checkout</button></>}</div>}<div className="dic-form-actions"><button className="text-link" type="button" onClick={onBack} disabled={busy}>← Back to summary</button>{needsOrder ? <button className="button" type="button" onClick={onCreateOrder} disabled={busy || estimateRegistrationTotal(flow.participants, categories) === null}>{busy ? 'Submitting secure order…' : retryingOrder ? 'Retry order submission safely →' : 'Create order and continue to payment →'}</button> : requiresRecovery ? <button className="button" type="button" onClick={onResume} disabled={busy}>{busy ? 'Restoring secure session…' : 'Restore secure checkout →'}</button> : flow.paymentStatus === 'paid' ? <button className="button" type="button" disabled>Payment confirmed</button> : repricingOffer ? null : flow.authorizationUrl && !flow.returnReady ? <button className="button" type="button" onClick={onRetryGrant} disabled={busy}>{busy ? 'Securing return session?' : 'Retry secure return setup'}</button> : canVerify ? <div className="dic-payment-actions">{flow.paymentStatus === 'failed' && <button className="button button-outline" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Starting…' : 'Try payment again'}</button>}<button className="button" type="button" onClick={onVerify} disabled={busy}>{busy ? 'Verifying with Paystack…' : 'I have returned — verify payment'}</button></div> : <button className="button" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Connecting to Paystack…' : 'Prepare Paystack checkout →'}</button>}</div></div></Container></section>
+  return <section className="dic-summary"><Container><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · REGISTRATION</span><h1>Checkout</h1><p>Review your grouped registration.</p></div></div><RegistrationProgress current="checkout" /><div className="checkout-box"><PrimaryRegistrantFields contact={flow.primaryRegistrant} onChange={onPrimaryContact} credentials={registrationCredentials} onCredentials={onCredentials} credentialsLocked={Boolean(flow.orderId || busy)} locked={Boolean(flow.orderId || busy || flow.submissionUncertain)} /><CheckoutSummary flow={flow} categories={categories} options={options} /><FlowMessage kind="error">{error}</FlowMessage><FlowMessage kind={paymentNotice?.kind || 'info'}>{paymentNotice?.text}</FlowMessage>{repricingOffer && <div className="payment-placeholder" role="alert"><strong>Updated amount requires your approval</strong><p>Your early-bird quote expired before payment was completed. The registration and participant details are preserved. An earlier Paystack authorization may still be active; do not use its old checkout link. A payment will be accepted only if Paystack confirms its amount and completion time.</p>{repricingOffer.items.map((item, index) => <p key={`${item.category_name}-${index}`}>{item.category_name} — {item.price_type === 'early_bird' ? 'Early bird' : 'Regular'}: {formatNgn(item.fee_ngn)}</p>)}<p><strong>Revised total: {formatNgn(repricingOffer.total_amount_ngn)}</strong></p><button className="button" type="button" onClick={onAcceptRepricing} disabled={busy}>{busy ? 'Updating secure quote…' : 'Accept revised amount and continue'}</button></div>}{needsOrder && <div className="payment-placeholder"><strong>{retryingOrder ? 'Retry secure order submission' : 'Secure order creation'}</strong><p>{retryingOrder ? 'The previous request may have completed without a response. Retrying with the same idempotency key prevents creating a duplicate order.' : 'Your registration will be submitted to the Dawana registration service. The order total returned by the server is authoritative.'}</p></div>}{requiresRecovery && <div className="payment-placeholder"><strong>Secure checkout needs to be restored</strong><p>Your bearer token is never saved in browser storage. Restore this short-lived session to obtain a fresh token and resume payment. If your payment was completed, it will be checked before any new payment is offered.</p></div>}{flow.orderId && accessToken && <div className="payment-placeholder"><strong>{flow.paymentStatus === 'paid' ? 'Payment verified' : 'Paystack test-mode checkout'}</strong><p>{flow.paymentStatus === 'paid' ? 'The registration service has confirmed this payment.' : 'Checkout opens in a separate tab so this page can securely verify your payment when you return. A redirect alone never confirms payment.'}</p>{flow.paymentReference && <span>Payment reference: {flow.paymentReference}</span>}{flow.authorizationUrl && flow.returnReady && !repricingOffer && <><a className="button button-outline dic-checkout-link" href={flow.authorizationUrl} target="_blank" rel="noopener noreferrer">Open Paystack checkout in a new tab ↗</a><button className="text-link dic-checkout-closed" type="button" onClick={onCheckoutClosed}>I cancelled or closed checkout</button></>}</div>}<div className="dic-form-actions"><button className="text-link" type="button" onClick={onBack} disabled={busy}>← Back to summary</button>{needsOrder ? <button className="button" type="button" onClick={onCreateOrder} disabled={busy || estimateRegistrationTotal(flow.participants, categories) === null}>{busy ? 'Submitting secure order…' : retryingOrder ? 'Retry order submission safely →' : 'Create order and continue to payment →'}</button> : requiresRecovery ? <button className="button" type="button" onClick={onResume} disabled={busy}>{busy ? 'Restoring secure session…' : 'Restore secure checkout →'}</button> : flow.paymentStatus === 'paid' ? <button className="button" type="button" disabled>Payment confirmed</button> : repricingOffer ? null : flow.authorizationUrl && !flow.returnReady ? <button className="button" type="button" onClick={onRetryGrant} disabled={busy}>{busy ? 'Securing return session?' : 'Retry secure return setup'}</button> : canVerify ? <div className="dic-payment-actions">{flow.paymentStatus === 'failed' && <button className="button button-outline" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Starting…' : 'Try payment again'}</button>}<button className="button" type="button" onClick={onVerify} disabled={busy}>{busy ? 'Verifying with Paystack…' : 'I have returned — verify payment'}</button></div> : <button className="button" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Connecting to Paystack…' : 'Prepare Paystack checkout →'}</button>}</div></div></Container></section>
 }
 
 function Confirmation({ flow, onReset }) {
@@ -514,7 +532,7 @@ function getStep(pathname) {
   return 'landing'
 }
 
-export default function DIC() {
+function RegularDIC() {
   const location = useLocation()
   const navigate = useNavigate()
   const step = getStep(location.pathname)
@@ -527,6 +545,8 @@ export default function DIC() {
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(loadedFlow.expired ? 'Your temporary draft expired. If an order was already created, recover that registration before entering another.' : '')
+  // Credentials never enter flow, sessionStorage, router state or payment data.
+  const [registrationCredentials, setRegistrationCredentials] = useState({ password: '', password_confirmation: '' })
   const [paymentNotice, setPaymentNotice] = useState(
     loadedFlow.storageAvailable ? null : { kind: 'error', text: 'This browser could not retain a temporary recovery draft. Keep this tab open until payment is verified.' },
   )
@@ -596,6 +616,7 @@ export default function DIC() {
   const add = () => { setEditing(null); go('form') }
   const edit = (index) => { setEditing(index); go('form') }
   const reset = () => {
+    setRegistrationCredentials({ password: '', password_confirmation: '' })
     clearSavedFlow()
     setAccessToken(null)
     setError('')
@@ -736,9 +757,10 @@ export default function DIC() {
     setBusy(true)
     setError('')
     setPaymentNotice(null)
-    const payload = { participants: flow.participants.map(participantPayload) }
     try {
+      const payload = { primary_registrant: primaryRegistrantPayload(flow.primaryRegistrant), participants: flow.participants.map(participantPayload), portal_account: registrationCredentialsPayload(registrationCredentials) }
       const created = await createRegistrationOrder(payload, flow.idempotencyKey)
+      setRegistrationCredentials({ password: '', password_confirmation: '' })
       const { access_token: newAccessToken, ...safeOrderSummary } = created
       const nextFlow = {
         ...flow,
@@ -881,7 +903,23 @@ export default function DIC() {
   }
   if (step === 'checkout' || step === 'confirmation' && currentStep === 'checkout') {
     if (!flow.participants.length) return <section className="dic-summary"><Container><div className="confirmation-box"><h1>Recover existing registration</h1><p>{error || 'This tab has no registration draft. Recover the existing registration securely; do not register or pay again.'}</p><Link className="button" to="/dic/register/payment-return">Open secure registration status</Link><Link className="dic-recovery-link" to="/dic/register/recover">Verify your contact to recover registration</Link></div></Container></section>
-    return <Checkout flow={flow} categories={options?.categories || []} options={options} accessToken={accessToken} busy={busy} error={error} paymentNotice={paymentNotice} repricingOffer={repricingOffer} onAcceptRepricing={acceptRepricing} onBack={() => go('summary')} onCreateOrder={createOrder} onResume={resumeCheckout} onInitialize={startAnotherPayment} onRetryGrant={retryReturnGrant} onVerify={verifyCurrentPayment} onCheckoutClosed={reportCheckoutClosed} />
+    return <Checkout flow={flow} categories={options?.categories || []} options={options} accessToken={accessToken} busy={busy} error={error} paymentNotice={paymentNotice} repricingOffer={repricingOffer} onAcceptRepricing={acceptRepricing} onBack={() => go('summary')} onCreateOrder={createOrder} onResume={resumeCheckout} onInitialize={startAnotherPayment} onRetryGrant={retryReturnGrant} onVerify={verifyCurrentPayment} onCheckoutClosed={reportCheckoutClosed} onPrimaryContact={primaryRegistrant => persistFlow({ ...flow, primaryRegistrant })} registrationCredentials={registrationCredentials} onCredentials={setRegistrationCredentials} />
   }
-  return <Confirmation flow={flow} onReset={reset} />
+  return <><Confirmation flow={flow} onReset={reset} />{flow.orderId && <div className="container" style={{ paddingBottom: '2rem', textAlign: 'center' }}><div className="cp-portal-handoff-brand"><CamperBrand /></div><PortalContinuation orderReference={flow.orderId} /><p>Verify your registered primary contact to access your booking. Payment and ID eligibility remain subject to verification.</p></div>}</>
+}
+
+export default function DIC() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [invitation] = useState(() => {
+    if (typeof window === 'undefined' || window.location.pathname !== '/dic/register' || !window.location.hash.startsWith('#tutor=')) return null
+    const value = window.location.hash.slice(7)
+    return value
+  })
+  useEffect(() => {
+    if (invitation !== null && location.pathname === '/dic/register' && location.hash.startsWith('#tutor=')) {
+      navigate('/dic/register', { replace: true })
+    }
+  }, [invitation, navigate, location.pathname, location.hash])
+  return invitation !== null && location.pathname === '/dic/register' ? <TutorRegistration invitation={invitation} ParticipantForm={ParticipantForm} /> : <RegularDIC />
 }

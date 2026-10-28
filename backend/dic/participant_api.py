@@ -14,6 +14,8 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError, AuthenticationFailed
 from rest_framework.permissions import AllowAny
+from rest_framework.negotiation import DefaultContentNegotiation
+from rest_framework.settings import APISettings
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -76,12 +78,20 @@ class PortalView(APIView):
 
 def authorized_grant(request, lock=False):
     token = request.COOKIES.get(COOKIE, "")
+    from .portal_accounts import ACCOUNT_TOKEN_PREFIX, enabled
+    if token.startswith(ACCOUNT_TOKEN_PREFIX) and not enabled():
+        raise AuthenticationFailed("Account sign-in is disabled. Please verify your booking contact.")
     if not token or len(token) > 256:
         raise AuthenticationFailed("Your participant session has expired. Please verify again.")
     query = ParticipantPortalGrant.objects.select_for_update() if lock else ParticipantPortalGrant.objects
     grant = query.filter(credential_digest=digest_value(token), revoked_at__isnull=True, expires_at__gt=timezone.now()).first()
     if not grant:
         raise AuthenticationFailed("Your participant session has expired. Please verify again.")
+    from .portal_accounts import account_session
+    account_session(grant)
+    # All participant readers share this boundary, including OTP-only grants.
+    if not scoped_orders(grant):
+        raise PermissionDenied('No currently eligible registration is available. Use booking recovery or contact DIC staff.')
     return grant
 
 
@@ -90,7 +100,15 @@ def scoped_orders(grant):
         participantportalscope__grant=grant, participantportalscope__revoked_at__isnull=True,
         access_token_revoked_at__isnull=True,
     ).exclude(status="cancelled").select_related("edition", "primary_registrant")
-    return [order for order in orders if primary_contact_matches(order, grant.channel, grant.contact_digest)]
+    from .portal_accounts import account_session, linked_orders, booking_eligible
+    mapping = account_session(grant)
+    allowed = {o.pk for o in linked_orders(mapping.account)} if mapping else None
+    return [order for order in orders if (allowed is None or order.pk in allowed)
+        and primary_contact_matches(order, grant.channel, grant.contact_digest)
+        and (mapping is not None or booking_eligible(order))
+        and (order.registration_basis != 'tutor' or order.items.filter(
+            enrollments__tutorregistrationauthorization__revoked_at__isnull=True,
+            enrollments__tutorregistrationauthorization__redeemed_at__isnull=False).exists())]
 
 
 def scoped_enrollment(request, enrollment_id):
@@ -154,6 +172,8 @@ class PortalVerifyView(PortalView):
         except ValueError as exc:
             raise ValidationError(INVALID) from exc
         code = request.data.get("code", "")
+        from .portal_phase3 import session_seconds
+        duration = session_seconds(request.data.get('remember_device', False))
         if not isinstance(code, str) or len(code) != 6 or not code.isascii() or not code.isdigit():
             raise ValidationError(INVALID)
         failed = True
@@ -166,6 +186,9 @@ class PortalVerifyView(PortalView):
                 valid = challenge.delivery_status == "sent" and hmac.compare_digest(challenge.code_digest, _code_digest(challenge.pk, code))
                 order = RegistrationOrder.objects.select_related("primary_registrant").filter(pk=challenge.order_id, access_token_revoked_at__isnull=True).exclude(status="cancelled").first()
                 valid = valid and order is not None and primary_contact_matches(order, challenge.channel, challenge.contact_digest)
+                if valid:
+                    from .portal_accounts import booking_eligible
+                    valid = booking_eligible(order)
                 if valid or challenge.attempts >= MAX_CODE_ATTEMPTS:
                     challenge.consumed_at = now
                     challenge.encrypted_delivery_payload = ""
@@ -173,7 +196,7 @@ class PortalVerifyView(PortalView):
                 if valid:
                     ParticipantPortalGrant.objects.filter(credential_digest=digest_value(request.COOKIES.get(COOKIE, "")), revoked_at__isnull=True).update(revoked_at=now)
                     token = secrets.token_urlsafe(32)
-                    grant = ParticipantPortalGrant.objects.create(credential_digest=digest_value(token), channel=challenge.channel, contact_digest=challenge.contact_digest, expires_at=now + timedelta(minutes=30))
+                    grant = ParticipantPortalGrant.objects.create(credential_digest=digest_value(token), channel=challenge.channel, contact_digest=challenge.contact_digest, expires_at=now + timedelta(seconds=duration))
                     ParticipantPortalScope.objects.create(grant=grant, order=order)
                     record("participant_portal_authenticated", grant_id=str(grant.pk))
                     failed = False
@@ -183,7 +206,7 @@ class PortalVerifyView(PortalView):
         if failed:
             raise ValidationError(INVALID)
         response = Response({"authenticated": True, "expires_at": grant.expires_at.isoformat()})
-        cookie(response, COOKIE, token, 1800)
+        cookie(response, COOKIE, token, duration)
         response.delete_cookie(BROWSER_COOKIE, path=COOKIE_PATH, samesite="Lax")
         return response
 
@@ -197,10 +220,14 @@ class PortalMeView(PortalView):
 class PortalLogoutView(PortalView):
     def post(self, request):
         with transaction.atomic():
-            grant = authorized_grant(request, lock=True)
-            grant.revoked_at = timezone.now()
-            grant.save(update_fields=("revoked_at",))
-            record("participant_portal_logout", grant_id=str(grant.pk))
+            # Sign-out must remain possible after refund, revocation or expiry.
+            token = request.COOKIES.get(COOKIE, '')
+            grant_id = None
+            if token and len(token) <= 256:
+                grants = ParticipantPortalGrant.objects.filter(credential_digest=digest_value(token), revoked_at__isnull=True)
+                grant_id = grants.values_list('pk', flat=True).first()
+                grants.update(revoked_at=timezone.now())
+            record("participant_portal_logout", grant_id=str(grant_id) if grant_id else '')
         response = Response(status=204)
         response.delete_cookie(COOKIE, path=COOKIE_PATH, samesite="Lax")
         response.delete_cookie(BROWSER_COOKIE, path=COOKIE_PATH, samesite="Lax")
@@ -221,8 +248,12 @@ class PortalEnrollmentsView(PortalView):
                     candidate = CampEnrollment(participant=item.participant, edition=order.edition, source_item=item)
                     summary["eligibility"] = eligibility(candidate)
                 summary["registration_item_id"] = item.pk
+                from .portal_phase3 import class_assignment
+                summary['class_assignment'] = class_assignment(order.registration_basis, item.participant_id, order.edition)
+                from .portal_dashboard import camper_operations_summary
+                summary.update(camper_operations_summary(item.participant_id,order.edition))
                 participants.append(summary)
-            results.append({"reference": str(order.public_id), "edition": order.edition.name, "payment_status": order.payment_status, "status": order.status, "participants": participants})
+            results.append({"reference": str(order.public_id), "edition": order.edition.name, "registration_basis": order.registration_basis, "payment_status": order.payment_status, "status": order.status, "participants": participants})
         record("participant_bookings_viewed", grant_id=str(grant.pk),
                order_count=len(results), participant_count=sum(len(row["participants"]) for row in results))
         return Response({"orders": results})
@@ -235,10 +266,13 @@ class PortalEnrollmentsView(PortalView):
         item = RegistrationOrderItem.objects.filter(pk=item_id, order_id__in=[o.pk for o in scoped_orders(grant)]).first()
         if not item:
             raise NotFound("Participant record not found.")
+        if any(key in request.data for key in ('action', 'operation')):
+            raise PermissionDenied('Participants and guardians cannot issue, replace or revoke IDs.')
         enrollment = ensure_enrollment(item.pk)
         if enrollment.source_item.order_id != item.order_id:
             raise ValidationError("Registration source requires staff review.")
-        id_command(enrollment.pk, "issue")
+        # Compatibility: this endpoint prepares identity records only. Staff
+        # issuance is deliberately separate, even for verified paid bookings.
         record("participant_id_accessed", enrollment, grant_id=str(grant.pk))
         return Response(id_summary(enrollment))
 
@@ -258,10 +292,78 @@ def card_data(enrollment):
 
 class PortalIDView(PortalView):
     def get(self, request, enrollment_id):
-        grant, enrollment = scoped_enrollment(request, enrollment_id)
+        enrollment = authorized_portal_card(request, enrollment_id)
+        grant = authorized_grant(request)
         data = card_data(enrollment)
         record("participant_id_viewed", enrollment, grant_id=str(grant.pk))
         return Response(data)
+
+
+def authorized_portal_card(request, enrollment_id):
+    """Reuse verified booking scope; a housing guardian link never expands it."""
+    from .models import GuardianRelationship
+    from .housing_policy import age_on
+    from django.core.exceptions import ValidationError as PolicyError
+    grant, enrollment = scoped_enrollment(request, enrollment_id)
+    orders = scoped_orders(grant)
+    order_ids = [order.pk for order in orders]
+    if enrollment.source_item.order.registration_basis == 'tutor':
+        if not eligibility(enrollment)['eligible']:
+            raise PermissionDenied('Tutor authorization is unavailable.')
+        return enrollment
+    try:
+        from .registration_age import asserted_adult
+        from .housing_policy import age_reference
+        reference = age_reference(enrollment.edition)
+        # A stored adult assertion can exclude the <=5 display/access branch
+        # only at an applicable reference date. It grants no guardianship or
+        # release authority and does not authorize age-sensitive housing.
+        dependent = False if reference and asserted_adult(enrollment.participant, reference) else age_on(enrollment.participant, enrollment.edition) <= 5
+    except PolicyError:
+        raise ValidationError('Age/guardian details require authorized staff review.')
+    if dependent:
+        relation = GuardianRelationship.objects.filter(edition=enrollment.edition,
+            child=enrollment.participant, status='approved', approved_at__isnull=False,
+            approved_by__isnull=False).select_related('guardian').first()
+        if not relation:
+            raise PermissionDenied('Approved guardian access is required for this dependent ID.')
+        try:
+            relation.clean()
+        except PolicyError:
+            raise PermissionDenied('Guardian eligibility requires authorized staff review.')
+        guardian = CampEnrollment.objects.filter(participant=relation.guardian, edition=enrollment.edition,
+            source_item__order_id__in=order_ids).select_related('source_item__order', 'edition').first()
+        if not guardian or not eligibility(guardian)['eligible']:
+            raise PermissionDenied('The approved guardian must have eligible access within this verified booking.')
+    return enrollment
+
+
+class CardDownloadNegotiation(DefaultContentNegotiation):
+    # This endpoint's ?format=pvc/a6 selects physical card dimensions, not a
+    # DRF renderer. Keep normal Accept negotiation, and defer physical-format
+    # validation until after booking/enrollment/guardian authorization.
+    settings = APISettings({'URL_FORMAT_OVERRIDE': None})
+
+
+class PortalCardView(PortalView):
+    content_negotiation_class = CardDownloadNegotiation
+
+    def get(self, request, enrollment_id):
+        from .identity_views import _render_authorized_cards
+        enrollment = authorized_portal_card(request, enrollment_id)
+        if request.query_params.get('format') == 'portrait':
+            from .portrait_pdf import render_pdf, require_pdf_dependencies
+            from .identity_cards import card_context
+            from .identity_views import secured
+            from django.http import HttpResponse
+            require_pdf_dependencies()
+            response = HttpResponse(render_pdf([card_context(request, enrollment)]), content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="dawana-portrait-id.pdf"'
+            return secured(response)
+        # No issuance, activation, bulk print or staff URLs; one scoped active ID.
+        return _render_authorized_cards(request, [enrollment],
+            download=request.query_params.get('download') == '1',
+            card_format=request.query_params.get('format', 'pvc'), portal=True)
 
 
 class StaffEnrollmentView(OperationsBaseView):
@@ -321,6 +423,8 @@ class StaffIDView(OperationsBaseView):
         if not CampEnrollment.objects.filter(pk=enrollment_id).exists():
             raise NotFound()
         if action == "review_source":
+            if not request.user.is_active or not request.user.is_staff:
+                raise PermissionDenied('Active authorized source-review staff access is required.')
             if not reason:
                 raise ValidationError("A review reason is required.")
             with transaction.atomic():
@@ -333,6 +437,9 @@ class StaffIDView(OperationsBaseView):
                 restriction = request.data.get("restriction_reason", "")
                 if not chosen or not isinstance(restriction, str) or len(restriction) > 240:
                     raise ValidationError("Choose a matching source and a restriction of up to 240 characters.")
+                if (enrollment.source_item.order.registration_basis != chosen.order.registration_basis
+                        or (chosen.order.registration_basis == 'tutor' and chosen.pk != enrollment.source_item_id)):
+                    raise ValidationError('Tutor and paid registration sources cannot be converted or reassigned.')
                 enrollment.source_item = chosen
                 enrollment.source_review_fingerprint = source_fingerprint(items)
                 enrollment.restriction_reason = restriction
@@ -341,11 +448,12 @@ class StaffIDView(OperationsBaseView):
                 for issue in enrollment.id_issues.filter(revoked_at__isnull=True):
                     issue.revoked_at = timezone.now()
                     issue.revoked_by = request.user
-                    issue.save(update_fields=("revoked_at", "revoked_by"))
+                    issue.save(update_fields=("revoked_at", "revoked_by"), issuance_actor=request.user)
                     record("participant_id_revoked", enrollment, request.user, issue=str(issue.pk), reason="Enrollment source/restriction review")
                 record("enrollment_source_reviewed", enrollment, request.user, source_item_id=chosen.pk, reason=reason, restricted=bool(restriction))
         elif action in ("issue", "reissue", "revoke"):
-            id_command(enrollment_id, action, request.user, reason)
+            from .identity_cards import command
+            command(CampEnrollment.objects.get(pk=enrollment_id), action, request.user, reason)
         else:
             raise ValidationError("Choose issue, reissue, revoke or review_source.")
         return Response(id_summary(CampEnrollment.objects.select_related("participant", "source_item__order", "edition").get(pk=enrollment_id)))

@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}{% block content %}
+<h2>{{ object.participant_number }} — {{ object.participant.full_name }}</h2>
+<p>Current ID: {{ status }}. Eligibility: {{ eligibility }}.</p>
+<p>Issuance uses existing verified-payment evidence. Housing may remain pending.
+Reissuing invalidates the old QR. No operation marks attendance or camp check-in.</p>
+<form method="post">{% csrf_token %}
+<p><label>Operation <select name="operation"><option value="issue">Issue / activate existing eligible QR</option><option value="reissue">Reissue and revoke previous card</option><option value="revoke">Revoke current card</option></select></label></p>
+<p><label>Reason (required for replacement / revocation)<br><textarea name="reason" rows="4" maxlength="240"></textarea></label></p>
+<button type="submit">Confirm authorized ID operation</button></form>
+{% endblock %}

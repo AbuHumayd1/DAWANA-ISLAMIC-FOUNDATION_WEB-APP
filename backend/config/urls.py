@@ -13,6 +13,7 @@ urlpatterns = [
     ),
     path("admin/", admin.site.urls),
     path("api/v1/dic/", include("dic.urls")),
+    path("api/v1/foundation/", include("dic.foundation_urls")),
     path("api/v1/", include("health.urls")),
 ]
 

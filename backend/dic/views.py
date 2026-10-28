@@ -6,6 +6,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
+from django.utils.decorators import method_decorator
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from rest_framework import status
 from rest_framework.exceptions import (
     APIException,
@@ -78,6 +80,12 @@ def _idempotency_digest(request):
 
 
 def _request_fingerprint(validated_data):
+    validated_data = {key: value for key, value in validated_data.items() if key != 'portal_account'}
+    # Preserve retry compatibility for legacy exact-DOB payloads. New adult/minor
+    # declarations remain fingerprinted; server assertion dates are never input.
+    validated_data = {**validated_data, 'participants': [
+        {key: value for key, value in person.items() if not (key == 'age_declaration' and value == 'exact')}
+        for person in validated_data['participants']]}
     normalized = json.dumps(
         validated_data,
         sort_keys=True,
@@ -127,6 +135,7 @@ def _order_summary(order, access_token, replayed=False):
     }
 
 
+@sensitive_variables()
 def _create_order(*, key_digest, fingerprint, payload):
     with transaction.atomic():
         existing = (
@@ -139,6 +148,9 @@ def _create_order(*, key_digest, fingerprint, payload):
                 raise IdempotencyConflict()
             if existing.access_token_revoked_at is not None:
                 raise IdempotencyConflict("Order access has been revoked.")
+            if payload.get('portal_account'):
+                from .registration_accounts import bind_registration
+                bind_registration(existing, payload['portal_account'])
             token = new_order_access_token()
             existing.access_token_digest = digest_value(token)
             existing.access_token_expires_at = order_access_token_expiry()
@@ -169,6 +181,11 @@ def _create_order(*, key_digest, fingerprint, payload):
             )
 
         participant_data = payload["participants"]
+        from .tutor_registration import models_duplicate
+        for data in participant_data:
+            if Participant.objects.filter(registration_items__order__edition=edition,
+                    registration_items__order__registration_basis='tutor').filter(models_duplicate(data)).exists():
+                raise ValidationError('Possible existing tutor registration; authorized identity review is required.')
         category_ids = {item["category_id"] for item in participant_data}
         categories = {
             category.pk: category
@@ -194,16 +211,11 @@ def _create_order(*, key_digest, fingerprint, payload):
                 )
             except PricingConfigurationError as exc:
                 raise ValidationError({"pricing": str(exc)}) from exc
-            age = _age_on(data["date_of_birth"], today)
-            if category.minimum_age is not None and age < category.minimum_age:
+            from .registration_age import category_age_allowed
+            if not category_age_allowed(data, category, today):
                 raise ValidationError(
-                    f"Participant {index + 1} does not meet the selected category's "
-                    "minimum age eligibility."
-                )
-            if category.maximum_age is not None and age > category.maximum_age:
-                raise ValidationError(
-                    f"Participant {index + 1} does not meet the selected category's "
-                    "maximum age eligibility."
+                    f"Participant {index + 1}: the selected category's age limits "
+                    "require a qualifying exact date of birth. Choose an eligible category or disclose DOB."
                 )
 
         registrant_data = payload.get("primary_registrant", {})
@@ -225,6 +237,8 @@ def _create_order(*, key_digest, fingerprint, payload):
             participant_fields = {
                 key: value for key, value in data.items() if key != "category_id"
             }
+            if participant_fields.get('date_of_birth') is None:
+                participant_fields['adult_declared_on'] = today
             participant = Participant.objects.create(**participant_fields)
             category = categories[data["category_id"]]
             price = prices_by_category[category.pk]
@@ -235,8 +249,13 @@ def _create_order(*, key_digest, fingerprint, payload):
                 fee_snapshot_ngn=price["fee_ngn"],
             )
             prices.append({"order_item": item, **price})
+            from .participant_services import ensure_enrollment
+            ensure_enrollment(item.pk)
 
         create_price_revision(order, prices, accepted_at=price_at)
+        if payload.get('portal_account'):
+            from .registration_accounts import bind_registration
+            bind_registration(order, payload['portal_account'])
 
         return order, token, False
 
@@ -265,6 +284,7 @@ class RegistrationOptionsView(APIView):
         return response
 
 
+@method_decorator(sensitive_post_parameters(), name='dispatch')
 class RegistrationOrderCreateView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -274,6 +294,8 @@ class RegistrationOrderCreateView(APIView):
     def post(self, request):
         serializer = RegistrationOrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        from .portal_accounts import rate_limit
+        rate_limit(request, serializer.validated_data['primary_registrant']['email'], 'registration-account')
 
         key_digest = _idempotency_digest(request)
         fingerprint = _request_fingerprint(serializer.validated_data)
@@ -293,6 +315,9 @@ class RegistrationOrderCreateView(APIView):
                 raise IdempotencyConflict()
             if existing.access_token_revoked_at is not None:
                 raise IdempotencyConflict("Order access has been revoked.")
+            if serializer.validated_data.get('portal_account'):
+                from .registration_accounts import bind_registration
+                bind_registration(existing, serializer.validated_data['portal_account'])
             token = new_order_access_token()
             existing.access_token_digest = digest_value(token)
             existing.access_token_expires_at = order_access_token_expiry()

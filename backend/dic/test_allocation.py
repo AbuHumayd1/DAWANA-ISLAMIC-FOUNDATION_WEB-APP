@@ -44,6 +44,7 @@ class AllocationFixtures:
             camp_end_date=today + timedelta(days=36),
             registration_open_date=today - timedelta(days=5),
             registration_close_date=today + timedelta(days=20),
+            housing_age_reference_date=date(2026, 12, 23),
         )
 
     def make_participant(self, edition, *, sex=Participant.Sex.MALE, paid=True, name="Participant"):
@@ -121,14 +122,28 @@ class AllocationFixtures:
             eligibility_rules=eligibility_rules or {},
         )
 
+    def make_inventory(self, edition):
+        # Synthetic test records only; operational house names are never seeded.
+        for gender in ('male', 'female'):
+            for status, expected in (('active', 4), ('reserve', 1)):
+                houses = list(House.objects.filter(edition=edition, purpose='participants', gender=gender, status=status))
+                for house in houses:
+                    house.capacity = 25
+                    house.save(update_fields=['capacity'])
+                for index in range(len(houses), expected):
+                    self.make_house(edition, name=f'Test {gender} {status} {index}', gender=gender, status=status, capacity=25)
+
     def approve_balanced_strategy(self, edition):
+        self.make_inventory(edition)
         edition.allocation_strategy = CampEdition.AllocationStrategy.BALANCED
         edition.allocation_strategy_approved_at = timezone.now()
+        edition.allocation_strategy_approved_by = self.actor
         edition.allocation_strategy_approval_note = "Committee approval recorded in test."
         edition.save(
             update_fields=(
                 "allocation_strategy",
                 "allocation_strategy_approved_at",
+                "allocation_strategy_approved_by",
                 "allocation_strategy_approval_note",
             )
         )
@@ -143,6 +158,7 @@ class HouseAllocationTests(AllocationFixtures, TestCase):
         self.edition = self.make_edition()
         self.actor = get_user_model().objects.create_user(
             username="allocator",
+            is_staff=True, is_superuser=True,
         )
 
     def test_unpaid_participant_is_not_eligible_for_allocation(self):
@@ -220,20 +236,14 @@ class HouseAllocationTests(AllocationFixtures, TestCase):
             purpose=House.Purpose.FATHERS_AND_ADMINS,
         )
 
-        with self.assertRaisesMessage(AllocationError, "not been explicitly authorised"):
+        with self.assertRaisesMessage(AllocationError, "pending committee confirmation"):
             assign_participant(participant.pk, self.edition.pk, house.pk, self.actor)
 
         participant.eligible_for_dedicated_accommodation = True
         participant.save(update_fields=("eligible_for_dedicated_accommodation",))
-        allocation = assign_participant(
-            participant.pk,
-            self.edition.pk,
-            house.pk,
-            self.actor,
-            reason="Eligibility verified by an administrator.",
-        )
-        self.assertEqual(allocation.house, house)
-        self.assertEqual(allocation.allocated_by, self.actor)
+        with self.assertRaisesMessage(AllocationError, 'pending committee confirmation'):
+            assign_participant(participant.pk, self.edition.pk, house.pk, self.actor,
+                               reason='Flag alone does not approve a dedicated accommodation policy.')
 
     def test_nonempty_house_rules_fail_closed_without_an_evaluator(self):
         participant = self.make_participant(self.edition)
@@ -272,14 +282,14 @@ class HouseAllocationTests(AllocationFixtures, TestCase):
                 house=first,
                 status=HouseAllocation.Status.ALLOCATED,
             ).count(),
-            2,
+            1,
         )
         self.assertEqual(
             HouseAllocation.objects.filter(
                 house=second,
                 status=HouseAllocation.Status.ALLOCATED,
             ).count(),
-            2,
+            1,
         )
         self.assertTrue(all(item.source == HouseAllocation.Source.SYSTEM for item in allocations))
 
@@ -303,12 +313,18 @@ class HouseAllocationTests(AllocationFixtures, TestCase):
         self.approve_balanced_strategy(self.edition)
         reserve.reserve_authorized_at = timezone.now()
         reserve.reserve_authorized_by = self.actor
-        reserve.save(update_fields=("reserve_authorized_at", "reserve_authorized_by"))
+        reserve.reserve_authorization_reason = 'Supervisor reserve authorization in test.'
+        reserve.save(update_fields=("reserve_authorized_at", "reserve_authorized_by", "reserve_authorization_reason"))
 
         with self.assertRaisesMessage(AllocationError, "configured and approved"):
             allocate_participants(self.edition.pk, [participant.pk], self.actor)
 
         self.approve_balanced_strategy(self.edition)
+        # Fill regular male inventory so the explicitly authorized reserve is needed.
+        for house in House.objects.filter(edition=self.edition, gender='male', status='active'):
+            for index in range(25):
+                filler = self.make_participant(self.edition, name=f'Filler {house.pk} {index}')
+                assign_participant(filler.pk, self.edition.pk, house.pk, self.actor)
         allocation = allocate_participants(self.edition.pk, [participant.pk], self.actor)[0]
         self.assertEqual(allocation.house, reserve)
 
@@ -476,6 +492,7 @@ class AllocationAdminPermissionTests(AllocationFixtures, TestCase):
         )
         self.edition.allocation_strategy = CampEdition.AllocationStrategy.BALANCED
         self.edition.save(update_fields=("allocation_strategy",))
+        self.make_inventory(self.edition)
         response = self.client.post(
             reverse(
                 "admin:dic_campedition_approve_allocation_strategy",
@@ -551,6 +568,7 @@ class AllocationAdminPermissionTests(AllocationFixtures, TestCase):
 
     def test_authorized_admin_can_reassign_and_release_with_reasons(self):
         self.admin_user.user_permissions.add(
+            Permission.objects.get(content_type__app_label='dic', codename='can_allocate_participants'),
             Permission.objects.get(
                 content_type__app_label="dic",
                 codename="can_reassign_allocations",
@@ -616,6 +634,31 @@ class AllocationAdminPermissionTests(AllocationFixtures, TestCase):
 class ConcurrentHouseAllocationTests(AllocationFixtures, TransactionTestCase):
     reset_sequences = True
 
+    def test_dic2026_concurrent_requests_compete_for_30th_place(self):
+        edition = self.make_edition(year=2026)
+        house = self.make_house(edition, capacity=30, name='SYNTHETIC 2026 concurrent house')
+        actor = get_user_model().objects.create_user(username='concurrent-2026-allocator', is_staff=True, is_superuser=True)
+        participants = [self.make_participant(edition, name=f'SYNTHETIC 2026 {index}') for index in range(31)]
+        for participant in participants[:29]:
+            assign_participant(participant.pk, edition.pk, house.pk, actor)
+
+        def allocate(participant_id):
+            close_old_connections()
+            try:
+                staff = get_user_model().objects.get(pk=actor.pk)
+                try:
+                    assign_participant(participant_id, edition.pk, house.pk, staff)
+                    return 'allocated'
+                except AllocationError:
+                    return 'rejected'
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(allocate, [participant.pk for participant in participants[29:]]))
+        self.assertCountEqual(results, ['allocated', 'rejected'])
+        self.assertEqual(HouseAllocation.objects.filter(house=house, status='allocated').count(), 30)
+
     def test_concurrent_requests_cannot_exceed_house_capacity(self):
         edition = self.make_edition()
         participants = [
@@ -623,15 +666,14 @@ class ConcurrentHouseAllocationTests(AllocationFixtures, TransactionTestCase):
             for index in range(2)
         ]
         house = self.make_house(edition, capacity=1)
-        self.approve_balanced_strategy(edition)
-        actor = get_user_model().objects.create_user(username="concurrent-allocator")
+        actor = get_user_model().objects.create_user(username="concurrent-allocator", is_staff=True, is_superuser=True)
 
         def allocate(participant_id):
             close_old_connections()
             try:
                 actor_for_thread = get_user_model().objects.get(pk=actor.pk)
                 try:
-                    allocate_participants(edition.pk, [participant_id], actor_for_thread)
+                    assign_participant(participant_id, edition.pk, house.pk, actor_for_thread)
                     return "allocated"
                 except AllocationError:
                     return "rejected"

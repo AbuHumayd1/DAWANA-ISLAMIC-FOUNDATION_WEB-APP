@@ -427,7 +427,22 @@ class DicAdminTests(TestCase):
         self.assertIn("/admin/login/", response.url)
 
 
+@override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=True, DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant')
 class RegistrationApiTests(APITestCase):
+    def test_registration_prepares_enrollment_once_without_issuing_credentials(self):
+        from .models import CampEnrollment, DigitalIDIssue
+        from .participant_services import ensure_enrollment, eligibility
+        key = str(uuid.uuid4())
+        first = self.create_order(key=key)
+        self.assertEqual(first.status_code, 201)
+        enrollment = CampEnrollment.objects.get()
+        self.assertEqual(ensure_enrollment(enrollment.source_item_id).pk, enrollment.pk)
+        self.assertFalse(eligibility(enrollment)['eligible'])
+        self.assertFalse(DigitalIDIssue.objects.exists())
+        repeated = self.create_order(key=key)
+        self.assertIn(repeated.status_code, (200, 201))
+        self.assertEqual(CampEnrollment.objects.count(), 1)
+
     def setUp(self):
         self.today = timezone.localdate()
         camp_start = self.today + timedelta(days=30)
@@ -473,6 +488,7 @@ class RegistrationApiTests(APITestCase):
 
     def order_payload(self, participants=None, **overrides):
         values = {
+            'portal_account': {'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'},
             "primary_registrant": {
                 "full_name": "Primary Registrant",
                 "phone": "+233200000001",
@@ -968,14 +984,11 @@ class RegistrationApiTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(RegistrationOrder.objects.count(), 0)
 
-    def test_primary_registrant_contact_fields_are_optional(self):
+    def test_primary_registrant_name_and_email_are_required(self):
         response = self.create_order({"participants": [self.participant_payload()]})
 
-        self.assertEqual(response.status_code, 201)
-        registrant = PrimaryRegistrant.objects.get()
-        self.assertEqual(registrant.full_name, "")
-        self.assertEqual(registrant.phone, "")
-        self.assertEqual(registrant.email, "")
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PrimaryRegistrant.objects.exists())
 
     def test_expired_or_revoked_order_access_token_is_rejected(self):
         created = self.create_order()
@@ -1014,6 +1027,8 @@ class RegistrationApiTests(APITestCase):
 
 
 @override_settings(
+    DIC_PORTAL_ACCOUNTS_ENABLED=True,
+    DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant',
     PAYSTACK_MODE="test",
     PAYSTACK_SECRET_KEY="sk_test_unit_mock",
     PAYSTACK_CALLBACK_URL="https://example.test/dic/payment/return",
@@ -1039,6 +1054,7 @@ class PaymentApiTests(APITestCase):
             fee_ngn=Decimal("12500.25"),
         )
         payload = {
+            'portal_account': {'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'},
             "primary_registrant": {
                 "full_name": "Primary Registrant",
                 "phone": "+233200000001",

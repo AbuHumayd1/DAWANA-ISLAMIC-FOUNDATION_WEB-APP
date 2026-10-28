@@ -5,7 +5,7 @@ import uuid
 from unittest.mock import patch
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.test import override_settings
 from django.urls import path
@@ -264,3 +264,97 @@ class StagingTesterAccessTests(APITestCase):
     def test_production_has_no_tester_login_route(self):
         with override_settings(ROOT_URLCONF="config.urls"):
             self.assertEqual(self.client.get("/api/v1/dic/tester-access/login/").status_code, 404)
+
+    def test_admin_created_ordinary_account_logs_in_without_staff_or_operations_permissions(self):
+        from config.staging_tester_access import is_staging_tester
+        from config.staging_tester_views import TesterAuthenticationForm
+
+        group, _ = Group.objects.get_or_create(name="DIC Staging Testers")
+        self.client.force_login(self.user)
+        csrf = self.client.get("/api/v1/dic/operations/auth/csrf/").json()["csrfToken"]
+        password = "Cedar-lantern-copper-93!"
+        created = self.client.post("/admin/accounts/user/add/", {
+            "username": "dic-tester-01", "usable_password": "true",
+            "password1": password, "password2": password, "_save": "Save",
+        }, HTTP_X_CSRFTOKEN=csrf)
+        self.assertEqual(created.status_code, 302)
+        user = get_user_model().objects.get(username="dic-tester-01")
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.has_usable_password())
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        # The standard creation form does not automatically assign the tester
+        # group. Creating the group itself also does not add this user to it.
+        self.assertFalse(is_staging_tester(user))
+        user.groups.add(group)
+        self.assertFalse(user.has_perm("dic.can_view_dic_operations"))
+        self.assertTrue(is_staging_tester(user))
+        self.assertEqual(authenticate(username=user.username, password=password).pk, user.pk)
+        form = TesterAuthenticationForm(data={"username": user.username, "password": password})
+        self.assertTrue(form.is_valid(), form.errors)
+        self.client = APIClient(enforce_csrf_checks=True)
+        csrf = self.sign_in(user.username, password)
+        self.assertEqual(self.client.session["_auth_user_id"], str(user.pk))
+        response = self.client.post("/api/v1/dic/orders/", self.order_payload, format="json",
+            HTTP_X_CSRFTOKEN=csrf, HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+        self.assertEqual(response.status_code, 201)
+
+    def test_each_missing_ordinary_tester_requirement_rejects_login(self):
+        from config.staging_tester_access import is_staging_tester
+
+        user = self.create_ordinary_tester(1)
+        group = Group.objects.get(name="DIC Staging Testers")
+        wrong_group = Group.objects.create(name="DIC staging testers")
+        cases = (
+            "wrong_password", "unusable_password", "inactive", "missing_group",
+            "wrong_group_case", "missing_allowlist", "allowlist_leading_space",
+            "allowlist_wrong_case", "wrong_username",
+        )
+        for missing in cases:
+            with self.subTest(missing=missing):
+                user.is_active = missing != "inactive"
+                user.set_password("test-only-1")
+                if missing == "unusable_password":
+                    user.set_unusable_password()
+                user.save(update_fields=["is_active", "password"])
+                user.groups.set([] if missing == "missing_group" else
+                                [wrong_group] if missing == "wrong_group_case" else [group])
+                allowed = {"missing_allowlist": ["DIF"],
+                           "allowlist_leading_space": ["DIF", " dic-tester-01"],
+                           "allowlist_wrong_case": ["DIF", "DIC-TESTER-01"]}.get(
+                               missing, ["DIF", "dic-tester-01"])
+                username = "DIC-TESTER-01" if missing == "wrong_username" else user.username
+                password = "wrong-password" if missing == "wrong_password" else "test-only-1"
+                self.client = APIClient(enforce_csrf_checks=True)
+                self.client.get("/api/v1/dic/tester-access/login/")
+                csrf = self.client.cookies["csrftoken"].value
+                with override_settings(STAGING_DIC_TESTER_USERNAMES=allowed):
+                    response = self.client.post("/api/v1/dic/tester-access/login/", {
+                        "username": username, "password": password,
+                    }, HTTP_X_CSRFTOKEN=csrf)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertNotIn("_auth_user_id", self.client.session)
+                    if missing not in ("wrong_password", "unusable_password", "wrong_username"):
+                        self.assertFalse(is_staging_tester(user))
+
+    def test_existing_session_loses_access_when_membership_allowlist_or_active_status_is_removed(self):
+        user = self.create_ordinary_tester(1)
+        group = Group.objects.get(name="DIC Staging Testers")
+        for missing in ("group", "allowlist", "active"):
+            with self.subTest(missing=missing):
+                user.is_active = True
+                user.save(update_fields=["is_active"])
+                user.groups.set([group])
+                self.client = APIClient(enforce_csrf_checks=True)
+                csrf = self.sign_in(user.username, "test-only-1")
+                if missing == "group":
+                    user.groups.clear()
+                if missing == "active":
+                    user.is_active = False
+                    user.save(update_fields=["is_active"])
+                allowed = [] if missing == "allowlist" else [user.username]
+                with override_settings(STAGING_DIC_TESTER_USERNAMES=allowed):
+                    response = self.client.post(self.initialize_url(), {}, **self.auth,
+                                                HTTP_X_CSRFTOKEN=csrf)
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.json()["code"], "staging_tester_required")

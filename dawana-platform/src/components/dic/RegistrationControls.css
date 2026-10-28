@@ -59,7 +59,7 @@
 .dic-summary .confirmation-icon { width: 64px; height: 64px; border: 1px solid var(--accent); background: var(--panel-green); color: var(--heading); }
 .dic-summary .dic-payment-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 :is(.dic-flow, .dic-summary) .dic-flow-message { border-radius: 10px; padding: 16px 20px; line-height: 1.7; }
-.dic-steps [aria-current=step] > span { font-weight: 800; }
+.dic-steps [aria-current=step] > span { font-weight:700; }
 :is(.dic-flow, .dic-summary) .dic-steps > div.is-current > span { color: var(--on-brand); }
 @media (max-width: 700px) {
   .dic-flow .dic-form-grid { gap: 22px; }

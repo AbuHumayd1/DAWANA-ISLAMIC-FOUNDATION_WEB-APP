@@ -4,18 +4,21 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.core.validators import RegexValidator
+from django.db import models, transaction
 from django.db.models import Q, Sum
 from django.conf import settings
 from django.utils import timezone
 
 from .security import order_access_token_expiry
+from .memory_storage import private_memory_storage, validate_photo
 
 
 LAGOS_TIME_ZONE = ZoneInfo("Africa/Lagos")
 
 
 class CampEdition(models.Model):
+    tutor_registration_enabled = models.BooleanField(default=False)
     class RegistrationStatus(models.TextChoices):
         DRAFT = "draft", "Draft"
         OPEN = "open", "Open"
@@ -78,6 +81,8 @@ class CampEdition(models.Model):
     )
     allocation_strategy_approval_note = models.TextField(blank=True)
     allocation_approved_configuration = models.CharField(max_length=64, blank=True)
+    housing_age_reference_date = models.DateField(null=True, blank=True,
+        help_text="Housing age reference date; DIC 2026 uses 23 December 2026.")
     general_information = models.JSONField(
         default=dict,
         blank=True,
@@ -326,6 +331,9 @@ class RegistrationCategory(models.Model):
             and self.maximum_age < self.minimum_age
         ):
             errors["maximum_age"] = "Maximum age must not be less than minimum age."
+        tutor_category = self.name == 'DIC Tutor' or (self.pk and self.registration_items.filter(order__registration_basis='tutor').exists())
+        if tutor_category and (self.is_active or self.fee_ngn != 0):
+            errors['is_active'] = 'Internal tutor category must remain inactive with zero amount due.'
         if self.early_bird_fee_ngn is not None:
             if self.fee_ngn is None or self.early_bird_fee_ngn >= self.fee_ngn:
                 errors["early_bird_fee_ngn"] = (
@@ -352,6 +360,10 @@ class RegistrationCategory(models.Model):
 
 
 class House(models.Model):
+    badge_colour = models.CharField(max_length=7, blank=True,
+        validators=[RegexValidator(
+            r'^#[0-9A-Fa-f]{6}$', 'Use a six-digit hex colour, for example #174a34.')],
+        help_text='Committee-approved badge colour. Leave blank until approved.')
     class Gender(models.TextChoices):
         MALE = "male", "Male"
         FEMALE = "female", "Female"
@@ -402,6 +414,7 @@ class House(models.Model):
         blank=True,
     )
     reserve_authorization_reason = models.TextField(blank=True)
+    reserve_designation = models.BooleanField(default=False, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -417,6 +430,10 @@ class House(models.Model):
                 name="dic_house_capacity_nonnegative",
             ),
             models.CheckConstraint(
+                condition=(~Q(status='active') | Q(reserve_designation=False)) & (~Q(status='reserve') | Q(reserve_designation=True)),
+                name='dic_reserve_designation_safe',
+            ),
+            models.CheckConstraint(
                 condition=~Q(purpose="fathers_admins") | Q(gender="male"),
                 name="dic_fathers_admin_house_male",
             ),
@@ -428,10 +445,22 @@ class House(models.Model):
     def clean(self):
         super().clean()
         errors = {}
+        from .house_configuration import house_capacity_limit
+        limit = house_capacity_limit(self.edition)
+        if self.capacity is not None and self.capacity > limit:
+            errors['capacity'] = f'No house may have a capacity above {limit} occupants for this edition.'
+        if self.status == self.Status.RESERVE:
+            self.reserve_designation = True
+        if self.reserve_designation and self.status == self.Status.ACTIVE:
+            errors['status'] = 'Reserve houses retain Reserve status; use explicit reserve authorization.'
         if self.pk:
             occupied = self.allocations.filter(
                 status=HouseAllocation.Status.ALLOCATED
             ).count()
+            previous = type(self).objects.filter(pk=self.pk).first()
+            if occupied and previous and any(getattr(previous, key) != getattr(self, key)
+                    for key in ('edition_id', 'gender', 'purpose', 'status')):
+                errors['status'] = 'Release or reassign occupants before changing house designation, edition, purpose or status.'
             if self.capacity is not None and occupied > self.capacity:
                 errors["capacity"] = (
                     "Capacity cannot be reduced below the current active occupancy."
@@ -455,6 +484,18 @@ class House(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            CampEdition.objects.select_for_update().get(pk=self.edition_id)
+            if self.pk and type(self).objects.filter(pk=self.pk, reserve_designation=True).exists():
+                self.reserve_designation = True
+            if self.status == self.Status.RESERVE:
+                self.reserve_designation = True
+            self.clean()
+            if kwargs.get('update_fields'):
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'reserve_designation'}
+            super().save(*args, **kwargs)
 
 
 class PrimaryRegistrant(models.Model):
@@ -507,10 +548,13 @@ class Participant(models.Model):
     address = models.TextField()
     phone = models.CharField(max_length=32)
     email = models.EmailField()
-    date_of_birth = models.DateField()
+    date_of_birth = models.DateField(null=True, blank=True)
+    age_declaration = models.CharField(max_length=5, default='exact', choices=[
+        ('exact', 'Exact date of birth'), ('minor', 'Minor (under 18)'), ('adult', 'Adult (18+)')])
+    adult_declared_on = models.DateField(null=True, blank=True, editable=False)
     sex = models.CharField(max_length=6, choices=Sex.choices)
-    height_cm = models.DecimalField(max_digits=10, decimal_places=2)
-    weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
+    height_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    weight_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     academic_status = models.CharField(max_length=50, choices=AcademicStatus.choices)
     occupation = models.CharField(max_length=32, choices=Occupation.choices)
     marital_status = models.CharField(max_length=20, choices=MaritalStatus.choices)
@@ -533,6 +577,10 @@ class Participant(models.Model):
             ),
         ]
         constraints = [
+            models.CheckConstraint(condition=Q(age_declaration__in=['exact', 'minor', 'adult']), name='dic_participant_age_declaration'),
+            models.CheckConstraint(condition=(Q(date_of_birth__isnull=False, adult_declared_on__isnull=True)
+                | Q(date_of_birth__isnull=True, age_declaration='adult', adult_declared_on__isnull=False)),
+                name='dic_participant_age_evidence'),
             models.CheckConstraint(
                 condition=Q(height_cm__gt=0),
                 name="dic_participant_height_positive",
@@ -543,17 +591,32 @@ class Participant(models.Model):
             ),
         ]
 
+    def clean(self):
+        super().clean()
+        from .registration_age import validate_declaration
+        validate_declaration(self.age_declaration, self.date_of_birth, timezone.localdate())
+        if self.date_of_birth is None:
+            if self.adult_declared_on is None:
+                self.adult_declared_on = timezone.localdate()
+            if self.adult_declared_on > timezone.localdate():
+                from django.core.exceptions import ValidationError
+                raise ValidationError('Adult declaration date cannot be in the future.')
+        else:
+            self.adult_declared_on = None
+
     def __str__(self):
         return self.full_name
 
 
 class RegistrationOrder(models.Model):
+    registration_basis = models.CharField(max_length=16, default='paid', choices=[('paid', 'Paid registration'), ('tutor', 'Complimentary tutor')])
     class Status(models.TextChoices):
         SUBMITTED = "submitted", "Submitted"
         CONFIRMED = "confirmed", "Confirmed"
         CANCELLED = "cancelled", "Cancelled"
 
     class PaymentStatus(models.TextChoices):
+        NOT_REQUIRED = "not_required", "Not required (authorized tutor)"
         PENDING = "pending", "Pending"
         PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
@@ -584,7 +647,7 @@ class RegistrationOrder(models.Model):
         default=Status.SUBMITTED,
     )
     payment_status = models.CharField(
-        max_length=10,
+        max_length=12,
         choices=PaymentStatus.choices,
         default=PaymentStatus.PENDING,
     )
@@ -607,10 +670,11 @@ class RegistrationOrder(models.Model):
             ),
             models.CheckConstraint(
                 condition=Q(
-                    payment_status__in=("pending", "paid", "failed", "refunded")
+                    payment_status__in=("pending", "paid", "failed", "refunded", "not_required")
                 ),
                 name="dic_order_payment_status_valid",
             ),
+            models.CheckConstraint(condition=(Q(registration_basis='paid') & ~Q(payment_status='not_required')) | Q(registration_basis='tutor', payment_status='not_required', current_price_revision__isnull=True), name='dic_order_registration_basis'),
         ]
 
     def __str__(self):
@@ -708,14 +772,18 @@ class RegistrationOrderItem(models.Model):
                     "address": participant.address,
                     "phone": participant.phone,
                     "email": participant.email,
-                    "date_of_birth": participant.date_of_birth.isoformat(),
+                    "date_of_birth": participant.date_of_birth.isoformat() if participant.date_of_birth else None,
                     "sex": participant.sex,
-                    "height_cm": str(participant.height_cm),
-                    "weight_kg": str(participant.weight_kg),
+                    "height_cm": str(participant.height_cm) if participant.height_cm is not None else None,
+                    "weight_kg": str(participant.weight_kg) if participant.weight_kg is not None else None,
                     "academic_status": participant.academic_status,
                     "occupation": participant.occupation,
                     "marital_status": participant.marital_status,
                 }
+                if participant.age_declaration != 'exact':
+                    self.participant_snapshot.update(
+                        age_declaration=participant.age_declaration,
+                        adult_declared_on=participant.adult_declared_on.isoformat() if participant.adult_declared_on else None)
         self.full_clean()
         return super().save(*args, **kwargs)
 
@@ -752,6 +820,8 @@ class RegistrationOrderPriceRevision(models.Model):
         return f"{self.order} — price revision {self.revision_number}"
 
     def save(self, *args, **kwargs):
+        if self.order.registration_basis != 'paid':
+            raise ValidationError('Tutor registrations cannot have payment price revisions.')
         if self.pk:
             previous = type(self).objects.filter(pk=self.pk).values().first()
             if previous and any(
@@ -922,6 +992,9 @@ class HouseAllocation(models.Model):
         errors = {}
         if self.edition_id and self.house_id and self.house.edition_id != self.edition_id:
             errors["house"] = "The house must belong to the allocation edition."
+        from .tutor_registration import is_tutor
+        if self.participant_id and self.edition_id and is_tutor(self.participant_id, self.edition_id):
+            errors['participant'] = 'Tutor accommodation is managed offline; camper housing is unavailable.'
         if self.participant_id and self.edition_id:
             paid_order_exists = RegistrationOrderItem.objects.filter(
                 participant_id=self.participant_id,
@@ -943,12 +1016,12 @@ class HouseAllocation(models.Model):
                 errors["previous_allocation"] = (
                     "Allocation history must belong to the same participant and edition."
                 )
-        if (
-            self.participant_id
-            and self.house_id
-            and self.participant.sex.lower() != self.house.gender
-        ):
-            errors["house"] = "The house designation must match the participant's sex."
+        if self.participant_id and self.house_id and self.edition_id and self.status == self.Status.ALLOCATED:
+            from .housing_policy import validate_occupant
+            try:
+                validate_occupant(self.participant, self.edition, self.house)
+            except ValidationError as exc:
+                errors['house'] = exc.messages
         if (
             self.house_id
             and self.house.purpose == House.Purpose.FATHERS_AND_ADMINS
@@ -980,6 +1053,20 @@ class HouseAllocation(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if self._state.adding and self.pk is None and self.status == self.Status.ALLOCATED:
+            with transaction.atomic():
+                CampEdition.objects.select_for_update().get(pk=self.edition_id)
+                self.clean()
+                capacity = self.house.capacity
+                from .house_configuration import house_capacity_limit
+                limit = house_capacity_limit(self.edition)
+                if capacity is None or capacity > limit:
+                    raise ValidationError(f'A confirmed capacity of at most {limit} is required.')
+                occupied = type(self).objects.filter(house_id=self.house_id, status='allocated').count()
+                if occupied >= capacity:
+                    raise ValidationError('House has reached its configured capacity.')
+                super().save(*args, **kwargs)
+            return
         if self.pk:
             previous = type(self).objects.filter(pk=self.pk).values(
                 "participant_id",
@@ -1096,6 +1183,11 @@ class PaymentAttempt(models.Model):
                 name="dic_one_unresolved_payment_per_order",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.order.registration_basis != 'paid':
+            raise ValidationError('Tutor registrations cannot have payment attempts.')
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.reference} — {self.status}"
@@ -1286,6 +1378,8 @@ class CampEnrollment(models.Model):
     source_review_fingerprint = models.CharField(max_length=64, blank=True)
     restriction_reason = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    portrait = models.FileField(storage=private_memory_storage, validators=[validate_photo], max_length=200, blank=True,
+        help_text='Optional approved participant portrait, stored privately.')
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=("participant", "edition"), name="dic_enrollment_participant_edition_unique")]
@@ -1295,10 +1389,56 @@ class CampEnrollment(models.Model):
             ("can_review_dic_enrollment_sources", "Can resolve DIC enrollment sources and restrictions"),
         ]
 
+    def __str__(self):
+        return self.participant_number
+
     def clean(self):
         super().clean()
         if self.source_item_id and (self.source_item.participant_id != self.participant_id or self.source_item.order.edition_id != self.edition_id or self.source_item.category.edition_id != self.edition_id):
             raise ValidationError("Enrollment source must belong to the participant and edition.")
+
+
+class HouseScoreTransaction(models.Model):
+    """Append-only points ledger; corrections are opposing transactions."""
+    edition = models.ForeignKey(CampEdition, on_delete=models.PROTECT, related_name='score_transactions')
+    house = models.ForeignKey(House, on_delete=models.PROTECT, related_name='score_transactions')
+    entry_type = models.CharField(max_length=9, choices=[('award', 'Award'), ('deduction', 'Deduction')])
+    points = models.PositiveIntegerField()
+    activity = models.CharField(max_length=200)
+    note = models.TextField(blank=True, max_length=1000)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='dic_score_transactions', editable=False)
+    request_id = models.UUIDField(editable=False)
+    reverses = models.OneToOneField('self', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='reversal', editable=False)
+
+    class Meta:
+        default_permissions = ()
+        permissions = [
+            ('can_view_dic_scores', 'Can view DIC house scores'),
+            ('can_record_dic_scores', 'Can award and deduct DIC house points'),
+            ('can_correct_dic_scores', 'Can reverse DIC scoring errors'),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=('edition', 'request_id'), name='dic_score_edition_request_unique'),
+            models.CheckConstraint(condition=Q(points__gte=1, points__lte=2147483647), name='dic_score_positive_points'),
+            models.CheckConstraint(condition=Q(entry_type__in=('award', 'deduction')), name='dic_score_entry_type_valid'),
+        ]
+
+
+class CampCheckIn(models.Model):
+    """One physical arrival per participant/edition; not daily attendance."""
+    participant = models.ForeignKey(Participant, on_delete=models.PROTECT, related_name='camp_check_ins')
+    edition = models.ForeignKey(CampEdition, on_delete=models.PROTECT, related_name='check_ins')
+    checked_in_at = models.DateTimeField(default=timezone.now, editable=False)
+    checked_in_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='dic_check_ins', editable=False)
+
+    class Meta:
+        default_permissions = ()
+        permissions = [('can_check_in_dic_participants', 'Can check in DIC participants')]
+        constraints = [models.UniqueConstraint(fields=('participant', 'edition'), name='dic_checkin_participant_edition_unique')]
 
 
 class ParticipantPortalChallenge(models.Model):
@@ -1346,6 +1486,36 @@ class DigitalIDIssue(models.Model):
     revoked_at = models.DateTimeField(null=True)
     revoked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="dic_id_revocations")
     reason = models.CharField(max_length=240, blank=True)
+    verification_digest = models.CharField(max_length=64, null=True, unique=True, editable=False)
+    verification_secret = models.TextField(blank=True, editable=False)
+
+    def save(self, *args, issuance_actor=None, **kwargs):
+        from .participant_services import require_id_manager, eligibility
+        if self._state.adding:
+            require_id_manager(issuance_actor)
+            if self.issued_by_id != issuance_actor.pk or not self.verification_digest or not self.verification_secret:
+                raise ValidationError('Use the authorized ID issuance service.')
+            if not eligibility(self.enrollment)['eligible']:
+                raise ValidationError('Verified payment eligibility is required for issuance.')
+        else:
+            previous = type(self).objects.get(pk=self.pk)
+            immutable = ('enrollment_id', 'version', 'issued_by_id', 'expires_at')
+            if any(getattr(previous, field) != getattr(self, field) for field in immutable):
+                raise ValidationError('Issued identity fields are immutable; authorize a replacement.')
+            if (previous.verification_digest, previous.verification_secret) != (self.verification_digest, self.verification_secret):
+                require_id_manager(issuance_actor)
+                if previous.verification_digest or self.revoked_at or self.expires_at <= timezone.now() or not eligibility(self.enrollment)['eligible']:
+                    raise ValidationError('Only an eligible active legacy credential may be activated; otherwise reissue.')
+            if (previous.revoked_at, previous.revoked_by_id) != (self.revoked_at, self.revoked_by_id):
+                # Source-review staff retain their existing right to invalidate
+                # credentials when restricting or correcting an enrollment.
+                if not (issuance_actor and issuance_actor.is_authenticated and issuance_actor.is_active
+                        and issuance_actor.is_staff and (issuance_actor.has_perm('dic.can_manage_dic_ids')
+                        or issuance_actor.has_perm('dic.can_review_dic_enrollment_sources'))):
+                    require_id_manager(issuance_actor)
+                if previous.revoked_at or not self.revoked_at or self.revoked_by_id != issuance_actor.pk:
+                    raise ValidationError('Revocation is permanent and requires the responsible staff account.')
+        super().save(*args, **kwargs)
 
     class Meta:
         constraints = [
@@ -1361,3 +1531,10 @@ from .memory_models import CampPhotograph, MemoryActivity, CampVideo  # noqa: E4
 from .showcase_models import Lecturer, LecturerAppearance, CampActivity  # noqa: E402,F401
 
 from .promo_models import PromoVideo, CampFlyer  # noqa: E402,F401
+from .housing_models import GuardianRelationship, HousingJob  # noqa: E402,F401
+from .feedback_models import AnonymousCamperResponse, CamperFeedbackReceipt, LecturerFeedbackAccess, IdentifiedFeedback, WelfareReport, WelfareEvent  # noqa: E402,F401
+from .tutor_models import TutorRegistrationAuthorization, TutorVerification  # noqa: E402,F401
+from .portal_account_models import PortalAccount, PortalAccountBooking, PortalAccountSession, PortalGoogleLink, PortalOAuthAttempt  # noqa: E402,F401
+from .timetable_models import TimetableEntry  # noqa: E402,F401
+from .launch_models import AcademicClass, AcademicAssignment, CampAnnouncement  # noqa: E402,F401
+from .foundation_models import ContactEnquiry, FoundationDonation  # noqa: E402,F401

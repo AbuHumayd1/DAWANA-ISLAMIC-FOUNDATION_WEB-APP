@@ -1,4 +1,6 @@
 export function eligibilityLabel(code) {
+  if (code === 'authorized_tutor') return 'Authorized complimentary tutor'
+  if (code === 'tutor_authorization_required') return 'Tutor authorization unavailable or revoked'
   return {
     verified_paid: 'Registration payment verified',
     registration_not_verified_paid: 'The registration is not currently confirmed and verified paid.',
@@ -8,4 +10,10 @@ export function eligibilityLabel(code) {
     restricted_review_required: 'An ID restriction needs authorized staff review.',
     invalid_source: 'The registration source needs authorized staff review.',
   }[code] || 'Please contact authorized DIC staff for review.'
+}
+
+export function participantCardPath(id, format = 'pvc', download = false) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !['pvc', 'a6', 'portrait'].includes(format)) throw new Error('Invalid participant card selection')
+  const base = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
+  return `${base}/dic/participant/enrollments/${id}/card/?format=${format}${download ? '&download=1' : ''}`
 }

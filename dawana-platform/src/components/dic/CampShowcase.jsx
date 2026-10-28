@@ -3,6 +3,7 @@ import { Container } from '../layout/SiteChrome'
 import './CampShowcase.css'
 
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
+const localPreview = import.meta.env.DEV && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
 export function LecturerCard({ lecturer, historical = false }) {
   const verified = lecturer.confirmed === true
@@ -48,18 +49,18 @@ export default function CampShowcase() {
   return <div className="dic-showcase">
     <section className="showcase-upcoming" aria-labelledby="showcase-upcoming-title"><Container><span className="eyebrow">KNOWLEDGE & REFLECTION</span><h2 id="showcase-upcoming-title">Meet the upcoming camp lecturers</h2><p className="showcase-intro">Approved profiles and topics, with participation status clearly stated.</p>
       {feedback && <p role="status">{feedback}</p>}
-      {status === 'ready' && !data.upcoming.length && <div className="showcase-empty"><h3>Meet the lecturers when details are approved</h3><p>Lecturer announcements will appear here after editorial approval. No participation is assumed.</p></div>}
+      {(status === 'ready' || localPreview) && !data.upcoming.length && <div className="showcase-empty"><h3>Meet the lecturers when details are approved</h3><p>Lecturer announcements will appear here after editorial approval. No participation is assumed.</p>{localPreview && <small>Local preview · awaiting approved lecturer profiles and topics</small>}</div>}
       <div className="showcase-lecturer-grid">{data.upcoming.map(item => <LecturerCard key={item.id} lecturer={item} />)}</div>
     </Container></section>
     <section className="showcase-previous" aria-labelledby="showcase-previous-title"><Container><span className="eyebrow">FROM THE CAMP ARCHIVE</span><h2 id="showcase-previous-title">Lecturers From Previous Editions</h2>
       {feedback && <p role="status">{feedback}</p>}
       {!!data.previous.length && <label className="showcase-filter">Past camp edition<select aria-label="Past lecturer edition" value={edition} onChange={event => setEdition(event.target.value)}><option value="">All past editions</option>{editions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select><span role="status">{previous.length} {previous.length === 1 ? 'profile' : 'profiles'}</span></label>}
-      {status === 'ready' && !previous.length && <div className="showcase-empty"><p>No approved historical lecturer profiles are available{edition ? ' for this edition' : ' yet'}.</p></div>}
+      {(status === 'ready' || localPreview) && !previous.length && <div className="showcase-empty"><p>No approved historical lecturer profiles are available{edition ? ' for this edition' : ' yet'}.</p>{localPreview && <small>Local preview · previous lecturers</small>}</div>}
       <div className="showcase-lecturer-grid">{previous.map(item => <LecturerCard key={item.id} lecturer={item} historical />)}</div>
     </Container></section>
     <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container><span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to expect at camp</h2><p className="showcase-intro">Explore the activities approved for this edition. Programme details are shared only when authorized.</p>
       {feedback && <p role="status">{feedback}</p>}
-      {status === 'ready' && !data.activities.length && <div className="showcase-empty"><h3>The programme is being prepared</h3><p>Committee-approved activities will appear here when ready. No schedule has been announced in this section.</p></div>}
+      {(status === 'ready' || localPreview) && !data.activities.length && <div className="showcase-empty"><h3>The programme is being prepared</h3><p>Committee-approved activities will appear here when ready. No schedule has been announced in this section.</p>{localPreview && <small>Local preview · awaiting approved activities; photographs are optional</small>}</div>}
       <div className="showcase-activity-grid">{data.activities.map(item => <article className={`showcase-activity${item.featured ? ' showcase-featured' : ''}`} key={item.id}>
         {item.image_url && <img src={item.image_url} alt={item.alt_text} loading="lazy" decoding="async" width="800" height="600" />}
         <div><span className="dic-activity-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3 15 9 21 12 15 15 12 21 9 15 3 12 9 9Z" /><circle cx="12" cy="12" r="2" /></svg></span><small>{item.category}{item.featured ? ' · Featured activity' : ''}</small><h3>{item.title}</h3><p>{item.description}</p></div>

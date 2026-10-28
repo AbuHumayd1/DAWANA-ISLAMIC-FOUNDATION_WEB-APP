@@ -38,9 +38,13 @@ def allocation_configuration_fingerprint(edition):
         "status",
         "eligibility_rules",
         "reserve_authorized_at",
+        "reserve_authorized_by_id",
+        "reserve_authorization_reason",
     )
     configuration = {
         "strategy": edition.allocation_strategy,
+        "housing_age_reference_date": edition.housing_age_reference_date,
+        "policy": "dic-housing-2026-v1",
         "houses": list(houses),
     }
     serialized = json.dumps(configuration, sort_keys=True, separators=(",", ":"), default=str)
@@ -55,7 +59,8 @@ def paid_participants(edition):
         order__status=RegistrationOrder.Status.CONFIRMED,
         order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
     ).exclude(order__status=RegistrationOrder.Status.CANCELLED)
-    return Participant.objects.annotate(
+    return Participant.objects.exclude(registration_items__order__edition=edition,
+        registration_items__order__registration_basis='tutor').annotate(
         has_paid_registration=Exists(paid_items),
     ).filter(has_paid_registration=True)
 
@@ -87,10 +92,11 @@ def _validate_allocation(participant, edition, house):
         )
     if house.edition_id != edition.pk:
         raise AllocationError("The selected house belongs to a different edition.")
-    if participant.sex.lower() != house.gender:
-        raise AllocationError(
-            f"{participant.full_name} does not match the selected house designation."
-        )
+    from .housing_policy import validate_occupant
+    try:
+        validate_occupant(participant, edition, house)
+    except ValidationError as exc:
+        raise AllocationError('; '.join(exc.messages)) from exc
     if house.status == House.Status.INACTIVE:
         raise AllocationError(f"{house.name} is inactive and cannot receive allocations.")
     if house.status == House.Status.RESERVE and not house.reserve_authorized_at:
@@ -112,7 +118,8 @@ def _validate_allocation(participant, edition, house):
             house=house,
             status=HouseAllocation.Status.ALLOCATED,
         ).count()
-        if occupied >= house.capacity:
+        from .house_configuration import house_capacity_limit
+        if occupied >= min(house.capacity, house_capacity_limit(edition)):
             raise AllocationError(f"{house.name} has reached its configured capacity.")
 
 
@@ -136,7 +143,7 @@ def _create_allocation(participant, edition, house, actor, source, reason="", pr
 
 
 @transaction.atomic
-def assign_participant(
+def _assign_single(
     participant_id,
     edition_id,
     house_id,
@@ -186,7 +193,7 @@ def assign_participant(
 
 
 @transaction.atomic
-def release_allocation(allocation_id, actor, reason):
+def _release_single(allocation_id, actor, reason):
     if not reason or not reason.strip():
         raise AllocationError("A reason is required to release an allocation.")
     edition_id = HouseAllocation.objects.values_list("edition_id", flat=True).get(
@@ -206,109 +213,18 @@ def release_allocation(allocation_id, actor, reason):
     return allocation
 
 
-@transaction.atomic
 def allocate_participants(edition_id, participant_ids, actor):
-    edition = CampEdition.objects.select_for_update().get(pk=edition_id)
-    if (
-        edition.allocation_strategy != CampEdition.AllocationStrategy.BALANCED
-        or edition.allocation_strategy_approved_at is None
-        or not edition.allocation_strategy_approval_note.strip()
-        or edition.allocation_approved_configuration
-        != allocation_configuration_fingerprint(edition)
-    ):
-        raise AllocationError(
-            "Automatic allocation is disabled until this edition's strategy is "
-            "configured and approved by an administrator."
-        )
+    # Group-aware policy uses the existing locked assignment primitives.
+    from .housing_service import allocate_batch
+    return allocate_batch(edition_id, participant_ids, actor)
 
-    selected_ids = _normalized_ids(participant_ids)
-    try:
-        participants = list(
-            Participant.objects.filter(pk__in=selected_ids).order_by("full_name", "pk")
-        )
-    except (TypeError, ValueError, ValidationError) as exc:
-        raise AllocationError("Participant selection is invalid.") from exc
-    if len(participants) != len(selected_ids):
-        raise AllocationError("One or more selected participants could not be found.")
-    if not participants:
-        raise AllocationError("Select at least one participant to allocate.")
 
-    houses = list(
-        House.objects.select_for_update()
-        .filter(edition=edition)
-        .exclude(status=House.Status.INACTIVE)
-        .order_by("name", "pk")
-    )
-    active_ids = set(
-        HouseAllocation.objects.filter(
-            edition=edition,
-            status=HouseAllocation.Status.ALLOCATED,
-        ).values_list("participant_id", flat=True)
-    )
-    occupied = {
-        house.pk: HouseAllocation.objects.filter(
-            house=house,
-            status=HouseAllocation.Status.ALLOCATED,
-        ).count()
-        for house in houses
-    }
-    allocations = []
-    for participant in participants:
-        if participant.pk in active_ids:
-            raise AllocationError(
-                f"{participant.full_name} already has an active allocation."
-            )
-        if not RegistrationOrderItem.objects.filter(
-            participant=participant,
-            order__edition=edition,
-            order__payment_status=RegistrationOrder.PaymentStatus.PAID,
-        ).exclude(order__status=RegistrationOrder.Status.CANCELLED).exists():
-            raise AllocationError(
-                f"{participant.full_name} has no verified paid registration for this edition."
-            )
-        gender = participant.sex.lower()
-        eligible_houses = [
-            house
-            for house in houses
-            if house.gender == gender
-            and (
-                house.status == House.Status.ACTIVE
-                or house.reserve_authorized_at is not None
-            )
-            and not house.eligibility_rules
-            and (
-                house.purpose != House.Purpose.FATHERS_AND_ADMINS
-                or participant.eligible_for_dedicated_accommodation
-            )
-            and (house.capacity is None or occupied[house.pk] < house.capacity)
-        ]
-        if not eligible_houses:
-            raise AllocationError(
-                f"No configured eligible house with capacity is available for "
-                f"{participant.full_name}."
-            )
-        preferred_purpose = (
-            House.Purpose.FATHERS_AND_ADMINS
-            if participant.eligible_for_dedicated_accommodation
-            else House.Purpose.PARTICIPANTS
-        )
-        eligible_houses.sort(
-            key=lambda house: (
-                house.purpose != preferred_purpose,
-                occupied[house.pk],
-                house.name.casefold(),
-                house.pk,
-            )
-        )
-        house = eligible_houses[0]
-        allocation = _create_allocation(
-            participant,
-            edition,
-            house,
-            actor,
-            HouseAllocation.Source.SYSTEM,
-        )
-        allocations.append(allocation)
-        occupied[house.pk] += 1
-        active_ids.add(participant.pk)
-    return allocations
+def assign_participant(participant_id, edition_id, house_id, actor, reason="",
+                       source=HouseAllocation.Source.ADMIN, reassign=False):
+    from .housing_service import assign_group
+    return assign_group(participant_id, edition_id, house_id, actor, reason, source, reassign)
+
+
+def release_allocation(allocation_id, actor, reason):
+    from .housing_service import release_group
+    return release_group(allocation_id, actor, reason)

@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+{% block submit_buttons_bottom %}
+{{ block.super }}
+{% if original %}<div class="submit-row">
+<input type="submit" name="_issue_tutor" value="Issue / reissue unused invitation">
+<input type="submit" name="_revoke_tutor" value="Revoke tutor authorization">
+</div>{% endif %}
+{% endblock %}

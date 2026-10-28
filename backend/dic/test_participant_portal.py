@@ -42,6 +42,8 @@ class PortalFixtures:
         self.item = self.paid_order.items.first()
         self.id_manager = self.create_user('test-id-manager', 'test-only', 'can_view_dic_operations', 'can_view_dic_ids', 'can_manage_dic_ids')
         self.id_manager.user_permissions.add(*Permission.objects.filter(content_type__app_label='dic', codename__in=('can_view_dic_ids', 'can_manage_dic_ids')))
+        self.id_manager.is_staff = True
+        self.id_manager.save(update_fields=['is_staff'])
 
     def csrf(self, client):
         return client.get(reverse('dic:participant-csrf')).json()['csrfToken']
@@ -167,11 +169,11 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
         replay = Client(); replay.cookies[COOKIE] = previous
         self.assertEqual(replay.get(reverse('dic:participant-me')).status_code, 403)
         ParticipantPortalScope.objects.update(revoked_at=timezone.now())
-        self.assertEqual(client.get(reverse('dic:participant-enrollments')).json()['orders'], [])
+        self.assertEqual(client.get(reverse('dic:participant-enrollments')).status_code, 403)
         ParticipantPortalScope.objects.update(revoked_at=None)
         self.paid_order.primary_registrant.email = 'changed@example.test'
         self.paid_order.primary_registrant.save()
-        self.assertEqual(client.get(reverse('dic:participant-enrollments')).json()['orders'], [])
+        self.assertEqual(client.get(reverse('dic:participant-enrollments')).status_code, 403)
         ParticipantPortalGrant.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
         self.assertEqual(client.get(reverse('dic:participant-me')).status_code, 403)
 
@@ -200,6 +202,9 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
             result = self.post(client, 'participant-enrollments', {'registration_item_id': item.pk})
             self.assertEqual(result.status_code, 200, result.content)
             enrollment = CampEnrollment.objects.get(pk=result.json()['id'])
+            self.assertIsNone(result.json()['issue'])
+            self.assertFalse(enrollment.id_issues.exists())
+            id_command(enrollment.pk, 'issue', self.id_manager)
             numbers.append(enrollment.participant_number)
             card = client.get(reverse('dic:participant-id', args=[enrollment.pk]))
             self.assertEqual(card.status_code, 200)
@@ -209,7 +214,8 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
             self.assertEqual(enrollment.id_issues.count(), 1)
         self.assertEqual(len(set(numbers)), 2)
         id_command(enrollment.pk, 'revoke', self.id_manager, 'Lost card')
-        self.assertEqual(self.post(client, 'participant-enrollments', {'registration_item_id': item.pk}).status_code, 400)
+        self.assertEqual(self.post(client, 'participant-enrollments', {'registration_item_id': item.pk}).status_code, 200)
+        self.assertEqual(enrollment.id_issues.count(), 1)
         self.assertEqual(client.get(reverse('dic:participant-id', args=[enrollment.pk])).status_code, 400)
         replacement = id_command(enrollment.pk, 'reissue', self.id_manager, 'Approved replacement')
         self.assertEqual(replacement.version, 2)
@@ -261,12 +267,16 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
             first = ensure_enrollment(self.item.pk)
             second = ensure_enrollment(other.pk)
         self.assertNotEqual(first.participant_number, second.participant_number)
-        current = id_command(first.pk, 'issue')
+        current = id_command(first.pk, 'issue', self.id_manager)
         with self.assertRaises(IntegrityError), transaction.atomic():
-            DigitalIDIssue.objects.create(enrollment=first, version=2, expires_at=current.expires_at)
+            from .identity_tokens import new_token
+            digest, secret = new_token()
+            duplicate = DigitalIDIssue(enrollment=first, version=2, expires_at=current.expires_at,
+                issued_by=self.id_manager, verification_digest=digest, verification_secret=secret)
+            duplicate.save(issuance_actor=self.id_manager)
         DigitalIDIssue.objects.filter(pk=current.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
         with self.assertRaises(ValidationError):
-            id_command(first.pk, 'issue')
+            id_command(first.pk, 'issue', self.id_manager)
 
     def test_staff_revocation_requires_csrf_and_own_permission(self):
         enrollment = ensure_enrollment(self.item.pk)
@@ -277,6 +287,9 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
         token = self.csrf(client)
         self.assertEqual(client.post(url, {'action': 'issue'}, content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 403)
         self.operator.user_permissions.add(Permission.objects.get(content_type__app_label='dic', codename='can_manage_dic_ids'))
+        self.assertEqual(client.post(url, {'action': 'issue'}, content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 403)
+        self.operator.is_staff = True
+        self.operator.save(update_fields=['is_staff'])
         self.assertEqual(client.post(url, {'action': 'issue'}, content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 200)
         self.assertEqual(client.post(url, {'action':'revoke','reason':'Reported lost'}, content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 200)
 
@@ -292,11 +305,13 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
 
     def test_staff_permissions_review_revokes_id_and_groups_do_not_expand(self):
         enrollment = ensure_enrollment(self.item.pk)
-        id_command(enrollment.pk, 'issue')
+        id_command(enrollment.pk, 'issue', self.id_manager)
         self.client.force_login(self.operator)
         self.assertEqual(self.client.get(reverse('dic:operations-enrollments')).status_code, 403)
         for code in ['can_view_dic_ids', 'can_manage_dic_ids', 'can_review_dic_enrollment_sources']:
             self.operator.user_permissions.add(Permission.objects.get(codename=code, content_type__app_label='dic'))
+        self.operator.is_staff = True
+        self.operator.save(update_fields=['is_staff'])
         self.assertEqual(self.client.get(reverse('dic:operations-enrollments'), {'q': enrollment.participant_number}).status_code, 200)
         result = self.client.post(reverse('dic:operations-enrollment-id', args=[enrollment.pk]), {'action':'review_source', 'source_item_id':self.item.pk, 'restriction_reason':'Identity evidence review', 'reason':'Documented review'}, content_type='application/json')
         self.assertEqual(result.status_code, 200, result.content)
@@ -321,7 +336,7 @@ class ParticipantIDConcurrencyTests(PortalFixtures, TransactionTestCase):
         def issue_task(_):
             close_old_connections()
             try:
-                return str(id_command(ids[0], 'issue').pk)
+                return str(id_command(ids[0], 'issue', self.id_manager).pk)
             finally:
                 close_old_connections()
         with ThreadPoolExecutor(max_workers=2) as pool:

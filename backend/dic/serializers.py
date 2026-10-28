@@ -168,9 +168,13 @@ class ActiveEditionSerializer(serializers.ModelSerializer):
 
 
 class PrimaryRegistrantInputSerializer(StrictSerializer):
-    full_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    full_name = serializers.CharField(max_length=200)
     phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
-    email = serializers.EmailField(required=False, allow_blank=True)
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        from .recovery import normalize_email
+        return normalize_email(value)
 
 
 class ParticipantInputSerializer(StrictSerializer):
@@ -179,17 +183,20 @@ class ParticipantInputSerializer(StrictSerializer):
     address = serializers.CharField()
     phone = serializers.CharField(max_length=32)
     email = serializers.EmailField()
-    date_of_birth = serializers.DateField()
+    date_of_birth = serializers.DateField(required=False, allow_null=True, default=None)
+    age_declaration = serializers.ChoiceField(choices=['exact', 'minor', 'adult'], required=False, default='exact')
     sex = serializers.ChoiceField(choices=Participant.Sex.choices)
     height_cm = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
         min_value=Decimal("0.01"),
+        required=False, allow_null=True, default=None,
     )
     weight_kg = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
         min_value=Decimal("0.01"),
+        required=False, allow_null=True, default=None,
     )
     academic_status = serializers.ChoiceField(
         choices=Participant.AcademicStatus.choices
@@ -200,16 +207,38 @@ class ParticipantInputSerializer(StrictSerializer):
     )
 
     def validate_date_of_birth(self, value):
-        if value > timezone.localdate():
+        if value is not None and value > timezone.localdate():
             raise serializers.ValidationError("Date of birth cannot be in the future.")
         return value
 
+    def validate(self, attrs):
+        from .registration_age import validate_declaration
+        from django.core.exceptions import ValidationError as AgeError
+        try:
+            validate_declaration(attrs['age_declaration'], attrs['date_of_birth'], timezone.localdate())
+        except AgeError as error:
+            raise serializers.ValidationError({'date_of_birth': error.messages})
+        return attrs
+
+
+class RegistrationCredentialsSerializer(StrictSerializer):
+    password = serializers.CharField(min_length=12, max_length=128, trim_whitespace=False, write_only=True)
+    password_confirmation = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+
+    def validate(self, data):
+        import secrets
+        if not secrets.compare_digest(data['password'].encode(), data['password_confirmation'].encode()):
+            raise serializers.ValidationError({'password_confirmation': 'Passwords must match.'})
+        from django.contrib.auth import get_user_model
+        from .portal_accounts import password_policy
+        password_policy(data['password'], get_user_model()())
+        data.pop('password_confirmation')
+        return data
+
 
 class RegistrationOrderCreateSerializer(StrictSerializer):
-    primary_registrant = PrimaryRegistrantInputSerializer(
-        required=False,
-        default=dict,
-    )
+    portal_account = RegistrationCredentialsSerializer(write_only=True)
+    primary_registrant = PrimaryRegistrantInputSerializer()
     participants = ParticipantInputSerializer(many=True, allow_empty=False)
 
 
@@ -271,6 +300,7 @@ class RegistrationOrderReadSerializer(serializers.ModelSerializer):
             "edition_name",
             "status",
             "payment_status",
+            "registration_basis",
             "total_amount_ngn",
             "created_at",
             "submitted_at",

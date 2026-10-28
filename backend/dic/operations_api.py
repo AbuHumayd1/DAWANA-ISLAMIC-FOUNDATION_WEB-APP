@@ -12,6 +12,7 @@ from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
+from django.utils.cache import patch_cache_control
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET
@@ -61,6 +62,8 @@ def _verified_order_queryset(queryset):
 
 
 def _order_needs_repricing(order):
+    if order.registration_basis == 'tutor':
+        return False
     if order.payment_status == RegistrationOrder.PaymentStatus.PAID:
         return False
     try:
@@ -174,6 +177,7 @@ def _verified_payment(order):
 
 
 def _order_data(order, user, include_detail=False):
+    from .tutor_registration import authorization_state
     has_contacts = _can(user, "can_view_dic_contact_information")
     successful = _verified_order_queryset(
         RegistrationOrder.objects.filter(pk=order.pk)
@@ -197,6 +201,8 @@ def _order_data(order, user, include_detail=False):
             "category_id": item.category_id,
             "quoted_fee_ngn": str(item.fee_snapshot_ngn),
             "verified_paid": successful,
+            "registration_basis": order.registration_basis,
+            "tutor_authorization_status": authorization_state(order),
             "allocations": allocations,
         }
         if has_contacts:
@@ -215,6 +221,8 @@ def _order_data(order, user, include_detail=False):
         "edition": {"id": order.edition_id, "name": order.edition.name, "year": order.edition.year},
         "status": order.status,
         "payment_status": order.payment_status,
+        "registration_basis": order.registration_basis,
+        "tutor_authorization_status": authorization_state(order),
         "verified_paid": successful,
         "created_at": order.created_at.isoformat(),
         "submitted_at": order.submitted_at.isoformat(),
@@ -357,6 +365,7 @@ def _apply_participant_filters(queryset, params, user, edition=None):
 
 
 def _participant_data(participant, user, edition=None):
+    from .tutor_registration import authorization_state
     item_query = participant.registration_items.select_related(
         "order",
         "category",
@@ -381,6 +390,8 @@ def _participant_data(participant, user, edition=None):
         "registration_date": item.order.created_at.isoformat() if item else None,
         "category": item.category_name_snapshot if item else None,
         "payment_status": item.order.payment_status if item else None,
+        "registration_basis": item.order.registration_basis if item else None,
+        "tutor_authorization_status": authorization_state(item.order) if item else None,
         "verified_paid": verified,
         "house": allocation.house.name if allocation else None,
         "sex": participant.sex,
@@ -394,9 +405,11 @@ def _participant_data(participant, user, edition=None):
                 "email": participant.email,
                 "phone": participant.phone,
                 "address": participant.address,
-                "date_of_birth": participant.date_of_birth.isoformat(),
-                "height_cm": str(participant.height_cm),
-                "weight_kg": str(participant.weight_kg),
+                "date_of_birth": participant.date_of_birth.isoformat() if participant.date_of_birth else None,
+                "age_declaration": participant.age_declaration,
+                "adult_declared_on": participant.adult_declared_on.isoformat() if participant.adult_declared_on else None,
+                "height_cm": str(participant.height_cm) if participant.height_cm is not None else None,
+                "weight_kg": str(participant.weight_kg) if participant.weight_kg is not None else None,
             }
         )
     return data
@@ -492,12 +505,31 @@ def _user_data(user):
         "username": user.get_username(),
         "display_name": user.get_full_name() or user.get_username(),
         "role": "System Administrator" if user.is_superuser else "DIC Operator",
+        "can_access_campsite": bool(user.is_active and user.is_staff and _can(user, 'can_view_dic_operations')),
         "can_access_django_admin": bool(
             user.is_staff and (user.is_superuser or user.has_module_perms("dic"))
         ),
         "permissions": {
+            "timetables": any(user.has_perm('dic.' + p) for p in ('view_timetableentry', 'manage_dic_timetables', 'publish_dic_timetables')),
             "operations": _can(user, "can_view_dic_operations"),
+            "check_in": _can(user, "can_check_in_dic_participants"),
+            "movement_view": user.has_perm('dic_movement.can_view_movements'),
+            "movement_record": user.has_perm('dic_movement.can_record_movements'),
+            "authorize_departure": user.has_perm('dic_movement.can_authorize_departure'),
+            "scores": _can(user, "can_view_dic_scores"),
+            "record_scores": _can(user, "can_record_dic_scores"),
+            "correct_scores": _can(user, "can_correct_dic_scores"),
+            "feedback": _can(user,'can_view_dic_feedback'),
+            "feedback_details": _can(user,'can_read_dic_feedback_details'),
+            "staff_feedback": _can(user,'can_submit_dic_staff_feedback'),
+            "lecturer_feedback": _can(user,'can_submit_dic_lecturer_feedback'),
+            "submit_welfare": _can(user,'can_submit_dic_welfare'),
+            "welfare": _can(user,'can_view_dic_welfare'),
+            "manage_welfare": _can(user,'can_manage_dic_welfare'),
+            "feedback_entry": any(_can(user,permission) for permission in ('can_submit_dic_staff_feedback','can_submit_dic_lecturer_feedback')),
             "finance": _can(user, "can_view_dic_finance"),
+            "finance_actions": {key: user.has_perm(f'dic_finance.can_{key}_finance') for key in
+                ('view_details', 'record_income', 'submit_expense', 'approve', 'confirm_payment', 'manage_budget', 'reconcile', 'export')},
             "audit": _can(user, "can_view_dic_audit"),
             "contact_information": _can(user, "can_view_dic_contact_information"),
             "export_reports": _can(user, "can_export_dic_reports"),
@@ -513,9 +545,24 @@ class OperationsBaseView(APIView):
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsAuthenticated, OperationsSessionPermission)
 
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # General Operations access is not participant/booking record authority.
+        permission = {
+            'OperationsDashboardView': 'view_registrationorder',
+            'OperationsParticipantListView': 'view_participant',
+            'OperationsParticipantDetailView': 'view_participant',
+            'OperationsRegistrationListView': 'view_registrationorder',
+            'OperationsRegistrationDetailView': 'view_registrationorder',
+            'OperationsHouseView': 'view_houseallocation',
+        }.get(type(self).__name__)
+        if permission and not request.user.has_perm('dic.' + permission):
+            raise PermissionDenied('Explicit record-view permission is required.')
+
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "no-store"
+        # Keep endpoint-specific privacy directives while enforcing no storage.
+        patch_cache_control(response, no_store=True)
         response["Pragma"] = "no-cache"
         return response
 
@@ -706,6 +753,7 @@ class OperationsDashboardView(OperationsBaseView):
                         order__in=verified_orders.values("pk")
                     ).values("participant_id").distinct().count(),
                     "pending_unpaid_orders": unpaid_orders.count(),
+                    "complimentary_tutor_orders": orders.filter(registration_basis='tutor').count(),
                     "requiring_repricing": len(repricing_ids),
                     "reconciliation_cases": reconciliation_count,
                     "eligible_unallocated_participants": eligible_unallocated,
@@ -728,6 +776,7 @@ class OperationsDashboardView(OperationsBaseView):
                         "created_at": order.created_at.isoformat(),
                         "status": order.status,
                         "payment_status": order.payment_status,
+        "registration_basis": order.registration_basis,
                         "participants": order.items.count(),
                     }
                     for order in recent
@@ -928,6 +977,7 @@ class OperationsHouseView(OperationsBaseView):
                         "gender": house.gender,
                         "purpose": house.purpose,
                         "capacity": house.capacity,
+                        "badge_colour": house.badge_colour,
                         "status": house.status,
                         "allocated_count": house.allocated_count,
                     }
@@ -960,6 +1010,8 @@ class OperationsActivityView(OperationsBaseView):
         if not _can(request.user, "can_view_dic_audit"):
             raise PermissionDenied
         queryset = DICAdminAuditEvent.objects.select_related("actor").all()
+        if not request.user.has_perm('dic_movement.can_view_movements'):
+            queryset = queryset.exclude(action__in=['camper_departure', 'camper_return'])
         return Response(
             _paginate(
                 queryset,
@@ -1086,6 +1138,10 @@ class OperationsReportView(OperationsBaseView):
             raise PermissionDenied
         edition = _edition_from_request(request)
         report_type = request.query_params.get("report", "registrations")
+        record_permission = {'registrations':'view_registrationorder','participants':'view_participant',
+            'houses':'view_houseallocation'}.get(report_type)
+        if record_permission and not request.user.has_perm('dic.' + record_permission):
+            raise PermissionDenied('Explicit record-view permission is required for this export.')
         export_format = request.query_params.get("format", "csv").lower()
         if export_format not in ("csv", "docx"):
             raise ValidationError({"format": "Choose csv or docx."})

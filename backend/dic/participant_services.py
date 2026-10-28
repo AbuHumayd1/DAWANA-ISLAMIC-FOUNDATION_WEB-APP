@@ -15,6 +15,12 @@ def source_fingerprint(items):
     return hashlib.sha256(",".join(str(item.pk) for item in sorted(items, key=lambda row: row.pk)).encode()).hexdigest()
 
 
+def require_id_manager(actor):
+    if not (actor and actor.is_authenticated and actor.is_active and actor.is_staff
+            and actor.has_perm('dic.can_manage_dic_ids')):
+        raise PermissionDenied('Authorized active ID management staff access is required.')
+
+
 def eligibility(enrollment):
     item = RegistrationOrderItem.objects.select_related("order", "category").get(pk=enrollment.source_item_id)
     items = list(RegistrationOrderItem.objects.filter(participant_id=enrollment.participant_id, order__edition_id=enrollment.edition_id).select_related("order"))
@@ -25,6 +31,16 @@ def eligibility(enrollment):
     if enrollment.restriction_reason:
         return {"eligible": False, "code": "restricted_review_required"}
     order = RegistrationOrder.objects.select_related("current_price_revision").get(pk=item.order_id)
+    if order.status == RegistrationOrder.Status.CANCELLED:
+        return {'eligible': False, 'code': 'registration_cancelled'}
+    if order.registration_basis == 'tutor':
+        from .tutor_registration import tutor_entitlement
+        valid = (order.status == 'confirmed' and order.payment_status == 'not_required'
+            and order.current_price_revision_id is None and order.total_amount_ngn == 0
+            and order.items.count() == 1
+            and not order.payment_attempts.exists() and getattr(enrollment, 'pk', None)
+            and tutor_entitlement(enrollment, item))
+        return {'eligible': bool(valid), 'code': 'authorized_tutor' if valid else 'tutor_authorization_required'}
     if order.status != RegistrationOrder.Status.CONFIRMED or order.payment_status != RegistrationOrder.PaymentStatus.PAID:
         return {"eligible": False, "code": "registration_not_verified_paid"}
     # SUCCESSFUL is written only by the trusted settlement service. Missing legacy
@@ -80,8 +96,9 @@ def ensure_enrollment(item_id):
 
 @transaction.atomic
 def id_command(enrollment_id, action, actor=None, reason=""):
-    if (actor is None and action != "issue") or (actor is not None and not actor.has_perm("dic.can_manage_dic_ids")):
-        raise PermissionDenied("Explicit participant ID management permission is required.")
+    if action not in ('issue', 'reissue', 'revoke'):
+        raise ValidationError('Unknown participant ID operation.')
+    require_id_manager(actor)
     enrollment = CampEnrollment.objects.select_related("source_item__order", "edition").get(pk=enrollment_id)
     # Compatible with order-before-attempt locks in settlement. Lock all sources
     # so a concurrent refund cannot be missed during issuance.
@@ -100,7 +117,7 @@ def id_command(enrollment_id, action, actor=None, reason=""):
         if current:
             current.revoked_at = timezone.now()
             current.revoked_by = actor
-            current.save(update_fields=("revoked_at", "revoked_by"))
+            current.save(update_fields=("revoked_at", "revoked_by"), issuance_actor=actor)
             record("participant_id_revoked", enrollment, actor, issue=str(current.pk), reason=reason)
         return current
     result = eligibility(enrollment)
@@ -115,13 +132,22 @@ def id_command(enrollment_id, action, actor=None, reason=""):
     if current:
         current.revoked_at = timezone.now()
         current.revoked_by = actor
-        current.save(update_fields=("revoked_at", "revoked_by"))
+        current.save(update_fields=("revoked_at", "revoked_by"), issuance_actor=actor)
     version = (enrollment.id_issues.order_by("-version").values_list("version", flat=True).first() or 0) + 1
     expires = timezone.make_aware(datetime.combine(enrollment.edition.camp_end_date + timedelta(days=1), time.min))
     if expires <= timezone.now():
         raise ValidationError({"detail": "This edition's ID validity period has ended."})
-    issue = DigitalIDIssue.objects.create(enrollment=enrollment, version=version, expires_at=expires, issued_by=actor, reason=reason)
+    credential = {}
+    if actor is not None:
+        # Explicit authorized staff issuance shares the same credential path in
+        # Operations and Admin. Portal preparation never activates a QR.
+        from .identity_tokens import new_token
+        credential['verification_digest'], credential['verification_secret'] = new_token()
+    issue = DigitalIDIssue(enrollment=enrollment, version=version, expires_at=expires, issued_by=actor, reason=reason, **credential)
+    issue.save(issuance_actor=actor)
     record("participant_id_issued", enrollment, actor, issue=str(issue.pk), version=version, reason=reason)
+    if credential:
+        record('participant_qr_activated', enrollment, actor, issue=str(issue.pk))
     return issue
 
 
@@ -130,5 +156,6 @@ def id_summary(enrollment):
     status = "not_issued" if current is None else "revoked" if current.revoked_at else "expired" if current.expires_at <= timezone.now() else "current"
     result = eligibility(enrollment)
     return {"id": str(enrollment.pk), "participant_number": enrollment.participant_number, "name": enrollment.participant.full_name,
+            "registration_basis": enrollment.source_item.order.registration_basis,
             "category": enrollment.source_item.category_name_snapshot, "eligibility": result,
             "issue": {"version": current.version, "status": status, "expires_at": current.expires_at.isoformat()} if current else None}

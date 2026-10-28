@@ -60,6 +60,8 @@ def price_for_category(category, at):
 
 
 def current_order_prices(order, at=None):
+    if order.registration_basis == 'tutor':
+        raise PricingConfigurationError('Complimentary tutor orders cannot be repriced or paid.')
     at = at or timezone.now()
     return [
         {

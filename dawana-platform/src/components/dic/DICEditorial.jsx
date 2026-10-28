@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Container } from '../layout/SiteChrome'
 import './DICLandingRefinements.css'
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
+const localPreview = import.meta.env.DEV && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
 function PromoCard({ item }) {
   const [play, setPlay] = useState(false)
@@ -40,10 +41,11 @@ export default function DICEditorial({ onRegister, canRegister }) {
       .catch(() => {})
     return () => controller.abort()
   }, [])
-  if (!data) return null
+  if (!data && !localPreview) return null
+  const content = data || { flyer: null, experiences: [], introductions: [] }
   return <>
-    {data.flyer && <Flyer flyer={data.flyer} onRegister={onRegister} canRegister={canRegister} />}
-    {[[data.experiences.slice(0, 3), 'THROUGH THEIR EYES', 'Memories from previous editions'], [data.introductions.slice(0, 2), 'LOOKING AHEAD', 'A glimpse of the upcoming camp']].map(([items, eyebrow, title]) => items.length > 0 && <section className="dic-promo-section" key={eyebrow}><Container><span className="eyebrow">{eyebrow}</span><h2>{title}</h2><div className="dic-promo-grid">{items.map(item => <PromoCard key={item.id} item={item} />)}</div></Container></section>)}
-    {(data.experiences.length > 0 || data.introductions.length > 0) && <Container><p className="dic-lecture-link">Looking for lectures and foundation recordings? <Link to="/media">Visit our Media page ↗</Link></p></Container>}
+    {content.flyer ? <Flyer flyer={content.flyer} onRegister={onRegister} canRegister={canRegister} /> : localPreview && <section className="dic-official-flyer"><Container><div className="dic-flyer-layout"><div className="dic-preview-placeholder dic-preview-flyer"><span aria-hidden="true">✧</span><strong>Flyer coming soon</strong><small>Local preview · awaiting editorial approval</small></div><div><span className="eyebrow">THE OFFICIAL INVITATION</span><h2>Official DIC flyer</h2><p>The approved flyer will appear here, with an option to enlarge it.</p><button className="button" type="button" onClick={onRegister} disabled={!canRegister}>Register for DIC ↗</button></div></div></Container></section>}
+    {[[content.experiences.slice(0, 3), 'THROUGH THEIR EYES', "Previous campers’ experiences", 'Approved MP4 stories from participants at previous editions.', 3], [content.introductions.slice(0, 2), 'LOOKING AHEAD', 'Upcoming camp promotional videos', 'Discover what to expect at the upcoming camp through approved introductory MP4 videos.', 2]].map(([items, eyebrow, title, description, limit]) => (items.length > 0 || localPreview) && <section className="dic-promo-section" key={eyebrow}><Container><span className="eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p><div className="dic-promo-grid">{items.length ? items.map(item => <PromoCard key={item.id} item={item} />) : Array.from({ length: limit }, (_, index) => <div className="dic-preview-placeholder" key={index}><span aria-hidden="true">▷</span><strong>Awaiting approved video</strong><small>Local preview · {eyebrow === 'LOOKING AHEAD' ? 'Camp introduction' : 'Camper experience'}</small></div>)}</div></Container></section>)}
+    {(content.experiences.length > 0 || content.introductions.length > 0 || localPreview) && <Container><p className="dic-lecture-link">Looking for lectures and foundation recordings? <Link to="/media">Visit our Media page ↗</Link></p></Container>}
   </>
 }

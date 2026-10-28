@@ -1,8 +1,30 @@
 import { readApiResponse, readCsrfToken } from './apiResponse.js'
+import { checkInPath } from './checkIn.js'
+import { scoringPath } from './houseScoring.js'
+import { reportingPath } from './reporting.js'
 
 const apiBase = import.meta.env?.VITE_API_BASE_URL || '/api/v1'
 const operationsBase = `${apiBase.replace(/\/$/, '')}/dic/operations`
 let csrfToken
+
+export function getReportingExportUrl(values, format) {
+  return operationsBase + reportingPath(values, format)
+}
+
+export function getScoringPrintUrl(edition, report) {
+  if (!['leaderboard', 'history'].includes(report)) throw new Error('Choose a scoring report.')
+  return `${operationsBase}${scoringPath(edition)}&print=${report}`
+}
+
+export function getFeedbackExportUrl(edition, filters, format) {
+  if (!/^[1-9]\d*$/.test(String(edition)) || !['csv','print'].includes(format)) throw new Error('Choose a valid feedback export.')
+  const query=new URLSearchParams({ edition:String(edition), ...filters, export:format })
+  return `${operationsBase}/feedback/?${query}`
+}
+
+export function getCheckInPrintUrl(edition, search = '') {
+  return `${operationsBase}${checkInPath(edition, search)}&print=1`
+}
 
 async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase()
@@ -73,6 +95,21 @@ export async function postOperationsData(path, body) {
   await getCsrfToken()
   const response = await request(path, { method: 'POST', body: JSON.stringify(body) })
   return readApiResponse(response)
+}
+
+export async function downloadIDBatch(enrollmentIds) {
+  const response = await request('/id-printing/export/', {
+    method: 'POST', body: JSON.stringify({ enrollment_ids: enrollmentIds }),
+  })
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'dic-id-cards.pdf'
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export async function downloadOperationsReport({ report, format, filters = {} }) {

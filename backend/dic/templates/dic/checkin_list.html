@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DIC Camp Check-in List</title>
+<style>
+body{font:14px/1.5 system-ui,sans-serif;color:#163c2d;margin:24px}h1{font-size:24px}table{width:100%;border-collapse:collapse}th,td{padding:8px;text-align:left;border:1px solid #b4c3b9;overflow-wrap:anywhere}thead{display:table-header-group}tr{break-inside:avoid}.note{font-size:12px}button{padding:10px 18px;font:inherit}@page{size:A4 landscape;margin:12mm}@media print{button{display:none}body{margin:0;font-size:10px}}
+</style></head><body>
+<button type="button" onclick="window.print()">Print list</button>
+<h1>DIC Camp Check-in — {{ edition.name|default:'No camp edition' }}</h1>
+<p>Generated {{ generated_at|date:'d M Y H:i T' }}. Physical arrival only; this is not daily attendance.</p>
+{% if totals %}<p>Registered: {{ totals.registered }} · Checked In: {{ totals.checked_in }} · Not Yet Arrived: {{ totals.not_yet_arrived }} · Needs Attention: {{ totals.needs_attention }}</p>{% endif %}
+{% if search %}<p>Filtered list: {{ search }}. Totals above cover the entire edition.</p>{% endif %}
+<table><thead><tr><th>Name / registration number</th><th>Registration / payment</th><th>Eligibility</th><th>House</th><th>Check-in time / staff</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.name }}<br>{{ row.registration_number }}{% if row.participant_number != row.registration_number %}<br>{{ row.participant_number }}{% endif %}</td><td>{{ row.registration_status }} / {{ row.payment_status }}</td><td>{{ row.eligibility.label }}</td><td>{{ row.house|default:'Pending assignment' }}</td><td>{% if row.check_in %}{{ row.check_in.time }}<br>{{ row.check_in.staff }}{% else %}Not yet arrived{% endif %}</td></tr>
+{% empty %}<tr><td colspan="5">No participants match this list.</td></tr>{% endfor %}
+</tbody></table><p class="note">Private staff list. Keep printed copies secure.</p></body></html>

@@ -30,7 +30,7 @@ class ParticipantRemediationTests(PortalFixtures, TestCase):
 
     def test_original_category_reassignment_rejected_by_domain_and_database(self):
         enrollment = ensure_enrollment(self.item.pk)
-        issue = id_command(enrollment.pk, 'issue')
+        issue = id_command(enrollment.pk, 'issue', self.id_manager)
         number = enrollment.participant_number
         other = CampEdition.objects.create(name='Other edition', year=2098,
             camp_start_date=self.edition.camp_start_date, camp_end_date=self.edition.camp_end_date)

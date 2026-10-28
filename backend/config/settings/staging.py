@@ -26,7 +26,8 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = False
 DATABASES["default"].setdefault("OPTIONS", {})["sslmode"] = "require"
 MIDDLEWARE = [*MIDDLEWARE]
-MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 # Fail closed until individual testers are explicitly approved. This
 # middleware is absent from development/production settings.
 STAGING_DIC_TESTER_RESTRICTION_ENABLED = env.bool(

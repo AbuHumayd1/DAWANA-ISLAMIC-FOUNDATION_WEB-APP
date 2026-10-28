@@ -1,0 +1,16 @@
+.cp-phase3-scenery { color:#2c634c; width:100%; margin:12px 0 20px; border-bottom:1px solid #b69a5f55; }
+.cp-phase3-scenery svg { display:block; width:100%; height:auto; max-height:150px; stroke:currentColor; stroke-width:1.5; }
+.cp-phase3-scenery .cp-geometry { opacity:.08; }.cp-phase3-scenery .cp-gold-line { stroke:#967339; }
+.cp-login-choices { display:grid; gap:12px; margin:18px 0; }.cp-login-choices p { font-size:.85rem; line-height:1.65; color:#526658; margin:0; }
+.cp-google-button { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:48px; padding:12px 16px; border:1px solid #c9d1c4; border-radius:12px; background:#f5f5ef; color:#526056; text-align:left; }
+.cp-google-button span,.cp-future-label { display:inline-block; font-size:.75rem; padding:4px 8px; border-radius:6px; background:#eee8d9; color:#634f29; }
+.cp-integration-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:14px; }.cp-integration-grid h3 { font-size:1rem; margin:0 0 10px; }.cp-integration-grid p { margin:0 0 14px; }
+.cp-phase3-integrations { margin-block:16px; }.cp-class-card { border-left:3px solid #a78b4b; }.cp-class-card p { margin-block:12px; }.cp-class-card small { display:block; line-height:1.6; color:#526658; }
+.cp-secure-continuation { margin-block:20px; }.cp-secure-continuation p { max-width:48rem; margin:12px 0; }
+.participant-access-panel #cp-booking-verification { margin-top:20px; padding-top:20px; border-top:1px solid #dce4d5; }
+.participant-portal .participant-access-panel .cp-remember-device { display:flex; align-items:flex-start; gap:10px; line-height:1.6; font-size:.85rem; }.participant-portal .participant-access-panel .cp-remember-device input { width:20px; height:20px; min-height:20px; margin-top:3px; flex:none; }
+.cp-phase3-integrations button,.cp-login-choices button { min-height:44px; }.cp-phase3-integrations button:disabled,.cp-google-button:disabled { cursor:not-allowed; }
+.cp-auth :is(button,input,select,a):focus-visible,.cp-phase3-integrations button:focus-visible { outline:3px solid #a78b4b; outline-offset:3px; }
+.participant-portal.cp-auth .participant-page-heading { text-align:left; width:min(100%,48rem); margin:0 auto 20px; }.participant-portal.cp-auth .cp-auth-brand { margin-left:0; }.participant-portal.cp-auth .participant-access-panel { width:min(100%,48rem); text-align:left; }
+@media (max-width:480px) { .cp-phase3-scenery svg { min-height:90px; }.cp-integration-grid { grid-template-columns:minmax(0,1fr); }.cp-login-choices .button { width:100%; } }
+.cp-password-field{display:flex;align-items:stretch;gap:.5rem}.cp-password-field input{min-width:0;flex:1}.cp-password-field button{min-width:48px;min-height:44px}.cp-account-login fieldset,.cp-account-settings fieldset{border:0;padding:0;margin:0;display:grid;gap:1rem;min-width:0}.cp-account-login{display:grid;gap:1rem;margin:1rem 0}.cp-account-settings{max-width:52rem;margin:1rem auto;padding:1.5rem}.cp-account-settings form{display:grid;gap:1rem;margin:1rem 0}.cp-account-settings label{display:grid;gap:.5rem}.cp-account-settings input{width:100%;box-sizing:border-box;padding:.75rem;border:1px solid var(--cp-border,#c4d5ca);border-radius:.5rem}.cp-account-login button:focus-visible,.cp-account-settings button:focus-visible{outline:3px solid #a77b24;outline-offset:3px}

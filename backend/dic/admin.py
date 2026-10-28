@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
+from . import tutor_admin  # Explicit permission only; grants no default groups.
 
 from .allocation import (
     AllocationError,
@@ -259,7 +260,7 @@ class HouseInline(admin.TabularInline):
     model = House
     extra = 0
     show_change_link = True
-    fields = ("name", "gender", "purpose", "capacity", "status")
+    fields = ("name", "gender", "purpose", "capacity", "status", "badge_colour")
 
 
 class RegistrationOrderItemInline(admin.TabularInline):
@@ -324,6 +325,7 @@ class CampEditionAdmin(admin.ModelAdmin):
                     "year",
                     "is_active",
                     "registration_status",
+                    "tutor_registration_enabled",
                     "allocation_strategy",
                 )
             },
@@ -332,6 +334,7 @@ class CampEditionAdmin(admin.ModelAdmin):
             "House allocation approval",
             {
                 "fields": (
+                    "housing_age_reference_date",
                     "allocation_strategy_approved_at",
                     "allocation_strategy_approved_by",
                     "allocation_strategy_approval_note",
@@ -398,6 +401,8 @@ class CampEditionAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
+        if not request.user.has_perm('dic.can_approve_allocation_strategy'):
+            fields.append('housing_age_reference_date')
         if not request.user.has_perm("dic.can_verify_venue_directions"):
             fields.append("venue_directions_verified")
         if (
@@ -639,6 +644,12 @@ class CampEditionAdmin(admin.ModelAdmin):
                     level=messages.ERROR,
                 )
             else:
+                from .housing_policy import validate_inventory
+                try:
+                    validate_inventory(edition)
+                except ValidationError as exc:
+                    self.message_user(request, '; '.join(exc.messages), level=messages.ERROR)
+                    return HttpResponseRedirect(reverse('admin:dic_campedition_change', args=(edition.pk,)))
                 edition.allocation_strategy_approved_at = timezone.now()
                 edition.allocation_strategy_approved_by = request.user
                 edition.allocation_strategy_approval_note = note
@@ -752,7 +763,7 @@ class HouseAdmin(admin.ModelAdmin):
     @admin.display(description="Remaining capacity")
     def remaining_capacity(self, obj):
         if obj.capacity is None:
-            return "Unlimited"
+            return "Unconfirmed — allocation blocked"
         return max(obj.capacity - obj.allocation_occupancy, 0)
 
     def get_urls(self):
@@ -904,11 +915,13 @@ class ParticipantAdmin(admin.ModelAdmin):
         ParticipantPaymentFilter,
     )
     search_fields = ("full_name",)
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "created_at", "updated_at", "adult_declared_on")
     fields = (
         "id",
         "full_name",
+        "age_declaration",
         "date_of_birth",
+        "adult_declared_on",
         "sex",
         "height_cm",
         "weight_kg",
@@ -1314,6 +1327,27 @@ class PaystackWebhookEventInline(admin.TabularInline):
 
 @admin.register(RegistrationOrderItem)
 class RegistrationOrderItemAdmin(admin.ModelAdmin):
+    actions = ('prepare_participant_records',)
+
+    def has_manage_ids_permission(self, request):
+        return request.user.is_staff and request.user.has_perm('dic.can_manage_dic_ids')
+
+    @admin.action(description='Prepare participant identification records (maximum 25; no card issuance)', permissions=['manage_ids'])
+    def prepare_participant_records(self, request, queryset):
+        from .identity_cards import require_staff
+        from .participant_services import ensure_enrollment, record
+        from rest_framework.exceptions import ValidationError as IDValidationError
+        require_staff(request.user, manage=True)
+        if queryset.count() > 25:
+            self.message_user(request, 'Select at most 25 registration items.', messages.ERROR)
+            return
+        for item in queryset:
+            try:
+                enrollment = ensure_enrollment(item.pk)
+                record('staff_enrollment_accessed', enrollment, request.user)
+            except IDValidationError:
+                self.message_user(request, 'A selected registration source requires authorized review.', messages.WARNING)
+        self.message_user(request, 'Participant records prepared. Review the Camp enrollments directory before issuing IDs.', messages.SUCCESS)
     list_display = (
         "id",
         "order",
@@ -1749,3 +1783,9 @@ from . import video_admin  # noqa: E402,F401
 from . import showcase_admin  # noqa: E402,F401
 
 from . import promo_admin  # noqa: E402,F401
+from . import housing_admin  # noqa: E402,F401
+from . import identity_admin  # noqa: E402,F401
+from . import feedback_admin  # noqa: E402,F401
+from . import timetable_admin  # noqa: E402,F401
+from . import launch_admin  # noqa: E402,F401
+from . import foundation_admin  # noqa: E402,F401

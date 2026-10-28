@@ -19,7 +19,7 @@
             <tr>
               <td>{{ house.name }}</td><td>{{ house.get_gender_display }}</td>
               <td>{{ house.get_purpose_display }}</td><td>{{ house.get_status_display }}</td>
-              <td>{{ house.occupied_count }}</td><td>{{ house.capacity|default_if_none:"Unlimited" }}</td>
+              <td>{{ house.occupied_count }}</td><td>{{ house.capacity|default_if_none:"Unconfirmed — allocation blocked" }}</td>
               <td>{% if house.reserve_authorized_at %}Authorized{% elif house.status == "reserve" %}Not authorized{% else %}—{% endif %}</td>
             </tr>
           {% empty %}

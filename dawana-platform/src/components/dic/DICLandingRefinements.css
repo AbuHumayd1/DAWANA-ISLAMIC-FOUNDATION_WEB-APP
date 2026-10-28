@@ -40,7 +40,10 @@
 .dic-lecture-link { font-size:.9rem; padding-bottom:1.5rem; }
 .dic-page .dic-memories { padding-block:clamp(2rem,5vw,4rem); }
 .dic-page .memories-board { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.dic-page .memory-card { transform:none; }
+.dic-preview-placeholder { min-width:0; min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.65rem; padding:1.5rem; text-align:center; overflow-wrap:anywhere; border:1px dashed var(--accent,#b48a42); border-radius:1rem; background:linear-gradient(135deg,var(--panel-green,#eef2e8),var(--panel,#fffdf6)); color:var(--heading,#173f2e); }
+.dic-preview-placeholder > span { font-size:2.5rem; color:var(--accent,#986e2e); }
+.dic-preview-placeholder small { font-size:.75rem; }
+.dic-preview-flyer { min-height:330px; }
 .dic-page .memory-card img { aspect-ratio:4/3; object-fit:cover; }
 .dic-page .showcase-activity:nth-child(3n+1) { border-top:4px solid #b78b36; background:var(--panel,#fff9eb); }
 .dic-page .showcase-activity:nth-child(3n+2) { border-top:4px solid #699579; background:var(--panel-green,#eef5ed); }

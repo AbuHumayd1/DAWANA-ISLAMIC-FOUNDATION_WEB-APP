@@ -145,6 +145,8 @@ def _lock_order_attempt(attempt_id):
     """All payment mutations lock the order before any of its attempts."""
     order_id = PaymentAttempt.objects.values_list("order_id", flat=True).get(pk=attempt_id)
     order = RegistrationOrder.objects.select_for_update().get(pk=order_id)
+    if order.registration_basis != 'paid':
+        raise ValidationError('Payment operations require an ordinary paid registration.')
     attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt_id)
     if attempt.order_id != order.pk:
         raise PaymentAttempt.DoesNotExist
@@ -387,6 +389,8 @@ class PaymentInitializeView(APIView):
         order = _order_for_access(request, public_id)
         with transaction.atomic():
             order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
+            if order.registration_basis != 'paid':
+                raise ValidationError('Complimentary tutor registration requires no payment.')
             if order.status == RegistrationOrder.Status.CANCELLED:
                 raise ValidationError("Cancelled orders cannot be paid.")
             if order.payment_status == RegistrationOrder.PaymentStatus.PAID:

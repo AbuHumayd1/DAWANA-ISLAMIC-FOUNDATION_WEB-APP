@@ -429,6 +429,45 @@ explicitly request checkout, and only the existing Paystack verification flow
 can confirm payment. Administratively revoked order access cannot be restored
 through this recovery flow.
 
+## Participant Portal verification delivery
+
+The Participant Portal reuses the recovery channel configuration above. A normal
+signed-out visit requires booking verification; absence of a participant cookie
+does not mean a previously authenticated session expired. The frontend quietly
+handles the initial session probe and still clears sensitive state when a later
+protected request or an authenticated session expires.
+
+For email, configure `DIC_EMAIL_RECOVERY_ENABLED=True`,
+`DIC_RECOVERY_DELIVERY_WORKER_ENABLED=True`, a valid server-only
+`DIC_RECOVERY_ENCRYPTION_KEY`, the SMTP backend/host, provider-required credentials,
+port/TLS settings and an authorised `DEFAULT_FROM_EMAIL`. API and worker must use
+the same encryption key and database. Restart them after changing configuration.
+SMS is optional and requires an approved `DIC_SMS_RECOVERY_ADAPTER`; enabling
+email does not require configuring SMS or WhatsApp.
+
+Participant challenges have their own queue. Schedule this bounded command
+repeatedly (recommended interval: five seconds):
+
+```powershell
+python backend/manage.py send_dic_portal_messages --limit 50
+```
+
+Running only `send_dic_recovery_messages` does not deliver Participant Portal
+challenges. The worker-enabled flag is a deployment declaration, not a worker
+heartbeat or SMTP connectivity test. Without an actual running schedule,
+channels may appear configured while challenges remain undelivered. Never run
+the worker merely to diagnose settings: it sends real queued messages and
+updates delivery records.
+
+Read-only status: `GET /api/v1/dic/participant/auth/options/` must report the
+configured channel as available. A failed options request is shown as a failed
+check with retry, separately from a successful response reporting all channels
+unavailable. Test delivery using an authorised booking's full UUID and registered
+primary contact; unmatched/revoked/cancelled bookings are intentionally suppressed
+without revealing booking existence. Codes expire after ten minutes and are never
+returned by these APIs or displayed on the page. Use HTTPS in production and
+preserve the existing participant cookies, CSRF and same-origin proxy configuration.
+
 ## Paystack test-mode payments
 
 Payment initiation and verification are available under `/api/v1/dic/`:

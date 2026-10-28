@@ -7,6 +7,7 @@ class Command(BaseCommand):
     help = "Create or update the standard least-privilege DIC staff groups."
 
     GROUP_PERMISSIONS = {
+        'DIC Administrators': ('view_campedition', 'view_registrationcategory', 'can_view_dic_operations'),
         "DIC Registration Staff": (
             "view_campedition",
             "view_registrationcategory",
@@ -32,7 +33,16 @@ class Command(BaseCommand):
         ),
     }
 
+    def add_arguments(self, parser):
+        parser.add_argument('--apply-reviewed-grants', action='store_true',
+            help='Explicitly apply the listed additive grants after reviewing existing access.')
+
     def handle(self, *args, **options):
+        if not options.get('apply_reviewed_grants'):
+            for name, codenames in self.GROUP_PERMISSIONS.items():
+                self.stdout.write(name + ': ' + ', '.join(codenames))
+            self.stdout.write('Preview only. Existing grants were not read or changed. Review sensitive inherited grants separately.')
+            return
         with transaction.atomic():
             for name, codenames in self.GROUP_PERMISSIONS.items():
                 group, created = Group.objects.get_or_create(name=name)
@@ -54,18 +64,3 @@ class Command(BaseCommand):
                 state = "Created" if created else "Updated"
                 self.stdout.write(f"{state} {name} ({len(permissions)} permissions).")
 
-            administrator, created = Group.objects.get_or_create(
-                name="DIC Administrators"
-            )
-            all_dic_permissions = Permission.objects.filter(
-                content_type__app_label="dic"
-            ).exclude(content_type__model__in=(
-                "campenrollment", "participantportalchallenge", "participantportalgrant",
-                "participantportalscope", "digitalidissue",
-            ))
-            administrator.permissions.add(*all_dic_permissions)
-            state = "Created" if created else "Updated"
-            self.stdout.write(
-                f"{state} DIC Administrators "
-                f"({all_dic_permissions.count()} permissions)."
-            )

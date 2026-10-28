@@ -18,6 +18,14 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG")
+DIC_ASSISTED_BOOKING_ENABLED = env.bool('DIC_ASSISTED_BOOKING_ENABLED', default=False)
+# Source-only account rollout: enable only after isolated acceptance and schema approval.
+DIC_PORTAL_ACCOUNTS_ENABLED = env.bool('DIC_PORTAL_ACCOUNTS_ENABLED', default=False)
+DIC_GOOGLE_CLIENT_ID = env('DIC_GOOGLE_CLIENT_ID', default='')
+DIC_GOOGLE_CLIENT_SECRET = env('DIC_GOOGLE_CLIENT_SECRET', default='')
+DIC_GOOGLE_REDIRECT_URI = env('DIC_GOOGLE_REDIRECT_URI', default='')
+DIC_PORTAL_FRONTEND_URL = env('DIC_PORTAL_FRONTEND_URL', default='')
+DIC_PORTAL_EMAIL_VERIFY_URL = env('DIC_PORTAL_EMAIL_VERIFY_URL', default='')
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 CORS_ALLOWED_ORIGINS = env.list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
@@ -33,7 +41,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 8 * 60 * 60
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CORS_URLS_REGEX = r"^/api/.*$"
-CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key")
+CORS_ALLOW_HEADERS = (*default_headers, "idempotency-key", "x-donation-token")
 CSRF_TRUSTED_ORIGINS = env.list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     default=CORS_ALLOWED_ORIGINS,
@@ -91,6 +99,10 @@ INSTALLED_APPS = [
     "corsheaders",
     "accounts.apps.AccountsConfig",
     "dic.apps.DicConfig",
+    "dic_scoring.apps.DicScoringConfig",
+    "dic_finance.apps.DicFinanceConfig",
+    "dic_movement.apps.DicMovementConfig",
+    "dic_assistance.apps.DicAssistanceConfig",
     "health.apps.HealthConfig",
 ]
 
@@ -207,3 +219,20 @@ DIC_VIDEO_APPROVED_PROVIDERS = env.list("DIC_VIDEO_APPROVED_PROVIDERS", default=
 
 # Local media validation executable; no external transcoding service.
 DIC_FFPROBE_BINARY = env("DIC_FFPROBE_BINARY", default="ffprobe")
+
+# Separate stable secret for unlinked camper duplicate receipts. Never log it.
+# Anonymous submission is unavailable until explicitly configured (32+ chars).
+DIC_FEEDBACK_PRIVACY_KEY = env('DIC_FEEDBACK_PRIVACY_KEY', default='')
+
+# Foundation services remain off until their schema/content and activation are approved.
+FOUNDATION_CONTACT_VERIFIED = env.bool('FOUNDATION_CONTACT_VERIFIED', default=False)
+FOUNDATION_CONTACT_FORM_ENABLED = env.bool('FOUNDATION_CONTACT_FORM_ENABLED', default=False)
+FOUNDATION_CONTACT_EMAIL = env('FOUNDATION_CONTACT_EMAIL', default='')
+FOUNDATION_CONTACT_PHONE = env('FOUNDATION_CONTACT_PHONE', default='')
+FOUNDATION_CONTACT_WHATSAPP = env('FOUNDATION_CONTACT_WHATSAPP', default='')
+FOUNDATION_CONTACT_ADDRESS = env('FOUNDATION_CONTACT_ADDRESS', default='')
+FOUNDATION_DONATIONS_ENABLED = env.bool('FOUNDATION_DONATIONS_ENABLED', default=False)
+FOUNDATION_DONATION_CURRENCY = env('FOUNDATION_DONATION_CURRENCY', default='NGN')
+# No business minimum/maximum: one kobo through the signed 64-bit storage limit.
+FOUNDATION_DONATION_MIN_NGN = env('FOUNDATION_DONATION_MIN_NGN', default='0.01')
+FOUNDATION_DONATION_MAX_NGN = env('FOUNDATION_DONATION_MAX_NGN', default='92233720368547758.07')

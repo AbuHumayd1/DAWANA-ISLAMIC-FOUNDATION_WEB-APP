@@ -3,6 +3,10 @@
 {% block content %}
   <div id="content-main">
     <p>{{ action_label }} for <strong>{{ object_label }}</strong>.</p>
+    {% if action_value == "release" or action_value == "reassign" %}
+      <p><strong>Guardian safety:</strong> this action applies to the entire linked guardian-dependent group.
+      Every child counts toward capacity 25. Groups cannot be split or placed in reserve accommodation.</p>
+    {% endif %}
     {% if needs_confirmation %}
       <form method="post" novalidate>
         {% csrf_token %}

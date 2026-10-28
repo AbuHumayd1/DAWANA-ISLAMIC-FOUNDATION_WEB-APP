@@ -27,3 +27,38 @@ coverage.xml
 # Local editor and operating-system files
 .DS_Store
 Thumbs.db
+
+# Private local development database backups and server logs
+.local-preview/
+validation-results/
+
+# Private database archives, generated acceptance/browser evidence (retain locally)
+/backups/
+/output/
+/acceptance-artifacts/
+*.dump
+*.backup
+*.sql
+*.sqlite
+*.sqlite3-*
+*.pgpass
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Machine-specific editor state, caches, temporary/build output
+/.vscode/
+.npm-cache/
+node_modules/
+dist/
+*.log
+*.tmp
+*.temp
+*.bak
+~$*
+/tmp/
+/temp/
+/MILESTONE_1K_GIT_STATUS.txt
+/THEME_GIT_STATUS.txt
+/complete-staging-commits.ps1

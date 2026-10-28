@@ -20,6 +20,7 @@ def spreadsheet_safe(value):
 
 
 def registration_export_rows(queryset, include_contacts=False):
+    from .tutor_registration import authorization_state
     headers = [
         "order_reference",
         "edition",
@@ -32,6 +33,8 @@ def registration_export_rows(queryset, include_contacts=False):
         "categories",
         "houses",
         "repricing_status",
+        "registration_basis",
+        "tutor_authorization_status",
     ]
     if include_contacts:
         headers.extend(("participant_names", "participant_emails", "participant_phones"))
@@ -76,18 +79,23 @@ def registration_export_rows(queryset, include_contacts=False):
             )
         except PricingConfigurationError:
             repricing_required = order.payment_status != RegistrationOrder.PaymentStatus.PAID
+        if order.registration_basis == 'tutor':
+            repricing_required = False
+            houses = []
         row = [
             str(order.public_id),
             order.edition.name,
             order.created_at.isoformat(),
             order.status,
             order.payment_status,
-            "verified" if verified else "not verified",
+            "not required (complimentary tutor)" if order.registration_basis == 'tutor' else "verified" if verified else "not verified",
             order.total_amount_ngn,
             len(participants),
             ", ".join(sorted({item.category_name_snapshot for item in participants})),
             ", ".join(houses),
             "Required" if repricing_required else "Current",
+            order.registration_basis,
+            authorization_state(order) or '',
         ]
         if include_contacts:
             row.extend(

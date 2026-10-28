@@ -1,0 +1,17 @@
+.cp-official-brand { display:flex; align-items:center; gap:10px; min-width:0; max-width:100%; text-align:left; }
+.cp-official-logo { display:grid; place-items:center; width:48px; height:48px; flex:0 0 48px; padding:5px; background:#fffdf5; border:1px solid #e1ddc9; border-radius:12px; }
+.cp-official-logo img { display:block; width:100%; height:100%; object-fit:contain; object-position:center; }
+.cp-official-copy { display:grid; gap:3px; min-width:0; color:#173f30; }
+.cp-parent-name { font:500 .59rem/1.45 Poppins,sans-serif; letter-spacing:0; }
+.cp-official-copy strong { display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 7px; font:600 .91rem/1.3 Poppins,sans-serif; letter-spacing:-.025em; }
+.cp-official-copy strong span { font:400 .6rem/1.4 Poppins,sans-serif; letter-spacing:0; color:#627366; }
+.cp-header .cp-brand { min-width:0; flex:1; }
+.cp-header .cp-brand .cp-official-copy strong { font-size:.91rem; letter-spacing:-.025em; gap:3px 7px; }
+.cp-header .cp-brand .cp-official-copy strong span { border:0; padding:0; font-size:.6rem; letter-spacing:0; }
+.cp-auth .cp-auth-brand:has(.cp-official-brand) { display:inline-flex; margin-bottom:24px; letter-spacing:0; }
+.cp-auth .cp-auth-brand .cp-official-brand,.cp-auth .cp-auth-brand .cp-official-logo,.cp-auth .cp-auth-brand .cp-official-copy { margin-left:0; letter-spacing:0; }
+.cp-auth .cp-auth-brand .cp-parent-name { font-size:.65rem; margin:0; letter-spacing:0; }
+.cp-auth .cp-auth-brand .cp-official-copy strong span { font-size:.65rem; margin:0; letter-spacing:0; }
+.cp-portal-handoff-brand { display:flex; justify-content:center; margin:0 auto 18px; max-width:440px; }
+@media(min-width:700px) { .cp-official-logo { width:54px; height:54px; flex-basis:54px; }.cp-parent-name { font-size:.68rem; }.cp-header .cp-brand .cp-official-copy strong { font-size:1.05rem; } }
+@media(max-width:350px) { .cp-header { gap:8px; padding-inline:14px; }.cp-header .cp-official-brand { gap:8px; }.cp-header .cp-official-logo { width:42px; height:42px; flex-basis:42px; }.cp-header .cp-parent-name { font-size:.55rem; }.cp-header .cp-profile-shortcut { flex:0 0 40px; width:40px; height:40px; } }

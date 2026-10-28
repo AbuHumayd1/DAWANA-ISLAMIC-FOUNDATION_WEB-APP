@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>{{ object }}</p>
+<p>Every occupant counts toward capacity 25. Guardian requirements cannot be overridden.
+Releases and reassignments move the entire linked group. No inventory is created here.</p>
+{% if retry_only or decisions %}
+<form method="post">
+  {% csrf_token %}
+  {% if decisions %}<p><label>Decision <select name="decision" required>{% for value, label in decisions %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label></p>{% endif %}
+  <p><label>Reason <textarea name="reason" required rows="4"></textarea></label></p>
+  <p><label><input type="checkbox" name="confirm" value="yes" required> I confirm this action is authorized.</label></p>
+  <input type="submit" value="Record supervisor decision">
+</form>
+{% else %}<p>This relationship is historical. Create a new pending relationship after resolving any active allocation.</p>{% endif %}
+{% endblock %}

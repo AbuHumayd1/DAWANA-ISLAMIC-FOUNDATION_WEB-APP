@@ -1,5 +1,10 @@
 from django.urls import path
+from dic_finance.api import FinanceView
+from dic_movement.api import ScanView, MovementView
+from .assisted_registration import AssistedRegistrationPreparationView, AssistedBookingCreateView
 from .payment_return import PaymentReturnGrantView, PaymentReturnStatusView
+from .tutor_registration_api import TutorChallengeView, TutorVerifyView, TutorRedeemView
+from .portal_continuation import PortalCapabilitiesView, PortalContinuationView
 
 from .payment_views import (
     PaymentInitializeView,
@@ -39,6 +44,14 @@ from .views import (
 
 
 app_name = "dic"
+from .printing_api import PrintingDirectoryView, PrintingExportView, PrintingConfirmView
+from .campsite_api import CampsiteOverviewView
+from .reporting_api import ReportingView
+from .checkin_api import CampCheckInView
+from .scoring_api import HouseScoringView, HouseScoreReversalView
+from .activity_scoring_api import ActivityScoringView, CamperScoringView
+from .feedback_api import (CamperFeedbackOptionsView,CamperFeedbackSubmitView,CamperWelfareSubmitView,
+    FeedbackFormOptionsView,IdentifiedFeedbackSubmitView,FeedbackSummaryView,WelfareReportsView,WelfareReportDetailView)
 
 from .participant_api import (
     portal_csrf, PortalOptionsView, PortalChallengeView, PortalVerifyView, PortalMeView,
@@ -46,8 +59,36 @@ from .participant_api import (
 )
 
 urlpatterns = [
+    path('operations/reporting/', ReportingView.as_view(), name='operations-reporting'),
+    path('tutor-registration/challenges/', TutorChallengeView.as_view(), name='tutor-challenge'),
+    path('tutor-registration/verify/', TutorVerifyView.as_view(), name='tutor-verify'),
+    path('tutor-registration/redeem/', TutorRedeemView.as_view(), name='tutor-redeem'),
+    path('operations/assisted-registration/create/', AssistedBookingCreateView.as_view(), name='operations-assisted-registration-create'),
+    path('operations/assisted-registration/', AssistedRegistrationPreparationView.as_view(), name='operations-assisted-registration-preparation'),
+    path('operations/scan/', ScanView.as_view(), name='operations-scan'),
+    path('operations/movements/', MovementView.as_view(), name='operations-movements'),
+    path('operations/finance/', FinanceView.as_view(), name='operations-finance'),
+    path('participant/scoring/', CamperScoringView.as_view(), name='camper-scoring'),
+    path('operations/scoring/activities/', ActivityScoringView.as_view(), name='operations-activity-scoring'),
+    path('participant/feedback/options/',CamperFeedbackOptionsView.as_view(),name='camper-feedback-options'),
+    path('participant/feedback/',CamperFeedbackSubmitView.as_view(),name='camper-feedback'),
+    path('participant/welfare/',CamperWelfareSubmitView.as_view(),name='camper-welfare'),
+    path('operations/feedback/options/',FeedbackFormOptionsView.as_view(),name='feedback-form-options'),
+    path('operations/feedback/submit/',IdentifiedFeedbackSubmitView.as_view(),name='identified-feedback'),
+    path('operations/feedback/',FeedbackSummaryView.as_view(),name='feedback-summary'),
+    path('operations/welfare/',WelfareReportsView.as_view(),name='welfare-reports'),
+    path('operations/welfare/<uuid:report_id>/',WelfareReportDetailView.as_view(),name='welfare-detail'),
+    path('operations/campsite/', CampsiteOverviewView.as_view(), name='operations-campsite'),
+    path('operations/check-in/', CampCheckInView.as_view(), name='operations-check-in'),
+    path('operations/scoring/', HouseScoringView.as_view(), name='operations-scoring'),
+    path('operations/scoring/<int:entry_id>/reverse/', HouseScoreReversalView.as_view(), name='operations-score-reverse'),
+    path('operations/id-printing/', PrintingDirectoryView.as_view(), name='id-printing'),
+    path('operations/id-printing/export/', PrintingExportView.as_view(), name='id-printing-export'),
+    path('operations/id-printing/<uuid:batch_id>/printed/', PrintingConfirmView.as_view(), name='id-printing-confirm'),
     path("participant/auth/csrf/", portal_csrf, name="participant-csrf"),
     path("participant/auth/options/", PortalOptionsView.as_view(), name="participant-options"),
+    path('participant/auth/capabilities/', PortalCapabilitiesView.as_view(), name='participant-capabilities'),
+    path('participant/auth/continue/', PortalContinuationView.as_view(), name='participant-continue'),
     path("participant/auth/challenges/", PortalChallengeView.as_view(), name="participant-challenges"),
     path("participant/auth/verify/", PortalVerifyView.as_view(), name="participant-verify"),
     path("participant/auth/me/", PortalMeView.as_view(), name="participant-me"),
@@ -188,6 +229,21 @@ urlpatterns = [
 ]
 
 
+from .portal_account_api import (AccountStatusView, AccountActivateView, PasswordLoginView,
+    PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView)
+urlpatterns += [
+    path('participant/auth/email/verify/', EmailVerifyView.as_view(), name='portal-email-verify'),
+    path('participant/auth/email/resend/', EmailResendView.as_view(), name='portal-email-resend'),
+    path('participant/auth/account/', AccountStatusView.as_view(), name='portal-account'),
+    path('participant/auth/account/activate/', AccountActivateView.as_view(), name='portal-account-activate'),
+    path('participant/auth/account/link-booking/', AccountLinkBookingView.as_view(), name='portal-account-link-booking'),
+    path('participant/auth/password/login/', PasswordLoginView.as_view(), name='portal-password-login'),
+    path('participant/auth/password/reset/', PasswordResetView.as_view(), name='portal-password-reset'),
+    path('participant/auth/google/start/', GoogleStartView.as_view(), name='portal-google-start'),
+    path('participant/auth/google/callback/', GoogleCallbackView.as_view(), name='portal-google-callback'),
+    path('participant/auth/google/unlink/', GoogleUnlinkView.as_view(), name='portal-google-unlink'),
+]
+
 from .memory_views import MemoriesView, memory_image
 urlpatterns += [
     path("memories/", MemoriesView.as_view(), name="memories"),
@@ -213,4 +269,19 @@ urlpatterns += [
     path('promotions/<int:pk>/video/', promo_stream, name='promo-stream'),
     path('promotions/<int:pk>/poster/', editorial_image, {'kind': 'poster'}, name='promo-poster'),
     path('flyer/<int:pk>/', editorial_image, {'kind': 'flyer'}, name='official-flyer'),
+]
+
+from .identity_views import card_view, verify_view
+from .timetable_api import ParticipantTimetableView, OperationsTimetableView
+from .launch_api import CampUpdatesView
+from .local_diagnostics import local_database_identity
+from .participant_api import PortalCardView
+urlpatterns += [
+    path('participant/enrollments/<uuid:enrollment_id>/card/', PortalCardView.as_view(), name='participant-card'),
+    path('participant/timetables/', ParticipantTimetableView.as_view(), name='participant-timetables'),
+    path('participant/camp-updates/', CampUpdatesView.as_view(), name='participant-camp-updates'),
+    path('operations/timetables/', OperationsTimetableView.as_view(), name='operations-timetables'),
+    path('local-preview/database/', local_database_identity, name='local-preview-database'),
+    path('ids/cards/<uuid:enrollment_id>/', card_view, name='id-card'),
+    path('ids/verify/', verify_view, name='verify-id'),
 ]

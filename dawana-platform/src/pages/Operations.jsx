@@ -1,6 +1,5 @@
-import { visibleOperationsNavigation } from '../services/operationsNavigation'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   downloadOperationsReport,
   getOperationsData,
@@ -11,6 +10,17 @@ import {
 import './Operations.css'
 import AppearanceControls from '../components/layout/AppearanceControls'
 import StaffParticipantIDs from './StaffParticipantIDs'
+import Finance from './Finance'
+import ParticipantIDPrinting from './ParticipantIDPrinting'
+import CampsiteFoundation, { PlannedCampsiteModule } from './CampsiteFoundation'
+import CampCheckIn from './CampCheckIn'
+import HouseScoring from './HouseScoring'
+import FeedbackDashboard, { FeedbackEntry, WelfareDashboard } from './Feedback'
+import Reporting from './Reporting'
+import TimetableOperations from './TimetableOperations'
+import { campsiteModules } from '../services/campsiteModules'
+import OperationsNavigation from '../components/operations/OperationsNavigation'
+import { MoreFilters, FilterActions, HelpDetails } from '../components/operations/OperationsControls'
 
 
 
@@ -44,6 +54,11 @@ function formatDate(value, options = {}) {
 
 function statusLabel(value) {
   return String(value || 'unknown').replaceAll('_', ' ')
+}
+
+function verificationLabel(row) {
+  if (row.registration_basis === 'tutor') return row.tutor_authorization_status === 'authorized_tutor' ? 'Authorized tutor' : 'Tutor access unavailable'
+  return row.verified_paid ? 'Verified paid' : 'Not verified'
 }
 
 function StatusPill({ value, positive = false }) {
@@ -139,10 +154,22 @@ function Operations() {
   return (
     <Routes>
       <Route element={<OperationsShell user={user} onLogout={handleLogout} />}>
-        <Route index element={<DashboardPage />} />
+        <Route index element={user.can_access_campsite ? <CampsiteFoundation user={user} /> : <EmptyState title="Campsite staff access required" detail="An active staff account with explicit DIC Operations permission is required." />} />
+        <Route path="registration-overview" element={<DashboardPage />} />
+        <Route path="timetables" element={user.permissions.timetables ? <TimetableOperations /> : <EmptyState title="Timetable permission required" />} />
+        <Route path="check-in" element={user.can_access_campsite ? <CampCheckIn user={user} /> : <EmptyState title="Campsite staff access required" />} />
+        <Route path="scoring" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} /> : <EmptyState title="House Scoring permission required" />} />
+        <Route path="feedback" element={user.can_access_campsite && user.permissions.feedback ? <FeedbackDashboard user={user} /> : <EmptyState title="Feedback summary permission required" />} />
+        <Route path="feedback-submit" element={user.can_access_campsite && user.permissions.feedback_entry ? <FeedbackEntry user={user} /> : <EmptyState title="Feedback submission permission required" />} />
+        <Route path="welfare" element={user.can_access_campsite && user.permissions.welfare ? <WelfareDashboard user={user} /> : <EmptyState title="Welfare permission required" />} />
+        <Route path="finance" element={user.can_access_campsite && user.permissions.finance ? <Finance /> : <EmptyState title="Finance staff permission required" />} />
+        <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
+        {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
         <Route path="registrations" element={<RegistrationListPage />} />
+        <Route path="assisted-registration" element={<Navigate to="/dic/operations/registrations" replace />} />
         <Route path="registrations/:publicId" element={<RegistrationDetailPage />} />
         <Route path="participants" element={<ParticipantListPage />} />
+        <Route path="id-printing" element={user.permissions.manage_ids ? <ParticipantIDPrinting /> : <EmptyState title="ID management permission required" />} />
         <Route path="participant-ids" element={user.permissions.ids ? <StaffParticipantIDs user={user} /> : <EmptyState title="Participant ID lookup permission required" />} />
         <Route path="participants/:participantId" element={<ParticipantDetailPage user={user} />} />
         <Route path="payments" element={user.permissions.finance ? <PaymentsPage /> : <EmptyState title="Finance permission required" />} />
@@ -208,25 +235,21 @@ function OperationsShell({ user, onLogout }) {
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [])
-  const visibleNavigation = visibleOperationsNavigation(user)
   return (
     <div className="ops-app">
       <header className="ops-topbar">
-        <button className="ops-menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><Icon name="menu" /></button>
+        <button className="ops-menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="ops-sidebar" onClick={() => setMenuOpen((open) => !open)}><Icon name="menu" /></button>
         <Link to="/dic/operations" className="ops-top-brand"><BrandLockup /></Link>
         <div className="ops-top-spacer" />
         <AppearanceControls />
-        <span className="ops-edition-chip"><i /> Daarul Islam Camp 2026</span>
+        <span className="ops-edition-chip"><i /> DIC Campsite Operations</span>
         {user.can_access_django_admin && <a className="ops-admin-link" href="/admin/">Django Admin</a>}
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>
         <button className="ops-logout" onClick={onLogout} aria-label="Sign out"><Icon name="logout" /><span>Sign out</span></button>
       </header>
       <div className="ops-body">
-        <aside className={`ops-sidebar ${menuOpen ? 'is-open' : ''}`}>
-          <div className="ops-side-label">CAMP MANAGEMENT</div>
-          <nav aria-label="Operations navigation">
-            {visibleNavigation.map((item) => <NavLink key={item.to} end={item.to === '/dic/operations'} to={item.to} onClick={() => setMenuOpen(false)} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}><Icon name={item.icon} /><span>{item.label}</span>{item.label === 'Activity' && <span className="ops-nav-lock">•</span>}</NavLink>)}
-          </nav>
+        <aside id="ops-sidebar" className={`ops-sidebar ${menuOpen ? 'is-open' : ''}`}>
+          <OperationsNavigation user={user} onSelect={() => setMenuOpen(false)} renderIcon={name => <Icon name={name} />} />
           <div className="ops-sidebar-footer"><span className="ops-live-dot" />Private staff portal<span>Only authorized staff can access this workspace.</span></div>
         </aside>
         <main className="ops-main"><Outlet /></main>
@@ -255,7 +278,7 @@ function DashboardPage() {
   return (
     <>
       <PageHeading eyebrow={edition?.name || 'DIC Operations'} title="Operations overview" description="A clear picture of registrations, payment verification and camp readiness." action={<span className={`ops-registration-state state-${edition?.registration_status || 'draft'}`}><i /> Registration {statusLabel(edition?.registration_status || 'not configured')}</span>} />
-      {edition && <div className="ops-edition-banner"><span className="ops-banner-mark"><Icon name="home" /></span><div><strong>{edition.name}</strong><span>{formatDate(edition.camp_start_date)} – {formatDate(edition.camp_end_date)} <b>·</b> {edition.venue}</span></div><span className="ops-edition-status">Registration closed</span></div>}
+      {edition && <div className="ops-edition-banner"><span className="ops-banner-mark"><Icon name="home" /></span><div><strong>{edition.name}</strong><span>{formatDate(edition.camp_start_date)} – {formatDate(edition.camp_end_date)} <b>·</b> {edition.venue}</span></div><span className="ops-edition-status">Registration {statusLabel(edition.registration_status)}</span></div>}
       <section className="ops-metric-grid" aria-label="Registration metrics">
         <MetricCard title="Registration orders" value={metrics.orders} note="Parent or guardian checkouts" icon="clipboard" to="/dic/operations/registrations" />
         <MetricCard title="Individual participants" value={metrics.participants} note="Participants across all orders" icon="users" tone="gold" to="/dic/operations/participants" />
@@ -328,7 +351,13 @@ function useFilters(initial = {}) {
     setSearchParams(Object.fromEntries(Object.entries(next).filter(([, value]) => value)))
   }
   const update = (name, value) => setFilters((current) => ({ ...current, [name]: value }))
-  return { filters, active, update, submit, setPage }
+  const clear = () => {
+    const next = Object.fromEntries(Object.keys(filters).map(key => [key, initial[key] ?? '']))
+    setFilters(next)
+    setActive(next)
+    setSearchParams(Object.fromEntries(Object.entries(next).filter(([,value]) => value)))
+  }
+  return { filters, active, update, submit, setPage, clear }
 }
 
 function buildQuery(filters) {
@@ -349,13 +378,13 @@ function FilterSelect({ label, value, onChange, options }) {
 }
 
 function RegistrationListPage() {
-  const { filters, active, update, submit, setPage } = useFilters()
+  const { filters, active, update, submit, setPage, clear } = useFilters()
   const path = `/registrations/${buildQuery(active)}`
   const { data, loading, error, retry } = useData(path)
   const { data: filterOptions } = useData('/filters/')
   return <>
-    <PageHeading eyebrow="DIC 2026" title="Registrations" description="Search parent orders, review payment status and follow up on quotes requiring repricing." />
-    <section className="ops-panel ops-list-panel"><form className="ops-filterbar" onSubmit={submit}><SearchBar value={filters.q} onChange={(value) => update('q', value)} /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed'], ['refunded', 'Refunded']] } /><FilterSelect label="Order status" value={filters.status} onChange={(value) => update('status', value)} options={ [['submitted', 'Submitted'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /><button className="ops-button ops-button-secondary" type="submit">Apply filters</button></form>
+    <PageHeading eyebrow="DIC 2026" title="Registrations" description="Find registrations and check their payment status." />
+    <section className="ops-panel ops-list-panel"><form className="ops-filterbar ops-filterbar-refined" onSubmit={submit}><div className="ops-primary-filters"><SearchBar value={filters.q} onChange={(value) => update('q', value)} /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed'], ['refunded', 'Refunded']] } /></div><MoreFilters><FilterSelect label="Order status" value={filters.status} onChange={(value) => update('status', value)} options={ [['submitted', 'Submitted'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /></MoreFilters><FilterActions onClear={clear} /></form>
       {loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <RegistrationTable rows={data.results} count={data.count} /> }
       {!loading && data?.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}
     </section>
@@ -363,8 +392,8 @@ function RegistrationListPage() {
 }
 
 function RegistrationTable({ rows, count, compact = false }) {
-  if (!rows?.length) return <EmptyState title="No registrations yet" detail="When a family completes a registration, the order and its participants will appear here." />
-  return <div className="ops-table-wrap"><div className="ops-table-caption">{count !== undefined && <span>{formatNumber(count)} registration order{count === 1 ? '' : 's'}</span>}</div><table className="ops-table"><thead><tr><th>Registration</th><th>Date</th><th>Participants</th><th>Categories</th><th>Payment</th><th>Verification</th>{!compact && <th>Quoted total</th>}</tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.reference}><td><Link className="ops-reference" to={`/dic/operations/registrations/${row.id || row.reference}`}>{(row.id || row.reference).slice(0, 13)}…</Link></td><td>{formatDate(row.created_at)}</td><td>{row.participant_count ?? row.participants ?? row.participants?.length ?? 0}</td><td>{row.categories?.join(', ') || '—'}</td><td><StatusPill value={row.payment_status} /></td><td><StatusPill value={row.verified_paid ? 'Verified' : 'Not verified'} positive={row.verified_paid} /></td>{!compact && <td>{row.quoted_total_ngn ? `₦${Number(row.quoted_total_ngn).toLocaleString('en-NG')}` : '—'}</td>}</tr>)}</tbody></table></div>
+  if (!rows?.length) return <EmptyState title="No registrations found" detail="Registrations will appear here. If you used filters, try clearing them." />
+  return <div className="ops-table-wrap"><div className="ops-table-caption">{count !== undefined && <span>{formatNumber(count)} registration order{count === 1 ? '' : 's'}</span>}</div><table className="ops-table"><thead><tr><th>Registration</th><th>Date</th><th>Participants</th><th>Categories</th><th>Payment</th><th>Verification</th>{!compact && <th>Quoted total</th>}</tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.reference}><td><Link className="ops-reference" to={`/dic/operations/registrations/${row.id || row.reference}`}>{(row.id || row.reference).slice(0, 13)}…</Link></td><td>{formatDate(row.created_at)}</td><td>{row.participant_count ?? row.participants ?? row.participants?.length ?? 0}</td><td>{row.categories?.join(', ') || '—'}</td><td><StatusPill value={row.payment_status} /></td><td><StatusPill value={verificationLabel(row)} positive={row.verified_paid} /></td>{!compact && <td>{row.quoted_total_ngn ? `₦${Number(row.quoted_total_ngn).toLocaleString('en-NG')}` : '—'}</td>}</tr>)}</tbody></table></div>
 }
 
 function Pagination({ page, pages, onChange }) {
@@ -378,8 +407,8 @@ function RegistrationDetailPage() {
   if (error) return <><BackLink to="/dic/operations/registrations" label="Registrations" /><ErrorState error={error} onRetry={retry} /></>
   return <>
     <BackLink to="/dic/operations/registrations" label="Registrations" />
-    <PageHeading eyebrow="Registration details" title={data.id} description={`Submitted ${formatDate(data.submitted_at)} · ${data.participant_count} individual participant${data.participant_count === 1 ? '' : 's'}`} action={<StatusPill value={data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} />
-    <div className="ops-detail-grid"><section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER SUMMARY</span><h2>Registration status</h2></div></div><DetailRow label="Registration status" value={<StatusPill value={data.status} />} /><DetailRow label="Payment status" value={<StatusPill value={data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} /><DetailRow label="Current quoted total" value={`₦${Number(data.quoted_total_ngn).toLocaleString('en-NG')}`} /><DetailRow label="Categories" value={data.categories.join(', ') || '—'} /><DetailRow label="Recovery" value={data.recovery_status} />{data.requires_repricing && <div className="ops-callout"><Icon name="alert" /><span>This unpaid order has an outdated quote. Staff cannot start payment using the old amount; the registrant must accept the updated quote.</span></div>}</section>
+    <PageHeading eyebrow="Registration details" title={data.id} description={`Submitted ${formatDate(data.submitted_at)} · ${data.participant_count} individual participant${data.participant_count === 1 ? '' : 's'}`} action={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} />
+    <div className="ops-detail-grid"><section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER SUMMARY</span><h2>Registration status</h2></div></div><DetailRow label="Registration status" value={<StatusPill value={data.status} />} /><DetailRow label="Payment status" value={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} /><DetailRow label="Current quoted total" value={`₦${Number(data.quoted_total_ngn).toLocaleString('en-NG')}`} /><DetailRow label="Categories" value={data.categories.join(', ') || '—'} /><DetailRow label="Recovery" value={data.recovery_status} />{data.requires_repricing && <div className="ops-callout"><Icon name="alert" /><span>This unpaid order has an outdated quote. Staff cannot start payment using the old amount; the registrant must accept the updated quote.</span></div>}</section>
       {data.registrant && <section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">PRIMARY REGISTRANT</span><h2>Guardian details</h2></div></div><DetailRow label="Name" value={data.registrant.name || '—'} /><DetailRow label="Email" value={data.registrant.email || '—'} /><DetailRow label="Phone" value={data.registrant.phone || '—'} /></section>}</div>
     <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER CONTENTS</span><h2>Participants</h2></div></div><div className="ops-participant-cards">{data.participants.map((person) => <article className="ops-person-card" key={person.id}><div className="ops-person-avatar">{person.name.slice(0, 1).toUpperCase()}</div><div className="ops-person-main"><Link to={`/dic/operations/participants/${person.id}`}><strong>{person.name}</strong></Link><span>{person.category} · ₦{Number(person.quoted_fee_ngn).toLocaleString('en-NG')}</span>{person.email && <small>{person.email} · {person.phone}</small>}</div><div className="ops-person-tags"><StatusPill value={person.verified_paid ? 'Verified paid' : 'Unpaid'} positive={person.verified_paid} />{person.allocations.map((allocation) => <span className="ops-house-tag" key={`${allocation.edition_year}-${allocation.house}`}>{allocation.house}</span>)}</div></article>)}</div></section>
     {data.pricing_revisions && <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">PRICE HISTORY</span><h2>Pricing revisions</h2></div></div>{data.pricing_revisions.length ? data.pricing_revisions.map((revision) => <DetailRow key={revision.revision} label={`Revision ${revision.revision} · ${formatDate(revision.created_at)}`} value={`₦${Number(revision.total_ngn).toLocaleString('en-NG')}${revision.accepted_at ? ' · accepted' : ''}`} />) : <EmptyState title="No pricing revisions" />}</section>}
@@ -402,13 +431,12 @@ function DetailRow({ label, value }) {
 }
 
 function ParticipantListPage() {
-  const { filters, active, update, submit, setPage } = useFilters()
+  const { filters, active, update, submit, setPage, clear } = useFilters()
   const { data, loading, error, retry } = useData(`/participants/${buildQuery(active)}`)
   const { data: filterOptions } = useData('/filters/')
-  if (loading) return <><PageHeading eyebrow="DIC 2026" title="Participants" description="A participant-focused directory across family registration orders." /><LoadingState rows={6} /></>
   return <>
-    <PageHeading eyebrow="DIC 2026" title="Participants" description={`${formatNumber(data?.count)} individual participant records, separate from the number of registration orders.`} />
-    <section className="ops-panel ops-list-panel"><form className="ops-filterbar" onSubmit={submit}><SearchBar value={filters.q} onChange={(value) => update('q', value)} placeholder="Search participant name" /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /><button className="ops-button ops-button-secondary" type="submit">Apply filters</button></form>{error ? <ErrorState error={error} onRetry={retry} /> : <><ParticipantTable rows={data?.results || []} count={data?.count} />{data?.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}</>}</section>
+    <PageHeading eyebrow="DIC 2026" title="Participants" description={data?.count === undefined ? 'Participant information is unavailable.' : `${formatNumber(data.count)} participant records.`} />
+    <section className="ops-panel ops-list-panel"><form className="ops-filterbar ops-filterbar-refined" onSubmit={submit}><div className="ops-primary-filters"><SearchBar value={filters.q} onChange={(value) => update('q', value)} placeholder="Search participant name" /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /></div><MoreFilters><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /></MoreFilters><FilterActions onClear={clear} /></form>{loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <><ParticipantTable rows={data?.results || []} count={data?.count} />{data?.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}</>}</section>
   </>
 }
 
@@ -425,17 +453,17 @@ function ParticipantDetailPage({ user }) {
   return <>
     <BackLink to="/dic/operations/participants" label="Participants" />
     <PageHeading eyebrow="Participant profile" title={data.name} description={`Registration reference ${data.registration_reference || 'not available'}`} />
-    <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">REGISTRATION</span><h2>Participant details</h2></div><StatusPill value={data.verified_paid ? 'Verified paid' : data.payment_status || 'unpaid'} positive={data.verified_paid} /></div><DetailRow label="Category" value={data.category || '—'} /><DetailRow label="House" value={data.house || 'Unallocated'} /><DetailRow label="Academic status" value={data.academic_status} /><DetailRow label="Occupation" value={data.occupation} /><DetailRow label="Marital status" value={data.marital_status} />{user.permissions.contact_information && <><DetailRow label="Email" value={data.email} /><DetailRow label="Phone" value={data.phone} /><DetailRow label="Address" value={data.address} /><DetailRow label="Date of birth" value={formatDate(data.date_of_birth)} /></>}</section>
+    <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">REGISTRATION</span><h2>Participant details</h2></div><StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status || 'unpaid'} positive={data.verified_paid} /></div><DetailRow label="Category" value={data.category || '—'} /><DetailRow label="House" value={data.house || 'Unallocated'} /><DetailRow label="Academic status" value={data.academic_status} /><DetailRow label="Occupation" value={data.occupation} /><DetailRow label="Marital status" value={data.marital_status} />{user.permissions.contact_information && <><DetailRow label="Email" value={data.email} /><DetailRow label="Phone" value={data.phone} /><DetailRow label="Address" value={data.address} /><DetailRow label="Date of birth" value={data.date_of_birth ? formatDate(data.date_of_birth) : data.age_declaration === 'adult' ? 'Adult (18+) ? exact DOB not disclosed' : 'Not supplied'} /><DetailRow label="Height" value={data.height_cm == null ? 'Not supplied' : `${data.height_cm} cm`} /><DetailRow label="Weight" value={data.weight_kg == null ? 'Not supplied' : `${data.weight_kg} kg`} /></>}</section>
   </>
 }
 
 function PaymentsPage() {
-  const { filters, active, update, submit, setPage } = useFilters()
+  const { filters, active, update, submit, setPage, clear } = useFilters()
   const { data, loading, error, retry } = useData(`/payments/${buildQuery(active)}`)
   const { data: filterOptions } = useData('/filters/')
   return <>
-    <PageHeading eyebrow="Finance operations" title="Payment monitoring" description="Read-only provider verification and reconciliation oversight. Payments cannot be marked successful from this portal." />
-    <section className="ops-panel ops-list-panel"><form className="ops-filterbar" onSubmit={submit}><SearchBar value={filters.q} onChange={(value) => update('q', value)} placeholder="Search order or payment reference" /><FilterSelect label="Payment status" value={filters.status} onChange={(value) => update('status', value)} options={ [['successful', 'Successful'], ['pending', 'Pending'], ['failed', 'Failed'], ['amount_mismatch', 'Amount mismatch'], ['reconcile', 'Reconciliation required']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /><button className="ops-button ops-button-secondary" type="submit">Apply filters</button></form>{loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <><PaymentTable rows={data.results} count={data.count} />{data.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}</>}</section>
+    <PageHeading eyebrow="Finance operations" title="Registration payments" description="Review payment attempts and items that need attention." />
+    <section className="ops-panel ops-list-panel"><form className="ops-filterbar ops-filterbar-refined" onSubmit={submit}><div className="ops-primary-filters"><SearchBar value={filters.q} onChange={(value) => update('q', value)} placeholder="Search order or payment reference" /><FilterSelect label="Payment status" value={filters.status} onChange={(value) => update('status', value)} options={ [['successful', 'Successful'], ['pending', 'Pending'], ['failed', 'Failed'], ['amount_mismatch', 'Amount mismatch'], ['reconcile', 'Reconciliation required']] } /></div><MoreFilters><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /></MoreFilters><FilterActions onClear={clear} /></form>{loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <><PaymentTable rows={data.results} count={data.count} />{data.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}</>}</section>
   </>
 }
 
@@ -448,13 +476,13 @@ function HousesPage() {
   const [page, setPage] = useState(1)
   const { data, loading, error, retry } = useData(`/houses/?page=${page}`)
   const allocations = data?.allocations?.results || []
-  if (loading) return <><PageHeading eyebrow="Camp readiness" title="House allocation" description="Monitor configured houses and allocations. This portal does not create or reassign allocations." /><LoadingState /></>
+  if (loading) return <><PageHeading eyebrow="Camp readiness" title="House allocation" description="See houses and participant assignments. Changes are made by authorised housing staff." /><LoadingState /></>
   return <>
-    <PageHeading eyebrow="Camp readiness" title="House allocation" description="Monitor configured houses and allocations. This portal does not create or reassign allocations." />
+    <PageHeading eyebrow="Camp readiness" title="House allocation" description="See houses and participant assignments. Changes are made by authorised housing staff." />
     {error ? <ErrorState error={error} onRetry={retry} /> : <>
       {data.allocations.pages > 1 && <Pagination page={data.allocations.page} pages={data.allocations.pages} onChange={setPage} />}
       <div className="ops-summary-strip"><div><span>Eligible unallocated participants</span><strong>{formatNumber(data.eligible_unallocated)}</strong></div><div><span>Configured houses</span><strong>{formatNumber(data.houses.length)}</strong></div><div><span>Recorded allocation history</span><strong>{formatNumber(data.allocations.count || 0)}</strong></div></div>
-      <section className="ops-house-grid">{data.houses.length ? data.houses.map((house) => <article className="ops-house-card" key={house.id}><span className="ops-house-icon"><Icon name="home" /></span><div><h2>{house.name}</h2><p>{statusLabel(house.gender)} <span>·</span> {statusLabel(house.status)}</p></div><strong>{formatNumber(house.allocated_count)}<small>{house.capacity ? ` / ${house.capacity}` : ' assigned'}</small></strong></article>) : <div className="ops-panel"><EmptyState title="No houses configured" detail="House names and capacities are managed by authorized administrators." /></div>}</section>
+      <section className="ops-house-grid">{data.houses.length ? data.houses.map((house) => <article className="ops-house-card" key={house.id}><span className="ops-house-icon" style={{ border: house.badge_colour && /^#[0-9a-fA-F]{6}$/.test(house.badge_colour) ? `3px solid ${house.badge_colour}` : undefined }}><Icon name="home" /></span><div><h2>{house.name}</h2><p>{statusLabel(house.gender)} <span>·</span> {statusLabel(house.status)}</p></div><strong>{formatNumber(house.allocated_count)}<small>{house.capacity ? ` / ${house.capacity}` : ' assigned'}</small></strong></article>) : <div className="ops-panel"><EmptyState title="No houses configured" detail="House names and capacities are managed by authorized administrators." /></div>}</section>
       <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ALLOCATION HISTORY</span><h2>Participant assignments</h2></div></div>{allocations.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Participant</th><th>House</th><th>Status</th><th>Assigned</th><th>Eligibility</th></tr></thead><tbody>{allocations.map((item, index) => <tr key={`${item.participant_id}-${index}`}><td>{item.participant}</td><td>{item.house}</td><td><StatusPill value={item.status} /></td><td>{formatDate(item.allocated_at, { timeStyle: 'short' })}</td><td><StatusPill value={item.verified_eligible ? 'Verified paid' : 'Review required'} positive={item.verified_eligible} /></td></tr>)}</tbody></table></div> : <EmptyState title="No allocations recorded" detail="There are no house assignments for this edition yet." />}</section>
     </>}
   </>
@@ -488,14 +516,14 @@ function ReportsPage({ user }) {
     }
   }
   return <>
-    <PageHeading eyebrow="Reporting" title="Reports & exports" description="Generate permission-scoped operational reports as Word documents or spreadsheet-ready CSV." />
-    <section className="ops-report-layout"><div className="ops-panel ops-report-form"><div className="ops-panel-heading"><div><span className="ops-eyebrow">REPORT BUILDER</span><h2>Configure your report</h2></div></div>
+    <PageHeading eyebrow="Reporting" title="Reports & exports" description="Download Word reports or CSV files for your committee." />
+    <section className="ops-report-layout"><div className="ops-panel ops-report-form"><div className="ops-panel-heading"><h2>Choose your report</h2></div>
       <label className="ops-form-field">Report type<select value={report} onChange={(event) => setReport(event.target.value)}>{reports.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label>
-      <div className="ops-form-field"><span>File format</span><div className="ops-format-options"><button className={format === 'docx' ? 'selected' : ''} onClick={() => setFormat('docx')} type="button"><b>W</b><span>Word document<small>.docx</small></span></button><button className={format === 'csv' ? 'selected' : ''} onClick={() => setFormat('csv')} type="button"><b>▦</b><span>Spreadsheet<small>.csv</small></span></button></div></div>
-      <div className="ops-report-filters"><div className="ops-panel-heading"><div><span className="ops-eyebrow">OPTIONAL</span><h2>Apply filters</h2></div></div><label className="ops-form-field">Search<input value={filters.q} onChange={(event) => updateFilter('q', event.target.value)} placeholder="Reference or participant name" /></label><div className="ops-date-fields"><label className="ops-form-field">From<input type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} /></label><label className="ops-form-field">To<input type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} /></label></div>{['registrations', 'participants', 'payments'].includes(report) && <><label className="ops-form-field">Payment status<select value={filters.payment_status} onChange={(event) => updateFilter('payment_status', event.target.value)}><option value="">All statuses</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label className="ops-form-field">Category<select value={filters.category} onChange={(event) => updateFilter('category', event.target.value)}><option value="">All categories</option>{(filterOptions?.categories || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="ops-form-field">House<select value={filters.house} onChange={(event) => updateFilter('house', event.target.value)}><option value="">All houses</option>{(filterOptions?.houses || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}</div>
-      {error && <p className="ops-form-error" role="alert">{error}</p>}<button className="ops-button ops-button-primary ops-download-button" onClick={download} disabled={downloading || !user.permissions.export_reports}>{downloading ? 'Preparing report…' : `Download ${format.toUpperCase()}`}<Icon name="arrow" /></button><p className="ops-report-note">Exports use the same filters for both formats. Contact and finance fields are included only when your account has the relevant permission.</p>
+      <div className="ops-form-field"><span>File format</span><div className="ops-format-options"><button aria-pressed={format === 'docx'} className={format === 'docx' ? 'selected' : ''} onClick={() => setFormat('docx')} type="button"><b>W</b><span>Word document<small>.docx</small></span></button><button aria-pressed={format === 'csv'} className={format === 'csv' ? 'selected' : ''} onClick={() => setFormat('csv')} type="button"><b>▦</b><span>Spreadsheet<small>.csv</small></span></button></div></div>
+      <MoreFilters label="Optional report filters"><div className="ops-report-filters"><label className="ops-form-field">Search<input value={filters.q} onChange={(event) => updateFilter('q', event.target.value)} placeholder="Reference or participant name" /></label><div className="ops-date-fields"><label className="ops-form-field">From<input type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} /></label><label className="ops-form-field">To<input type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} /></label></div>{['registrations', 'participants', 'payments'].includes(report) && <><label className="ops-form-field">Payment status<select value={filters.payment_status} onChange={(event) => updateFilter('payment_status', event.target.value)}><option value="">All statuses</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label className="ops-form-field">Category<select value={filters.category} onChange={(event) => updateFilter('category', event.target.value)}><option value="">All categories</option>{(filterOptions?.categories || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="ops-form-field">House<select value={filters.house} onChange={(event) => updateFilter('house', event.target.value)}><option value="">All houses</option>{(filterOptions?.houses || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}<button type="button" className="ops-button ops-button-secondary" onClick={() => setFilters(current => Object.fromEntries(Object.keys(current).map(key => [key, ''])))}>Clear filters</button></div></MoreFilters>
+      {error && <p className="ops-form-error" role="alert">{error}</p>}<button className="ops-button ops-button-primary ops-download-button" onClick={download} disabled={downloading || !user.permissions.export_reports}>{downloading ? 'Preparing report…' : `Download ${format.toUpperCase()}`}<Icon name="arrow" /></button><p className="ops-report-note">Both formats use your filters and account permissions.</p>
     </div>
-      <aside className="ops-panel ops-report-aside"><span className="ops-report-aside-icon"><Icon name="file" /></span><h2>Ready for the committee</h2><p>Reports include the DIC edition, generation time, applied filters and clear totals. Word reports are formatted for printing and sharing.</p><ul><li>CSV values are protected against spreadsheet formulas.</li><li>Every download is recorded in the audit activity.</li><li>Recovery codes, tokens and payment authorization URLs are never exported.</li></ul></aside>
+      <aside className="ops-panel ops-report-aside"><span className="ops-report-aside-icon"><Icon name="file" /></span><h2>Ready for the committee</h2><p>Reports include the DIC edition, generation time, applied filters and clear totals. Word reports are formatted for printing and sharing.</p><HelpDetails label="Export and privacy details"><ul><li>CSV values are protected against spreadsheet formulas.</li><li>Every download is recorded in the audit activity.</li><li>Recovery codes, tokens and payment authorization URLs are never exported.</li></ul></HelpDetails></aside>
     </section>
   </>
 }
@@ -504,10 +532,11 @@ function ActivityPage() {
   const [page, setPage] = useState(1)
   const { data, loading, error, retry } = useData(`/activity/?page_size=50&page=${page}`)
   return <>
-    <PageHeading eyebrow="Security & accountability" title="Activity log" description="Immutable records of sensitive administrative actions and report exports." />
+    <PageHeading eyebrow="Security & accountability" title="Activity log" description="See important actions performed by staff." />
     {data?.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}
     <section className="ops-panel ops-list-panel">{loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : data.results.length ? <div className="ops-activity-list">{data.results.map((event) => <article key={event.id}><span className="ops-activity-avatar">{event.actor.slice(0, 1).toUpperCase()}</span><div><strong>{statusLabel(event.action)}</strong><p>{event.actor} · {event.target_type}{event.target_id ? ` · ${event.target_id}` : ''}</p></div><time>{formatDate(event.created_at, { timeStyle: 'short' })}</time></article>)}</div> : <EmptyState title="No activity recorded yet" detail="Sensitive admin actions and report downloads will be listed here." />}</section>
   </>
 }
 
 export default Operations
+export { RegistrationListPage, ParticipantListPage, PaymentsPage, ReportsPage, HousesPage }

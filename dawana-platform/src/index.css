@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme inline {
+  --font-sans:var(--font-latin);
   --color-primary:var(--brand-solid);
   --color-primary-dark:var(--brand-deep);
   --color-primary-light:var(--brand-hover);
@@ -16,13 +16,14 @@
   --color-text:var(--text-main);
   --color-border:var(--line);
 
-  --font-heading:"Playfair Display", serif;
-  --font-body:"Plus Jakarta Sans", sans-serif;
-  --font-arabic:"Amiri", serif;
+  --font-heading:var(--font-latin);
+  --font-body:var(--font-latin);
+  --font-arabic:"Amiri", "Traditional Arabic", serif;
 }
 
 :root {
-  font-family:"Plus Jakarta Sans", sans-serif;
+  --font-latin:"Poppins", "Amiri", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family:var(--font-body);
   color:var(--heading);
   background:var(--panel);
   font-synthesis:none;
@@ -45,4 +46,12 @@ a {
   -webkit-tap-highlight-color:transparent;
 }
 
-button, input { font:inherit; }
+button, input, select, textarea { font:inherit; }
+:lang(ar) { font-family:var(--font-arabic); }
+
+/* Let the new font metrics wrap naturally in shared page headings and controls. */
+@media screen {
+  h1, h2, h3 { overflow-wrap:break-word; }
+  button, .button { white-space:normal; }
+  .brand strong, .brand small { line-height:1.2; }
+}

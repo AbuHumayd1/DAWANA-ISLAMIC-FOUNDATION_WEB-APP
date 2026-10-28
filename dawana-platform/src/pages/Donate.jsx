@@ -1,3 +1,4 @@
+import { DonationExperience } from '../components/foundation/FoundationExperience'
 import { Link } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import { PageHero } from '../components/pages/PublicPage'
@@ -12,9 +13,7 @@ function DonationIllustration() {
   return <div className="donate-page-art" role="img" aria-label="Decorative Dawana geometric motif"><div className="donate-page-arch"><span className="donate-page-star">✦</span><span className="donate-page-art-rule" /><span className="donate-page-art-caption">Dawah · Community · Service</span></div></div>
 }
 
-function DonationDetails() {
-  return <aside className="donate-details-card" aria-label="Donation payment details"><span className="donate-details-icon" aria-hidden="true">✦</span><span className="eyebrow">Official payment information</span><h3>Official donation details coming soon.</h3><p>Verified donation instructions will be published here when provided by the Foundation.</p></aside>
-}
+function DonationDetails() { return <DonationExperience /> }
 
 function WhySupport() {
   return <section className="donate-why"><Container><div className="donate-section-heading"><span className="eyebrow">A shared contribution</span><h2>Why Your Support Matters</h2><p>Your contribution can help sustain Dawana’s work across these areas.</p></div><div className="donate-support-grid">{supportAreas.map((area) => <article key={area.number}><span>{area.number}</span><h3>{area.title}</h3><p>{area.copy}</p></article>)}</div></Container></section>

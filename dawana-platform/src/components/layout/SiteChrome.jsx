@@ -198,7 +198,7 @@ export function Navbar() {
 }
 
 export function Footer() {
-  return <footer className="footer"><Container><div className="footer-grid"><div><Link className="brand footer-brand" to="/"><BrandLogo /></Link><p>Promoting Islamic knowledge, spiritual development and community wellbeing.</p><span className="footer-arabic arabic">رِضْوَانُ اللهِ أَكْبَرُ</span></div><div><h3>Explore</h3><Link to="/#who-we-are">About</Link><Link to="/programs">Programs</Link><Link to="/events">Events</Link><Link to="/projects">Projects</Link><Link to="/dic">DIC</Link></div><div><h3>Engagement</h3><Link to="/media">Media &amp; Knowledge Library</Link><Link to="/get-involved">Get Involved</Link><Link to="/contact">Contact</Link><span className="muted">Official social channels TBA</span></div><div><h3>Support</h3><Link to="/donate">Donate</Link><Link to="/faq">FAQ</Link><span>Privacy Policy</span><span>Terms of Use</span></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Da&apos;wãnã Islamic Foundation</span><span>Knowledge · Faith · Service · Community</span></div></Container></footer>
+  return <footer className="footer"><Container><div className="footer-grid"><div><Link className="brand footer-brand" to="/"><BrandLogo /></Link><p>Promoting Islamic knowledge, spiritual development and community wellbeing.</p><span className="footer-arabic arabic">رِضْوَانُ اللهِ أَكْبَرُ</span></div><div><h3>Explore</h3><Link to="/#who-we-are">About</Link><Link to="/programs">Programs</Link><Link to="/events">Events</Link><Link to="/projects">Projects</Link><Link to="/dic">DIC</Link></div><div><h3>Engagement</h3><Link to="/media">Media &amp; Knowledge Library</Link><Link to="/get-involved">Get Involved</Link><Link to="/contact">Contact</Link><Link to="/dic/operations">Staff Login</Link><span className="muted">Official social channels TBA</span></div><div><h3>Support</h3><Link to="/donate">Donate</Link><Link to="/faq">FAQ</Link><span>Privacy Policy</span><span>Terms of Use</span></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Da&apos;wãnã Islamic Foundation</span><span>Knowledge · Faith · Service · Community</span></div></Container></footer>
 }
 
 export function Layout({ children }) {
@@ -227,7 +227,7 @@ export function Layout({ children }) {
   }, [location.hash, location.pathname])
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return
+    if (/^\/dic\/participant(?:\/|$)/.test(location.pathname) || window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return
 
     const revealSelectors = [
       'main section:not(.hero)',
@@ -274,7 +274,8 @@ export function Layout({ children }) {
 
     targets.forEach((target) => observer.observe(target))
     return () => observer.disconnect()
-  }, [location.key])
+  }, [location.key, location.pathname])
 
+  if (/^\/dic\/participant(?:\/|$)/.test(location.pathname)) return <main className="cp-route">{children}</main>
   return <><Navbar /><main>{children}</main><Footer /></>
 }

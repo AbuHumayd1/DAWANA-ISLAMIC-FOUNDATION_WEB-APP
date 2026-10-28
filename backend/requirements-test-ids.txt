@@ -1,0 +1,5 @@
+-r requirements.txt
+pypdf>=5,<7
+PyMuPDF>=1.25,<2
+opencv-python-headless>=4.11,<5
+numpy>=2,<3

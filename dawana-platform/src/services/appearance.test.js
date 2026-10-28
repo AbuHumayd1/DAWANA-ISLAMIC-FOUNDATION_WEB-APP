@@ -18,15 +18,33 @@ function environment(saved, dark = false, blocked = false) {
   vm.runInNewContext(script, { window })
   return { window, html, storage, events, media, controller: window.DawanaAppearance }
 }
-test('initial system theme resolves before rendering and follows OS changes', () => {
-  const e = environment(null, true)
-  assert.equal(e.html.dataset.theme, 'dark')
-  assert.equal(e.html.dataset.readingSize, undefined)
-  e.media.matches = false; e.events.os()
-  assert.equal(e.html.dataset.theme, 'light')
-  e.controller.toggle(); e.events.os()
-  assert.equal(e.html.dataset.theme, 'dark')
+test('first visit defaults to light before rendering regardless of OS theme', () => {
+  for (const dark of [true, false]) {
+    const e = environment(null, dark)
+    assert.equal(e.html.dataset.theme, 'light')
+    assert.equal(e.html.style.colorScheme, 'light')
+    assert.equal(e.html.dataset.readingSize, undefined)
+    assert.equal(e.events.os, undefined)
+    e.media.matches = !dark
+    e.events.DOMContentLoaded()
+    assert.equal(e.html.dataset.theme, 'light')
+  }
 })
+
+test('explicit light and dark choices survive reload against either OS preference', () => {
+  const e = environment(null, true)
+  for (const theme of ['dark', 'light']) {
+    e.controller.toggle()
+    assert.equal(JSON.parse(e.storage.get('dawana.appearance')).theme, theme)
+    for (const osDark of [true, false]) {
+      const reloaded = environment(e.storage.get('dawana.appearance'), osDark)
+      assert.equal(reloaded.html.dataset.theme, theme)
+      reloaded.events.DOMContentLoaded()
+      assert.equal(reloaded.html.dataset.theme, theme)
+    }
+  }
+})
+
 test('explicit preferences persist across page loads and synchronize tabs', () => {
   const e = environment()
   e.controller.toggle()
@@ -40,10 +58,11 @@ test('explicit preferences persist across page loads and synchronize tabs', () =
   assert.equal(JSON.parse(next.storage.get('dawana.appearance')).size, undefined)
 })
 test('invalid preferences and blocked storage remain usable', () => {
-  for (const value of ['invalid-json', '{"theme":"unknown","size":"huge"}']) {
-    assert.equal(environment(value).controller.getSnapshot().theme, 'light')
+  for (const value of ['invalid-json', '{"theme":"unknown","size":"huge"}', '{"theme":"system"}', '{}', 'null', '[]']) {
+    assert.equal(environment(value, true).controller.getSnapshot().theme, 'light')
   }
-  const e = environment(null, false, true)
+  const e = environment(null, true, true)
+  assert.equal(e.html.dataset.theme, 'light')
   assert.doesNotThrow(() => e.controller.toggle())
   assert.equal(e.html.dataset.theme, 'dark')
 })
@@ -51,10 +70,11 @@ test('toggle notifies subscribers and retires size without losing other preferen
   const e = environment('{"theme":"system","size":"large","other":"keep"}', true)
   let notifications = 0
   const unsubscribe = e.controller.subscribe(() => notifications++)
-  e.controller.toggle()
   assert.equal(e.html.dataset.theme, 'light')
   e.controller.toggle()
   assert.equal(e.html.dataset.theme, 'dark')
+  e.controller.toggle()
+  assert.equal(e.html.dataset.theme, 'light')
   assert.equal(notifications, 2)
   const saved = JSON.parse(e.storage.get('dawana.appearance'))
   assert.equal(saved.size, undefined)

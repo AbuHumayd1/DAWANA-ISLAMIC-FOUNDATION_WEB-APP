@@ -1,0 +1,15 @@
+.dic-timetables { min-width: 0; }
+.tt-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin: 1rem 0; }
+.tt-controls label { display: grid; gap: .3rem; }
+.tt-controls select { max-width: 100%; padding: .65rem; color: inherit; background: var(--surface, white); border: 1px solid #b4c6bd; border-radius: .5rem; }
+.tt-schedule { list-style: none; padding: 0; }
+.tt-schedule li { padding: 1rem; margin: .5rem 0; border-left: 3px solid #b6c9bd; background: #f3f7f3; color: #16372c; break-inside: avoid; }
+.tt-schedule li.tt-current { border-color: #ae8226; background: #fff8e7; }
+.tt-schedule p { white-space: pre-wrap; overflow-wrap: anywhere; margin: .5rem 0; }
+@media print {
+  body:has(.dic-timetables) * { visibility: hidden; }
+  body:has(.dic-timetables) .dic-timetables, body:has(.dic-timetables) .dic-timetables * { visibility: visible; }
+  .dic-timetables { position: absolute; inset: 0; width: 100%; color: black; background: white; box-shadow: none; }
+  .dic-timetables .tt-controls { display: none; }
+  .tt-schedule li { background: white; color: black; }
+}

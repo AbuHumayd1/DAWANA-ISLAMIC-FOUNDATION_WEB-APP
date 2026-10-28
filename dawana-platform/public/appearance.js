@@ -1,9 +1,8 @@
 (function (root) {
   'use strict'
   const key = 'dawana.appearance'
-  const media = root.matchMedia('(prefers-color-scheme: dark)')
   const listeners = new Set()
-  let preference, state
+  let state
   function read() {
     try {
       const saved = JSON.parse(root.localStorage.getItem(key))
@@ -14,11 +13,10 @@
     try { root.localStorage.setItem(key, JSON.stringify(value)) } catch { /* Storage may be unavailable. */ }
   }
   function apply(value, persist) {
-    preference = ['light', 'dark'].includes(value.theme) ? value.theme : 'system'
-    state = { theme: preference === 'system' ? (media.matches ? 'dark' : 'light') : preference }
+    state = { theme: value.theme === 'dark' ? 'dark' : 'light' }
     const html = root.document.documentElement
     html.dataset.theme = state.theme
-    html.dataset.themePreference = preference
+    html.dataset.themePreference = state.theme
     delete html.dataset.readingSize
     html.style.colorScheme = state.theme
     // Retire only the obsolete size preference; retain any other saved fields.
@@ -36,9 +34,8 @@
     toggle: () => apply({ ...read(), theme: state.theme === 'dark' ? 'light' : 'dark' }, true),
   }
   apply(read(), false)
-  media.addEventListener('change', () => { if (preference === 'system') apply(read(), false) })
   root.addEventListener('storage', (event) => { if (event.key === key || event.key === null) apply(read(), false) })
-  root.document.addEventListener('DOMContentLoaded', () => apply({ ...read(), theme: preference }, false))
+  root.document.addEventListener('DOMContentLoaded', () => apply({ ...read(), theme: state.theme }, false))
   root.document.addEventListener('click', (event) => {
     if (event.target.closest?.('[data-appearance-toggle]')) root.DawanaAppearance.toggle()
   })

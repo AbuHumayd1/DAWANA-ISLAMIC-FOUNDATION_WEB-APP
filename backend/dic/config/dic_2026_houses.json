@@ -1,0 +1,93 @@
+{
+    "year":  2026,
+    "houses":  [
+                   {
+                       "name":  "ʿUkkāshah ibn Miḥṣan",
+                       "arabic_name":  "عُكَّاشَةُ بْنُ مِحْصَنٍ",
+                       "colour_name":  "Emerald Green",
+                       "badge_colour":  "#147D64",
+                       "capacity":  30,
+                       "motto":  "Courage Through Faith",
+                       "gender":  "male",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "Al-Barāʾ ibn Mālik",
+                       "arabic_name":  "الْبَرَاءُ بْنُ مَالِكٍ",
+                       "colour_name":  "Royal Blue",
+                       "badge_colour":  "#244B91",
+                       "capacity":  30,
+                       "motto":  "Bravery With Purpose",
+                       "gender":  "male",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "ʿAbdullāh ibn Umm Maktūm",
+                       "arabic_name":  "عَبْدُ اللَّهِ بْنُ أُمِّ مَكْتُومٍ",
+                       "colour_name":  "Amber",
+                       "badge_colour":  "#B46B19",
+                       "capacity":  30,
+                       "motto":  "Vision Beyond Sight",
+                       "gender":  "male",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "Usayd ibn Ḥuḍayr",
+                       "arabic_name":  "أُسَيْدُ بْنُ حُضَيْرٍ",
+                       "colour_name":  "Royal Purple",
+                       "badge_colour":  "#743B94",
+                       "capacity":  30,
+                       "motto":  "Guided by the Qurʾān",
+                       "gender":  "male",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "Nusaybah bint Kaʿb",
+                       "arabic_name":  "نُسَيْبَةُ بِنْتُ كَعْبٍ",
+                       "colour_name":  "Rose Pink",
+                       "badge_colour":  "#B83F75",
+                       "capacity":  30,
+                       "motto":  "Strength in Devotion",
+                       "gender":  "female",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "Asmāʾ bint Yazīd",
+                       "arabic_name":  "أَسْمَاءُ بِنْتُ يَزِيدَ",
+                       "colour_name":  "Teal",
+                       "badge_colour":  "#168A9C",
+                       "capacity":  30,
+                       "motto":  "Knowledge and Eloquence",
+                       "gender":  "female",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "Umm Sulaym",
+                       "arabic_name":  "أُمُّ سُلَيْمٍ",
+                       "colour_name":  "Crimson",
+                       "badge_colour":  "#A53E46",
+                       "capacity":  30,
+                       "motto":  "Patience, Wisdom, Sacrifice",
+                       "gender":  "female",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   },
+                   {
+                       "name":  "Al-Shifāʾ bint ʿAbdullāh",
+                       "arabic_name":  "الشِّفَاءُ بِنْتُ عَبْدِ اللَّهِ",
+                       "colour_name":  "Olive Green",
+                       "badge_colour":  "#677D29",
+                       "capacity":  30,
+                       "motto":  "Excellence Through Knowledge",
+                       "gender":  "female",
+                       "purpose":  "participants",
+                       "status":  "active"
+                   }
+               ]
+}
