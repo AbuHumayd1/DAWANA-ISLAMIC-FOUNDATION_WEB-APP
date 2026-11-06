@@ -2,6 +2,7 @@
 import hashlib
 import hmac
 from unittest.mock import patch
+from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from .payments import paystack_secret_key, PaystackConfigurationError, verify_webhook_request
 
@@ -131,17 +132,22 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         with patch('dic.portal_accounts.CampEnrollment.objects') as enrollments:
             enrollments.filter.return_value.first.return_value = self.enrollment
             with self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE='config.settings.staging'):
+                self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.staging')
                 self.assertTrue(booking_eligible(self.order))
+            self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
             self.assertFalse(booking_eligible(self.order))
             self.assertEqual(self.attempt.provider_mode, 'test')
             self.assertEqual(self.attempt.status, 'successful')
 
     def test_production_test_configuration_never_grants_paid_entitlement(self):
         self.attempt.provider_mode = 'test'
-        with self.settings(PAYSTACK_MODE='test'):
+        with self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE='config.settings.production'):
+            self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
             self.assertFalse(self.eligible())
         for mode in ('', None, 'invalid'):
-            with self.settings(PAYSTACK_MODE=mode): self.assertFalse(self.eligible())
+            with self.settings(PAYSTACK_MODE=mode, SETTINGS_MODULE='config.settings.production'):
+                self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
+                self.assertFalse(self.eligible())
 
     def test_existing_password_and_otp_scopes_recheck_entitlement(self):
         from types import SimpleNamespace as NS
@@ -153,13 +159,17 @@ class PaymentEntitlementModeTests(SimpleTestCase):
                 patch('dic.portal_accounts.CampEnrollment.objects') as enrollments, \
                 patch('dic.portal_accounts.PortalAccountBooking.objects') as bindings:
             orders.filter.return_value.exclude.return_value.select_related.return_value = [self.order]
+            orders.select_related.return_value.get.return_value = self.order
             enrollments.filter.return_value.first.return_value = self.enrollment
             bindings.filter.return_value.select_related.return_value = [NS(order=self.order)]
-            for mapping in (None, NS(account=NS(pk=8))):
+            for mapping in (None, NS(account=NS(pk=8, contact_channel=grant.channel,
+                    contact_digest=grant.contact_digest))):
                 with self.subTest(password_session=mapping is not None), \
                         patch('dic.portal_accounts.account_session', return_value=mapping):
                     with self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE='config.settings.staging'):
+                        self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.staging')
                         self.assertEqual(scoped_orders(grant), [self.order])
+                    self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
                     self.assertEqual(scoped_orders(grant), [])
 
     def test_tutor_exemption_retains_all_authorization_checks(self):
@@ -170,7 +180,9 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         self.order.current_price_revision_id = None
         with patch('dic.tutor_registration.tutor_entitlement', return_value=True) as authority:
             self.assertTrue(self.eligible())
-            with self.settings(PAYSTACK_MODE='test'): self.assertTrue(self.eligible())
+            with self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE='config.settings.production'):
+                self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
+                self.assertTrue(self.eligible())
             authority.return_value = False
             self.assertFalse(self.eligible())
             authority.return_value = True

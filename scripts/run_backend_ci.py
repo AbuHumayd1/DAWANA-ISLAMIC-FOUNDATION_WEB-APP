@@ -10,6 +10,13 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def sanitize_libpq_environment():
+    # Empty service settings still reach libpq; remove inherited overrides.
+    for name in ('PGSERVICE', 'PGSERVICEFILE', 'PGPASSFILE', 'PGHOST', 'PGHOSTADDR',
+                 'PGPORT', 'PGDATABASE', 'PGUSER', 'PGPASSWORD'):
+        os.environ.pop(name, None)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--partition', choices=('core', 'tutor', 'movement', 'assistance'))
@@ -63,8 +70,8 @@ def main():
         parser.error('CI checkout must not contain dotenv files.')
     name = 'test_dic_' + args.partition + '_' + datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S') + '_' + uuid.uuid4().hex[:8]
     os.environ.update(DJANGO_SETTINGS_MODULE='config.settings.ci', DAWANA_CI_DATABASE=name,
-        AWS_EC2_METADATA_DISABLED='true', DATABASE_URL='', PGSERVICE='', PGSERVICEFILE='',
-        PGPASSFILE='', PGHOST='', PGHOSTADDR='', PGPORT='', PGDATABASE='', PGUSER='', PGPASSWORD='')
+        AWS_EC2_METADATA_DISABLED='true', DATABASE_URL='')
+    sanitize_libpq_environment()
     sys.path.insert(0, str(ROOT / 'backend'))
     from config.ci_acceptance import AcceptanceRunner, guarded_connections, write_report
     try:

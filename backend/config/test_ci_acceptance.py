@@ -23,6 +23,26 @@ class AcceptanceHarnessTests(SimpleTestCase):
         with patch.dict('os.environ', {'GITHUB_ACTIONS': 'false', 'DAWANA_CI_ACCEPTANCE': '1'}):
             with self.assertRaises(RuntimeError): require_ci()
 
+    def test_libpq_environment_overrides_are_removed_not_blanked(self):
+        import os
+        from pathlib import Path
+        import runpy
+        sanitize = runpy.run_path(str(Path(__file__).resolve().parents[2]
+            / 'scripts/run_backend_ci.py'))['sanitize_libpq_environment']
+        names = ('PGSERVICE', 'PGSERVICEFILE', 'PGPASSFILE', 'PGHOST', 'PGHOSTADDR',
+                 'PGPORT', 'PGDATABASE', 'PGUSER', 'PGPASSWORD')
+        for inherited in ('synthetic-inherited-value', ''):
+            with self.subTest(inherited=inherited), patch.dict(os.environ,
+                    {**dict.fromkeys(names, inherited), 'DAWANA_CI_PG_PORT': '54321',
+                     'DAWANA_CI_DATABASE': 'test_dic_core_20261106000000_1234abcd'}, clear=True):
+                sanitize()
+                self.assertTrue(all(name not in os.environ for name in names))
+                self.assertEqual(os.environ['DAWANA_CI_PG_PORT'], '54321')
+                self.assertEqual(os.environ['DAWANA_CI_DATABASE'],
+                    'test_dic_core_20261106000000_1234abcd')
+                sanitize()  # Already absent variables are safe too.
+                self.assertTrue(all(name not in os.environ for name in names))
+
     def test_all_nine_regressions_are_mandatory(self):
         names = sorted(regression_ids())
         self.assertEqual(len(names), 9)
@@ -81,7 +101,9 @@ class AcceptanceHarnessTests(SimpleTestCase):
                 real_connect.reset_mock()
                 for changes in ({'dbname': 'dawana_dev'}, {'dbname': 'dic_2026_demo'},
                         {'dbname': 'unapproved_production'}, {'dbname': 'unapproved_database'}, {'host': 'external.example.test'},
-                        {'port': '5433'}, {'user': 'other'}, {'sslmode': 'require'}):
+                        {'port': '5433'}, {'user': 'other'}, {'password': 'other'},
+                        {'hostaddr': '192.0.2.1'}, {'service': 'synthetic-service'},
+                        {'passfile': 'synthetic-passfile'}, {'sslmode': 'require'}):
                     with self.subTest(changes=changes), self.assertRaises(RuntimeError):
                         psycopg.connect(**{**parameters, **changes})
                 with self.assertRaises(RuntimeError): socket.create_connection(('external.example.test', 443))

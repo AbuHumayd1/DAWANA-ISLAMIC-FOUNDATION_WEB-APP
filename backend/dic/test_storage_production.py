@@ -2,7 +2,7 @@
 from contextlib import nullcontext
 from io import BytesIO
 from types import SimpleNamespace as NS
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, call, patch
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
@@ -89,6 +89,13 @@ class ProductionStorageTests(SimpleTestCase):
         field.set_attributes_from_name('portrait')
         model = NS(_meta=NS(fields=[field], db_table='synthetic_files'), _base_manager=Mock())
         connection = Mock(vendor='postgresql')
+        cursor = Mock()
+        connection.cursor.return_value = MagicMock()
+        connection.cursor.return_value.__enter__.return_value = cursor
+        events = Mock()
+        events.attach_mock(cursor.execute, 'execute')
+        events.attach_mock(model._base_manager.filter, 'references')
+        events.attach_mock(client.delete_object, 'delete')
         connection.ops.quote_name.side_effect = lambda name: '"'+name+'"'
         name = 'participants/portraits/'+'1'*32+'.jpg'
         with patch('dic.object_lifecycle.apps.get_models', return_value=[model]), \
@@ -98,6 +105,12 @@ class ProductionStorageTests(SimpleTestCase):
             model._base_manager.filter.return_value.exists.return_value = True
             with self.assertRaises(ValidationError): delete_unreferenced_object(storage, name, approved=True)
             client.delete_object.assert_not_called()
+            self.assertEqual(events.mock_calls, [
+                call.execute("SET LOCAL lock_timeout = '5s'"),
+                call.execute('LOCK TABLE "synthetic_files" IN SHARE ROW EXCLUSIVE MODE'),
+                call.references(portrait=name), call.references().exists(),
+            ])
+            events.reset_mock()
         with patch('dic.object_lifecycle.apps.get_models', return_value=[model]), \
                 patch('dic.object_lifecycle.connection', connection), \
                 patch('dic.object_lifecycle.transaction.atomic', return_value=nullcontext()), \
@@ -105,6 +118,12 @@ class ProductionStorageTests(SimpleTestCase):
             model._base_manager.filter.return_value.exists.return_value = False
             delete_unreferenced_object(storage, name, approved=True)
             client.delete_object.assert_called_once_with(Bucket='dawana-production-private', Key=name)
+            self.assertEqual(events.mock_calls, [
+                call.execute("SET LOCAL lock_timeout = '5s'"),
+                call.execute('LOCK TABLE "synthetic_files" IN SHARE ROW EXCLUSIVE MODE'),
+                call.references(portrait=name), call.references().exists(),
+                call.delete(Bucket='dawana-production-private', Key=name),
+            ])
 
     @override_settings(DIC_PRODUCTION_STORAGE=False)
     def test_deletion_never_targets_staging(self):
