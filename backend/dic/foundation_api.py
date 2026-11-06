@@ -22,7 +22,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import SimpleRateThrottle
 from rest_framework.views import APIView
 from .models import ContactEnquiry, FoundationDonation
-from .payments import PaystackClient, verify_webhook_signature
+from .payments import PaystackClient, PaystackConfigurationError, paystack_secret_key, verify_webhook_request
 
 
 def unavailable(message):
@@ -104,9 +104,14 @@ def donation_limits():
 
 
 def donation_ready():
-    return bool(getattr(settings,'FOUNDATION_DONATIONS_ENABLED',False) and donation_limits()
-        and getattr(settings,'FOUNDATION_DONATION_CURRENCY','')=='NGN' and settings.PAYSTACK_MODE=='test'
-        and getattr(settings,'PAYSTACK_SECRET_KEY','').startswith('sk_test_'))
+    if not (getattr(settings,'FOUNDATION_DONATIONS_ENABLED',False) and donation_limits()
+            and getattr(settings,'FOUNDATION_DONATION_CURRENCY','')=='NGN'):
+        return False
+    try:
+        paystack_secret_key()
+    except PaystackConfigurationError:
+        return False
+    return True
 
 
 def require_donations():
@@ -181,10 +186,13 @@ class DonationCreate(PublicAPI):
         with transaction.atomic():
             row,_=FoundationDonation.objects.get_or_create(request_id=data['request_id'],defaults=dict(
                 reference='foundation-donation-'+uuid.uuid4().hex,fingerprint=fingerprint,
+                provider_mode=settings.PAYSTACK_MODE,
                 token_digest=digest(data['access_token']),email=data['email'],amount_kobo=amount))
             row=FoundationDonation.objects.select_for_update().get(pk=row.pk)
             if not hmac.compare_digest(row.token_digest,digest(data['access_token'])) or row.fingerprint!=fingerprint:
                 raise ValidationError('Donation request conflicts with an existing request.')
+            if row.provider_mode != settings.PAYSTACK_MODE:
+                raise ValidationError('Donation environment mismatch. Authorized reconciliation is required.')
             if row.status!='created': return Response(donation_payload(row))
             row.status='initializing'; event(row,'initialization_requested'); row.save()
         try:
@@ -206,7 +214,10 @@ class DonationCreate(PublicAPI):
 
 
 def verified_status(row,data):
-    if data.get('reference')!=row.reference or type(data.get('amount')) is not int or data.get('amount')!=row.amount_kobo or data.get('currency')!='NGN' or data.get('domain')!='test':
+    if (data.get('reference')!=row.reference or type(data.get('amount')) is not int
+            or data.get('amount')!=row.amount_kobo or data.get('currency')!='NGN'
+            or row.provider_mode not in ('test','live')
+            or data.get('domain') != row.provider_mode or row.provider_mode != settings.PAYSTACK_MODE):
         return 'review'
     return {'success':'successful','failed':'failed','abandoned':'abandoned','pending':'pending','ongoing':'pending','processing':'pending'}.get(data.get('status'),'review')
 
@@ -231,6 +242,8 @@ class DonationStatus(PublicAPI):
         if not re.fullmatch(r'[A-Za-z0-9_-]{43,128}',token): raise NotFound('Donation request unavailable.')
         row=FoundationDonation.objects.filter(reference=reference,token_digest=digest(token)).first()
         if not row: raise NotFound('Donation request unavailable.')
+        if row.provider_mode != settings.PAYSTACK_MODE:
+            raise ValidationError('Donation environment mismatch. Authorized reconciliation is required.')
         return row
     def get(self,request,reference): return Response(donation_payload(self.authorized(request,reference)))
     def post(self,request,reference):
@@ -250,7 +263,7 @@ class DonationWebhook(APIView):
         require_donations()
         if len(request.body)>65536: raise ValidationError('Webhook rejected.')
         client=PaystackClient()
-        if not verify_webhook_signature(request.body,request.headers.get('X-Paystack-Signature',''),client.secret_key): raise PermissionDenied('Webhook signature rejected.')
+        if not verify_webhook_request(request.body,request.headers,client.secret_key): raise PermissionDenied('Webhook signature rejected.')
         payload=request.data
         data=payload.get('data',{}) if isinstance(payload,dict) else {}
         reference=data.get('reference','') if isinstance(data,dict) else ''

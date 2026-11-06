@@ -9,7 +9,7 @@ export default function PrimaryRegistrantFields({ contact, onChange, locked, cre
     <label className="dic-field"><span>Booking phone (optional)</span><input type="tel" maxLength={32} autoComplete="tel" value={contact?.phone || ''} onChange={event => update('phone', event.target.value)} /></label>
     </fieldset>
     {credentials && !credentialsLocked && <fieldset><legend>Portal password</legend><PasswordField value={credentials.password} onChange={password => onCredentials({ ...credentials, password })} autoComplete="new-password" label="Create password (or your existing portal password)" /><PasswordField value={credentials.password_confirmation} onChange={password_confirmation => onCredentials({ ...credentials, password_confirmation })} autoComplete="new-password" label="Confirm password" /></fieldset>}
-    <p>Create your password now. Verify your email using the one-time email link, then sign in with email and password after payment is confirmed. Existing accounts must use their current password. Registration alone never grants portal access.</p>
+    <p>Create your password now. Verify your email using the one-time email link, then sign in with email and password once your booking is eligible. Ordinary registrations require verified payment; authorized complimentary tutors do not. Existing accounts must use their current password. Registration alone never grants portal access.</p>
     {locked && !contact?.email && <p>This older checkout has no saved primary email in this browser. Continue an existing payment only through its saved checkout or <a href="/dic/register/recover">recover the booking</a>. Ask authorized DIC staff to review missing contact details; do not create another registration or pay again.</p>}
   </div>
 }

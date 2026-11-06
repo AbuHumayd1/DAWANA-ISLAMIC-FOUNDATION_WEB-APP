@@ -65,7 +65,7 @@ export default function ParticipantPortal() {
   const [now, setNow] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState(() => location.hash === '#signin=failed' ? 'Google sign-in could not be completed. Verify your booking to set up or recover an account.' : participantSessionClosed() ? 'Participant access was closed on this browser. Verify again, or retry sign-out if it was not confirmed.' : '')
+  const [notice, setNotice] = useState(() => location.hash === '#signin=failed' ? 'Sign-in could not be completed. Use your registered email and password, or recover access through your verified booking contact.' : participantSessionClosed() ? 'Participant access was closed on this browser. Sign in again, or retry sign-out if it was not confirmed.' : '')
   const [card, setCard] = useState(null)
   const [selection,setSelection] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)

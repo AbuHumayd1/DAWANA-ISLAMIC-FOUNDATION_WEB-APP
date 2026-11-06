@@ -21,6 +21,15 @@ const render = (data, props = {}) => renderToStaticMarkup(createElement(Category
   categories: [data], value: '', onChange() {}, ...props,
 }))
 
+test('approved payment labels keep the undergraduate ceiling internal', () => {
+  const html = render({ ...category, name: 'Undergraduates', payment_kind: 'undergraduate', minimum_age: 17, maximum_age: 24 })
+  assert.match(html, /Undergraduate students/)
+  assert.doesNotMatch(html, /17|24|Ages/)
+  const adult = render({ ...category, payment_kind: 'graduate_adult', minimum_age: null, maximum_age: null })
+  assert.match(adult, /Graduates and other adults/)
+  assert.doesNotMatch(adult, /No age restriction/)
+})
+
 test('early-bird card separates API name, ages, current price, regular price and Lagos cutoff', () => {
   const html = render(category)
   assert.match(html, /API category name/)

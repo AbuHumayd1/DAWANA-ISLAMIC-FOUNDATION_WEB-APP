@@ -2,8 +2,10 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 from http.client import HTTPException
 from time import monotonic
+from time import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
@@ -111,15 +113,20 @@ class PaystackAPIError(Exception):
 
 def paystack_secret_key():
     key = settings.PAYSTACK_SECRET_KEY
-    if settings.PAYSTACK_MODE != "test":
-        raise PaystackConfigurationError("Paystack test mode is required.")
+    mode = settings.PAYSTACK_MODE
+    if mode not in ('test', 'live'):
+        raise PaystackConfigurationError('Invalid Paystack mode.')
+    if mode == 'live' and (not getattr(settings, 'PAYSTACK_LIVE_ENABLED', False) or settings.DEBUG):
+        raise PaystackConfigurationError('Live Paystack collection is not approved and enabled.')
     if not key:
         raise PaystackConfigurationError("Paystack credentials are not configured.")
-    if not key.startswith("sk_test_"):
+    if not key.startswith('sk_' + mode + '_'):
         raise PaystackConfigurationError(
-            "Only a Paystack test-mode secret key is allowed."
+            "Paystack secret key does not match the configured mode."
         )
     callback_url = settings.PAYSTACK_CALLBACK_URL
+    if mode == 'live' and not callback_url:
+        raise PaystackConfigurationError('Live collection requires an HTTPS callback URL.')
     if callback_url:
         try:
             parsed = urlparse(callback_url)
@@ -133,6 +140,7 @@ def paystack_secret_key():
             or not parsed.hostname
             or parsed.username
             or parsed.password
+            or parsed.fragment
             or port not in (None, 443)
         ):
             raise PaystackConfigurationError(
@@ -146,7 +154,7 @@ def paystack_secret_key():
 
 
 def verify_webhook_signature(raw_body, signature, secret_key):
-    if not signature:
+    if not isinstance(signature, str) or not re.fullmatch('[0-9a-f]{128}', signature):
         return False
     expected = hmac.new(
         secret_key.encode("utf-8"),
@@ -154,6 +162,35 @@ def verify_webhook_signature(raw_body, signature, secret_key):
         hashlib.sha512,
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
+
+
+def verify_webhook_request(raw_body, headers, secret_key):
+    """Configured signing secrets require timestamped signatures; never downgrade."""
+    signing_secret = getattr(settings, 'PAYSTACK_WEBHOOK_SECRET', '')
+    if not signing_secret:
+        return verify_webhook_signature(raw_body, headers.get('X-Paystack-Signature', ''), secret_key)
+    if not signing_secret.startswith('whsec_'):
+        return False
+    header = headers.get('Paystack-Signature', '')
+    if not isinstance(header, str) or len(header) > 4096:
+        return False
+    timestamp, signatures = None, []
+    for part in header.split(','):
+        key, separator, value = part.strip().partition('=')
+        if not separator:
+            continue
+        if key == 't':
+            if timestamp is not None or not re.fullmatch('[0-9]{1,12}', value):
+                return False
+            timestamp = value
+        elif key == 'v1':
+            kid, _, signature = value.partition(':')
+            if kid.startswith('whk_') and re.fullmatch('[0-9a-f]{128}', signature):
+                signatures.append(signature)
+    if timestamp is None or abs(time() - int(timestamp)) > 300:
+        return False
+    expected = hmac.new(signing_secret.encode(), timestamp.encode() + b'.' + raw_body, hashlib.sha512).hexdigest()
+    return any(hmac.compare_digest(expected, signature) for signature in signatures)
 
 
 class PaystackClient:

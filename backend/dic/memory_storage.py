@@ -33,17 +33,33 @@ def validate_photo(value):
 
 @deconstructible
 class PrivateMemoryStorage(Storage):
+    asset_kind = 'media'
+
+    def _bucket(self):
+        if getattr(settings, 'DIC_PRODUCTION_STORAGE', False):
+            from .storage_configuration import production_storage
+            return production_storage(settings, self.asset_kind)['bucket']
+        return settings.DIC_MEMORY_S3_BUCKET
+
     def _backend(self):
         mode = getattr(settings, "DIC_MEMORY_STORAGE", "disabled")
         if mode == "local" and settings.DEBUG:
             root = getattr(settings, "DIC_MEMORY_LOCAL_ROOT", Path(settings.BASE_DIR) / "media" / "private-memories")
             return FileSystemStorage(location=root, file_permissions_mode=0o600, directory_permissions_mode=0o700)
         if mode == "s3":
+            self._bucket()  # Validate before any production SDK call.
             return None
         raise ImproperlyConfigured("Configure private DIC photo storage before uploading; local storage is development-only.")
 
     def _client(self):
         import boto3
+        if getattr(settings, 'DIC_PRODUCTION_STORAGE', False):
+            from .storage_configuration import production_storage
+            from botocore.config import Config
+            options = production_storage(settings, self.asset_kind)
+            options.pop('bucket')
+            return boto3.client('s3', **options, config=Config(connect_timeout=5, read_timeout=30,
+                retries={'mode': 'standard', 'total_max_attempts': 2}))
         endpoint = getattr(settings, "DIC_MEMORY_S3_ENDPOINT", "")
         if endpoint and not endpoint.startswith("https://"):
             raise ImproperlyConfigured("Photo object storage requires HTTPS.")
@@ -56,7 +72,7 @@ class PrivateMemoryStorage(Storage):
         backend = self._backend()
         if backend is not None:
             return backend.open(name, mode)
-        result = self._client().get_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=name)
+        result = self._client().get_object(Bucket=self._bucket(), Key=name)
         body = result["Body"]
         try:
             data = body.read(12 * 1024 * 1024 + 1)
@@ -74,13 +90,25 @@ class PrivateMemoryStorage(Storage):
             output = io.BytesIO()
             photo.save(output, format="JPEG", quality=88)
         # Re-encoding strips metadata, active payloads and user-supplied filenames.
-        name = f"memories/{uuid.uuid4().hex}.jpg"
+        prefix = 'participants/portraits' if self.asset_kind == 'private' and getattr(settings, 'DIC_PRODUCTION_STORAGE', False) else 'memories'
+        name = f"{prefix}/{uuid.uuid4().hex}.jpg"
         backend = self._backend()
         if backend is not None:
             return backend.save(name, ContentFile(output.getvalue()))
-        self._client().put_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=name,
-                                  Body=output.getvalue(), ContentType="image/jpeg")
+        options = {'IfNoneMatch': '*'} if getattr(settings, 'DIC_PRODUCTION_STORAGE', False) else {}
+        self._client().put_object(Bucket=self._bucket(), Key=name,
+                                  Body=output.getvalue(), ContentType="image/jpeg", **options)
+        self._verify_upload(name, len(output.getvalue()))
         return name
+
+    def _verify_upload(self, name, size):
+        if getattr(settings, 'DIC_PRODUCTION_STORAGE', False):
+            result = self._client().head_object(Bucket=self._bucket(), Key=name)
+            if result.get('ContentLength') != size:
+                raise ValidationError('Uploaded object could not be verified. The previous object is retained.')
+
+    def delete(self, name):
+        raise ValidationError('Object deletion requires separately approved unreferenced-object maintenance.')
 
     def exists(self, name):
         return False  # UUID object names; never overwrite an existing photo intentionally.
@@ -89,10 +117,31 @@ class PrivateMemoryStorage(Storage):
         backend = self._backend()
         if backend is not None:
             return backend.size(name)
-        return self._client().head_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=name)["ContentLength"]
+        return self._client().head_object(Bucket=self._bucket(), Key=name)["ContentLength"]
 
     def url(self, name):
         raise ValueError("Private photographs are served only through authorized views.")
 
 
 private_memory_storage = PrivateMemoryStorage()
+
+
+@deconstructible
+class PrivateParticipantStorage(PrivateMemoryStorage):
+    asset_kind = 'private'
+
+    def _open(self, name, mode='rb'):
+        if not getattr(settings, 'DIC_PRODUCTION_STORAGE', False):
+            return super()._open(name, mode)
+        from .media_delivery import PortraitUnavailable
+        from botocore.exceptions import BotoCoreError, ClientError
+        if not getattr(settings, 'DIC_PORTRAIT_CUTOVER_VERIFIED', False):
+            raise PortraitUnavailable('Portrait cutover verification is required.')
+        try:
+            return super()._open(name, mode)
+        except (FileNotFoundError, OSError, ImproperlyConfigured, ValidationError, BotoCoreError, ClientError):
+            # Never retry editorial/staging storage or silently render a blank portrait.
+            raise PortraitUnavailable('Referenced portrait is unavailable.') from None
+
+
+private_participant_storage = PrivateParticipantStorage()

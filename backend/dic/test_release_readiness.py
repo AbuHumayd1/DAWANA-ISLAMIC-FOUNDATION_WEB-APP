@@ -19,7 +19,7 @@ class ReleaseReadinessTests(SimpleTestCase):
             CORS_ALLOWED_ORIGINS=['https://portal.example.test'],CSRF_TRUSTED_ORIGINS=['https://portal.example.test'],
             SECURE_SSL_REDIRECT=True,SESSION_COOKIE_SECURE=True,CSRF_COOKIE_SECURE=True,
             PAYSTACK_MODE='test',PAYSTACK_SECRET_KEY='sk_test_synthetic',
-            DATABASES={'default':{'ENGINE':'django.db.backends.postgresql','OPTIONS':{'sslmode':'require'}}},
+            DATABASES={'default':{'ENGINE':'django.db.backends.postgresql','HOST':'database.example.test','OPTIONS':{'sslmode':'verify-full'}}},
             PASSWORD_HASHERS=['django.contrib.auth.hashers.PBKDF2PasswordHasher'],
             CACHES={'default':{'BACKEND':'django.core.cache.backends.db.DatabaseCache'}})
 
@@ -27,6 +27,7 @@ class ReleaseReadinessTests(SimpleTestCase):
         validate_production(self.config())
         for key,value in [('DEBUG',True),('SECRET_KEY','short'),('ALLOWED_HOSTS',['*']),
                 ('CSRF_TRUSTED_ORIGINS',[]),('CORS_ALLOWED_ORIGINS',['http://portal.example.test']),
+                ('CORS_ALLOW_ALL_ORIGINS',True),('CORS_ALLOWED_ORIGIN_REGEXES',['.*']),
                 ('PAYSTACK_MODE','live'),('PAYSTACK_SECRET_KEY','sk_live_synthetic'),
                 ('SESSION_COOKIE_SECURE',False),('PASSWORD_HASHERS',['django.contrib.auth.hashers.MD5PasswordHasher']),
                 ('CACHES',{'default':{'BACKEND':'django.core.cache.backends.locmem.LocMemCache'}})]:

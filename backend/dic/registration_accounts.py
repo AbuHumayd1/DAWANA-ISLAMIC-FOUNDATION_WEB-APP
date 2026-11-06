@@ -45,7 +45,7 @@ def deliver_verification(account):
     url = verification_url()+'#verify-email='+email_token(account)
     if send_mail('Verify your DIC Camper Portal email',
             'Verify your email using this one-time link (valid for one hour): '+url+
-            '\nPayment must also be independently verified before portal access. If you did not register, ignore this message.',
+            '\nYour booking must also be eligible: ordinary registrations require independently verified payment; authorized complimentary tutors do not. If you did not register, ignore this message.',
             settings.DEFAULT_FROM_EMAIL, [account.login_email], fail_silently=False) != 1:
         raise ValidationError('Verification email could not be delivered. Retry from portal sign-in.')
 

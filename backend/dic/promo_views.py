@@ -9,6 +9,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .promo_models import PromoVideo, CampFlyer
+from .media_delivery import safe_media, media_headers, media_chunks
+from .promo_storage import MAX_VIDEO_BYTES
+from django.core.exceptions import ValidationError
 
 
 def asset(request, model, pk):
@@ -39,20 +42,19 @@ class DICEditorialView(APIView):
         return response
 
 
-def private_headers(response):
-    response['Cache-Control'] = 'private, no-store'
-    response['X-Content-Type-Options'] = 'nosniff'
-    response['Cross-Origin-Resource-Policy'] = 'same-origin'
-    return response
+def editorial_headers(response, request):
+    # Only the published branch of asset() may grant public embedding.
+    return media_headers(response, public=request.GET.get('preview') != '1')
 
 
 @require_safe
+@safe_media
 def editorial_image(request, pk, kind):
     obj = asset(request, CampFlyer if kind == 'flyer' else PromoVideo, pk)
     field = obj.image if kind == 'flyer' else obj.poster
     response = FileResponse(field.open('rb'), content_type='image/jpeg')
     response['Content-Disposition'] = 'inline; filename="dic-image.jpg"'
-    return private_headers(response)
+    return editorial_headers(response, request)
 
 
 def parse_range(value, size):
@@ -79,18 +81,21 @@ def parse_range(value, size):
 
 
 @require_safe
+@safe_media
 def promo_stream(request, pk):
     obj = asset(request, PromoVideo, pk)
     storage, key = obj.video.storage, obj.video.name
     backend = storage._backend()
     client = None if backend else storage._client()
-    size = backend.size(key) if backend else client.head_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=key)['ContentLength']
+    size = backend.size(key) if backend else client.head_object(Bucket=storage._bucket(), Key=key)['ContentLength']
+    if not 0 < size <= MAX_VIDEO_BYTES:
+        raise ValidationError('Invalid stored video size.')
     try:
         start, end, partial = parse_range(request.headers.get('Range') if request.method == 'GET' else None, size)
     except ValueError:
         response = HttpResponse(status=416)
         response['Content-Range'] = f'bytes */{size}'
-        return private_headers(response)
+        return editorial_headers(response, request)
     length = end - start + 1
     if request.method == 'HEAD':
         response = HttpResponse(content_type='video/mp4', status=206 if partial else 200)
@@ -99,23 +104,12 @@ def promo_stream(request, pk):
             body = backend.open(key, 'rb')
             body.seek(start)
         else:
-            body = client.get_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=key, Range=f'bytes={start}-{end}')['Body']
-        def chunks():
-            remaining = length
-            try:
-                while remaining:
-                    chunk = body.read(min(64 * 1024, remaining))
-                    if not chunk:
-                        break
-                    remaining -= len(chunk)
-                    yield chunk
-            finally:
-                body.close()
-        response = StreamingHttpResponse(chunks(), content_type='video/mp4', status=206 if partial else 200)
+            body = client.get_object(Bucket=storage._bucket(), Key=key, Range=f'bytes={start}-{end}')['Body']
+        response = StreamingHttpResponse(media_chunks(body, length), content_type='video/mp4', status=206 if partial else 200)
         response._resource_closers.append(body.close)
     response['Content-Length'] = str(length)
     response['Accept-Ranges'] = 'bytes'
     response['Content-Disposition'] = 'inline; filename="dic-promotion.mp4"'
     if partial:
         response['Content-Range'] = f'bytes {start}-{end}/{size}'
-    return private_headers(response)
+    return editorial_headers(response, request)

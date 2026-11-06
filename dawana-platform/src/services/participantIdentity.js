@@ -1,3 +1,5 @@
+import { resolveMediaUrl } from './mediaUrl.js'
+
 export function eligibilityLabel(code) {
   if (code === 'authorized_tutor') return 'Authorized complimentary tutor'
   if (code === 'tutor_authorization_required') return 'Tutor authorization unavailable or revoked'
@@ -15,5 +17,5 @@ export function eligibilityLabel(code) {
 export function participantCardPath(id, format = 'pvc', download = false) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !['pvc', 'a6', 'portrait'].includes(format)) throw new Error('Invalid participant card selection')
   const base = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
-  return `${base}/dic/participant/enrollments/${id}/card/?format=${format}${download ? '&download=1' : ''}`
+  return resolveMediaUrl(`${base}/dic/participant/enrollments/${id}/card/?format=${format}${download ? '&download=1' : ''}`)
 }

@@ -17,10 +17,10 @@ class EnquiryAdmin(admin.ModelAdmin):
 
 @admin.register(FoundationDonation)
 class DonationAdmin(admin.ModelAdmin):
-    list_display=('reference','amount_kobo','currency','status','created_at')
-    list_filter=('status','created_at')
+    list_display=('reference','provider_mode','amount_kobo','currency','status','created_at')
+    list_filter=('status','provider_mode','created_at')
     search_fields=('reference',)
-    fields=('reference','amount_kobo','currency','status','audit','created_at','updated_at')
+    fields=('reference','provider_mode','amount_kobo','currency','status','audit','created_at','updated_at')
     readonly_fields=fields
     def has_module_permission(self,request): return self.has_view_permission(request)
     def has_view_permission(self,request,obj=None): return request.user.is_active and request.user.is_staff and request.user.has_perm('dic.view_foundation_donations')

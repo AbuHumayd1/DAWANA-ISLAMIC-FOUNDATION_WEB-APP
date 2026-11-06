@@ -30,6 +30,28 @@ class Fixtures:
 
 @override_settings(PAYSTACK_MODE="test", PAYSTACK_SECRET_KEY="sk_test_unit_mock")
 class PaymentEvidenceTests(Fixtures, APITestCase):
+    @override_settings(PAYSTACK_MODE='live')
+    def test_test_attempt_cannot_be_verified_using_live_environment(self):
+        attempt = self.create_pending_attempt('DIC-cross-mode')
+        with patch('dic.payment_views.PaystackClient') as provider:
+            response = self.client.post(self.verify_url(attempt.reference), {}, **self.auth)
+        self.assertEqual(response.status_code, 400)
+        provider.return_value.verify_transaction.assert_not_called()
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, PaymentAttempt.Status.PENDING)
+
+    @override_settings(PAYSTACK_MODE='live')
+    def test_live_attempt_requires_matching_live_provider_domain(self):
+        attempt = self.create_pending_attempt('DIC-live-proof')
+        attempt.provider_mode = 'live'
+        attempt.save(update_fields=['provider_mode'])
+        with patch('dic.payment_views.PaystackClient') as provider:
+            provider.return_value.verify_transaction.return_value = self.provider_result(attempt.reference, domain='live')
+            response = self.client.post(self.verify_url(attempt.reference), {}, **self.auth)
+        self.assertEqual(response.status_code, 200)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.status, PaymentAttempt.Status.SUCCESSFUL)
+
     def test_invalid_identity_and_environment_never_credit_order(self):
         cases = [
             {"id": value} for value in (None, True, False, 0, -1, "123", 1.5, 10 ** 64)

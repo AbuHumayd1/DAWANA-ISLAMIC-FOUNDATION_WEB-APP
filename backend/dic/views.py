@@ -214,8 +214,9 @@ def _create_order(*, key_digest, fingerprint, payload):
             from .registration_age import category_age_allowed
             if not category_age_allowed(data, category, today):
                 raise ValidationError(
-                    f"Participant {index + 1}: the selected category's age limits "
-                    "require a qualifying exact date of birth. Choose an eligible category or disclose DOB."
+                    f"Participant {index + 1}: the selected payment category requires "
+                    "a qualifying age and academic status. Choose an eligible category; "
+                    "age-limited categories require an exact date of birth."
                 )
 
         registrant_data = payload.get("primary_registrant", {})

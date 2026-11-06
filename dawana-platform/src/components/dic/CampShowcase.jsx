@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '../../services/mediaUrl'
 import { useEffect, useRef, useState } from 'react'
 import { Container } from '../layout/SiteChrome'
 import './CampShowcase.css'
@@ -8,7 +9,7 @@ const localPreview = import.meta.env.DEV && typeof window !== 'undefined' && ['l
 export function LecturerCard({ lecturer, historical = false }) {
   const verified = lecturer.confirmed === true
   return <article className={`showcase-lecturer${lecturer.featured ? ' showcase-featured' : ''}`}>
-    <div className="showcase-portrait"><img src={lecturer.image_url} alt={lecturer.alt_text} loading="lazy" decoding="async" width="640" height="720" />{lecturer.featured && <span>Featured lecturer</span>}</div>
+    <div className="showcase-portrait"><img src={resolveMediaUrl(lecturer.image_url)} alt={lecturer.alt_text} loading="lazy" decoding="async" width="640" height="720" />{lecturer.featured && <span>Featured lecturer</span>}</div>
     <div className="showcase-profile"><small>{lecturer.edition.name}</small><h3>{lecturer.name}</h3>{lecturer.designation && <p className="showcase-designation">{lecturer.designation}</p>}
       {!historical && <span className={`showcase-status${verified ? ' is-verified' : ''}`}>{verified ? 'Participation confirmed' : 'Participation awaiting confirmation'}</span>}
       {historical && !verified && <span className="showcase-status">Historical profile · topic awaiting verification</span>}
@@ -62,7 +63,7 @@ export default function CampShowcase() {
       {feedback && <p role="status">{feedback}</p>}
       {(status === 'ready' || localPreview) && !data.activities.length && <div className="showcase-empty"><h3>The programme is being prepared</h3><p>Committee-approved activities will appear here when ready. No schedule has been announced in this section.</p>{localPreview && <small>Local preview · awaiting approved activities; photographs are optional</small>}</div>}
       <div className="showcase-activity-grid">{data.activities.map(item => <article className={`showcase-activity${item.featured ? ' showcase-featured' : ''}`} key={item.id}>
-        {item.image_url && <img src={item.image_url} alt={item.alt_text} loading="lazy" decoding="async" width="800" height="600" />}
+        {item.image_url && <img src={resolveMediaUrl(item.image_url)} alt={item.alt_text} loading="lazy" decoding="async" width="800" height="600" />}
         <div><span className="dic-activity-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3 15 9 21 12 15 15 12 21 9 15 3 12 9 9Z" /><circle cx="12" cy="12" r="2" /></svg></span><small>{item.category}{item.featured ? ' · Featured activity' : ''}</small><h3>{item.title}</h3><p>{item.description}</p></div>
       </article>)}</div>
     </Container></section>

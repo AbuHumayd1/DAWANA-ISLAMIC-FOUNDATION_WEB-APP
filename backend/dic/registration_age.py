@@ -33,6 +33,28 @@ def asserted_adult(participant, reference):
 def category_age_allowed(data, category, reference):
     birth = data.get('date_of_birth')
     validate_declaration(data.get('age_declaration', 'exact'), birth, reference)
+    # Explicit payment classification is independent of safeguarding and housing.
+    kind = getattr(category, 'payment_kind', '')
+    if kind:
+        from .models import Participant
+        status = data.get('academic_status')
+        graduate = status == Participant.AcademicStatus.GRADUATE
+        undergraduate = status == Participant.AcademicStatus.TERTIARY
+        age = exact_age(birth, reference) if birth else None
+        if kind == 'graduate_adult':
+            return graduate or (age is not None and age >= 25) or (
+                not undergraduate and (age is None or age >= 17)
+            )
+        if kind == 'undergraduate':
+            return undergraduate and age is not None and 17 <= age <= 24
+        # Younger graduates retain the agreed graduate payment classification.
+        if graduate or age is None:
+            return False
+        bounds = {'pre_primary': (0, 5), 'primary': (6, 10), 'secondary': (11, 16)}
+        if kind not in bounds:
+            return False
+        minimum, maximum = bounds[kind]
+        return minimum <= age <= maximum
     if birth is None:
         # 18+ alone cannot prove a finite upper limit or a minimum above 18.
         return (category.minimum_age is None or category.minimum_age <= 18) and category.maximum_age is None

@@ -47,7 +47,7 @@ class StagingDeploymentTests(SimpleTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(result.stdout)
         self.assertFalse(data['debug']); self.assertTrue(data['secure'])
-        self.assertEqual(data['same_site'], 'Lax'); self.assertEqual(data['ssl'], 'require')
+        self.assertEqual(data['same_site'], 'Lax'); self.assertEqual(data['ssl'], 'verify-full')
         self.assertEqual(data['db'], 'staging_test'); self.assertFalse(data['worker'])
         self.assertEqual((data['sms'], data['whatsapp'], data['email']), ('', '', ''))
         self.assertIn('DatabaseCache', data['cache'])

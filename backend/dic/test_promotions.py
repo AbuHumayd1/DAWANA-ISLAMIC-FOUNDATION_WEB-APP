@@ -27,6 +27,7 @@ class RangeTests(SimpleTestCase):
     @patch('dic.promo_views.asset')
     def test_remote_stream_is_bounded_and_closes_body(self, asset):
         storage = Mock()
+        storage._bucket.return_value = 'synthetic-bucket'
         storage._backend.return_value = None
         client = storage._client.return_value
         client.head_object.return_value = {'ContentLength': 100}

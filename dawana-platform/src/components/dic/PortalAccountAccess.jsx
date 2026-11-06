@@ -18,12 +18,13 @@ export function PortalCredentialLogin({ capabilities, busy, onLogin, onRecover, 
     <p>Sign in with your verified booking email and password. Existing usernames are also supported.</p>
     <button type="button" disabled={busy || !enabled || !identifier || !password} onClick={() => { const secret = password; setPassword(''); onResend({ identifier, password: secret }) }}>Resend email verification link</button>
     <div className="portal-id-actions"><button type="button" disabled={busy} onClick={() => onRecover('reset')}>Forgot Password</button><button type="button" disabled={busy} onClick={() => onRecover('setup')}>First-Time Account Setup</button></div>
+    <p>Account setup is for older bookings without a registration password. New registrations already create your account; verify your email link, then sign in when your booking is eligible. Authorized complimentary tutors do not need payment.</p>
   </div>
 }
 
 export function PortalEmailVerification({ token, run, busy }) {
   const [done, setDone] = useState(false)
-  if (!token || done) return done ? <p role="status">Email verified. Sign in with your password once payment is confirmed.</p> : null
+  if (!token || done) return done ? <p role="status">Email verified. Sign in with your email and password when your booking is eligible. Ordinary registrations require verified payment; authorized complimentary tutors do not.</p> : null
   return <section className="cp-card"><h2>Verify your email</h2><p>This confirms email ownership only. Paid registration or authorized tutor eligibility is still required.</p><button type="button" className="button" disabled={busy} onClick={() => run(async read => { await read('/auth/email/verify/', { token }); setDone(true) })}>Confirm email ownership</button></section>
 }
 
@@ -39,7 +40,7 @@ export function PortalAccountSettings({ capabilities, run, onVerify, busy }) {
   }, [capabilities, version])
   if (!capabilities?.accounts?.enabled) return null
   const submit = (path, body) => { setPassword(''); setPasswordConfirmation(''); setLinkPassword(''); setMessage(''); return run(async read => { await read(path, body); setMessage('Sign-in settings saved. Additional linked bookings appear at your next account sign-in.'); setVersion(current => current + 1) }) }
-  return <section className="cp-card cp-account-settings" aria-label="Sign-in settings"><h2>Sign-in settings</h2><p>Only explicitly verified bookings are linked. A shared email or Google email does not add children.</p>
+  return <section className="cp-card cp-account-settings" aria-label="Sign-in settings"><h2>Sign-in settings</h2><p>Only explicitly verified bookings are linked. Sharing an email address does not automatically link children or other bookings.</p>
     {failure && <p role="alert">{failure}</p>}{message && <p role="status">{message}</p>}{!status && !failure && <p role="status">Loading sign-in settings…</p>}
     {status && !status.fresh_otp && <><p>Verify your booking contact again to set up, reset or link a sign-in method.</p><button type="button" className="button" onClick={onVerify}>Verify booking contact</button></>}
     {status?.fresh_otp && <>
@@ -48,7 +49,7 @@ export function PortalAccountSettings({ capabilities, run, onVerify, busy }) {
         <label>Verified booking email<input required type="email" maxLength={254} autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} /></label><small>Use the primary booking email you just verified by email OTP. A paid registration is required, except for an authorized complimentary tutor.</small>
         <PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (12–128 characters)" /><PasswordField value={passwordConfirmation} onChange={setPasswordConfirmation} autoComplete="new-password" label="Confirm password" /><button type="submit" className="button">Create sign-in account</button></fieldset></form>
         <p>Already have an account and verified another booking with the same primary contact?</p><form onSubmit={event => { event.preventDefault(); submit('/auth/account/link-booking/', { identifier, password: linkPassword }) }}><fieldset disabled={busy}><label>Existing account email or username<input required maxLength={254} value={identifier} autoComplete="username" onChange={event => setIdentifier(event.target.value)} /></label><PasswordField value={linkPassword} onChange={setLinkPassword} /><button className="button">Link this verified booking</button></fieldset></form></>
-        : <><p>Account: {status.account.username}</p><form onSubmit={event => { event.preventDefault(); submit('/auth/password/reset/', { password }) }}><fieldset disabled={busy}><PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (12–128 characters)" /><button className="button">Set or reset password</button></fieldset></form><p>Changing your password or unlinking Google signs out other account sessions.</p>
+        : <><p>Account: {status.account.username}</p><form onSubmit={event => { event.preventDefault(); submit('/auth/password/reset/', { password }) }}><fieldset disabled={busy}><PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (12–128 characters)" /><button className="button">Set or reset password</button></fieldset></form><p>Changing your password signs out other account sessions.</p>
         </>}
     </>}
   </section>

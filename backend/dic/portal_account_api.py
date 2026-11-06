@@ -193,7 +193,7 @@ class EmailVerifyView(PortalView):
         data = values(EmailVerifyInput, request)
         accounts.rate_limit(request, request.META.get('REMOTE_ADDR', 'unknown'), 'email-verify')
         verify_email(data['token'])
-        return Response({'verified': True, 'detail': 'Email verified. Sign in with your password after payment is confirmed.'})
+        return Response({'verified': True, 'detail': 'Email verified. Sign in with your email and password when your booking is eligible. Ordinary registrations require verified payment; authorized complimentary tutors do not.'})
 
 
 @method_decorator(sensitive_post_parameters(), name='dispatch')

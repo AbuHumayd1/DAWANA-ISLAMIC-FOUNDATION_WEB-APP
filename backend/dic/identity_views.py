@@ -13,6 +13,7 @@ from .identity_cards import card_context, require_staff, verify
 from .models import CampEnrollment
 from .participant_services import record
 from .identity_branding import official_logo_data
+from .media_delivery import safe_media
 
 CARDS_PER_A4_PAGE = 8
 PRINT_FORMATS = {
@@ -27,6 +28,7 @@ def card_pages(cards, per_page=CARDS_PER_A4_PAGE):
 
 def secured(response, nonce=None):
     response['Cache-Control'] = 'private, no-store'
+    response['Cross-Origin-Resource-Policy'] = 'same-origin'
     response['Pragma'] = 'no-cache'
     response['Referrer-Policy'] = 'no-referrer'
     response['X-Content-Type-Options'] = 'nosniff'
@@ -36,6 +38,7 @@ def secured(response, nonce=None):
     return response
 
 
+@safe_media
 def render_cards(request, enrollments, download=False, batch=False, card_format='pvc', printer='borderless'):
     require_staff(request.user)
     return _render_authorized_cards(request, enrollments, download, batch, card_format, printer)
@@ -71,6 +74,7 @@ def _render_authorized_cards(request, enrollments, download=False, batch=False, 
 
 
 @require_GET
+@safe_media
 def card_view(request, enrollment_id):
     require_staff(request.user)
     enrollment = get_object_or_404(CampEnrollment.objects.select_related('participant', 'edition', 'source_item'), pk=enrollment_id)

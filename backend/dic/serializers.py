@@ -58,6 +58,7 @@ class RegistrationCategoryOptionSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "description",
+            "payment_kind",
             "minimum_age",
             "maximum_age",
             "fee_ngn",

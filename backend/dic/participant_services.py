@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -43,14 +44,22 @@ def eligibility(enrollment):
         return {'eligible': bool(valid), 'code': 'authorized_tutor' if valid else 'tutor_authorization_required'}
     if order.status != RegistrationOrder.Status.CONFIRMED or order.payment_status != RegistrationOrder.PaymentStatus.PAID:
         return {"eligible": False, "code": "registration_not_verified_paid"}
+    mode = getattr(settings, 'PAYSTACK_MODE', None)
+    if mode not in ('test', 'live') or (
+        getattr(settings, 'SETTINGS_MODULE', '') == 'config.settings.production' and mode != 'live'
+    ):
+        return {"eligible": False, "code": "settlement_evidence_review_required"}
     # SUCCESSFUL is written only by the trusted settlement service. Missing legacy
     # provider evidence is a review case, never a fabricated successful charge.
+    # PaymentAttempt is Paystack-only: payment_views verifies its provider response
+    # independently (reference, transaction identity, amount, currency and domain).
+    # Stored mode must ALSO match on every entitlement read, including old sessions.
     expected = int(order.total_amount_ngn * Decimal(100))
     revision = order.current_price_revision
     if not revision or revision.order_id != order.pk or not revision.accepted_at:
         return {"eligible": False, "code": "settlement_evidence_review_required"}
     attempts = PaymentAttempt.objects.filter(
-        order=order, status=PaymentAttempt.Status.SUCCESSFUL, amount_kobo=expected,
+        order=order, status=PaymentAttempt.Status.SUCCESSFUL, provider_mode=mode, amount_kobo=expected,
         currency="NGN", provider_status="success", provider_reported_amount_kobo=expected,
         provider_reported_currency="NGN", provider_paid_at__isnull=False,
         verified_at__isnull=False, price_revision=revision,

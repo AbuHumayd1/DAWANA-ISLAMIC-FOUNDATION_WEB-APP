@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.http import Http404, FileResponse
+from .media_delivery import safe_media, media_headers
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework.permissions import AllowAny
@@ -59,6 +60,7 @@ class VideoPlaybackView(APIView):
         return response
 
 
+@safe_media
 def video_thumbnail(request, pk):
     if request.method != "GET":
         raise Http404
@@ -72,4 +74,4 @@ def video_thumbnail(request, pk):
     response["Cache-Control"] = "private, no-store"
     response["Content-Disposition"] = 'inline; filename="camp-video-thumbnail.jpg"'
     response["X-Content-Type-Options"] = "nosniff"
-    return response
+    return media_headers(response, public=request.GET.get('preview') != '1')

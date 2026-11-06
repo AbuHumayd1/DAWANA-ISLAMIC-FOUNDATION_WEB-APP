@@ -695,6 +695,7 @@ class RegistrationCategoryAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "edition",
+        "payment_kind",
         "minimum_age",
         "maximum_age",
         "early_bird_fee_ngn",
@@ -1374,6 +1375,7 @@ class RegistrationOrderItemAdmin(admin.ModelAdmin):
 class PaymentAttemptAdmin(admin.ModelAdmin):
     list_display = (
         "reference",
+        "provider_mode",
         "order",
         "status",
         "expected_amount_ngn",
@@ -1386,7 +1388,7 @@ class PaymentAttemptAdmin(admin.ModelAdmin):
         "created_at",
         "verified_at",
     )
-    list_filter = ("status", "currency", "created_at", "verified_at")
+    list_filter = ("status", "provider_mode", "currency", "created_at", "verified_at")
     search_fields = ("reference", "order__public_id", "provider_transaction_id")
     readonly_fields = tuple(
         field.name

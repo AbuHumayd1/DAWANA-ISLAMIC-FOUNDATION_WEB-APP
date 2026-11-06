@@ -7,18 +7,18 @@ from dic.models import CampEdition
 
 
 OFFICIAL_DETAILS = {
-    "name": "Daarul Islam Camp 2026",
+    "name": "Darul Islam Camp 2026",
     "year": 2026,
     "camp_start_date": date(2026, 12, 23),
     "camp_end_date": date(2027, 1, 1),
-    "venue_name": "Faisal Omar Memorial School",
+    "venue_name": "Fazil Umar Secondary School, Lagos",
 }
 
 
 class Command(BaseCommand):
     help = (
         "Create the confirmed DIC 2026 edition as a draft listing without "
-        "registration dates, fees, categories, or open registration."
+        "registration dates or open registration. Approved fees are seeded by migrations."
     )
 
     def handle(self, *args, **options):
@@ -49,6 +49,7 @@ class Command(BaseCommand):
                 )
             edition = CampEdition.objects.create(
                 **OFFICIAL_DETAILS,
+                general_information={'theme': 'The Outliers'},
                 registration_status=CampEdition.RegistrationStatus.DRAFT,
                 registration_open_date=None,
                 registration_close_date=None,
@@ -57,7 +58,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Created confirmed DIC 2026 edition {edition.pk} as a draft public "
-                "listing. Registration remains closed; configure approved fees, "
-                "deadline, and registration dates in Django Admin before opening."
+                "listing. Registration remains closed; review migrated approved fees "
+                "and configure the deadline and registration dates in Django Admin before opening."
             )
         )

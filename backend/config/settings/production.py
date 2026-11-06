@@ -1,21 +1,45 @@
 from .base import *
+import os
 
 
 DEBUG = False
+# Legacy staging imports these HTTPS settings; retain its existing storage path.
+DIC_PRODUCTION_STORAGE = os.environ.get('DJANGO_SETTINGS_MODULE') != 'config.settings.staging'
+DJANGO_DEPLOYMENT_TARGET = env('DJANGO_DEPLOYMENT_TARGET', default='self-managed')
+if DJANGO_DEPLOYMENT_TARGET not in ('self-managed', 'render'):
+    raise ImproperlyConfigured('Unsupported production deployment target.')
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31_536_000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+SECURE_HSTS_SECONDS = env.int('DJANGO_HSTS_SECONDS', default=3600)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('DJANGO_HSTS_INCLUDE_SUBDOMAINS', default=False)
+SECURE_HSTS_PRELOAD = env.bool('DJANGO_HSTS_PRELOAD', default=False)
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
 # Preparation only: no live payments or registration release is implied.
-DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'require'
+database_options = DATABASES['default'].setdefault('OPTIONS', {})
+database_options['sslmode'] = env('DB_SSLMODE', default='verify-full')
+if env('DB_SSLROOTCERT', default=''):
+    database_options['sslrootcert'] = env('DB_SSLROOTCERT')
+from config.deployment_security import validate_database_tls
+validate_database_tls(DJANGO_DEPLOYMENT_TARGET, DATABASES['default'].get('HOST'),
+    database_options['sslmode'])
+if env.bool('DJANGO_TRUST_PROXY_HTTPS', default=False):
+    # Enable only behind a proxy that strips incoming forwarded headers.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if DIC_PRODUCTION_STORAGE and DIC_MEMORY_STORAGE == 's3':
+    from types import SimpleNamespace
+    from dic.storage_configuration import production_storage
+    _storage_config = SimpleNamespace(**globals())
+    _media_config = production_storage(_storage_config, 'media')
+    _private_config = production_storage(_storage_config, 'private')
+    if _media_config['aws_access_key_id'] == _private_config['aws_access_key_id']:
+        raise ImproperlyConfigured('Production media and participant storage require independent credentials.')
+    del _storage_config, _media_config, _private_config
 MIDDLEWARE = [*MIDDLEWARE]
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 STATIC_URL = '/static/'

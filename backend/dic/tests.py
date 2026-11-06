@@ -137,7 +137,8 @@ class Dic2026SetupCommandTests(TestCase):
 
         self.assertEqual(edition.camp_start_date, date(2026, 12, 23))
         self.assertEqual(edition.camp_end_date, date(2027, 1, 1))
-        self.assertEqual(edition.venue_name, "Faisal Omar Memorial School")
+        self.assertEqual(edition.venue_name, "Fazil Umar Secondary School, Lagos")
+        self.assertEqual(edition.general_information['theme'], 'The Outliers')
         self.assertTrue(edition.is_active)
         self.assertEqual(edition.registration_status, CampEdition.RegistrationStatus.DRAFT)
         self.assertIsNone(edition.registration_open_date)
@@ -1194,12 +1195,22 @@ class PaymentApiTests(APITestCase):
         second = {**first, "category_id": other_category.pk, "full_name": "Second Payer", "email": "second@example.test"}
         created = self.client.post(
             reverse("dic:order-create"),
-            {"participants": [first, second]}, format="json",
+            {**self.order_payload, "participants": [first, second]}, format="json",
             HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
         )
-        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.status_code, 201, created.data)
         order = RegistrationOrder.objects.get(public_id=created.data["order_id"])
         self.assertEqual(order.total_amount_ngn, Decimal("20800.35"))
+        self.assertEqual(order.items.count(), 2)
+        self.assertEqual(
+            list(order.items.order_by('id').values_list('fee_snapshot_ngn', flat=True)),
+            [Decimal('12500.25'), Decimal('8300.10')],
+        )
+        self.assertEqual(
+            list(order.current_price_revision.items.order_by('order_item_id')
+                 .values_list('fee_snapshot_ngn', flat=True)),
+            [Decimal('12500.25'), Decimal('8300.10')],
+        )
         with patch("dic.payment_views.PaystackClient") as factory:
             provider = factory.return_value
             provider.initialize_transaction.side_effect = lambda **kwargs: {

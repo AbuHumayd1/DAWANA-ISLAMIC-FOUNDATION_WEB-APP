@@ -46,7 +46,11 @@ export default function CategorySelection({ categories, value, onChange, earlyBi
               {early && <span className="dic-category-badge">Early Bird</span>}
             </span>
             <span id={`${id}-details`} className="dic-category-details">
-              <span className="dic-category-age">{ageLabel(category.minimum_age, category.maximum_age)}</span>
+              <span className="dic-category-age">{category.payment_kind === 'undergraduate'
+                ? 'Undergraduate students'
+                : category.payment_kind === 'graduate_adult'
+                  ? 'Graduates and other adults'
+                  : ageLabel(category.minimum_age, category.maximum_age)}</span>
               <span className="dic-category-pricing">
                 <span className="dic-category-fee">{available ? money(category.current_fee_ngn) : 'Fee unavailable'}</span>
                 {early && category.regular_fee_ngn != null && <span className="dic-category-regular"><span className="dic-category-sr-only">Regular fee </span><s>{money(category.regular_fee_ngn)}</s></span>}

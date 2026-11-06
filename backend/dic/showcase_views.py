@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .showcase_models import Lecturer, LecturerAppearance, CampActivity
+from .media_delivery import safe_media
+from .media_delivery import media_headers
+from django.db.models import Q
 
 
 class ShowcaseView(APIView):
@@ -39,6 +42,7 @@ class ShowcaseView(APIView):
         return response
 
 
+@safe_media
 def showcase_image(request, kind, pk):
     if request.method != "GET":
         raise Http404
@@ -56,7 +60,10 @@ def showcase_image(request, kind, pk):
         else:
             query = query.filter(state="published", published_at__isnull=False)
             if kind == "lecturer":
-                query = query.exclude(confirmation_status="declined")
+                query = query.exclude(confirmation_status="declined").filter(
+                    Q(participation_type='previous') | Q(participation_type='upcoming', edition__is_active=True))
+            else:
+                query = query.filter(edition__is_active=True)
         obj = get_object_or_404(query, pk=pk)
         photograph = obj.lecturer.photograph if kind == "lecturer" else obj.photograph
     else:
@@ -67,4 +74,4 @@ def showcase_image(request, kind, pk):
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     response["Content-Disposition"] = 'inline; filename="dic-showcase.jpg"'
-    return response
+    return media_headers(response, public=kind != 'identity' and request.GET.get('preview') != '1')

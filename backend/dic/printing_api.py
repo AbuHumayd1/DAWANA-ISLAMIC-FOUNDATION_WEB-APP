@@ -11,6 +11,7 @@ from .identity_views import secured
 from .models import CampEnrollment, DICAdminAuditEvent, RegistrationOrder, Participant, DigitalIDIssue
 from .participant_services import eligibility
 from .portrait_pdf import house_details, render_pdf, require_pdf_dependencies
+from .media_delivery import safe_media
 
 
 def printable(enrollment, issue):
@@ -55,6 +56,7 @@ class PrintingDirectoryView(OperationsBaseView):
 
 
 class PrintingExportView(OperationsBaseView):
+    @safe_media
     @transaction.atomic
     def post(self, request):
         require_staff(request.user, manage=True)

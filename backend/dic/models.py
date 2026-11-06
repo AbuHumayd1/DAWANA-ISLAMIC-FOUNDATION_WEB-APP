@@ -11,7 +11,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .security import order_access_token_expiry
-from .memory_storage import private_memory_storage, validate_photo
+from .memory_storage import private_memory_storage, private_participant_storage, validate_photo
 
 
 LAGOS_TIME_ZONE = ZoneInfo("Africa/Lagos")
@@ -254,6 +254,17 @@ class CampEdition(models.Model):
 
 
 class RegistrationCategory(models.Model):
+    class PaymentKind(models.TextChoices):
+        PRE_PRIMARY = "pre_primary", "Pre-Primary"
+        PRIMARY = "primary", "Primary"
+        SECONDARY = "secondary", "Secondary"
+        UNDERGRADUATE = "undergraduate", "Undergraduates"
+        ADULT = "graduate_adult", "Graduates & Adults"
+
+    payment_kind = models.CharField(
+        max_length=20, choices=PaymentKind.choices, blank=True, default="",
+        help_text="Payment eligibility only; does not change housing, safeguarding or academic allocation.",
+    )
     edition = models.ForeignKey(
         CampEdition,
         on_delete=models.PROTECT,
@@ -1131,6 +1142,7 @@ class PaymentAttempt(models.Model):
         blank=True,
     )
     reference = models.CharField(max_length=80, unique=True)
+    provider_mode = models.CharField(max_length=4, choices=[('test', 'Test'), ('live', 'Live')], default='test', editable=False)
     amount_kobo = models.PositiveBigIntegerField()
     currency = models.CharField(max_length=3, default="NGN")
     status = models.CharField(
@@ -1378,7 +1390,7 @@ class CampEnrollment(models.Model):
     source_review_fingerprint = models.CharField(max_length=64, blank=True)
     restriction_reason = models.CharField(max_length=240, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    portrait = models.FileField(storage=private_memory_storage, validators=[validate_photo], max_length=200, blank=True,
+    portrait = models.FileField(storage=private_participant_storage, validators=[validate_photo], max_length=200, blank=True,
         help_text='Optional approved participant portrait, stored privately.')
 
     class Meta:

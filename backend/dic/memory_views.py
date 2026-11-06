@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
 from .memory_models import CampPhotograph
+from .media_delivery import safe_media, media_headers
 
 
 class MemoriesView(APIView):
@@ -33,6 +34,7 @@ class MemoriesView(APIView):
         return response
 
 
+@safe_media
 def memory_image(request, pk):
     if request.method != "GET":
         raise Http404
@@ -47,4 +49,4 @@ def memory_image(request, pk):
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     response["Content-Disposition"] = 'inline; filename="camp-memory.jpg"'
-    return response
+    return media_headers(response, public=request.GET.get('preview') != '1')

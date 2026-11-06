@@ -59,7 +59,7 @@ class PrivatePromoStorage(PrivateMemoryStorage):
         backend = self._backend()
         if backend is not None:
             return backend.open(name, mode)
-        body = self._client().get_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=name)['Body']
+        body = self._client().get_object(Bucket=self._bucket(), Key=name)['Body']
         output = tempfile.SpooledTemporaryFile(max_size=2 * 1024 * 1024, mode='w+b')
         try:
             total = 0
@@ -86,8 +86,9 @@ class PrivatePromoStorage(PrivateMemoryStorage):
         content.seek(0)
         if backend is not None:
             return backend.save(name, content)
-        self._client().put_object(Bucket=settings.DIC_MEMORY_S3_BUCKET, Key=name, Body=content,
+        self._client().put_object(Bucket=self._bucket(), Key=name, Body=content,
                                   ContentLength=content.size, ContentType='video/mp4', IfNoneMatch='*')
+        self._verify_upload(name, content.size)
         return name
 
 

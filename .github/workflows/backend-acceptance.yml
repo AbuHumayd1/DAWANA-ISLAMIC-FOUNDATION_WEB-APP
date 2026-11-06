@@ -1,0 +1,116 @@
+name: Backend production acceptance (CI only)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DAWANA_CI_ACCEPTANCE: '1'
+      DAWANA_CI_REPORT: policy
+      PYTHONDONTWRITEBYTECODE: '1'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-test-ids.txt
+            backend/constraints-staging.txt
+      - name: Install backend test dependencies
+        run: |
+          python -m pip install -r backend/requirements-test-ids.txt -c backend/constraints-staging.txt
+          python -m pip check
+      - name: Parse backend Python source without execution or bytecode output
+        run: python -I -B scripts/run_backend_ci.py --syntax-check
+      - name: Run production policy suite including all nine regressions
+        id: acceptance
+        run: python -I -B scripts/test_production_policies.py
+      - name: Report actual counts
+        if: always()
+        env:
+          DAWANA_CI_TEST_STEP: ${{ steps.acceptance.outcome }}
+        run: python -I -B scripts/run_backend_ci.py --summarize
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-policy-results
+          path: ${{ runner.temp }}/dawana-backend-results/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['14', '18']
+        partition: [core, tutor, movement, assistance]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: dawana_ci
+          POSTGRES_PASSWORD: ci-ephemeral-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -p 5432 -U dawana_ci -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DAWANA_CI_ACCEPTANCE: '1'
+      DAWANA_CI_REPORT: ${{ matrix.partition }}
+      PYTHONDONTWRITEBYTECODE: '1'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-test-ids.txt
+            backend/constraints-staging.txt
+      - name: Install test dependencies and media validation tools
+        run: |
+          python -m pip install -r backend/requirements-test-ids.txt -c backend/constraints-staging.txt
+          python -m pip check
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Parse backend Python source without execution or bytecode output
+        run: python -I -B scripts/run_backend_ci.py --syntax-check
+      - name: Check graph, migrate disposable database and run partition
+        id: acceptance
+        env:
+          DAWANA_CI_PG_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: python -I -B scripts/run_backend_ci.py --partition ${{ matrix.partition }}
+      - name: Report actual counts
+        if: always()
+        env:
+          DAWANA_CI_TEST_STEP: ${{ steps.acceptance.outcome }}
+        run: python -I -B scripts/run_backend_ci.py --summarize
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-pg${{ matrix.postgres }}-${{ matrix.partition }}-results
+          path: ${{ runner.temp }}/dawana-backend-results/*.json
+          if-no-files-found: error
+          retention-days: 7

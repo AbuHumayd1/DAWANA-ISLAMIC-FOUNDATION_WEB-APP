@@ -26,7 +26,7 @@ from .payments import (
     PaystackClient,
     PaystackConfigurationError,
     PaystackTransportError,
-    verify_webhook_signature,
+    verify_webhook_request,
 )
 from .pricing import (
     PricingConfigurationError,
@@ -186,7 +186,8 @@ def _apply_verified_transaction(attempt_id, provider_data):
         )
         currency_matches = provider_data.get("currency") == attempt.currency == "NGN"
         environment_matches = (
-            settings.PAYSTACK_MODE == "test" and provider_data.get("domain") == "test"
+            attempt.provider_mode in ('test', 'live')
+            and attempt.provider_mode == settings.PAYSTACK_MODE == provider_data.get('domain')
         )
         provider_currency = provider_data.get("currency")
         attempt.provider_reported_currency = (
@@ -355,6 +356,8 @@ def _apply_verified_transaction(attempt_id, provider_data):
 
 
 def _verify_attempt(attempt, client):
+    if attempt.provider_mode != settings.PAYSTACK_MODE:
+        raise ValidationError('Payment environment mismatch. Authorized reconciliation is required.')
     try:
         provider_data = client.verify_transaction(attempt.reference)
     except (PaystackTransportError, PaystackAPIError) as exc:
@@ -445,6 +448,8 @@ class PaymentInitializeView(APIView):
                 .first()
             )
             if unresolved:
+                if unresolved.provider_mode != settings.PAYSTACK_MODE:
+                    raise ValidationError('An existing payment belongs to another environment. Authorized reconciliation is required.')
                 if (
                     unresolved.status == PaymentAttempt.Status.PENDING
                     and unresolved.authorization_url
@@ -466,7 +471,7 @@ class PaymentInitializeView(APIView):
                 return Response(
                     {
                         "detail": (
-                            "Paystack test credentials are not configured correctly."
+                            "Paystack credentials are not configured correctly."
                         )
                     },
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -490,6 +495,7 @@ class PaymentInitializeView(APIView):
             attempt = PaymentAttempt.objects.create(
                 order=order,
                 reference=f"DIC{uuid.uuid4().hex}",
+                provider_mode=settings.PAYSTACK_MODE,
                 amount_kobo=amount_kobo,
                 currency="NGN",
                 price_revision=order.current_price_revision,
@@ -692,7 +698,7 @@ class PaymentVerifyView(APIView):
             client = PaystackClient()
         except PaystackConfigurationError:
             return Response(
-                {"detail": "Paystack test credentials are not configured correctly."},
+                {"detail": "Paystack credentials are not configured correctly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         attempt, order = _verify_attempt(attempt, client)
@@ -715,11 +721,10 @@ class PaystackWebhookView(APIView):
             client = PaystackClient()
         except PaystackConfigurationError:
             return Response(
-                {"detail": "Paystack test credentials are not configured correctly."},
+                {"detail": "Paystack credentials are not configured correctly."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        signature = request.headers.get("X-Paystack-Signature", "")
-        if not verify_webhook_signature(request.body, signature, client.secret_key):
+        if not verify_webhook_request(request.body, request.headers, client.secret_key):
             return Response(
                 {"detail": "Invalid webhook signature."},
                 status=status.HTTP_400_BAD_REQUEST,

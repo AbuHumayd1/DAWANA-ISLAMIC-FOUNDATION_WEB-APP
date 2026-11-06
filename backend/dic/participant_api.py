@@ -19,6 +19,7 @@ from rest_framework.settings import APISettings
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from .media_delivery import safe_media
 
 from .models import (CampEnrollment, ParticipantPortalChallenge, ParticipantPortalGrant, ParticipantPortalScope,
                      RegistrationOrder, RegistrationOrderItem, HouseAllocation, Participant)
@@ -348,6 +349,7 @@ class CardDownloadNegotiation(DefaultContentNegotiation):
 class PortalCardView(PortalView):
     content_negotiation_class = CardDownloadNegotiation
 
+    @safe_media
     def get(self, request, enrollment_id):
         from .identity_views import _render_authorized_cards
         enrollment = authorized_portal_card(request, enrollment_id)

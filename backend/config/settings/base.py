@@ -36,6 +36,8 @@ CORS_ALLOWED_ORIGINS = env.list(
     ),
 )
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGIN_REGEXES = []
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 8 * 60 * 60
@@ -47,6 +49,8 @@ CSRF_TRUSTED_ORIGINS = env.list(
     default=CORS_ALLOWED_ORIGINS,
 )
 PAYSTACK_MODE = env("PAYSTACK_MODE", default="test")
+PAYSTACK_LIVE_ENABLED = env.bool('PAYSTACK_LIVE_ENABLED', default=False)
+PAYSTACK_WEBHOOK_SECRET = env('PAYSTACK_WEBHOOK_SECRET', default='')
 # Set only after an approved original asset is verified; no substitute logo.
 DIC_OFFICIAL_LOGO_URL = env("DIC_OFFICIAL_LOGO_URL", default="")
 PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
@@ -213,6 +217,13 @@ DIC_MEMORY_STORAGE = env("DIC_MEMORY_STORAGE", default="local" if DEBUG else "di
 DIC_MEMORY_S3_BUCKET = env("DIC_MEMORY_S3_BUCKET", default="")
 DIC_MEMORY_S3_ENDPOINT = env("DIC_MEMORY_S3_ENDPOINT", default="")
 DIC_MEMORY_S3_REGION = env("DIC_MEMORY_S3_REGION", default="us-east-1")
+# Independent production credentials; no fallback to the legacy AWS SDK chain.
+DIC_PRODUCTION_STORAGE = False
+# Set only after the approved, writer-suspended portrait inventory/copy verification.
+DIC_PORTRAIT_CUTOVER_VERIFIED = env.bool('DIC_PORTRAIT_CUTOVER_VERIFIED', default=False)
+for _storage_prefix in ('DIC_MEDIA', 'DIC_PRIVATE'):
+    for _storage_suffix in ('S3_BUCKET', 'S3_ENDPOINT', 'S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'):
+        globals()[_storage_prefix + '_' + _storage_suffix] = env(_storage_prefix + '_' + _storage_suffix, default='')
 
 # No providers are enabled on a deployment until explicitly approved/configured.
 DIC_VIDEO_APPROVED_PROVIDERS = env.list("DIC_VIDEO_APPROVED_PROVIDERS", default=[])

@@ -1,4 +1,5 @@
 # Python bytecode and caches
+backend/.runtime/
 __pycache__/
 *.py[cod]
 

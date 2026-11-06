@@ -22,6 +22,7 @@ class FoundationDonation(models.Model):
     request_id=models.UUIDField(unique=True)
     fingerprint=models.CharField(max_length=64,editable=False)
     reference=models.CharField(max_length=100,unique=True,editable=False)
+    provider_mode=models.CharField(max_length=4,choices=[('test','Test'),('live','Live')],default='test',editable=False)
     token_digest=models.CharField(max_length=64,editable=False)
     email=models.EmailField()
     amount_kobo=models.PositiveBigIntegerField()

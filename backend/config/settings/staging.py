@@ -24,7 +24,9 @@ if PAYSTACK_MODE != "test" or (PAYSTACK_SECRET_KEY and not PAYSTACK_SECRET_KEY.s
 # behind a proxy that passes client-supplied forwarded headers unchanged.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = False
-DATABASES["default"].setdefault("OPTIONS", {})["sslmode"] = "require"
+# Revalidate the inherited policy; never downgrade it in an overlay.
+validate_database_tls(DJANGO_DEPLOYMENT_TARGET, DATABASES['default'].get('HOST'),
+                      DATABASES['default']['OPTIONS'].get('sslmode'))
 MIDDLEWARE = [*MIDDLEWARE]
 if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")

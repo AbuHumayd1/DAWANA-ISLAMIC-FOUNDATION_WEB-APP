@@ -77,7 +77,7 @@ class LaunchCompletionPolicyTests(SimpleTestCase):
         self.assertFalse(EnquiryInput(data={**data,'email':'invalid'}).is_valid())
 
     def row_and_proof(self):
-        row=NS(reference='foundation-donation-synthetic',amount_kobo=100,status='pending',audit=[])
+        row=NS(reference='foundation-donation-synthetic',amount_kobo=100,status='pending',audit=[],provider_mode='test')
         proof=dict(reference=row.reference,amount=100,currency='NGN',domain='test',status='success')
         return row,proof
 
@@ -101,7 +101,7 @@ class LaunchCompletionPolicyTests(SimpleTestCase):
     def test_create_replay_initializes_provider_once(self):
         from .foundation_api import DonationCreate, digest
         data=dict(request_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',access_token='x'*64,email='donor@example.test',amount='1.00')
-        row=NS(status='created',reference='foundation-donation-synthetic',fingerprint=digest(json.dumps(['1.00','donor@example.test'])),
+        row=NS(status='created',provider_mode='test',reference='foundation-donation-synthetic',fingerprint=digest(json.dumps(['1.00','donor@example.test'])),
             token_digest=digest('x'*64),email='donor@example.test',amount_kobo=100,currency='NGN',authorization_url='',audit=[],save=Mock(),pk=1)
         with patch('dic.foundation_api.require_donations'),patch('dic.foundation_api.donation_limits',return_value=(Decimal('.01'),Decimal('100'))),patch('dic.foundation_api.transaction.atomic',side_effect=lambda:nullcontext()),patch('dic.foundation_api.FoundationDonation.objects') as rows,patch('dic.foundation_api.PaystackClient') as provider:
             rows.get_or_create.return_value=(row,True); rows.select_for_update.return_value.get.return_value=row
