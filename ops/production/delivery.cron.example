@@ -1,0 +1,12 @@
+# FUTURE OPERATIONS TEMPLATE ONLY — installs nothing and sends nothing by itself.
+# Requires separately approved production identity, environment, SMTP, encryption,
+# scheduler account, executable paths and private log/alert destinations.
+# Existing process environment must provide settings/secrets securely.
+# Example executable paths must be reviewed before use; do not source local .env.
+* * * * * cd /srv/dawana/backend && flock -n /run/lock/dawana-portal.lock /srv/dawana/venv/bin/python manage.py send_dic_portal_messages --limit 100
+* * * * * cd /srv/dawana/backend && flock -n /run/lock/dawana-recovery.lock /srv/dawana/venv/bin/python manage.py send_dic_recovery_messages --limit 100
+* * * * * cd /srv/dawana/backend && flock -n /run/lock/dawana-queue-health.lock /srv/dawana/venv/bin/python manage.py delivery_queue_health --max-age-seconds 90
+0 * * * * cd /srv/dawana/backend && flock -n /run/lock/dawana-recovery-cleanup.lock /srv/dawana/venv/bin/python manage.py cleanup_dic_recovery
+5 * * * * cd /srv/dawana/backend && flock -n /run/lock/dawana-access-cleanup.lock /srv/dawana/venv/bin/python manage.py cleanup_dic_participant_access
+# Wire nonzero exits and missed schedules to approved alerting. Never schedule
+# process_housing_allocations in production or any object deletion/cutover helper.

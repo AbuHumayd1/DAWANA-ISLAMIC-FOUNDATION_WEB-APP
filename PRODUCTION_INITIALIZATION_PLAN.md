@@ -1,3 +1,67 @@
+# Current production initialization contract ? implementation preparation
+
+This section supersedes the historical reference below. Nothing here provisions
+or deploys a service. See PRODUCTION_REMEDIATION.md for R01?R18, policy approvals,
+security contracts, scheduling, migration identity and remaining acceptance gates.
+
+The preferred topology is one public HTTPS browser origin with /api/v1 routed
+to Django. It remains conditional on owner-approved provider/gateway feasibility.
+Do not deploy separate frontend/API origins or remove the payment-return guard.
+Use VITE_API_BASE_URL=/api/v1; production builds reject other values. Reserve
+/api, /admin, /static, /media and /health before SPA fallback; never serve private
+media directly or cache API/admin responses. Deep-link fallback applies only to
+frontend routes. Paystack callback is /dic/register/payment-return; webhook is
+/api/v1/dic/payments/paystack/webhook/.
+
+| Component | Provider-neutral configuration requiring runtime acceptance |
+| --- | --- |
+| Backend package root | Repository root, not backend |
+| Build | bash backend/production-build.sh |
+| Start | bash backend/production-start.sh |
+| Settings | config.settings.production |
+| WSGI | config.wsgi:application |
+| Health | /api/v1/health/ |
+| Frontend package root | dawana-platform |
+| Frontend build | npm ci && npm run build |
+| Output | dist, served through the approved same-origin gateway |
+
+Builds require Python 3.13, declared Python dependencies, approved Liberation
+fonts and working ffprobe. They never migrate, create cache tables or initialize
+data. Production source supports self-managed, render and explicit managed
+modes. The managed mode requires an approved bind address and validated port;
+self-managed remains loopback-only. Neither provider is provisioned or selected
+by these source changes. Existing Render compatibility is retained, not a launch
+approval. Naijacloud capabilities remain subject to evidence and acceptance.
+
+Keep PostgreSQL verify-full, exact HTTPS origins/hosts, secure cookies, trusted
+immediate-gateway IP handling and durable shared throttles. Never enable trust
+for arbitrary forwarded headers. See ops/production/gateway.nginx.conf.example
+for a direct-edge template; it is not a managed-ingress configuration.
+
+Production starts empty. No local/demo records, databases or portraits are
+transferred; do not run historical portrait-cutover helpers. Configure distinct
+production R2 editorial/private credentials and verify private storage separately.
+
+Migration planning itself needs target-access approval. The release_migrations
+command now requires --database-name, --hostname, --port, --role and --cluster-id.
+It binds server-reported PostgreSQL identity into the exact hashed approval
+manifest. Provider inspection privileges, backup and independent restore evidence
+must be available first. All migration/application/cache/admin operations remain
+separate approvals, outside build/start. No persistent database was accessed here.
+
+Registration remains closed pending acceptance and owner approval. Owner supplies
+registration dates/Early Bird cutoff. Preserve approved fees and tutor exemption.
+Refund/access and global-versus-edition staff authority policies remain pending.
+Email/password only; donations, Google sign-in and deferred games remain disabled.
+Paystack live merchant/official settlement approval and activation are separate.
+
+# Historical reference ? superseded deployment proposals and audit evidence
+
+Everything below is retained for traceability, including contradictory older
+Render/separate-origin proposals and old acceptance results. It is NOT the current
+deployment contract or evidence that this new patch passed CI. Do not execute
+historical commands without reconciling them with the current contract above.
+
 # Direct production release: source preparation, not launch authorization
 
 No provider, domain, database or service is provisioned by this plan. No preview

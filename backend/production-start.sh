@@ -9,4 +9,5 @@ fi
 if [ -z "${DIC_FFPROBE_BINARY:-}" ] && [ -x "$PWD/.runtime/ffprobe" ]; then
   export DIC_FFPROBE_BINARY="$PWD/.runtime/ffprobe"
 fi
+python -m config.runtime_requirements
 exec python -m gunicorn config.wsgi:application --config gunicorn.conf.py

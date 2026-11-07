@@ -17,7 +17,7 @@ class FinancePolicyTests(SimpleTestCase):
         order=NS(pk=3,registration_basis='paid',payment_status='paid',status='confirmed',current_price_revision=revision,total_amount_ngn=Decimal('100'))
         value=NS(pk=4,order_id=3,order=order,status='successful',price_revision_id=2,amount_kobo=10000,currency='NGN',
             provider_status='success',provider_reported_amount_kobo=10000,provider_reported_currency='NGN',
-            provider_transaction_id='provider-1',verified_at=True,provider_paid_at=True)
+            provider_transaction_id='provider-1',verified_at=True,provider_paid_at=True,provider_mode='test')
         for name,item in changes.items(): setattr(value,name,item)
         return value
 

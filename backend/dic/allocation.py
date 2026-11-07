@@ -2,7 +2,7 @@ import hashlib
 import json
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, OperationalError
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
@@ -51,18 +51,17 @@ def allocation_configuration_fingerprint(edition):
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def paid_participants(edition):
-    paid_items = RegistrationOrderItem.objects.filter(
-        participant_id=OuterRef("pk"),
-        order__edition=edition,
-        order__payment_status=RegistrationOrder.PaymentStatus.PAID,
-        order__status=RegistrationOrder.Status.CONFIRMED,
-        order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
-    ).exclude(order__status=RegistrationOrder.Status.CANCELLED)
+def paid_participants(edition, participant_ids=None):
+    from .settlement_evidence import order_has_verified_settlement
+    orders = RegistrationOrder.objects.filter(edition=edition, registration_basis='paid',
+        status='confirmed', payment_status='paid').select_related('current_price_revision')
+    if participant_ids is not None:
+        orders = orders.filter(items__participant_id__in=participant_ids).distinct()
+    verified = [order.pk for order in orders.iterator(chunk_size=100) if order_has_verified_settlement(order)]
+    paid_items = RegistrationOrderItem.objects.filter(participant_id=OuterRef('pk'), order_id__in=verified)
     return Participant.objects.exclude(registration_items__order__edition=edition,
         registration_items__order__registration_basis='tutor').annotate(
-        has_paid_registration=Exists(paid_items),
-    ).filter(has_paid_registration=True)
+        has_paid_registration=Exists(paid_items)).filter(has_paid_registration=True)
 
 
 def unallocated_paid_participants(edition):
@@ -80,13 +79,8 @@ def unallocated_paid_participants(edition):
 
 
 def _validate_allocation(participant, edition, house):
-    if not RegistrationOrderItem.objects.filter(
-        participant=participant,
-        order__edition=edition,
-        order__payment_status=RegistrationOrder.PaymentStatus.PAID,
-        order__status=RegistrationOrder.Status.CONFIRMED,
-        order__payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
-    ).exclude(order__status=RegistrationOrder.Status.CANCELLED).exists():
+    # Recheck trusted evidence inside the existing allocation transaction/locks.
+    if not paid_participants(edition, [participant.pk]).filter(pk=participant.pk).exists():
         raise AllocationError(
             f"{participant.full_name} has no verified paid registration for this edition."
         )
@@ -153,6 +147,16 @@ def _assign_single(
     reassign=False,
 ):
     edition = CampEdition.objects.select_for_update().get(pk=edition_id)
+    # Housing already owns the edition lock. Never wait on a settlement/pricing
+    # transaction that might need that edition: fail safely and let staff retry.
+    try:
+        with transaction.atomic():
+            list(RegistrationOrder.objects.select_for_update(of=('self',), nowait=True).filter(
+                items__participant_id=participant_id, edition_id=edition_id).order_by('pk'))
+    except OperationalError as exc:
+        if getattr(exc.__cause__, 'sqlstate', None) != '55P03':
+            raise
+        raise AllocationError('Payment evidence is being updated. Refresh and retry allocation.') from None
     participant = Participant.objects.get(pk=participant_id)
     house = House.objects.select_for_update().get(pk=house_id)
     current = (

@@ -93,12 +93,14 @@ class AllocationFixtures:
             participant_snapshot={"full_name": participant.full_name},
         )
         if paid:
-            PaymentAttempt.objects.create(
+            attempt = PaymentAttempt.objects.create(
                 order=order,
                 reference=f"DIC-{uuid.uuid4()}",
                 amount_kobo=10000,
                 status=PaymentAttempt.Status.SUCCESSFUL,
             )
+            from .testing_settlement import complete_settlement_fixture
+            complete_settlement_fixture(order, attempt)
         return participant
 
     def make_house(

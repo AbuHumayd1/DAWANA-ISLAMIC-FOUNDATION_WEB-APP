@@ -53,25 +53,10 @@ def financial_totals(payments, records, budgets, edition_actual):
 
 
 def payment_reason(attempt, allow_refunded=False):
-    """Reuse settlement timing/pricing checks; never weaken camper eligibility."""
-    order = attempt.order
-    if order.registration_basis != 'paid':
-        return 'complimentary_registration_not_revenue'
-    if order.payment_status == 'refunded' and not allow_refunded:
-        return 'refunded'
-    if order.status != 'confirmed' or order.payment_status not in (['paid','refunded'] if allow_refunded else ['paid']):
-        return 'order_not_paid'
-    revision = order.current_price_revision
-    expected = int(order.total_amount_ngn * 100)
-    if (attempt.status != 'successful' or not revision or revision.order_id != order.pk
-            or not revision.accepted_at or attempt.price_revision_id != revision.pk
-            or attempt.amount_kobo != expected or attempt.currency != 'NGN'
-            or attempt.provider_status != 'success' or attempt.provider_reported_amount_kobo != expected
-            or attempt.provider_reported_currency != 'NGN' or not attempt.provider_transaction_id
-            or not attempt.verified_at or not attempt.provider_paid_at
-            or not _revision_is_valid_at_payment(revision, attempt.provider_paid_at)):
-        return 'unverified_evidence'
-    return ''
+    """Financial evidence excludes participant source-review policy."""
+    from dic.settlement_evidence import settlement_reason
+    return settlement_reason(attempt, allow_refunded=allow_refunded,
+                             timing_check=_revision_is_valid_at_payment)
 
 
 def registration_rows(edition, filters, *, report_timezone=None, order_ids=None):
@@ -112,7 +97,8 @@ def registration_rows(edition, filters, *, report_timezone=None, order_ids=None)
         if gross:
             seen_orders.add(attempt.order_id); seen_provider.add(attempt.provider_transaction_id)
         row = dict(id=str(attempt.pk), reference=attempt.reference, order=str(attempt.order.public_id),
-            date=day.isoformat(), status=attempt.status, payment_status=attempt.order.payment_status,
+            date=day.isoformat(), status=attempt.status, provider_mode=attempt.provider_mode,
+            payment_status=attempt.order.payment_status,
             amount_kobo=attempt.amount_kobo, provider_amount_kobo=attempt.provider_reported_amount_kobo,
             provider_transaction_id=attempt.provider_transaction_id, verified_kobo=received,gross_verified_kobo=gross,
             adjustment_kobo=adjustment if gross else 0,

@@ -1,3 +1,16 @@
+# Current status: production remediation awaiting verification
+
+The dated findings and results below are historical. The current source contract
+and open R01?R18 gates are in ../../PRODUCTION_REMEDIATION.md. The baseline nine
+CI jobs passed on 4afe364; that result does not verify the remediation patch.
+Production build/start support production settings; live collection is separately
+gated, not inherently unsupported. Timetables already exist in the current source.
+Same-origin gateway acceptance, policy decisions, provider configuration, recovery
+and final exact-revision CI remain required. No deployment or registration opening
+is authorized. The legacy status table below is retained, not current acceptance.
+
+# Historical acceptance record (superseded where noted above)
+
 # Final release acceptance and controlled launch procedure
 
 **BLOCKED — APPROVAL / ACCEPTANCE REQUIRED**

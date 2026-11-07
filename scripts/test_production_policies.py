@@ -44,6 +44,8 @@ django.setup()
 from django.test import SimpleTestCase, TestCase, TransactionTestCase
 
 labels = sys.argv[1:] or [
+    'config.test_request_security.GatewaySecurityTests',
+    'dic.test_remediation.RemediationPolicyTests',
     'dic.test_registration_accounts.RegistrationAccountPolicyTests',
     'dic.test_portal_accounts.PortalAccountPolicyTests',
     'dic.test_tutor_registration.TutorPolicyTests',

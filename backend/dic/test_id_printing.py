@@ -37,6 +37,15 @@ class PrintingTests(PortalFixtures, TestCase):
     def issue(self):
         return command(self.enrollment, 'issue', self.id_manager, 'Authorized isolated test.')
 
+    def test_export_rejects_oversized_batch_before_issuance_or_media_retrieval(self):
+        from .printing_api import MAX_PRINT_BATCH
+        with patch('dic.printing_api.card_context') as context, patch('dic.printing_api.render_pdf') as render:
+            response = self.export([str(self.enrollment.pk)] * (MAX_PRINT_BATCH + 1))
+        self.assertEqual(response.status_code, 400)
+        context.assert_not_called()
+        render.assert_not_called()
+        self.assertFalse(DigitalIDIssue.objects.exists())
+
     def export(self, ids=None):
         return self.client.post(self.export_url, {'enrollment_ids': ids or [str(self.enrollment.pk)]}, content_type='application/json')
 

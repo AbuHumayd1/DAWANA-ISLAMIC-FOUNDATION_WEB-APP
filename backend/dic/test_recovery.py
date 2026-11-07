@@ -473,7 +473,7 @@ class RegistrationRecoveryTests(TransactionTestCase):
         )
 
     @patch("dic.recovery.send_mail", return_value=1)
-    def test_worker_retries_stale_claimed_delivery_once(self, mock_send):
+    def test_worker_suppresses_uncertain_claim_without_duplicate_send(self, mock_send):
         self.create_order()
         response = self.start()
         challenge = RegistrationRecoveryChallenge.objects.get(
@@ -487,13 +487,13 @@ class RegistrationRecoveryTests(TransactionTestCase):
 
         self.process_deliveries()
 
-        mock_send.assert_called_once()
+        mock_send.assert_not_called()
         challenge.refresh_from_db()
         self.assertEqual(
             challenge.delivery_status,
-            RegistrationRecoveryChallenge.DeliveryStatus.SENT,
+            RegistrationRecoveryChallenge.DeliveryStatus.SUPPRESSED,
         )
-        self.assertEqual(challenge.delivery_attempts, 1)
+        self.assertEqual(challenge.delivery_attempts, 0)
         self.assertEqual(challenge.encrypted_delivery_payload, "")
 
     def test_cleanup_removes_expired_recovery_records_and_pending_payloads(self):

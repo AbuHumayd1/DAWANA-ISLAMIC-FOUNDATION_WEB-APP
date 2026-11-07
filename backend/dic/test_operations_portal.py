@@ -127,7 +127,7 @@ class DICOperationsPortalTests(TestCase):
                 participant_snapshot={"full_name": name},
             )
         if paid:
-            PaymentAttempt.objects.create(
+            attempt = PaymentAttempt.objects.create(
                 order=order,
                 reference=f"DIC-{uuid.uuid4()}",
                 amount_kobo=len(names) * 12500,
@@ -138,6 +138,8 @@ class DICOperationsPortalTests(TestCase):
                 provider_status="success",
                 provider_paid_at=timezone.now(),
             )
+            from .testing_settlement import complete_settlement_fixture
+            complete_settlement_fixture(order, attempt)
         return order
 
     def test_private_api_requires_authenticated_operations_permission(self):

@@ -13,6 +13,10 @@ from .participant_services import eligibility
 from .portrait_pdf import house_details, render_pdf, require_pdf_dependencies
 from .media_delivery import safe_media
 
+# Bound synchronous work while retaining locks that protect revocation/issuance.
+# Raising this ceiling requires measured memory, lock-duration and timeout data.
+MAX_PRINT_BATCH = 25
+
 
 def printable(enrollment, issue):
     return bool(issue and issue.verification_digest and issue.verification_secret
@@ -57,40 +61,40 @@ class PrintingDirectoryView(OperationsBaseView):
 
 class PrintingExportView(OperationsBaseView):
     @safe_media
-    @transaction.atomic
     def post(self, request):
         require_staff(request.user, manage=True)
         require_pdf_dependencies()
         ids = request.data.get('enrollment_ids')
-        if not isinstance(ids, list) or not 1 <= len(ids) <= 5000:
-            raise ValidationError('Select between 1 and 5,000 eligible participants.')
+        if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_PRINT_BATCH:
+            raise ValidationError(f'Select between 1 and {MAX_PRINT_BATCH} eligible participants.')
         try:
             ids = list(dict.fromkeys(uuid.UUID(str(value)) for value in ids))
         except (ValueError, TypeError, AttributeError):
             raise ValidationError('Invalid participant selection.') from None
-        initial = list(CampEnrollment.objects.filter(pk__in=ids))
-        if len(initial) != len(ids):
-            raise ValidationError('Selection changed. Refresh the participant directory.')
-        # Match issuance lock order and freeze eligibility / revocation during generation.
-        order_ids = RegistrationOrder.objects.filter(items__participant_id__in=[e.participant_id for e in initial]).values_list('pk', flat=True)
-        list(RegistrationOrder.objects.select_for_update().filter(pk__in=order_ids).order_by('pk'))
-        list(Participant.objects.select_for_update().filter(pk__in=[e.participant_id for e in initial]).order_by('pk'))
-        enrollments = list(CampEnrollment.objects.select_for_update().filter(pk__in=ids).order_by('participant_number'))
-        list(DigitalIDIssue.objects.select_for_update().filter(enrollment__in=enrollments))
-        cards = [card_context(request, e) for e in enrollments]
-        payload = render_pdf(cards)
-        batch = str(uuid.uuid4())
-        DICAdminAuditEvent.objects.create(actor=request.user, action='participant_ids_exported',
-            target_type='IDPrintBatch', target_id=batch, details=dict(card_count=len(cards),
-                enrollment_ids=[str(e.pk) for e in enrollments],
-                participant_numbers=[e.participant_number for e in enrollments], batch_id=batch,
-                cards=[dict(enrollment_id=str(card['enrollment'].pk), issue_id=str(card['issue'].pk),
-                    version=card['issue'].version, participant_number=card['enrollment'].participant_number)
-                    for card in cards]))
-        response = HttpResponse(payload, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="dic-id-batch-{batch}.pdf"'
-        response['X-ID-Batch'] = batch
-        return secured(response)
+        with transaction.atomic():
+            initial = list(CampEnrollment.objects.filter(pk__in=ids))
+            if len(initial) != len(ids):
+                raise ValidationError('Selection changed. Refresh the participant directory.')
+            # Match issuance lock order and freeze eligibility / revocation during generation.
+            order_ids = RegistrationOrder.objects.filter(items__participant_id__in=[e.participant_id for e in initial]).values_list('pk', flat=True)
+            list(RegistrationOrder.objects.select_for_update().filter(pk__in=order_ids).order_by('pk'))
+            list(Participant.objects.select_for_update().filter(pk__in=[e.participant_id for e in initial]).order_by('pk'))
+            enrollments = list(CampEnrollment.objects.select_for_update().filter(pk__in=ids).order_by('participant_number'))
+            list(DigitalIDIssue.objects.select_for_update().filter(enrollment__in=enrollments))
+            cards = [card_context(request, e) for e in enrollments]
+            payload = render_pdf(cards)
+            batch = str(uuid.uuid4())
+            DICAdminAuditEvent.objects.create(actor=request.user, action='participant_ids_exported',
+                target_type='IDPrintBatch', target_id=batch, details=dict(card_count=len(cards),
+                    enrollment_ids=[str(e.pk) for e in enrollments],
+                    participant_numbers=[e.participant_number for e in enrollments], batch_id=batch,
+                    cards=[dict(enrollment_id=str(card['enrollment'].pk), issue_id=str(card['issue'].pk),
+                        version=card['issue'].version, participant_number=card['enrollment'].participant_number)
+                        for card in cards]))
+            response = HttpResponse(payload, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="dic-id-batch-{batch}.pdf"'
+            response['X-ID-Batch'] = batch
+            return secured(response)
 
 
 class PrintingConfirmView(OperationsBaseView):

@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand,CommandError
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from config.release_migrations import plan_manifest,validate_approval
+from config.release_migrations import plan_manifest,validate_approval,validate_target
 
 
 class Command(BaseCommand):
@@ -13,6 +13,10 @@ class Command(BaseCommand):
 
     def add_arguments(self,parser):
         parser.add_argument('--database-name',required=True)
+        parser.add_argument('--hostname', required=True)
+        parser.add_argument('--port', required=True)
+        parser.add_argument('--role', required=True)
+        parser.add_argument('--cluster-id', required=True)
         parser.add_argument('--approval-file')
         parser.add_argument('--apply-approved-plan',action='store_true')
         parser.add_argument('--manifest-file',help='Write the exact read-only plan as JSON for review.')
@@ -24,17 +28,30 @@ class Command(BaseCommand):
         name=options['database_name']
         if name in ('dawana_dev','dic_2026_demo','postgres','template0','template1') or settings.DATABASES['default']['NAME']!=name:
             raise CommandError('Release database identity rejected.')
+        expected = dict(database=name, host=options['hostname'], port=options['port'],
+                        role=options['role'], cluster_id=options['cluster_id'])
+        try:
+            # Reject the wrong configured endpoint before opening a connection.
+            validate_target(settings.DATABASES['default'], expected,
+                            dict(database=name, role=expected['role'], cluster_id=expected['cluster_id']))
+        except RuntimeError as exc:
+            raise CommandError(str(exc)) from None
         with connection.cursor() as cursor:
-            cursor.execute('SELECT current_database()')
-            actual=cursor.fetchone()[0]
-        if isinstance(actual,bytes): actual=actual.decode('utf-8')
-        if actual!=name: raise CommandError('PostgreSQL identity mismatch.')
+            # Requires an explicitly authorized inspection role. If the managed
+            # provider forbids this function, stop; do not bypass cluster binding.
+            cursor.execute('SELECT current_database(), current_user, system_identifier::text '
+                           'FROM pg_control_system()')
+            actual = dict(zip(('database', 'role', 'cluster_id'), cursor.fetchone()))
+        try:
+            validate_target(settings.DATABASES['default'], expected, actual)
+        except RuntimeError as exc:
+            raise CommandError(str(exc)) from None
         executor=MigrationExecutor(connection)
         executor.loader.check_consistent_history(connection)
         if executor.loader.detect_conflicts(): raise CommandError('Migration graph conflicts.')
         targets=executor.loader.graph.leaf_nodes()
         plan=executor.migration_plan(targets)
-        manifest=plan_manifest(executor.loader,plan,name,module)
+        manifest=plan_manifest(executor.loader,plan,name,module, {**expected, **actual})
         if not options['apply_approved_plan']:
             if options.get('manifest_file'):
                 path=Path(options['manifest_file'])

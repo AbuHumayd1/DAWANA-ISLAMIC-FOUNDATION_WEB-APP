@@ -6,7 +6,7 @@ DEBUG = False
 # Legacy staging imports these HTTPS settings; retain its existing storage path.
 DIC_PRODUCTION_STORAGE = os.environ.get('DJANGO_SETTINGS_MODULE') != 'config.settings.staging'
 DJANGO_DEPLOYMENT_TARGET = env('DJANGO_DEPLOYMENT_TARGET', default='self-managed')
-if DJANGO_DEPLOYMENT_TARGET not in ('self-managed', 'render'):
+if DJANGO_DEPLOYMENT_TARGET not in ('self-managed', 'render', 'managed'):
     raise ImproperlyConfigured('Unsupported production deployment target.')
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
@@ -42,6 +42,13 @@ if DIC_PRODUCTION_STORAGE and DIC_MEMORY_STORAGE == 's3':
     del _storage_config, _media_config, _private_config
 MIDDLEWARE = [*MIDDLEWARE]
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+if DIC_PRODUCTION_STORAGE:
+    MIDDLEWARE.insert(0, 'config.request_security.TrustedGatewayMiddleware')
+    MIDDLEWARE.append('config.request_security.AdminLoginThrottleMiddleware')
+# Never trust an arbitrary X-Forwarded-For chain. A verified immediate gateway
+# must replace X-Dawana-Client-IP and strip client-supplied forwarding headers.
+DAWANA_TRUSTED_GATEWAYS = env.list('DAWANA_TRUSTED_GATEWAYS', default=[])
+REST_FRAMEWORK = {**REST_FRAMEWORK, 'NUM_PROXIES': 0}
 STATIC_URL = '/static/'
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},

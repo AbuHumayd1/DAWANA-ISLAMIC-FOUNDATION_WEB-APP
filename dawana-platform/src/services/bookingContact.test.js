@@ -33,10 +33,11 @@ test('post-payment activation submits password confirmation and requires verifie
   assert.match(source, /label="Confirm password"/)
   assert.doesNotMatch(source, /Continue with Google|Link Google to/)
 })
-test('registration persists only contact/draft data and submits explicit primary registrant', () => {
+test('registration keeps private draft fields in memory and validates complete submission', () => {
   const source = fs.readFileSync(new URL('../pages/DIC.jsx', import.meta.url), 'utf8')
-  assert.match(source, /primary_registrant: primaryRegistrantPayload\(flow.primaryRegistrant\)/)
+  assert.match(source, /registrationSubmission\(flow, registrationCredentials, primaryRegistrantPayload, participantPayload, registrationCredentialsPayload\)/)
   const save = source.slice(source.indexOf('function saveFlow('), source.indexOf('function clearSavedFlow('))
   assert.doesNotMatch(save, /password|password_confirmation/)
+  assert.match(save, /JSON.stringify\(privateDraft\(flow\)\)/)
   assert.match(source, /flow\.orderId \|\| busy \|\| flow\.submissionUncertain/)
 })

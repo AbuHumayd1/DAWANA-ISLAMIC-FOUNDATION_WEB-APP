@@ -28,7 +28,10 @@ def _claim_challenges(limit):
         expires_at__gt=now,
         consumed_at__isnull=True,
     ).update(
-        delivery_status=queued,
+        # An interrupted provider call may already have delivered the code.
+        # Never reclaim uncertain sends without provider-side idempotency.
+        delivery_status=RegistrationRecoveryChallenge.DeliveryStatus.SUPPRESSED,
+        encrypted_delivery_payload='',
         delivery_started_at=None,
     )
     with transaction.atomic():
@@ -164,8 +167,8 @@ class Command(BaseCommand):
                 "DIC_RECOVERY_ENCRYPTION_KEY must be a valid Fernet key."
             )
         limit = options["limit"]
-        if limit < 1:
-            raise CommandError("--limit must be greater than zero.")
+        if not 1 <= limit <= 100:
+            raise CommandError("Use --limit between 1 and 100.")
 
         now = timezone.now()
         RegistrationRecoveryChallenge.objects.filter(
