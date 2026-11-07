@@ -15,10 +15,24 @@ docker run -d --name "$name" --read-only --tmpfs /run/dawana:uid=10001,gid=10001
   -e DB_NAME=synthetic_unreachable -e DB_USER=synthetic -e DB_HOST=127.0.0.1 -e DB_PORT=1 \
   -e DB_SSLMODE=verify-full -e PAYSTACK_MODE=test -e PAYSTACK_LIVE_ENABLED=false \
   -e DIC_MEMORY_STORAGE=disabled "$image" >/dev/null
+ready=0
 for attempt in $(seq 1 30); do
-  if docker exec "$name" test -f /run/dawana/nginx.pid; then break; fi
+  if docker exec "$name" python -c 'import socket; s=socket.create_connection(("127.0.0.1", 8080), timeout=1); s.close()' >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  if test "$(docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null)" != true; then
+    echo "ERROR: trusted-edge container exited before readiness." >&2
+    docker logs "$name" >&2
+    exit 1
+  fi
   sleep 1
 done
+if test "$ready" != 1; then
+  echo "ERROR: trusted-edge gateway did not listen on port 8080 within 30 attempts." >&2
+  docker logs "$name" >&2
+  exit 1
+fi
 docker exec -i "$name" python - <<'PY'
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
