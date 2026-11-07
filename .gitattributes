@@ -1,1 +1,5 @@
 backend/render-*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+ops/container/** text eol=lf
+.github/workflows/container-packaging.yml text eol=lf
