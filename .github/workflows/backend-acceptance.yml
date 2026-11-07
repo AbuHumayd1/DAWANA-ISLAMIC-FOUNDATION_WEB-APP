@@ -97,7 +97,7 @@ jobs:
           python -m pip install -r backend/requirements-test-ids.txt -c backend/constraints-staging.txt
           python -m pip check
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-liberation
       - name: Parse backend Python source without execution or bytecode output
         run: python -I -B scripts/run_backend_ci.py --syntax-check
       - name: Check graph, migrate disposable database and run partition

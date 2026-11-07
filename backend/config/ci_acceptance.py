@@ -128,6 +128,8 @@ def outcome(test_ids, result):
         'discovered_ids': test_ids, 'started_ids': result.started_ids,
         'failed_ids': [test.id() for test, _ in result.failures],
         'error_ids': [test.id() for test, _ in result.errors],
+        'failure_details': [{'id': test.id(), 'traceback': detail} for test, detail in result.failures],
+        'error_details': [{'id': test.id(), 'traceback': detail} for test, detail in result.errors],
         'skipped_tests': [{'id': test.id(), 'reason': reason} for test, reason in result.skipped],
     }
 
@@ -141,7 +143,7 @@ def write_report(name, report):
     with (target / (name + '.json')).open('x', encoding='utf-8') as output:
         json.dump(report, output, indent=2)
     print(json.dumps({key: value for key, value in report.items()
-        if not key.endswith('_ids') and key != 'skipped_tests'}, sort_keys=True))
+        if not key.endswith('_ids') and key not in ('skipped_tests', 'failure_details', 'error_details')}, sort_keys=True))
 
 
 def run_policy_suite(suite):

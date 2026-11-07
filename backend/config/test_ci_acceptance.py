@@ -87,6 +87,27 @@ class AcceptanceHarnessTests(SimpleTestCase):
         self.assertEqual(report['passed'], 1)
         self.assertEqual(report['not_started'], 0)
 
+    def test_result_artifacts_retain_failure_and_error_tracebacks(self):
+        def failing():
+            self.fail('synthetic assertion evidence')
+
+        def erroring():
+            raise RuntimeError('synthetic exception evidence')
+
+        tests = [unittest.FunctionTestCase(failing), unittest.FunctionTestCase(erroring)]
+        ids = [test.id() for test in tests]
+        result = self.result()
+        unittest.TestSuite(tests).run(result)
+        report = outcome(ids, result)
+        self.assertEqual(report['status'], 'failed')
+        self.assertEqual(report['passed'], 0)
+        self.assertEqual(report['failures'], 1)
+        self.assertEqual(report['errors'], 1)
+        self.assertEqual(report['failure_details'][0]['id'], ids[0])
+        self.assertIn('synthetic assertion evidence', report['failure_details'][0]['traceback'])
+        self.assertEqual(report['error_details'][0]['id'], ids[1])
+        self.assertIn('synthetic exception evidence', report['error_details'][0]['traceback'])
+
     def test_skipped_and_unexecuted_tests_are_never_passed(self):
         test = unittest.FunctionTestCase(lambda: None)
         result = self.result()

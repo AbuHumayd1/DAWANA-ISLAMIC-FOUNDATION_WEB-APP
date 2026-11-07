@@ -1,6 +1,6 @@
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from cryptography.fernet import Fernet
@@ -32,6 +32,8 @@ class PortalFixtures:
 
     def setUp(self):
         fixtures.DICOperationsPortalTests.setUp(self)
+        self.edition.housing_age_reference_date = date(2026, 12, 23)
+        self.edition.save(update_fields=['housing_age_reference_date'])
         from .pricing import create_price_revision, current_order_prices
         revision = create_price_revision(self.paid_order, current_order_prices(self.paid_order), accepted_at=timezone.now())
         attempt = self.paid_order.payment_attempts.get()
@@ -222,7 +224,7 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
         enrollment.refresh_from_db()
         self.assertEqual(enrollment.participant_number, numbers[-1])
         RegistrationOrder.objects.filter(pk=self.paid_order.pk).update(payment_status='refunded')
-        self.assertEqual(client.get(reverse('dic:participant-id', args=[enrollment.pk])).status_code, 400)
+        self.assertEqual(client.get(reverse('dic:participant-id', args=[enrollment.pk])).status_code, 403)
 
     def test_eligibility_cases_and_legacy_review_without_mutation(self):
         enrollment = ensure_enrollment(self.item.pk)

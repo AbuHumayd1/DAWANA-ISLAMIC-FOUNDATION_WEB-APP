@@ -49,7 +49,7 @@ def main():
         for path in reports:
             report = json.loads(path.read_text(encoding='utf-8'))
             summary = {key: value for key, value in report.items()
-                       if not key.endswith('_ids') and key != 'skipped_tests'}
+                       if not key.endswith('_ids') and key not in ('skipped_tests', 'failure_details', 'error_details')}
             if test_step != 'success':
                 summary['status'] = 'not_verified'
             summary['test_step_outcome'] = test_step or 'missing'

@@ -32,9 +32,20 @@ def register_fonts():
     from django.conf import settings
     fallback = Path(reportlab.__file__).parent / 'fonts'
     candidates = {
-        'PremiumSans': [getattr(settings, 'DIC_ID_FONT_FILE', ''), 'C:/Windows/Fonts/arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', fallback/'Vera.ttf'],
-        'PremiumBold': [getattr(settings, 'DIC_ID_BOLD_FONT_FILE', ''), 'C:/Windows/Fonts/arialbd.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', fallback/'VeraBd.ttf'],
-        'PremiumSerif': ['C:/Windows/Fonts/georgiab.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf', fallback/'VeraBd.ttf'],
+        # Liberation provides Arial-compatible Linux advances. DejaVu/Vera are
+        # wider and can turn the approved 16 pt single line into two lines.
+        'PremiumSans': [getattr(settings, 'DIC_ID_FONT_FILE', ''), 'C:/Windows/Fonts/arial.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', fallback/'Vera.ttf'],
+        'PremiumBold': [getattr(settings, 'DIC_ID_BOLD_FONT_FILE', ''), 'C:/Windows/Fonts/arialbd.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', fallback/'VeraBd.ttf'],
+        'PremiumSerif': ['C:/Windows/Fonts/georgiab.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf', fallback/'VeraBd.ttf'],
     }
     for name, paths in candidates.items():
         if name not in pdfmetrics.getRegisteredFontNames():

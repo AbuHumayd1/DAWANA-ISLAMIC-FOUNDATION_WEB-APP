@@ -1,5 +1,49 @@
 # Backend acceptance in ephemeral GitHub Actions
 
+## Exact-artifact correction pass (run 42351498137)
+
+The original PG14 and PG18 core ZIPs were read directly without extraction.
+Both report 799 discovered/started, 772 passed, 21 failure entries, 9 error
+entries and successful fresh migrations. Their failed_ids and error_ids match.
+Subtest entries are not a count of distinct failed test methods. The artifacts
+do not include exception tracebacks, so no particular exception text is assumed.
+
+Source-confirmed corrections prepared from those identities:
+
+- All 13 named recovery failures share create_order(), whose request omitted
+  required primary_registrant and portal_account fields. Supply valid synthetic
+  credentials/contact and mock only the independent account-verification mail.
+  Recovery matching, delivery, expiry, revocation and concurrent verification
+  remain real code under their existing dedicated tests.
+- The ten-tester loop reused one primary contact eleven times including setup,
+  exceeding its real ten-request limit. Each independent registrant now has a
+  distinct synthetic contact. No production limit or cache allowance is changed.
+- Finance-only fixtures no longer receive audit permission by default. The
+  positive audit case grants it explicitly; the finance-only denial stays intact.
+- Projection mocks now cover the real tutor lookup instead of reaching the ORM
+  with an invalid synthetic identifier. Campsite mock orders include paid/tutor
+  basis and assert the existing complimentary_tutors output field.
+- Housing database-constraint coverage first verifies model ValidationError,
+  then deliberately uses bulk_create to exercise the independent SQL constraint.
+- Portal fixtures supply the existing synthetic housing reference date. Missing
+  or revoked IDs retain 400; lost payment entitlement and revoked scopes retain
+  403. Foreign bookings retain 404. No authorization implementation is changed.
+- Linux font lookup prefers Liberation before the wider DejaVu/Vera fallbacks;
+  the PostgreSQL CI jobs explicitly install fonts-liberation. Configured fonts
+  and Windows font preferences remain first. Dimensions, complete-name checks,
+  QR payloads and the 11 pt minimum remain unchanged. Liberation targets Arial/
+  Times New Roman metric compatibility; production Linux must have compatible
+  fonts installed or explicitly configure approved font files.
+- New result artifacts retain failure/error tracebacks alongside IDs, without
+  flooding count summaries. Missing, skipped and failed tests still fail CI.
+
+Local Python execution remains unavailable (Access is denied), including the
+registered Windows Store interpreter. Node-based supplementary font-table
+measurements establish the fallback-width discrepancy, not PDF-rendering success.
+All corrections, including exact long-name bounds and card status expectations,
+require fresh policy and PG14/PG18 matrix execution before acceptance. No QR
+failure identity appears in these artifacts; no QR code or payload was changed.
+
 ## Core remediation status (after bccb858)
 
 The owner reports policy and all tutor/movement/assistance jobs passing on

@@ -7,6 +7,30 @@ from .portrait_pdf import mm
 
 
 class PremiumBadgeConceptTests(SimpleTestCase):
+    def test_linux_prefers_metric_compatible_fonts_without_changing_readability_floor(self):
+        from pathlib import Path
+        from .premium_badge_concepts import register_fonts
+        available = {
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
+        }
+        with self.settings(DIC_ID_FONT_FILE='', DIC_ID_BOLD_FONT_FILE=''), \
+                patch('pathlib.Path.is_file', lambda path: path.as_posix() in available), \
+                patch('reportlab.pdfbase.pdfmetrics.getRegisteredFontNames', return_value=[]), \
+                patch('reportlab.pdfbase.pdfmetrics.registerFont'), \
+                patch('reportlab.pdfbase.ttfonts.TTFont') as font:
+            register_fonts()
+        self.assertEqual([(args.args[0], Path(args.args[1]).as_posix()) for args in font.call_args_list], [
+            ('PremiumSans', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'),
+            ('PremiumBold', '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'),
+            ('PremiumSerif', '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf'),
+        ])
+        self.assertEqual(NAME_MINIMUM_PT, 11)
+
     def card(self, index, long=False):
         return dict(synthetic=True, enrollment=SimpleNamespace(
             edition=SimpleNamespace(name='Darul Islam Camp 2026'),

@@ -383,14 +383,14 @@ class HouseTests(TestCase):
             house.full_clean()
 
     def test_database_rejects_female_fathers_and_admin_accommodation(self):
+        invalid = House(edition=self.edition, name="Invalid Accommodation",
+            gender=House.Gender.FEMALE, purpose=House.Purpose.FATHERS_AND_ADMINS, capacity=None)
+        with self.assertRaises(ValidationError):
+            invalid.save()
+        # bulk_create bypasses model.save() deliberately, to exercise the
+        # independent PostgreSQL constraint after checking model enforcement.
         with self.assertRaises(IntegrityError), transaction.atomic():
-            House.objects.create(
-                edition=self.edition,
-                name="Invalid Accommodation",
-                gender=House.Gender.FEMALE,
-                purpose=House.Purpose.FATHERS_AND_ADMINS,
-                capacity=None,
-            )
+            House.objects.bulk_create([invalid])
 
     def test_eligibility_rules_must_be_an_object(self):
         house = House(

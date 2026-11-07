@@ -474,15 +474,16 @@ class IdentityCardTests(PortalFixtures, TestCase):
 
     def test_portal_missing_revoked_and_ineligible_ids_never_issue(self):
         browser, _ = self.portal_client()
-        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code')
+        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code', status_code=400)
         self.assertFalse(DigitalIDIssue.objects.exists())
         self.issue()
         command(self.enrollment, 'revoke', self.id_manager, 'Portal regression revocation.')
-        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code')
+        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code', status_code=400)
         self.assertEqual(DigitalIDIssue.objects.count(), 1)
         command(self.enrollment, 'reissue', self.id_manager, 'Authorized replacement.')
         self.paid_order.payment_attempts.update(provider_status='pending')
-        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code')
+        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code', status_code=403)
+        self.assertEqual(DigitalIDIssue.objects.count(), 2)
 
     def test_portal_rejects_other_bookings_and_invalid_or_revoked_grants(self):
         from .models import ParticipantPortalScope
@@ -502,7 +503,7 @@ class IdentityCardTests(PortalFixtures, TestCase):
         grant.expires_at = original_expiry
         grant.save(update_fields=['expires_at'])
         ParticipantPortalScope.objects.filter(grant=grant).update(revoked_at=timezone.now())
-        self.assertEqual(browser.get(self.portal_card_url()).status_code, 404)
+        self.assertEqual(browser.get(self.portal_card_url()).status_code, 403)
 
     def test_portal_approved_guardian_can_download_scoped_child_without_child_login(self):
         child = self.enrollment.participant

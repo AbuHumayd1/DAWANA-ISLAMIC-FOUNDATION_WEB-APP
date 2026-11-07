@@ -221,7 +221,11 @@ class StagingTesterAccessTests(APITestCase):
                 self.client = APIClient(enforce_csrf_checks=True)
                 csrf = self.sign_in(user.username, "test-only" if index == 0 else f"test-only-{index}")
                 self.assertEqual(self.client.get("/api/v1/dic/tester-access/login/").status_code, 200)
-                created = self.client.post("/api/v1/dic/orders/", self.order_payload, format="json",
+                # Distinct registrants exercise ten ordinary flows without
+                # exhausting one contact's real ten-request account limit.
+                payload = {**self.order_payload, 'primary_registrant': {
+                    **self.order_payload['primary_registrant'], 'email': f'registrant-{index}@example.test'}}
+                created = self.client.post("/api/v1/dic/orders/", payload, format="json",
                     HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()), HTTP_X_CSRFTOKEN=csrf)
                 self.assertEqual(created.status_code, 201)
                 order_id = created.data["order_id"]

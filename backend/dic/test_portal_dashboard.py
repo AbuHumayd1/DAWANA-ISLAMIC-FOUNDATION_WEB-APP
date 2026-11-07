@@ -11,6 +11,12 @@ from .models import CampCheckIn,ParticipantPortalGrant,CampEnrollment
 
 
 class CamperProjectionTests(SimpleTestCase):
+    def setUp(self):
+        # This fixture represents an ordinary participant, not a tutor. Keep the
+        # real projection and its housing/check-in query boundaries under test.
+        self.tutor_items = self.enterContext(patch('dic.tutor_registration.RegistrationOrderItem.objects'))
+        self.tutor_items.filter.return_value.exists.return_value = False
+
     def test_projection_is_participant_edition_scoped_minimal_and_read_only(self):
         edition=NS(pk=41)
         with patch('dic.portal_dashboard.HouseAllocation.objects') as allocations,patch('dic.portal_dashboard.CampCheckIn.objects') as arrivals:
@@ -23,7 +29,18 @@ class CamperProjectionTests(SimpleTestCase):
             self.assertEqual(allocations.filter.call_args.kwargs['status'],'allocated')
             self.assertEqual(allocations.filter.call_args.kwargs['house__edition'],edition)
             arrivals.filter.assert_called_once_with(participant_id='person',edition=edition)
+            self.tutor_items.filter.assert_called_once_with(participant_id='person',
+                order__edition_id=edition.pk, order__registration_basis='tutor')
             allocations.create.assert_not_called();arrivals.create.assert_not_called()
+
+    def test_tutor_projection_does_not_return_competitive_housing_fields(self):
+        self.tutor_items.filter.return_value.exists.return_value = True
+        with patch('dic.portal_dashboard.HouseAllocation.objects') as allocations, \
+                patch('dic.portal_dashboard.CampCheckIn.objects') as arrivals:
+            arrivals.filter.return_value.exists.return_value = True
+            result = camper_operations_summary('person', NS(pk=41))
+        self.assertEqual(result, dict(registration_basis='tutor', competitive=False, checked_in=True))
+        allocations.filter.assert_not_called()
 
     def test_unassigned_ambiguous_and_invalid_colour_states(self):
         for rows,expected in [([],None),([NS(house=NS(name='House',badge_colour='invalid'))],dict(name='House',colour=None)),([NS(),NS()],None)]:

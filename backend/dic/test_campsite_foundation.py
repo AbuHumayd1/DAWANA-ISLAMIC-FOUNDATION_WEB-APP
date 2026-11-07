@@ -75,7 +75,7 @@ class CampsiteFoundationTests(SimpleTestCase):
         from .campsite_api import campsite_metrics
         edition = SimpleNamespace(pk=41)
         rows = [SimpleNamespace(participant_id=index,participant=SimpleNamespace(pk=index),
-            order=SimpleNamespace(status='cancelled' if index==5 else 'confirmed'),pk=index) for index in range(1,6)]
+            order=SimpleNamespace(status='cancelled' if index==5 else 'confirmed', registration_basis='paid'),pk=index) for index in range(1,6)]
         enrollments = [SimpleNamespace(participant_id=index) for index in (1,3,4,5)]
         codes = {1:'verified_paid',2:'verified_paid',3:'registration_not_verified_paid',
                  4:'settlement_evidence_review_required',5:'registration_not_verified_paid'}
@@ -102,4 +102,4 @@ class CampsiteFoundationTests(SimpleTestCase):
             enrollment_model.assert_called_once_with(participant=rows[1].participant,edition=edition,source_item=rows[1])
         self.assertEqual(result,dict(registered_participants=5,eligible_participants=2,
             awaiting_payment_verification=1,assigned_participants=1,awaiting_house_assignment=1,
-            active_ids=1,requiring_attention=2,attendance=None))
+            active_ids=1,requiring_attention=2,complimentary_tutors=0,attendance=None))

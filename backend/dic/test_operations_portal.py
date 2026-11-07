@@ -55,7 +55,6 @@ class DICOperationsPortalTests(TestCase):
             "finance-password-not-used-in-logs",
             "can_view_dic_operations",
             "can_view_dic_finance",
-            "can_view_dic_audit",
             "view_registrationorder",
             "view_participant",
             "view_houseallocation",
@@ -246,6 +245,8 @@ class DICOperationsPortalTests(TestCase):
         self.assertIn("registrant", response.json())
         self.assertIn("email", response.json()["participants"][0])
 
+        self.finance.user_permissions.add(Permission.objects.get(
+            content_type__app_label='dic', codename='can_view_dic_audit'))
         self.client.force_login(self.finance)
         finance_response = self.client.get(order_url)
         self.assertIn("payment_attempts", finance_response.json())
