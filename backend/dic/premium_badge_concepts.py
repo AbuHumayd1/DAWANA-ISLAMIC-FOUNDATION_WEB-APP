@@ -73,9 +73,10 @@ class BadgePainter:
             pdf.rect(*args, fill=1, stroke=bool(stroke))
 
     def text(self, value, x, top, width, max_height, size=10, minimum=8,
-             font='PremiumSans', colour=GREEN, align=1):
+             font='PremiumSans', colour=GREEN, align=1, include_font_bounds=False):
         from reportlab.platypus import Paragraph
         from reportlab.lib.styles import ParagraphStyle
+        from reportlab.pdfbase.pdfmetrics import getAscentDescent
         original_size = size
         while size >= minimum:
             style = ParagraphStyle('premium', fontName=font, fontSize=size,
@@ -83,9 +84,18 @@ class BadgePainter:
                 splitLongWords=True, spaceShrinkage=0)
             text = Paragraph(escape(str(value)), style)
             _, height = text.wrap(width*mm, max_height*mm)
-            if height <= max_height*mm+.01:
-                text.drawOn(self.pdf, x*mm, (130-top)*mm-height)
-                return height/mm
+            above = below = 0
+            if include_font_bounds:
+                ascent, descent = getAscentDescent(font, size)
+                # Paragraph's first baseline is one font size below its top;
+                # the last baseline is (leading - size) above its bottom.
+                # Reserve glyph extents outside that logical line-height box.
+                above = max(0, ascent-size)
+                below = max(0, -descent-(style.leading-size))
+            occupied = height+above+below
+            if occupied <= max_height*mm+.01:
+                text.drawOn(self.pdf, x*mm, (130-top)*mm-height-above)
+                return occupied/mm
             size -= .25
         # Never clip, truncate or shrink participant names below the readability floor.
         raise ValueError(f'Text does not fit the {original_size:g} pt design at its readable minimum; review this name/layout.')
@@ -203,7 +213,8 @@ def render_concept_pdf(cards, concept):
         name_height = p.text(card['enrollment'].participant.full_name,
             name_x+.5, name_top+.5, name_width-1, name_max_height-1,
             size=18 if classic else 19, minimum=NAME_MINIMUM_PT,
-            font='PremiumSerif' if classic else 'PremiumBold', align=1 if classic else 0)+1
+            font='PremiumSerif' if classic else 'PremiumBold', align=1 if classic else 0,
+            include_font_bounds=True)+1
         number_label_top = name_top+name_height+1
         p.text('PARTICIPANT NUMBER', 8, number_label_top, 74, 3, size=6.5, minimum=6.5, align=1 if classic else 0)
         number_top = number_label_top+3

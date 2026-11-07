@@ -7,6 +7,25 @@ from .portrait_pdf import mm
 
 
 class PremiumBadgeConceptTests(SimpleTestCase):
+    def test_name_fit_reserves_font_descent_and_never_shrinks_below_minimum(self):
+        from unittest.mock import Mock
+        painter = BadgePainter(Mock())
+        with patch('reportlab.platypus.Paragraph') as paragraph, \
+                patch('reportlab.pdfbase.pdfmetrics.getAscentDescent', return_value=(10, -4)):
+            paragraph.return_value.wrap.return_value = (100, 20)
+            # 11 pt with 12.32 pt leading leaves 1.32 pt below the last
+            # baseline. A 4 pt descent therefore needs another 2.68 pt.
+            used = painter.text('Full participant name', 7.5, 76.5, 75, 23/mm,
+                size=11, minimum=11, font='PremiumSerif', include_font_bounds=True)
+            self.assertAlmostEqual(used*mm, 22.68)
+            paragraph.return_value.drawOn.assert_called_once()
+            paragraph.return_value.drawOn.reset_mock()
+            with self.assertRaises(ValueError):
+                painter.text('Full participant name', 7.5, 76.5, 75, 21/mm,
+                    size=11, minimum=11, font='PremiumSerif', include_font_bounds=True)
+            paragraph.return_value.drawOn.assert_not_called()
+            self.assertTrue(all(call.args[1].fontSize == 11 for call in paragraph.call_args_list))
+
     def test_linux_prefers_metric_compatible_fonts_without_changing_readability_floor(self):
         from pathlib import Path
         from .premium_badge_concepts import register_fonts

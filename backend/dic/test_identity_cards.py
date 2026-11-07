@@ -473,12 +473,27 @@ class IdentityCardTests(PortalFixtures, TestCase):
         self.assertEqual(DigitalIDIssue.objects.count(), 1)
 
     def test_portal_missing_revoked_and_ineligible_ids_never_issue(self):
+        def assert_unavailable_page(response):
+            # Authorized portal readers get a safe status page, not a card.
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context_data['cards'], [])
+            self.assertEqual(response.context_data['pages'], [])
+            self.assertTrue(response.context_data['errors'])
+            self.assertContains(response, 'no active eligible ID is available; please contact authorized DIC staff.')
+            self.assertContains(response,
+                '<button id="print" type="button" disabled>Print / Save PDF</button>', html=True)
+            self.assertContains(response,
+                '<button id="download" type="button" disabled>Download HTML</button>', html=True)
+            for forbidden in ('Secure verification QR code', '<article class="id-card"',
+                              'class="verify-link"', 'Issue / replace / revoke'):
+                self.assertNotContains(response, forbidden)
+
         browser, _ = self.portal_client()
-        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code', status_code=400)
+        assert_unavailable_page(browser.get(self.portal_card_url()))
         self.assertFalse(DigitalIDIssue.objects.exists())
         self.issue()
         command(self.enrollment, 'revoke', self.id_manager, 'Portal regression revocation.')
-        self.assertNotContains(browser.get(self.portal_card_url()), 'Secure verification QR code', status_code=400)
+        assert_unavailable_page(browser.get(self.portal_card_url()))
         self.assertEqual(DigitalIDIssue.objects.count(), 1)
         command(self.enrollment, 'reissue', self.id_manager, 'Authorized replacement.')
         self.paid_order.payment_attempts.update(provider_status='pending')
