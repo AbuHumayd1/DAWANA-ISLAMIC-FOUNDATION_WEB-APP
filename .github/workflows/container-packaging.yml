@@ -45,8 +45,12 @@ jobs:
           set -e
           echo "Unconfigured container exit code: $result (expected 1)"
           test "$result" = 1
+          echo "START: direct-TLS smoke"
           bash ops/container/smoke.sh dawana-package:ci
+          echo "PASS: direct-TLS smoke"
+          echo "START: trusted-edge smoke"
           bash ops/container/smoke-edge.sh dawana-package:ci
+          echo "PASS: trusted-edge smoke"
       - name: Record installed dependencies
         if: success()
         run: |
