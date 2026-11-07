@@ -1,0 +1,65 @@
+name: Container packaging (synthetic only)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - ops/container/**
+      - .github/workflows/container-packaging.yml
+permissions:
+  contents: read
+jobs:
+  packaging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Pure gateway tests (no application or database imports)
+        run: |
+          python -I -B -c "import ast,pathlib; files=list(pathlib.Path('ops/container').glob('*.py')); [ast.parse(p.read_text(),filename=str(p)) for p in files]; print('Python packaging syntax parsed:',len(files))"
+          python -I -B -m unittest discover -s ops/container -p 'test_*.py' -v
+          node ops/container/validate.mjs
+      - name: Resolve build inputs and build local image (no registry push)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull node:22.19.0-bookworm-slim
+          docker pull python:3.13-slim-bookworm
+          node_image=$(docker image inspect node:22.19.0-bookworm-slim --format '{{index .RepoDigests 0}}')
+          python_image=$(docker image inspect python:3.13-slim-bookworm --format '{{index .RepoDigests 0}}')
+          printf 'NODE_IMAGE=%s\nPYTHON_IMAGE=%s\nSOURCE_REVISION=%s\n' "$node_image" "$python_image" "$GITHUB_SHA" > "$RUNNER_TEMP/container-inputs.txt"
+          docker build --build-arg NODE_IMAGE="$node_image" --build-arg PYTHON_IMAGE="$python_image" \
+            --build-arg SOURCE_REVISION="$GITHUB_SHA" -t dawana-package:ci .
+          docker image inspect dawana-package:ci --format '{{.Id}}' >> "$RUNNER_TEMP/container-inputs.txt"
+      - name: Synthetic routing, readiness and shutdown (no database)
+        run: |
+          set +e
+          docker run --rm dawana-package:ci
+          result=$?
+          set -e
+          echo "Unconfigured container exit code: $result (expected 1)"
+          test "$result" = 1
+          echo "START: direct-TLS smoke"
+          bash ops/container/smoke.sh dawana-package:ci
+          echo "PASS: direct-TLS smoke"
+          echo "START: trusted-edge smoke"
+          bash ops/container/smoke-edge.sh dawana-package:ci
+          echo "PASS: trusted-edge smoke"
+      - name: Record installed dependencies
+        if: success()
+        run: |
+          docker run --rm --entrypoint cat dawana-package:ci /opt/venv/resolved-requirements.txt > "$RUNNER_TEMP/container-python.txt"
+          docker run --rm --entrypoint cat dawana-package:ci /app/container/system-packages.txt > "$RUNNER_TEMP/container-system.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-build-inputs
+          path: ${{ runner.temp }}/container-*.txt
+          if-no-files-found: error
+          retention-days: 14
