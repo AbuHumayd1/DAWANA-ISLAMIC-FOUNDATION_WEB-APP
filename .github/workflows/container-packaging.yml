@@ -43,6 +43,7 @@ jobs:
           docker run --rm dawana-package:ci
           result=$?
           set -e
+          echo "Unconfigured container exit code: $result (expected 1)"
           test "$result" = 1
           bash ops/container/smoke.sh dawana-package:ci
           bash ops/container/smoke-edge.sh dawana-package:ci
