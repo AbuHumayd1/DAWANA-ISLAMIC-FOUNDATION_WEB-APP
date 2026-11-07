@@ -30,7 +30,9 @@ def status(path, headers):
 assert status('/', {}) == 400
 assert status('/', {'X-Forwarded-Proto': 'http', 'X-Real-IP': '192.0.2.4'}) == 400
 trusted = {'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.4'}
-assert status('/dic/register/payment-return', trusted) == 200
+actual = status('/dic/register/payment-return', trusted)
+print(f'Trusted-edge payment-return: expected 200, got {actual}', flush=True)
+assert actual == 200, f'Expected 200, got {actual}'
 assert status('/api/v1/health/', {**trusted, 'X-Forwarded-For': 'spoof', 'X-Dawana-Client-IP': 'spoof'}) == 503
 assert status('/api/v1/health/', {**trusted, 'X-Real-IP': 'not-an-ip'}) == 400
 print('PASS: synthetic edge scheme/header boundary; database remains unavailable.')
