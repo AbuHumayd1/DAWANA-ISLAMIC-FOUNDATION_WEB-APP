@@ -37,6 +37,7 @@ class DICOperationsTests(TestCase):
             year=2098,
             camp_start_date=today + timedelta(days=30),
             camp_end_date=today + timedelta(days=36),
+            housing_age_reference_date=date(2026, 12, 23),
             is_active=True,
         )
         self.category = RegistrationCategory.objects.create(
@@ -445,12 +446,23 @@ class DICOperationsTests(TestCase):
         ):
             event.delete()
 
+    def test_staff_role_setup_preview_does_not_create_groups(self):
+        from io import StringIO
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+
+        before = list(Group.objects.order_by('pk').values_list('pk', 'name'))
+        output = StringIO()
+        call_command('setup_dic_staff_roles', stdout=output)
+        self.assertIn('Preview only.', output.getvalue())
+        self.assertEqual(list(Group.objects.order_by('pk').values_list('pk', 'name')), before)
+
     def test_staff_role_setup_creates_restricted_groups_idempotently(self):
         from django.contrib.auth.models import Group
         from django.core.management import call_command
 
-        call_command("setup_dic_staff_roles")
-        call_command("setup_dic_staff_roles")
+        call_command("setup_dic_staff_roles", apply_reviewed_grants=True)
+        call_command("setup_dic_staff_roles", apply_reviewed_grants=True)
 
         registration_staff = Group.objects.get(name="DIC Registration Staff")
         registration_codes = set(
@@ -470,7 +482,7 @@ class DICOperationsTests(TestCase):
         self.assertNotIn("can_export_dic_contact_information", finance_codes)
 
         administrators = Group.objects.get(name="DIC Administrators")
-        self.assertTrue(
+        self.assertFalse(
             administrators.permissions.filter(
                 codename="can_manage_registration_access"
             ).exists()

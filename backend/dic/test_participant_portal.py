@@ -317,7 +317,7 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
         self.assertEqual(result.status_code, 200, result.content)
         self.assertEqual(result.json()['issue']['status'], 'revoked')
         self.assertFalse(result.json()['eligibility']['eligible'])
-        call_command('setup_dic_staff_roles')
+        call_command('setup_dic_staff_roles', apply_reviewed_grants=True)
         self.assertFalse(Group.objects.get(name='DIC Administrators').permissions.filter(codename='can_manage_dic_ids').exists())
         self.assertTrue(DICAdminAuditEvent.objects.filter(action='enrollment_source_reviewed').exists())
 

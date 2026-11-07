@@ -1,5 +1,56 @@
 # Backend acceptance in ephemeral GitHub Actions
 
+## Core remediation status (after bccb858)
+
+The owner reports policy and all tutor/movement/assistance jobs passing on
+PostgreSQL 14 and 18; both core jobs still fail. This is reported evidence, not
+a locally reproduced result. Full test identities and tracebacks are required
+before attributing every failure or the one-failure version difference.
+
+Source-confirmed shared corrections in this pass:
+
+- CI uses the application template override directory and CORS header additions.
+  Origins remain restricted; production configuration is unchanged.
+- Each PostgreSQL test starts and ends with empty CI caches. The cache location
+  is unique to the disposable database. Real throttle rates and within-test
+  histories remain active, including concurrent requests within a test.
+- Authorized Operations fixtures explicitly request underlying record-view
+  permissions; the fixture lookup supports permissions on their actual models.
+  Finance/audit grants are explicit and contact access remains separate.
+- Role provisioning fixtures opt into reviewed grants; preview-only behavior
+  remains unchanged. With owner approval, the historical administrator assertion
+  now verifies that registration-access management is withheld. A separate test
+  confirms preview mode creates no groups; the role command is unchanged.
+- Showcase fixtures explicitly activate the synthetic upcoming edition; public
+  publication and inactive-edition restrictions remain unchanged.
+- The production-middleware test imports actual declarations in a synthetic
+  subprocess with dotenv loading and connection establishment blocked. Production
+  secret requirements remain intact; settings imports cannot contaminate CI.
+- Operations allocation fixtures now supply the same explicit synthetic housing
+  reference date used by the existing allocation fixtures. No production edition
+  date or housing policy is changed.
+- The housing-worker test checks real CI refusal first, then simulates the
+  supported development settings identity only against Django's test database.
+  It also verifies wrong-name refusal in that supported context. The command's
+  development-only and exact-name safeguards are unchanged.
+
+Remaining investigation requires core tracebacks and a fresh matrix run: other
+housing fixtures, portal UUID/card failures,
+QR decoding, badge typography, downstream
+payment/recovery/concurrency failures, and any independent report-contract errors.
+Do not infer those causes from HTTP status or change security policy to satisfy
+an outdated expectation. No PostgreSQL-version workaround is justified yet.
+
+The CI-only cache regression exercises a real DRF throttle twice with the same
+key: each test gets its full allowance, but excess requests within either test
+are rejected. The existing strict counting and nonzero acceptance exit behavior
+are retained. Local Python execution may still be blocked by executable access;
+unexecuted checks must never be reported as passing.
+
+## Historical preparation notes
+
+The following describes the original preparation, not the current run status.
+
 Prepared configuration, not evidence of a successful run. No workflow has been
 committed, pushed or executed by this preparation. No existing local/demo or
 production database, credential, account or infrastructure is involved.

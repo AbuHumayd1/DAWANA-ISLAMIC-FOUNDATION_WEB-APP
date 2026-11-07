@@ -167,11 +167,39 @@ class StagingTesterAccessTests(APITestCase):
         self.assertEqual(response.status_code, 201)
 
     def test_production_middleware_has_no_tester_gate(self):
-        from config.settings import production
+        import os
+        from pathlib import Path
+        import subprocess
+        import sys
+
+        # Import real production declarations only in a synthetic subprocess.
+        # Never read dotenv, connect, or pollute this suite's imported settings.
+        backend = Path(__file__).resolve().parents[1]
+        code = (
+            'import sys,socket;sys.path.insert(0,' + repr(str(backend)) + ');'
+            'from unittest.mock import patch;import environ;'
+            'from django.db.backends.base.base import BaseDatabaseWrapper;'
+            'deny=lambda *a,**k: (_ for _ in ()).throw(RuntimeError("I/O forbidden"));'
+            'socket.socket.connect=deny;socket.create_connection=deny;'
+            'BaseDatabaseWrapper.ensure_connection=deny;'
+            'guard=patch.object(environ.Env,"read_env");guard.start();'
+            'from config.settings import production;import json;'
+            'print(json.dumps(production.MIDDLEWARE))'
+        )
+        env = {key: os.environ[key] for key in ('SYSTEMROOT', 'WINDIR', 'PATH') if key in os.environ}
+        env.update(DJANGO_SETTINGS_MODULE='config.settings.production',
+            DJANGO_SECRET_KEY='synthetic-production-settings-test-' * 3,
+            DJANGO_ALLOWED_HOSTS='backend.example.test',
+            DATABASE_URL='postgresql://synthetic:unused@database.example.test/synthetic_settings_only',
+            PAYSTACK_MODE='test', PAYSTACK_SECRET_KEY='', DIC_MEMORY_STORAGE='disabled')
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', code], env=env,
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        middleware = json.loads(result.stdout)
 
         self.assertNotIn("config.staging_tester_access.DICStagingTesterMiddleware",
-                         production.MIDDLEWARE)
-        with override_settings(MIDDLEWARE=production.MIDDLEWARE):
+                         middleware)
+        with override_settings(MIDDLEWARE=middleware):
             response = APIClient().post("/api/v1/dic/orders/", self.order_payload, format="json",
                 HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
         self.assertEqual(response.status_code, 201)

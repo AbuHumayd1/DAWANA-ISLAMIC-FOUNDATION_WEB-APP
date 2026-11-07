@@ -156,6 +156,24 @@ def run_policy_suite(suite):
     return report['status'] == 'passed'
 
 
+class IsolatedCacheResult(CountedResult):
+    """Keep real throttles within each test, without cross-test cache history."""
+
+    def startTest(self, test):
+        from django.core.cache import caches
+        for cache in caches.all():
+            cache.clear()
+        super().startTest(test)
+
+    def stopTest(self, test):
+        from django.core.cache import caches
+        try:
+            for cache in caches.all():
+                cache.clear()
+        finally:
+            super().stopTest(test)
+
+
 class AcceptanceRunner(DiscoverRunner):
     test_runner = unittest.TextTestRunner
 
@@ -181,7 +199,7 @@ class AcceptanceRunner(DiscoverRunner):
         return unittest.TestSuite(selected)
 
     def get_test_runner_kwargs(self):
-        return {**super().get_test_runner_kwargs(), 'resultclass': CountedResult}
+        return {**super().get_test_runner_kwargs(), 'resultclass': IsolatedCacheResult}
 
     def setup_databases(self, **kwargs):
         old = super().setup_databases(**kwargs)  # Unchanged, complete migration graph.

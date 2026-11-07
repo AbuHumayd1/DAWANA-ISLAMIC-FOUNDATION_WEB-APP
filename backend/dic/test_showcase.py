@@ -24,6 +24,8 @@ class ShowcaseTests(AllocationFixtures, TransactionTestCase):
         override.enable()
         self.addCleanup(override.disable)
         self.edition = self.make_edition(year=2026)
+        self.edition.is_active = True
+        self.edition.save(update_fields=['is_active'])
         self.previous = self.make_edition(year=2025)
         self.media = get_user_model().objects.create_user(username="showcase-editor", is_staff=True)
         self.publisher = get_user_model().objects.create_user(username="showcase-publisher", is_staff=True)

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from django.test import SimpleTestCase
-from .ci_acceptance import CountedResult, guarded_connections, outcome, partition_for, regression_ids, require_ci, validate_regressions
+from .ci_acceptance import CountedResult, IsolatedCacheResult, guarded_connections, outcome, partition_for, regression_ids, require_ci, validate_regressions
 
 
 class AcceptanceHarnessTests(SimpleTestCase):
@@ -22,6 +22,31 @@ class AcceptanceHarnessTests(SimpleTestCase):
     def test_local_invocation_is_refused(self):
         with patch.dict('os.environ', {'GITHUB_ACTIONS': 'false', 'DAWANA_CI_ACCEPTANCE': '1'}):
             with self.assertRaises(RuntimeError): require_ci()
+
+    def test_cache_isolation_keeps_real_throttle_enforcement_within_each_test(self):
+        from django.core.cache import cache
+        from rest_framework.throttling import SimpleRateThrottle
+
+        class SyntheticThrottle(SimpleRateThrottle):
+            rate = '2/hour'
+
+            def get_cache_key(self, request, view):
+                return 'synthetic-ci-isolation-throttle'
+
+        def exercise():
+            throttle = SyntheticThrottle()
+            self.assertTrue(throttle.allow_request(None, None))
+            self.assertTrue(throttle.allow_request(None, None))
+            self.assertFalse(throttle.allow_request(None, None))
+            self.assertGreater(throttle.wait(), 3500)
+
+        suite = unittest.TestSuite([unittest.FunctionTestCase(exercise),
+                                    unittest.FunctionTestCase(exercise)])
+        result = IsolatedCacheResult(unittest.runner._WritelnDecorator(StringIO()), True, 0)
+        suite.run(result)
+        self.assertTrue(result.wasSuccessful(), str(result.failures) + str(result.errors))
+        self.assertEqual(result.testsRun, 2)
+        self.assertIsNone(cache.get('synthetic-ci-isolation-throttle'))
 
     def test_libpq_environment_overrides_are_removed_not_blanked(self):
         import os

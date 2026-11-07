@@ -8,7 +8,6 @@ from zipfile import ZipFile
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -47,12 +46,19 @@ class DICOperationsPortalTests(TestCase):
             "operator-password-not-used-in-logs",
             "can_view_dic_operations",
             "can_export_dic_reports",
+            "view_registrationorder",
+            "view_participant",
+            "view_houseallocation",
         )
         self.finance = self.create_user(
             "dic-finance",
             "finance-password-not-used-in-logs",
             "can_view_dic_operations",
             "can_view_dic_finance",
+            "can_view_dic_audit",
+            "view_registrationorder",
+            "view_participant",
+            "view_houseallocation",
             "can_export_dic_reports",
         )
         self.paid_order = self.make_order(
@@ -70,10 +76,7 @@ class DICOperationsPortalTests(TestCase):
             password=password,
         )
         permissions = Permission.objects.filter(
-            content_type=ContentType.objects.get(
-                app_label="dic",
-                model="campedition",
-            ),
+            content_type__app_label="dic",
             codename__in=codenames,
         )
         user.user_permissions.add(*permissions)
@@ -199,6 +202,21 @@ class DICOperationsPortalTests(TestCase):
         self.assertEqual(response.json()["metrics"]["verified_paid_orders"], 1)
         self.assertEqual(response.json()["metrics"]["verified_paid_participants"], 2)
         self.assertEqual(response.json()["edition"]["registration_status"], "draft")
+
+    def test_operations_and_export_grants_do_not_replace_record_view_authority(self):
+        limited = self.create_user('dic-limited', 'synthetic-password',
+            'can_view_dic_operations', 'can_export_dic_reports')
+        self.client.force_login(limited)
+        for route in ('operations-dashboard', 'operations-registrations', 'operations-participants'):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse('dic:' + route)).status_code, 403)
+        self.assertEqual(self.client.get(reverse('dic:operations-report'),
+            {'edition': self.edition.pk, 'report': 'registrations', 'format': 'csv'}).status_code, 403)
+        permission = Permission.objects.get(content_type__app_label='dic', codename='view_registrationorder')
+        limited.user_permissions.add(permission)
+        self.assertEqual(self.client.get(reverse('dic:operations-dashboard')).status_code, 200)
+        limited.user_permissions.remove(permission)
+        self.assertEqual(self.client.get(reverse('dic:operations-dashboard')).status_code, 403)
 
     def test_contact_and_finance_data_are_separately_permission_gated(self):
         self.client.force_login(self.operator)

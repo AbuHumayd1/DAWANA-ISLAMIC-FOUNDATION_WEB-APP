@@ -4,6 +4,7 @@ import base64
 import os
 import re
 from pathlib import Path
+from corsheaders.defaults import default_headers
 
 if os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('DAWANA_CI_ACCEPTANCE') != '1':
     raise RuntimeError('CI settings are restricted to the ephemeral acceptance job.')
@@ -45,18 +46,21 @@ USE_TZ = True
 LANGUAGE_CODE = 'en-gb'
 USE_I18N = True
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'APP_DIRS': True,
+    'DIRS': [BASE_DIR / 'dic/templates'],
     'OPTIONS': {'context_processors': ['django.template.context_processors.request',
         'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages']}}]
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR.parent / 'dawana-platform/public']
 STATIC_ROOT = Path(os.environ['RUNNER_TEMP']) / 'dawana-ci-static'
 MEDIA_ROOT = Path(os.environ['RUNNER_TEMP']) / 'dawana-ci-media'
-CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    'LOCATION': _name}}
 # Use the real default password hashers; do not alter production validation.
 CORS_ALLOWED_ORIGINS = ['https://portal.example.test']
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGIN_REGEXES = []
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, 'idempotency-key', 'x-donation-token')
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 CORS_URLS_REGEX = r'^/api/.*$'
 SESSION_COOKIE_SAMESITE = 'Lax'

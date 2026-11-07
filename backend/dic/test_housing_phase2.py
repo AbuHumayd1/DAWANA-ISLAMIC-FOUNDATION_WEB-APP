@@ -262,12 +262,22 @@ class Phase2HousingTests(HousingFixtures, TestCase):
             call_command('process_housing_allocations', database_name='wrong_target', **options)
         self.assertFalse(HousingJob.objects.exists())
         name = connection.settings_dict['NAME']
-        call_command('process_housing_allocations', database_name=name, discover_only=True, **options)
-        self.assertEqual(HousingJob.objects.filter(state='pending').count(), 1)
-        self.assertFalse(HouseAllocation.objects.exists())
-        call_command('process_housing_allocations', database_name=name, **options)
-        self.assertEqual(HouseAllocation.objects.filter(status='allocated').count(), 1)
-        self.assertEqual(HousingJob.objects.filter(state='pending').count(), 1)
+        self.assertTrue(name.startswith('test_'))
+        # Exercise the real refusal in CI, then simulate the supported settings
+        # identity ONLY within Django's already-created disposable test database.
+        with self.settings(SETTINGS_MODULE='config.settings.ci'):
+            with self.assertRaises(CommandError):
+                call_command('process_housing_allocations', database_name=name, **options)
+        self.assertFalse(HousingJob.objects.exists())
+        with self.settings(SETTINGS_MODULE='config.settings.development'):
+            with self.assertRaises(CommandError):
+                call_command('process_housing_allocations', database_name='wrong_target', **options)
+            call_command('process_housing_allocations', database_name=name, discover_only=True, **options)
+            self.assertEqual(HousingJob.objects.filter(state='pending').count(), 1)
+            self.assertFalse(HouseAllocation.objects.exists())
+            call_command('process_housing_allocations', database_name=name, **options)
+            self.assertEqual(HouseAllocation.objects.filter(status='allocated').count(), 1)
+            self.assertEqual(HousingJob.objects.filter(state='pending').count(), 1)
 
 
 class ConcurrentHousingQueueTests(HousingFixtures, TransactionTestCase):
