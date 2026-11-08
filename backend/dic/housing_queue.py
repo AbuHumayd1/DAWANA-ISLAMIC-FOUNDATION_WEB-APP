@@ -2,7 +2,7 @@
 import uuid
 from datetime import timedelta
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, OperationalError, InterfaceError
 from django.db.models import Q
 from django.utils import timezone
 from .allocation import AllocationError, unallocated_paid_participants
@@ -33,6 +33,7 @@ def claim(edition_id, actor):
     expired = timezone.now() - LEASE
     job = (HousingJob.objects.select_for_update(skip_locked=True).filter(edition_id=edition_id)
            .filter(Q(state='pending') | Q(state='processing', claimed_at__lt=expired))
+           .filter(Q(retry_at__isnull=True) | Q(retry_at__lte=timezone.now()))
            .order_by('created_at', 'pk').first())
     if not job:
         return None
@@ -67,6 +68,14 @@ def process_claim(job_id, token, actor):
             job.state, job.reason = 'completed', 'Verified allocation complete.'
     except (AllocationError, ValidationError) as exc:
         job.state, job.reason = 'held', '; '.join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
+        # Existing allocation deliberately fails NOWAIT lock contention safely.
+        if isinstance(exc, AllocationError) and str(exc) == 'Payment evidence is being updated. Refresh and retry allocation.':
+            job.state = 'pending' if job.attempts < 5 else 'failed'
+            job.retry_at = timezone.now() + timedelta(seconds=min(60 * 2 ** min(job.attempts, 6), 3600))
+    except (OperationalError, InterfaceError):
+        job.state = 'pending' if job.attempts < 5 else 'failed'
+        job.reason = 'Temporary database failure; allocation will be retried.'
+        job.retry_at = timezone.now() + timedelta(seconds=min(60 * 2 ** min(job.attempts, 6), 3600))
     except Exception as exc:
         # Do not persist connection strings or other exception payloads.
         job.state, job.reason = 'failed', f'{type(exc).__name__}: processing failed; inspect locally and explicitly retry.'
@@ -92,6 +101,7 @@ def retry(job_id, actor, reason):
         raise AllocationError('Only held or failed jobs can be retried.')
     before = job.state
     job.state, job.reason, job.claimed_at = 'pending', reason, None
+    job.retry_at = None
     job.claim_token = uuid.uuid4()
     job.save()
     audit(actor, 'housing_job_retried', job, {'before': before, 'after': 'pending', 'reason': reason})

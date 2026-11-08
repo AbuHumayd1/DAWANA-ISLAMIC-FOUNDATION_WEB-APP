@@ -5,6 +5,17 @@ from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 
 
+class WebsiteOnlyMiddleware(MiddlewareMixin):
+    def process_request(self, request):
+        if (getattr(settings, 'DAWANA_WEBSITE_ONLY', True)
+                and request.path.startswith(('/api/', '/admin/'))
+                and request.path != '/api/v1/health/'):
+            response = HttpResponse('Registration and online services are not open yet.', status=503)
+            response['Cache-Control'] = 'private, no-store'
+            response['Retry-After'] = '3600'
+            return response
+
+
 def resolved_client(meta, gateways):
     peer = ip_address(meta.get('REMOTE_ADDR', ''))
     trusted = any(peer in ip_network(network, strict=True) for network in gateways)

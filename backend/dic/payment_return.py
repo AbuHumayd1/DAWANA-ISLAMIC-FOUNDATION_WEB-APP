@@ -55,10 +55,12 @@ def _authorize(digest, order_id):
 
 
 def _summary(order):
+    from .payment_followups import status as followup_status
     return {
         "order_id": str(order.public_id), "edition_name": order.edition.name,
         "payment_status": order.payment_status, "status": order.status,
         "total_amount_ngn": str(order.total_amount_ngn), "currency": "NGN",
+        "processing": followup_status(order),
         "participants": [
             {"name": item.participant.full_name, "category": item.category_name_snapshot,
              "occupation": item.participant.get_occupation_display(),

@@ -14,6 +14,6 @@ while True:
     payload = sys.stdin.read(int(headers['len']))
     sys.stdout.write('RESULT 2\nOK')
     sys.stdout.flush()
-    if 'processname:gunicorn ' in payload or 'processname:nginx ' in payload:
+    if any('processname:' + name + ' ' in payload for name in ('gunicorn', 'nginx', 'workers')):
         Path('/run/dawana/child-failed').touch()
         os.kill(os.getppid(), signal.SIGTERM)

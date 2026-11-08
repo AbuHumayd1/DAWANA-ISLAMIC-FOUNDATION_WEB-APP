@@ -5,10 +5,12 @@ import signal
 import subprocess
 import sys
 from gateway import configuration
+from runtime_config import configure
 
 
 def main():
     try:
+        configure(os.environ)
         rendered = configuration(os.environ)
         required = {
             'DJANGO_SETTINGS_MODULE': 'config.settings.production',
@@ -27,6 +29,12 @@ def main():
         origin = 'https://' + os.environ['PUBLIC_HOST']
         if settings.CSRF_TRUSTED_ORIGINS != [origin] or settings.CORS_ALLOWED_ORIGINS not in ([], [origin]):
             raise ValueError('Container requires exact same-origin CSRF/CORS configuration.')
+        if settings.DIC_BACKGROUND_WORKER_ENABLED:
+            from dic.recovery import channel_available
+            from dic.registration_accounts import verification_url
+            if settings.DIC_AUTOMATION_ACTOR_ID <= 0 or not settings.DIC_PORTAL_ACCOUNTS_ENABLED or not channel_available('email'):
+                raise ValueError('Full launch requires an automation actor, accounts and configured email recovery.')
+            verification_url()
         from config.runtime_requirements import verify_runtime
         verify_runtime()
         Path('/run/dawana/nginx.conf').write_text(rendered, encoding='utf-8')

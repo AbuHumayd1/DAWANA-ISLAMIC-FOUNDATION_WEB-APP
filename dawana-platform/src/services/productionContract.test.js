@@ -11,6 +11,15 @@ test('production API requires exact relative same-origin namespace', () => {
   }
 })
 
+test('explicit guardians use current participant identities and cannot silently shift after edits', () => {
+  const flow = { participants: [{ id: 'adult' }, { id: 'child' }], primaryRegistrant: {
+    guardianRelationships: [{ childId: 'child', guardianId: 'adult', confirmed: true }] } }
+  const submit = value => registrationSubmission(value, {}, row => row, row => row, () => ({}))
+  assert.deepEqual(submit(flow).guardian_relationships, [{ child_index: 1, guardian_index: 0, confirmed: true }])
+  assert.throws(() => submit({ ...flow, participants: [{ id: 'child' }] }))
+  assert.throws(() => submit({ ...flow, primaryRegistrant: { guardianRelationships: [{ childId: 'child', guardianId: 'adult', confirmed: false }] } }))
+})
+
 test('draft serialization drops all participant, contact, password and token data', () => {
   const saved = privateDraft({ participants: [{ fullName: 'Private' }], primaryRegistrant: { email: 'private@example.test' },
     password: 'private', access_token: 'private', orderSummary: { items: ['private'] }, orderId: 'order-id',

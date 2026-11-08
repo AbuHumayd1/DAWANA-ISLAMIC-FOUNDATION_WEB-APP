@@ -1,5 +1,16 @@
 # Single-origin production container — packaging, not deployment approval
 
+For the simplified ZevCloud **website-only** launch, follow
+[ZEVCLOUD_DEPLOYMENT.md](ZEVCLOUD_DEPLOYMENT.md). The container now derives internal
+Django host/proxy settings, defaults to website-only mode, and builds without
+mandatory build arguments. The older full-application inventory below remains
+reference material; it is not the minimal website launch configuration. Provider
+ingress trust and authenticated database TLS remain unresolved release gates.
+
+For the approved combined **full application** release, use
+[FULL_LAUNCH.md](FULL_LAUNCH.md), including supervised housing/recovery workers and
+explicit guardian declarations. This does not authorize deployment or live payments.
+
 Accepted application baseline: `116a3f626bd6baa7cea6dc2929f55c7731186d21`.
 Owner reports main acceptance run 42412886596 passed 9/9. That is not evidence
 for this new container. No image has been built, published or deployed locally.

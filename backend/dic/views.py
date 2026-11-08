@@ -81,6 +81,8 @@ def _idempotency_digest(request):
 
 def _request_fingerprint(validated_data):
     validated_data = {key: value for key, value in validated_data.items() if key != 'portal_account'}
+    if not validated_data.get('guardian_relationships'):
+        validated_data.pop('guardian_relationships', None)
     # Preserve retry compatibility for legacy exact-DOB payloads. New adult/minor
     # declarations remain fingerprinted; server assertion dates are never input.
     validated_data = {**validated_data, 'participants': [
@@ -234,6 +236,7 @@ def _create_order(*, key_digest, fingerprint, payload):
         )
 
         prices = []
+        created_participants = []
         for data in participant_data:
             participant_fields = {
                 key: value for key, value in data.items() if key != "category_id"
@@ -241,6 +244,7 @@ def _create_order(*, key_digest, fingerprint, payload):
             if participant_fields.get('date_of_birth') is None:
                 participant_fields['adult_declared_on'] = today
             participant = Participant.objects.create(**participant_fields)
+            created_participants.append(participant)
             category = categories[data["category_id"]]
             price = prices_by_category[category.pk]
             item = RegistrationOrderItem.objects.create(
@@ -252,6 +256,18 @@ def _create_order(*, key_digest, fingerprint, payload):
             prices.append({"order_item": item, **price})
             from .participant_services import ensure_enrollment
             ensure_enrollment(item.pk)
+
+        from .models import GuardianRelationship
+        from django.core.exceptions import ValidationError as ModelValidationError
+        for relation in payload.get('guardian_relationships', []):
+            try:
+                GuardianRelationship.objects.create(edition=edition,
+                    child=created_participants[relation['child_index']],
+                    guardian=created_participants[relation['guardian_index']],
+                    registration_declared=True,
+                    reason='Explicit same-booking guardian declaration; verification pending.')
+            except ModelValidationError as exc:
+                raise ValidationError({'guardian_relationships': exc.messages}) from None
 
         create_price_revision(order, prices, accepted_at=price_at)
         if payload.get('portal_account'):

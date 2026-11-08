@@ -100,6 +100,7 @@ class ActiveEditionSerializer(serializers.ModelSerializer):
             "name",
             "year",
             "camp_start_date",
+            "housing_age_reference_date",
             "camp_end_date",
             "registration_open_date",
             "registration_close_date",
@@ -237,10 +238,28 @@ class RegistrationCredentialsSerializer(StrictSerializer):
         return data
 
 
+class GuardianDeclarationSerializer(StrictSerializer):
+    child_index = serializers.IntegerField(min_value=0)
+    guardian_index = serializers.IntegerField(min_value=0)
+    confirmed = serializers.BooleanField()
+
+
 class RegistrationOrderCreateSerializer(StrictSerializer):
     portal_account = RegistrationCredentialsSerializer(write_only=True)
     primary_registrant = PrimaryRegistrantInputSerializer()
     participants = ParticipantInputSerializer(many=True, allow_empty=False)
+    guardian_relationships = GuardianDeclarationSerializer(many=True, required=False, default=list)
+
+    def validate(self, attrs):
+        participants = attrs['participants']
+        seen = set()
+        for relation in attrs['guardian_relationships']:
+            child, guardian = relation['child_index'], relation['guardian_index']
+            if (not relation['confirmed'] or child == guardian or child in seen
+                    or child >= len(participants) or guardian >= len(participants)):
+                raise serializers.ValidationError('Confirm one distinct guardian in this booking for each dependent child.')
+            seen.add(child)
+        return attrs
 
 
 class PrimaryRegistrantReadSerializer(serializers.ModelSerializer):

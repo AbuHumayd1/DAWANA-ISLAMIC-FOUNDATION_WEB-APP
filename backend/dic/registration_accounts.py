@@ -1,5 +1,6 @@
 """Pre-payment credentials; email proof and payment entitlement are independent."""
 import secrets
+from datetime import timedelta
 from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -52,14 +53,46 @@ def deliver_verification(account):
 
 @sensitive_variables()
 def schedule_verification(account):
+    # This row survives process termination after commit and a mail outage.
+    PortalAccount.objects.filter(pk=account.pk).update(verification_delivery_at=timezone.now(),
+        verification_delivery_attempts=0)
     def deliver():
         try:
-            deliver_verification(account)
+            process_verification_delivery(account.pk)
         except Exception:
             # Registration/payment capability survives a mail outage. Resending
             # requires the chosen password; no identity or mail details escape.
             return
     transaction.on_commit(deliver)
+
+
+@transaction.atomic
+@sensitive_variables()
+def process_verification_delivery(account_id):
+    account = PortalAccount.objects.select_for_update(of=('self',), skip_locked=True).select_related('user').filter(pk=account_id).first()
+    if not account or not account.verification_delivery_at or account.verification_delivery_at > timezone.now():
+        return 'skipped'
+    if not pending_registration(account):
+        account.verification_delivery_at = None
+        account.save(update_fields=['verification_delivery_at'])
+        return 'suppressed'
+    account.verification_delivery_attempts += 1
+    try:
+        deliver_verification(account)
+    except Exception:
+        # A repeated verification link cannot grant entitlement or change payment.
+        # Never persist provider exceptions, destinations or signed link tokens.
+        account.verification_delivery_at = (timezone.now() + timedelta(
+            seconds=min(60 * 2 ** min(account.verification_delivery_attempts, 6), 3600))
+            if account.verification_delivery_attempts < 5 else None)
+        result = 'pending' if account.verification_delivery_at else 'failed'
+    else:
+        account.verification_delivery_at = None
+        account.verification_delivery_attempts = 0
+        result = 'sent'
+    account.save(update_fields=['verification_delivery_at', 'verification_delivery_attempts'])
+    accounts.audit(account, 'verification_delivery_' + result)
+    return result
 
 
 @sensitive_variables()

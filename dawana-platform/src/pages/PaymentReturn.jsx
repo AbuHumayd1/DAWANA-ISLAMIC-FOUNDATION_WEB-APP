@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import { getRecoveryChannels } from '../services/dicApi'
-import { callbackLookup, paymentReturnFailureKind, resolvePaymentReturn } from '../services/paymentReturnApi'
+import { callbackLookup, paymentReturnFailureKind, resolvePaymentReturn, processingMessages } from '../services/paymentReturnApi'
 import '../components/dic/RegistrationControls.css'
 import './PaymentReturn.css'
 import { PortalContinuation } from '../components/dic/PortalPhase3'
@@ -93,6 +93,8 @@ function PaymentReturnPage() {
     {!busy && ['temporary', 'authorization', 'limited'].includes(failureKind) && <button type="button" className="button" onClick={check}>Retry payment status check</button>}
     {!busy && order && <>
       {paid && <PortalContinuation orderReference={order.order_id} />}
+      {processingMessages(order).map(message => <p key={message} role="status">{message}</p>)}
+      {paid && order.processing?.housing !== 'ready' && <button type="button" className="button button-outline" onClick={check}>Refresh registration status</button>}
       <p role="status">{paid ? 'Your payment has been confirmed by the registration service.' : inactive ? 'This registration is not available for another payment through this page.' : review ? 'The payment evidence requires review by the DIC registration team. Do not pay again.' : failed ? 'This payment attempt was not successful. No new attempt has been created.' : 'Payment has not been confirmed. Do not pay again while the existing attempt is being checked.'}</p>
       {order.verification_unavailable && <p role="status">The provider could not be reached for verification. The status below is the current Dawana record; please check again later.</p>}
       <dl className="dic-return-details"><dt>Registration reference</dt><dd>{order.order_id}</dd><dt>Payment status</dt><dd>{order.payment_status}</dd><dt>{paid ? 'Paid amount' : 'Order amount'}</dt><dd>{new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(Number(order.total_amount_ngn))}</dd></dl>
