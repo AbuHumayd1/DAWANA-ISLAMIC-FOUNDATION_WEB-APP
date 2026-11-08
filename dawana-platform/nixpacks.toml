@@ -1,0 +1,11 @@
+# Independent static frontend. ZevCloud serves dist with its managed SPA mode.
+providers = ["node"]
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.install]
+cmds = ["npm ci --include=dev"]
+
+[phases.build]
+cmds = ["npm run build"]

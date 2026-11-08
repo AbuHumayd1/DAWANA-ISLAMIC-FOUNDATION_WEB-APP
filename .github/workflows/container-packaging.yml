@@ -1,9 +1,6 @@
-name: Container verification and GHCR publication
+name: Archived container rollback verification (manual only)
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
 permissions:
   contents: read
 # Serialize releases to avoid overlapping updates to main.

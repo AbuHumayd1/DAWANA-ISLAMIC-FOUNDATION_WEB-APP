@@ -2,7 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch, Mock
 from io import BytesIO
-from django.test import SimpleTestCase, RequestFactory, override_settings
+from django.test import SimpleTestCase, TestCase, Client, RequestFactory, override_settings
 from django.http import HttpResponse, Http404
 from django.core.exceptions import DisallowedHost
 from django.urls import resolve, Resolver404
@@ -30,16 +30,28 @@ class NativeDeploymentTests(SimpleTestCase):
                         self.assertEqual(response['Cache-Control'], 'no-store')
                     response.close()
 
-    def test_defaults_keep_same_origin_full_workflow_and_live_collection_off(self):
-        env = configure({'PUBLIC_HOST': 'foundation.example.test'})
+    def test_defaults_use_frontend_for_callbacks_and_bound_cross_origin_access(self):
+        env = configure({'PUBLIC_HOST': 'api.foundation.example.test', 'FRONTEND_ORIGIN': 'https://foundation.example.test',
+                         'DJANGO_CORS_ALLOWED_ORIGINS': 'https://old.example.test'})
         self.assertEqual(env['PAYSTACK_CALLBACK_URL'], 'https://foundation.example.test/dic/register/payment-return')
         self.assertEqual(env['DIC_PORTAL_EMAIL_VERIFY_URL'], 'https://foundation.example.test/dic/participant')
         self.assertEqual(env['DAWANA_WEBSITE_ONLY'], 'false')
         self.assertEqual(env['PAYSTACK_LIVE_ENABLED'], 'false')
+        self.assertEqual(env['DJANGO_CORS_ALLOWED_ORIGINS'], 'https://foundation.example.test')
+        self.assertEqual(env['DJANGO_CSRF_TRUSTED_ORIGINS'], 'https://foundation.example.test')
+        self.assertEqual(env['DJANGO_ALLOWED_HOSTS'], 'api.foundation.example.test')
+        self.assertEqual(env['DJANGO_DEBUG'], 'false')
         self.assertNotIn('ZEV_PROXY_HEADERS_VERIFIED', env)
         self.assertNotIn('TRUSTED_EDGE_CIDRS', env)
 
-    @override_settings(ALLOWED_HOSTS=['foundation.example.test'], ZEV_PROXY_HEADERS_VERIFIED=True)
+    def test_frontend_origin_rejects_credentials_http_paths_and_wildcards(self):
+        for origin in ('', 'http://foundation.example.test', 'https://user@foundation.example.test',
+                       'https://foundation.example.test/', 'https://*.example.test',
+                       'https://foundation.example.test?token=secret'):
+            with self.subTest(origin=origin), self.assertRaises(ValueError):
+                configure({'PUBLIC_HOST': 'api.foundation.example.test', 'FRONTEND_ORIGIN': origin})
+
+    @override_settings(ALLOWED_HOSTS=['foundation.example.test'])
     def test_scheme_is_exact_and_unverified_identity_headers_are_ignored(self):
         middleware = ManagedHttpsMiddleware(lambda request: HttpResponse())
         request = RequestFactory().get('/', HTTP_HOST='foundation.example.test',
@@ -49,7 +61,7 @@ class NativeDeploymentTests(SimpleTestCase):
         self.assertNotIn('HTTP_X_REAL_IP', request.META)
         request.META['HTTP_X_FORWARDED_FOR'] = '198.51.100.7'
         middleware.process_request(request)
-        self.assertEqual(request.META['REMOTE_ADDR'], '198.51.100.7')
+        self.assertEqual(request.META['REMOTE_ADDR'], '127.0.0.1')
         for value in ('', 'https,http', 'https, https'):
             request.META['HTTP_X_FORWARDED_PROTO'] = value
             self.assertEqual(middleware.process_request(request).status_code, 400)
@@ -57,9 +69,9 @@ class NativeDeploymentTests(SimpleTestCase):
         with self.assertRaises(DisallowedHost):
             middleware.process_request(request)
 
-    @override_settings(ALLOWED_HOSTS=['testserver'], ZEV_PROXY_HEADERS_VERIFIED=False)
-    def test_forged_https_without_provider_confirmation_fails_closed(self):
-        request = RequestFactory().get('/', HTTP_X_FORWARDED_PROTO='https')
+    @override_settings(ALLOWED_HOSTS=['testserver'])
+    def test_missing_scheme_fails_closed_without_an_acknowledgement_flag(self):
+        request = RequestFactory().get('/')
         self.assertEqual(ManagedHttpsMiddleware(lambda r: HttpResponse()).process_request(request).status_code, 400)
 
     def test_spa_callback_and_portal_routes_do_not_replace_backend_or_missing_assets(self):
@@ -115,3 +127,91 @@ class NativeDeploymentTests(SimpleTestCase):
                 'dic.management.commands.run_dic_workers.connections.close_all'):
             handler.do_GET()
             handler.send_response.assert_called_with(200)
+
+
+@override_settings(
+    ROOT_URLCONF='config.urls', DEBUG=False,
+    ALLOWED_HOSTS=['api.foundation.example.test'],
+    SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
+    SECURE_SSL_REDIRECT=True, SESSION_COOKIE_SECURE=True, CSRF_COOKIE_SECURE=True,
+    SESSION_COOKIE_DOMAIN=None, CSRF_COOKIE_DOMAIN=None,
+    SESSION_COOKIE_SAMESITE='Lax', CSRF_COOKIE_SAMESITE='Lax',
+    CORS_ALLOWED_ORIGINS=['https://foundation.example.test'],
+    CSRF_TRUSTED_ORIGINS=['https://foundation.example.test'],
+    CORS_ALLOW_CREDENTIALS=True, CORS_ALLOW_ALL_ORIGINS=False,
+    CORS_ALLOWED_ORIGIN_REGEXES=[], CORS_URLS_REGEX=r'^/api/',
+    MIDDLEWARE=[
+        'config.native_security.ManagedHttpsMiddleware',
+        'django.middleware.security.SecurityMiddleware',
+        'corsheaders.middleware.CorsMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+    ],
+)
+class NativeAuthenticationTests(TestCase):
+    """Real session/CSRF integration on disposable CI PostgreSQL only.
+
+    Browser SameSite acceptance still requires the documented sibling domains.
+    """
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Permission
+        user = get_user_model().objects.create_user(
+            username='native-operator', password='synthetic-native-password', is_staff=True)
+        user.user_permissions.add(Permission.objects.get(codename='can_view_dic_operations'))
+        self.browser = Client(enforce_csrf_checks=True, HTTP_HOST='api.foundation.example.test',
+                              HTTP_X_FORWARDED_PROTO='https', HTTP_ORIGIN='https://foundation.example.test')
+
+    def test_session_login_rotation_me_logout_and_host_only_secure_cookies(self):
+        csrf = self.browser.get('/api/v1/dic/operations/auth/csrf/')
+        self.assertEqual(csrf['Access-Control-Allow-Origin'], 'https://foundation.example.test')
+        self.assertEqual(csrf['Access-Control-Allow-Credentials'], 'true')
+        self.assertTrue(csrf.cookies['csrftoken']['secure'])
+        self.assertEqual(csrf.cookies['csrftoken']['domain'], '')
+        login = self.browser.post('/api/v1/dic/operations/auth/login/',
+            {'username': 'native-operator', 'password': 'synthetic-native-password'},
+            content_type='application/json', HTTP_X_CSRFTOKEN=csrf.json()['csrfToken'])
+        self.assertEqual(login.status_code, 200)
+        self.assertTrue(login.cookies['sessionid']['secure'])
+        self.assertTrue(login.cookies['sessionid']['httponly'])
+        self.assertEqual(login.cookies['sessionid']['samesite'], 'Lax')
+        self.assertEqual(login.cookies['sessionid']['domain'], '')
+        self.assertEqual(self.browser.get('/api/v1/dic/operations/auth/me/').status_code, 200)
+        token = self.browser.get('/api/v1/dic/operations/auth/csrf/').json()['csrfToken']
+        self.assertEqual(self.browser.post('/api/v1/dic/operations/auth/logout/', {},
+            content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 204)
+        self.assertIn(self.browser.get('/api/v1/dic/operations/auth/me/').status_code, (401, 403))
+
+    def test_csrf_and_cors_refuse_foreign_origin_and_missing_token(self):
+        endpoint = '/api/v1/dic/operations/auth/login/'
+        token = self.browser.get('/api/v1/dic/operations/auth/csrf/').json()['csrfToken']
+        self.assertEqual(self.browser.post(endpoint, {}, content_type='application/json').status_code, 403)
+        foreign = self.browser.post(endpoint, {}, content_type='application/json',
+            HTTP_X_CSRFTOKEN=token, HTTP_ORIGIN='https://attacker.example.test')
+        self.assertEqual(foreign.status_code, 403)
+        self.assertNotIn('Access-Control-Allow-Origin', foreign)
+        allowed = self.browser.options(endpoint, HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS='content-type,x-csrftoken')
+        self.assertEqual(allowed['Access-Control-Allow-Origin'], 'https://foundation.example.test')
+        foreign = self.browser.options(endpoint, HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',
+            HTTP_ORIGIN='https://attacker.example.test')
+        self.assertNotIn('Access-Control-Allow-Origin', foreign)
+
+    def test_portal_csrf_json_and_cookie_scope_remain_compatible(self):
+        from dic.participant_api import cookie, COOKIE, COOKIE_PATH
+        response = self.browser.get('/api/v1/dic/participant/auth/csrf/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['csrfToken'])
+        self.assertEqual(response['Access-Control-Allow-Origin'], 'https://foundation.example.test')
+        cookie(response, COOKIE, 'synthetic-test-token', 60)
+        self.assertEqual(response.cookies[COOKIE]['path'], COOKIE_PATH)
+        self.assertEqual(response.cookies[COOKIE]['samesite'], 'Lax')
+        self.assertTrue(response.cookies[COOKIE]['secure'])
+        self.assertTrue(response.cookies[COOKIE]['httponly'])
+
+    def test_http_redirect_and_backend_does_not_serve_spa(self):
+        self.assertEqual(self.browser.get('/api/v1/health/', HTTP_X_FORWARDED_PROTO='http').status_code, 301)
+        self.assertEqual(self.browser.get('/dic/register/payment-return').status_code, 404)

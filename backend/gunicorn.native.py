@@ -1,4 +1,4 @@
-"""Native managed service: Gunicorn only; Django handles static/SPA routing."""
+"""Native managed service: Gunicorn serves the API, Admin and Django static files."""
 import os
 
 port = os.environ.get('PORT', '8080')

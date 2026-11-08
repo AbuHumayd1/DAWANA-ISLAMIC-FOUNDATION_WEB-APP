@@ -1,6 +1,17 @@
-export function productionApiBase(value = '/api/v1') {
-  if (value !== '/api/v1') throw new Error('Production requires the same-origin /api/v1 gateway.')
-  return value
+export function productionApiBase(value) {
+  if (value === '/api/v1') return value // Local/archived same-origin builds.
+  try {
+    const url = new URL(value)
+    if (url.protocol === 'https:' && !url.username && !url.password && !url.search
+      && !url.hash && url.pathname === '/api/v1' && ['', '443'].includes(url.port)
+      && value === `${url.origin}/api/v1`) return value
+  } catch { /* Report configuration without printing its supplied value. */ }
+  throw new Error('Set VITE_API_BASE_URL to the exact HTTPS backend origin followed by /api/v1.')
+}
+
+export function backendUrl(path, apiBase = import.meta.env?.VITE_API_BASE_URL || '/api/v1') {
+  const base = productionApiBase(apiBase)
+  return (base === '/api/v1' ? '' : new URL(base).origin) + path
 }
 
 // Draft contact, participant details, passwords and tokens stay in memory.

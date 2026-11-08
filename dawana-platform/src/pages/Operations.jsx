@@ -9,6 +9,7 @@ import {
 } from '../services/operationsApi'
 import './Operations.css'
 import AppearanceControls from '../components/layout/AppearanceControls'
+import { backendUrl } from '../services/productionContract.js'
 import StaffParticipantIDs from './StaffParticipantIDs'
 import Finance from './Finance'
 import ParticipantIDPrinting from './ParticipantIDPrinting'
@@ -243,7 +244,7 @@ function OperationsShell({ user, onLogout }) {
         <div className="ops-top-spacer" />
         <AppearanceControls />
         <span className="ops-edition-chip"><i /> DIC Campsite Operations</span>
-        {user.can_access_django_admin && <a className="ops-admin-link" href="/admin/">Django Admin</a>}
+        {user.can_access_django_admin && <a className="ops-admin-link" href={backendUrl('/admin/')}>Django Admin</a>}
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>
         <button className="ops-logout" onClick={onLogout} aria-label="Sign out"><Icon name="logout" /><span>Sign out</span></button>
       </header>

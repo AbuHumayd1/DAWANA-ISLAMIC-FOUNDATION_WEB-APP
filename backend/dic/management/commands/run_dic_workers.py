@@ -7,6 +7,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.core.exceptions import PermissionDenied, ImproperlyConfigured
+from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connections
 from dic.models import CampEdition
 
@@ -14,7 +16,18 @@ from dic.models import CampEdition
 HEARTBEAT = Path('/run/dawana/worker-heartbeat')
 
 
+def validate_actor():
+    from dic.housing_service import permitted
+    try:
+        actor = get_user_model().objects.get(pk=settings.DIC_AUTOMATION_ACTOR_ID)
+        for permission in ('can_process_housing_queue', 'can_allocate_participants', 'can_approve_housing_guardians'):
+            permitted(actor, permission)
+    except (get_user_model().DoesNotExist, PermissionDenied):
+        raise CommandError('Worker automation actor is missing, inactive or lacks required permissions.') from None
+
+
 def run_cycle():
+    validate_actor()
     # Commands retain their permission, payment-evidence and claim checks.
     options = dict(stdout=StringIO(), stderr=StringIO())
     # Short-lived OTPs take priority over housing and verification email retries.
@@ -87,6 +100,8 @@ class Command(BaseCommand):
                     if cycles % 120 == 0:
                         call_command('cleanup_dic_recovery', stdout=StringIO(), stderr=StringIO())
                         call_command('cleanup_dic_participant_access', limit=500, stdout=StringIO(), stderr=StringIO())
+                except (CommandError, PermissionDenied, ImproperlyConfigured):
+                    raise CommandError('Worker configuration is invalid; review actor permissions and application configuration.') from None
                 except Exception:
                     self.stderr.write('Background processing cycle failed; retrying. Check launch configuration and schema.')
                 finally:

@@ -1,12 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { productionApiBase, privateDraft, registrationSubmission } from './productionContract.js'
+import { productionApiBase, backendUrl, privateDraft, registrationSubmission } from './productionContract.js'
 import { primaryRegistrantPayload, registrationCredentialsPayload } from './bookingContact.js'
 
-test('production API requires exact relative same-origin namespace', () => {
-  assert.equal(productionApiBase(), '/api/v1')
-  for (const base of ['https://api.example.test/api/v1', '//evil.test/api/v1', '/api', 'javascript:alert(1)']) {
+test('production API accepts the separate HTTPS backend and rejects unsafe bases', () => {
+  assert.throws(() => productionApiBase())
+  assert.equal(productionApiBase('/api/v1'), '/api/v1')
+  assert.equal(productionApiBase('https://api.example.test/api/v1'), 'https://api.example.test/api/v1')
+  assert.equal(backendUrl('/admin/', 'https://api.example.test/api/v1'), 'https://api.example.test/admin/')
+  assert.equal(backendUrl('/admin/', '/api/v1'), '/admin/')
+  for (const base of ['http://api.example.test/api/v1', '//evil.test/api/v1', '/api', 'javascript:alert(1)',
+    'https://user:password@api.example.test/api/v1', 'https://api.example.test/api/v1/',
+    'https://api.example.test/api/v1?token=secret', 'https://api.example.test:444/api/v1',
+    'https://api.example.test/api/v1#fragment']) {
     assert.throws(() => productionApiBase(base))
   }
 })

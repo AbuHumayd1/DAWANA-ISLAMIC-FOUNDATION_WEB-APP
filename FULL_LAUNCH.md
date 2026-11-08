@@ -1,13 +1,9 @@
-# DA'WANA full application
+# DA'WANA full application release
 
-Follow [ZEVCLOUD_DEPLOYMENT.md](ZEVCLOUD_DEPLOYMENT.md): native Nixpacks builds,
-one same-origin Gunicorn/Django/React service and one durable worker service,
-using the existing PostgreSQL 18 database. No custom Dockerfile, Nginx,
-Supervisor or CIDR gateway contract is needed on the recommended path.
+Follow [ZEVCLOUD_SIMPLE_DEPLOYMENT.md](ZEVCLOUD_SIMPLE_DEPLOYMENT.md).
 
-This is full registration, verified payments, automatic housing, email recovery,
-portal and Admin operation. Live Paystack still requires separate approval.
-Production deployment and acceptance remain unverified; see the guide's gates.
-
-The old container files remain under `ops/container/` for rollback. Do not mix
-their configuration with the native services.
+The recommended path is a React static site, a native Django/Gunicorn API/Admin,
+the existing PostgreSQL 18 and a persistent native worker. This is the full
+application. Old combined-container guides remain under ops/container for rollback.
+CI and documented release acceptance remain required. No deployment, production
+access/migration, DNS change or live payment activation occurred.
