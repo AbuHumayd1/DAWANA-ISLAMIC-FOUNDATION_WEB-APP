@@ -1,4 +1,6 @@
 backend/render-*.sh text eol=lf
+backend/native-*.sh text eol=lf
+nixpacks.toml text eol=lf
 Dockerfile text eol=lf
 .dockerignore text eol=lf
 ops/container/** text eol=lf

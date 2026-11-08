@@ -1,0 +1,22 @@
+# ZevCloud's documented native builder. No repository Dockerfile is required.
+providers = ["python", "node"]
+
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.13"
+NIXPACKS_NODE_VERSION = "22"
+NIXPACKS_SPA_CADDY = "false"
+DJANGO_SETTINGS_MODULE = "config.settings.zevcloud"
+
+[phases.setup]
+nixPkgs = ["...", "ffmpeg"]
+aptPkgs = ["...", "fonts-liberation"]
+
+[phases.install]
+cmds = ["python -m venv --copies /opt/venv && . /opt/venv/bin/activate && bash backend/native-install.sh"]
+paths = ["...", "/opt/venv/bin"]
+
+[phases.build]
+cmds = ["bash backend/native-build.sh"]
+
+[start]
+cmd = "bash backend/native-start.sh web"

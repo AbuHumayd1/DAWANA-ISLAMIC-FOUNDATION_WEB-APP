@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import { execFileSync } from 'node:child_process'
 
 const read = path => fs.readFileSync(path, 'utf8')
-const docker = read('Dockerfile')
+const docker = read('ops/container/Dockerfile.rollback')
 assert.equal((docker.match(/^FROM /gm) || []).length, 3)
 assert.match(docker, /RUN npm ci/)
 assert.match(docker, /USER 10001:10001/)

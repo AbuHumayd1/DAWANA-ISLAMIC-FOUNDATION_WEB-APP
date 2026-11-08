@@ -1,0 +1,9 @@
+{
+  "name": "dawana-native-deployment",
+  "private": true,
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "build": "npm --prefix dawana-platform run build",
+    "start": "bash backend/native-start.sh web"
+  }
+}

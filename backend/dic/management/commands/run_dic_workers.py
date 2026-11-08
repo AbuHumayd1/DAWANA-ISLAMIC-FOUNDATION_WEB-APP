@@ -1,12 +1,13 @@
-"""Run bounded existing commands inside the combined container; no broker."""
+"""Run bounded durable commands as a native worker or rollback container role."""
 from io import StringIO
 from pathlib import Path
 import signal
 import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
-from django.db import close_old_connections
+from django.db import close_old_connections, connections
 from dic.models import CampEdition
 
 
@@ -23,11 +24,42 @@ def run_cycle():
         call_command('process_dic_followups', edition=edition_id,
             actor=settings.DIC_AUTOMATION_ACTOR_ID,
             database_name=str(settings.DATABASES['default']['NAME']), limit=10, **options)
-    HEARTBEAT.touch()
+    if getattr(settings, 'DIC_WORKER_HEARTBEAT_CACHE', False):
+        from config.worker_health import beat
+        beat()
+    else:
+        HEARTBEAT.touch()
+
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path != '/health/':
+            self.send_error(404)
+            return
+        from config.worker_health import healthy
+        try:
+            ready = healthy()
+        except Exception:
+            ready = False
+        finally:
+            connections.close_all()  # Health-server threads have no Django request lifecycle.
+        body = b'{"status":"ok"}' if ready else b'{"status":"unavailable"}'
+        self.send_response(200 if ready else 503)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_):
+        pass
 
 
 class Command(BaseCommand):
     help = 'Run automatic housing, verification and recovery delivery until stopped.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--health-port', type=int)
 
     def handle(self, *args, **options):
         if (getattr(settings, 'DAWANA_WEBSITE_ONLY', True)
@@ -37,19 +69,30 @@ class Command(BaseCommand):
         signal.signal(signal.SIGTERM, lambda *_: stopped.set())
         signal.signal(signal.SIGINT, lambda *_: stopped.set())
         cycles = 0
-        # Do not reuse a heartbeat left by a previous process/container restart.
-        HEARTBEAT.unlink(missing_ok=True)
-        while not stopped.is_set():
-            close_old_connections()
-            try:
-                run_cycle()
-                cycles += 1
-                if cycles % 120 == 0:
-                    call_command('cleanup_dic_recovery', stdout=StringIO(), stderr=StringIO())
-                    call_command('cleanup_dic_participant_access', limit=500, stdout=StringIO(), stderr=StringIO())
-            except Exception:
-                # Never log command arguments, tokens, destinations or DB/provider exceptions.
-                self.stderr.write('Background processing cycle failed; retrying. Check launch configuration and schema.')
-            finally:
+        server = None
+        if options.get('health_port') is not None:
+            if not 1 <= options['health_port'] <= 65535:
+                raise CommandError('Health port must be a valid service port.')
+            server = ThreadingHTTPServer(('0.0.0.0', options['health_port']), HealthHandler)
+            server.daemon_threads = True
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+        if not getattr(settings, 'DIC_WORKER_HEARTBEAT_CACHE', False):
+            HEARTBEAT.unlink(missing_ok=True)
+        try:
+            while not stopped.is_set():
                 close_old_connections()
-            stopped.wait(15)
+                try:
+                    run_cycle()
+                    cycles += 1
+                    if cycles % 120 == 0:
+                        call_command('cleanup_dic_recovery', stdout=StringIO(), stderr=StringIO())
+                        call_command('cleanup_dic_participant_access', limit=500, stdout=StringIO(), stderr=StringIO())
+                except Exception:
+                    self.stderr.write('Background processing cycle failed; retrying. Check launch configuration and schema.')
+                finally:
+                    close_old_connections()
+                stopped.wait(15)
+        finally:
+            if server:
+                server.shutdown()
+                server.server_close()

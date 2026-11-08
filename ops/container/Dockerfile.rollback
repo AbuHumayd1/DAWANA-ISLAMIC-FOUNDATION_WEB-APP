@@ -1,4 +1,4 @@
-# Zero-argument managed builds use approved Debian Bookworm tags.
+# Archived combined-container rollback path; native Nixpacks is recommended.
 # Release CI overrides these with resolved digests and a source revision.
 # No registry publication is performed by this file.
 ARG NODE_IMAGE=node:22.19.0-bookworm-slim

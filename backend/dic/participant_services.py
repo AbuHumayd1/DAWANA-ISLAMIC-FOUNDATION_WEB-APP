@@ -46,7 +46,7 @@ def eligibility(enrollment):
         return {"eligible": False, "code": "registration_not_verified_paid"}
     mode = getattr(settings, 'PAYSTACK_MODE', None)
     if mode not in ('test', 'live') or (
-        getattr(settings, 'SETTINGS_MODULE', '') == 'config.settings.production' and mode != 'live'
+        getattr(settings, 'SETTINGS_MODULE', '') in ('config.settings.production', 'config.settings.zevcloud') and mode != 'live'
     ):
         return {"eligible": False, "code": "settlement_evidence_review_required"}
     # SUCCESSFUL is written only by the trusted settlement service. Missing legacy

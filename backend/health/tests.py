@@ -19,6 +19,13 @@ class HealthCheckTests(APITestCase):
         self.assertEqual(response['Cache-Control'], 'no-store')
         self.assertNotIn('private', response.content.decode())
 
+    @override_settings(DIC_BACKGROUND_WORKER_ENABLED=True, DIC_WORKER_HEARTBEAT_CACHE=True)
+    def test_native_readiness_requires_the_independent_durable_worker(self):
+        with patch('config.worker_health.healthy', return_value=False):
+            self.assertEqual(self.client.get('/api/v1/health/').status_code, 503)
+        with patch('config.worker_health.healthy', return_value=True):
+            self.assertEqual(self.client.get('/api/v1/health/').status_code, 200)
+
     @override_settings(
         CORS_ALLOWED_ORIGINS=["http://localhost:5173"],
         CORS_URLS_REGEX=r"^/api/.*$",
