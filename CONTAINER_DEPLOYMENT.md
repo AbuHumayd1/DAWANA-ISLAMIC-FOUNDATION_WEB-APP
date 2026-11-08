@@ -1,7 +1,7 @@
 # Single-origin production container — packaging, not deployment approval
 
 **Archived rollback architecture.** Recommended native deployment:
-[ZEVCLOUD_DEPLOYMENT.md](ZEVCLOUD_DEPLOYMENT.md). For separately authorized Docker
+[ZEVCLOUD_SIMPLE_DEPLOYMENT.md](ZEVCLOUD_SIMPLE_DEPLOYMENT.md). For separately authorized Docker
 rollback use `-f ops/container/Dockerfile.rollback` and repository-root context.
 Old guides: `ops/container/WEBSITE_ONLY.rollback.md` and
 `ops/container/FULL_LAUNCH.rollback.md`. The historical instructions below do not

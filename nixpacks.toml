@@ -1,10 +1,8 @@
 # ZevCloud's documented native builder. No repository Dockerfile is required.
-providers = ["python", "node"]
+providers = ["python"]
 
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.13"
-NIXPACKS_NODE_VERSION = "22"
-NIXPACKS_SPA_CADDY = "false"
 DJANGO_SETTINGS_MODULE = "config.settings.zevcloud"
 
 [phases.setup]

@@ -7,7 +7,7 @@ import { productionApiBase } from './src/services/productionContract.js'
 export default defineConfig(({ command, mode }) => {
   if (command === 'build' && mode === 'production') {
     const env = loadEnv(mode, process.cwd(), 'VITE_')
-    productionApiBase(process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL ?? '/api/v1')
+    productionApiBase(process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL)
   }
   return {
   plugins: [react(), tailwindcss()],

@@ -1,7 +1,9 @@
-name: Native ZevCloud packaging (no production access)
+name: Native ZevCloud deployment checks (no production access)
 on:
   pull_request:
   workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -22,9 +24,19 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg fonts-liberation
+      - name: Independent React tests and production build
+        working-directory: dawana-platform
+        env:
+          VITE_API_BASE_URL: https://api.example.test/api/v1
+        run: |
+          npm ci --include=dev
+          npm test
+          npm run build
+          # Prove backend startup does not depend on the frontend dist directory.
+          mv dist "$RUNNER_TEMP/dawana-frontend-dist"
       - name: Native install and database-free build
         run: |
           bash backend/native-install.sh
           bash backend/native-build.sh
-      - name: Synthetic routing and fail-closed readiness without a database
+      - name: Standalone Django startup, CORS and fail-closed readiness without a database
         run: bash backend/native-smoke.sh
