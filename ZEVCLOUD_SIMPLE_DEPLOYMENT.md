@@ -41,7 +41,7 @@ Create a Git-backed **Web Application**, framework **Django / Python**, builder
 | Build | `bash backend/native-build.sh` |
 | Start | `bash backend/native-start.sh web` |
 | Port | `8080` |
-| Readiness path | `/api/v1/health/` |
+| Web service health path | `/api/v1/health/web/` (Django + database) |
 
 Manifest install command:
 
@@ -64,10 +64,10 @@ startup and worker-command imports on 3.12. Actual local Python 3.12 execution
 is unavailable; those CI results are still required. Python 3.13 remains accepted
 only to preserve the archived rollback path, not as a native selector requirement.
 
-### Minimum Backend and Worker environment
+### Minimum Backend startup environment
 
-Use the same values on both. PUBLIC_HOST is the **Backend** host, never the
-worker host. Frontend has only the Vite build variable above.
+Only these four values are needed to start the web service. PUBLIC_HOST is the
+**Backend** host. Frontend has only the Vite build variable above.
 
 | Variable | Value |
 | --- | --- |
@@ -75,10 +75,6 @@ worker host. Frontend has only the Vite build variable above.
 | FRONTEND_ORIGIN | Exact frontend HTTPS origin, no trailing slash/path |
 | DJANGO_SECRET_KEY | Existing independent random secret, at least 50 characters |
 | DATABASE_URL | Existing PostgreSQL connection from its Overview; private |
-| DIC_AUTOMATION_ACTOR_ID | Existing authorized active staff service-user ID |
-| DIC_RECOVERY_ENCRYPTION_KEY | Existing stable Fernet key; preserve in backups |
-| DEFAULT_FROM_EMAIL | Verified sender address |
-| RESEND_API_KEY | Sending credential for the included HTTPS email adapter |
 
 Instead of DATABASE_URL use **DB_HOST, DB_NAME, DB_USER, DB_PASSWORD**, plus
 DB_PORT when different from 5432. Choose one format; DATABASE_URL takes precedence.
@@ -88,11 +84,65 @@ readable mounted trusted CA file when that endpoint's issuer is not already
 trusted by libpq. Use its certificate-matching hostname, never a guessed alias/IP.
 There is no SQLite fallback or automatic migration.
 
+### Email, recovery and worker requirements
+
+These are validated when an operation needs them, not when Gunicorn imports
+Django. Keep web feature configuration and worker configuration consistent:
+
+| Variable | Web operations | Worker |
+| --- | --- | --- |
+| DIC_AUTOMATION_ACTOR_ID | Not needed by the web process | Required existing authorized active staff user |
+| DIC_RECOVERY_ENCRYPTION_KEY | Required for recovery/portal OTP issuance | Required to decrypt queued OTPs; preserve the existing key |
+| DEFAULT_FROM_EMAIL | Required for registration verification and email recovery | Required verified sender |
+| RESEND_API_KEY | Required for those email operations with the default HTTPS backend | Required with the default HTTPS backend |
+
+The worker also needs the four shared web configuration values above, using the
+Backend PUBLIC_HOST. Its startup cycle validates encryption, delivery settings,
+portal URL and all actor permissions before claiming/processing jobs. No key or
+user is generated. A different accepted real HTTPS email backend can replace
+Resend; supply its genuine credentials rather than dummy values.
+
+Missing credentials do not change feature flags. New registrations needing an
+email-verification link and verification resends return a generic 503 if delivery
+configuration is absent. Existing verified account login, Admin and unrelated
+APIs do not need worker identity or OTP encryption. Recovery/portal OTP requests
+report unavailable delivery and return 503 without issuing plaintext codes.
+Provider outages after valid configuration keep existing durable pending/retry
+states and never activate an unverified account or reverse verified payments.
+Console/locmem/dummy backends cannot report production verification delivery as
+successful. Never substitute a new key for existing encrypted records.
+
+`/api/v1/health/web/` checks web/database availability, not full launch readiness.
+The unchanged full-application endpoint `/api/v1/health/` additionally requires a
+recent worker heartbeat and configured email/recovery on the web service. It stays
+503 while those requirements are unmet. Use web health for the Backend service
+probe; use full readiness plus check_dic_launch before opening registration/live
+payments. A bootable web service is not a claim that the full launch is ready.
+
 Derived defaults: exact allowed backend host, credentialed CORS/CSRF for the
 frontend only, frontend portal/email/callback URLs, full accounts/recovery/workers,
 HTTPS redirects and Secure/HttpOnly host-only Lax session cookies. No proxy
 acknowledgement flag. Forwarded client IPs are ignored; socket-peer throttles
 remain conservative/shared. No arbitrary client identity/host headers are trusted.
+
+### What differs from local development
+
+| Check | Local development | Native production |
+| --- | --- | --- |
+| Debug / secret | DEBUG on; secret must exist | DEBUG off; independent secret at least 50 characters; insecure defaults rejected |
+| Host / browser origin | Local/env hosts and origins | Exact PUBLIC_HOST and HTTPS FRONTEND_ORIGIN; no wildcard credentialed CORS |
+| HTTPS / cookies / headers | Development HTTP allowed | HTTPS redirect, exact scheme handling, secure host-only cookies, HSTS, nosniff and frame denial |
+| Database | PostgreSQL from local settings | PostgreSQL only, certificate-matching verify-full TLS; web health tests connectivity |
+| Rate limiting / logs | Local defaults | Shared database cache; privacy-filtered request logs; unverified forwarding identities discarded |
+| Uploaded files | Local storage allowed | Local uploads rejected; disabled or approved object storage with independent credentials |
+| Payments | Isolated test configuration | Mode/key matching, explicit live enablement/HTTPS callback; test receipts cannot grant production entitlement |
+| Application mode | Features use explicit local flags | Full-mode defaults retained; conflicting website-only/account/worker-disable settings rejected |
+| Actor / recovery / email | Defaults can be absent | Also optional for web boot; actual operations and worker validate their own requirements |
+| Runtime tools | Local runserver environment | Native build/start retain Python 3.12/3.13, pinned Django, package/font and ffprobe checks |
+
+Base timeout bounds and password validation are retained. No production security
+check was removed to compensate for missing operational credentials. The former
+extra native import-time actor/Fernet/email checks were moved to their consumers.
 
 Remove obsolete GATEWAY_*, TRUSTED_EDGE_CIDRS, EDGE_TRUST_VERIFIED,
 ZEV_PROXY_HEADERS_VERIFIED, DAWANA_TRUSTED_GATEWAYS, DJANGO_TRUST_PROXY_HTTPS,
@@ -103,7 +153,7 @@ apply. Keep genuine secrets, approved business settings and existing object
 storage credentials. Do not copy the old container environment wholesale.
 
 An accepted HTTPS Django email backend can replace the default via EMAIL_BACKEND
-and its credentials. Console/locmem delivery is rejected. ZevCloud blocks SMTP;
+and its credentials. Console/locmem/dummy production delivery is rejected when invoked. ZevCloud blocks SMTP;
 real HTTPS sender verification/delivery are required. Existing private/public
 object-storage and portrait-cutover gates remain for uploads/portraits. Ephemeral
 local production uploads stay disabled. Google/SMS/WhatsApp/feedback settings
@@ -129,8 +179,60 @@ HTTPS hostnames. Do not disable CSRF or relax cookies to bypass browser blocking
 
 ## Worker
 
+### Actor provenance and supported provisioning
+
+`DIC_AUTOMATION_ACTOR_ID` was introduced by commit `21a7950` on 8 November 2026
+at 11:40:50 Africa/Lagos as the identity passed by the persistent worker to
+existing permission-checked housing commands. The web import-time requirement
+was added in `1a56410` at 14:17:14 that day. The original local housing command
+already required an explicit `--actor`; it did not run anonymous allocations.
+Housing claims, allocations and guardian approvals record this identity in
+existing audit records. Recovery and account-delivery services do not read this
+variable directly. Verified payment settlement queues durable work without it.
+
+The web check is removed from the corrected settings. A deployment still raising
+the exact old settings exception is running code without that correction. Verify
+the deployed commit includes the corrected settings; do not invent an actor ID
+to bypass web startup.
+
+Worker configuration still needs the existing authorized active staff user's
+actual PK and these permissions: dic.can_process_housing_queue,
+dic.can_allocate_participants, dic.can_approve_housing_guardians. There is no
+dedicated automation-user provisioning command. setup_dic_staff_roles manages
+staff groups, not this user. Under separate database-write authorization, an
+authorized administrator can provision/review the user through existing Django
+user administration or shell APIs, set an unusable password and grant only the
+three permissions. Use no superuser privileges or automatic identity selection.
+Existing eligible users can be reused only after explicit review/authorization.
+No new migration or schema change is needed for this startup fix. Creating a
+missing user or assigning permissions is a separate database operation.
+
+### Render native reuse
+
+The existing native Python path can also be selected on Render; the historical
+settings module name config.settings.zevcloud does not create a hosting dependency.
+Use repository root `.`, Python 3.12 (root .python-version), build command
+`bash backend/native-install.sh && bash backend/native-build.sh`, start command
+`bash backend/native-start.sh web`, and health path `/api/v1/health/web/`.
+Render supplies PORT, which the existing Gunicorn configuration honors.
+No deployment-specific actor variable is required on the Web Service.
+
+Use the existing worker command `bash backend/native-start.sh worker` for a
+Render Background Worker, with its actual authorized actor and delivery settings.
+Keep the same PUBLIC_HOST/FRONTEND_ORIGIN, secret and database configuration;
+use a PostgreSQL endpoint reachable from the service with verify-full TLS.
+Render does not run nixpacks.toml: the build/start runtime gate still requires
+Liberation fonts and ffprobe. Their availability on the actual Render runtime
+is not established by this actor fix; no runtime/security check was bypassed.
+No Render service or database was created or accessed here.
+
+Provider references: [Render Python version selection](https://render.com/docs/python-version),
+[native Django deployment](https://render.com/docs/deploy-django),
+[persistent background workers](https://render.com/docs/background-workers).
+
 Use one additional ordinary **Web Application**, Python / Native Nixpacks, same
-root/install/build, port 8080 and environment as Backend. Start:
+root/install/build and port 8080. Supply the shared Backend configuration plus
+the four worker requirements listed above. Start:
 
 ```
 bash backend/native-start.sh worker
@@ -140,7 +242,7 @@ Health: `https://<worker-host>/health/`, a read-only generic response. Existing
 bounded housing, recovery, portal OTP and verification commands run every 15
 seconds. Their durable claims, leases, retries and idempotency remain intact.
 Heartbeat uses the existing shared database cache, not a shared filesystem.
-Worker health and backend readiness return 503 for missing/stale heartbeat
+Worker health and full-application readiness return 503 for missing/stale heartbeat
 (300 seconds). Invalid actor/configuration stops the worker visibly; transient
 cycle failures retry without refreshing readiness. No queue work runs in HTTP.
 
@@ -170,9 +272,12 @@ scheduler product is required.
    `dic.can_allocate_participants`, `dic.can_approve_housing_guardians`. Use no
    worker superuser or usable password. Ambiguous guardians/capacity holds remain
    exceptional review; verified payments survive delays. Tutors stay offline.
-5. After release authorization, start Worker, Backend, then static Frontend.
-   Backend readiness: `https://<backend-host>/api/v1/health/`. Worker health is
-   above. Check connectivity/TLS/schema/cache/edition/delivery read-only:
+5. After release authorization, Backend can boot with the four web variables and
+   health `https://<backend-host>/api/v1/health/web/`. Configure email/recovery on
+   Backend and Worker, start Worker, then verify full readiness at
+   `https://<backend-host>/api/v1/health/` before opening the static Frontend's
+   transactional flows. Worker health is above. On Worker (where the actor ID is
+   configured), check connectivity/TLS/schema/cache/edition/delivery read-only:
 
    ```
    python backend/manage.py check_dic_launch --settings=config.settings.zevcloud
@@ -223,16 +328,16 @@ This release is not yet certified ready.
 - [Django proxy security](https://docs.djangoproject.com/en/5.2/ref/settings/#secure-proxy-ssl-header)
 
 Native CI builds React independently, checks Django production startup and real
-CORS/preflight using synthetic configuration/no database, and asserts readiness
+CORS/preflight with only the four web variables and no database, and asserts readiness
 fails closed. Existing PostgreSQL core discovery covers session/CSRF login/logout,
 portal cookies, worker behavior, payments and business rules. Container CI is
 manual rollback only; remove its old required branch-check entry manually once
 replacement checks pass. Local Python is blocked; CI results remain required.
 
-Local validation: 237 frontend tests passed, followed by 21 focused API/session/
-callback regressions after the final build-variable change. The separate-HTTPS-API
-production build passed. Shell syntax and git whitespace checks passed. Lint
-exited successfully (existing preview-bundle warnings); the changed frontend
-files passed focused lint without warnings. Django startup/policy tests and the
-native smoke command could not run: Windows denied Python execution and Git Bash
-had no Python interpreter. Vite retains a non-blocking bundle-size warning.
+Local validation of the startup correction: all 237 frontend tests, the
+separate-HTTPS-API production build, source lint, shell syntax and git whitespace
+checks passed. Python 3.12 is unavailable, so the Django regressions are not run
+locally. Native smoke deliberately refuses this checkout's local dotenv file;
+clean-checkout CI must prove actual minimal web startup and worker rejection.
+Vite retains a non-blocking bundle-size warning. No production data or secrets
+were changed, and no deployment was performed.

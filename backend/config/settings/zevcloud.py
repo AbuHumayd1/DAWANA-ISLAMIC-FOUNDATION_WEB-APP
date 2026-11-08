@@ -30,14 +30,7 @@ if DIC_MEMORY_STORAGE not in ('disabled', 's3'):
     raise ImproperlyConfigured('Native production uploads require approved object storage; local storage is unsupported.')
 if not DIC_PORTAL_ACCOUNTS_ENABLED or not DIC_BACKGROUND_WORKER_ENABLED:
     raise ImproperlyConfigured('Full native operation requires portal accounts and the durable worker service.')
-if DIC_AUTOMATION_ACTOR_ID <= 0:
-    raise ImproperlyConfigured('Set the existing authorized automation service-user ID.')
-from cryptography.fernet import Fernet
-try:
-    Fernet(DIC_RECOVERY_ENCRYPTION_KEY.encode('ascii'))
-except (ValueError, UnicodeError):
-    raise ImproperlyConfigured('Set a stable valid recovery Fernet encryption key.') from None
-if (not DIC_EMAIL_RECOVERY_ENABLED or not DIC_RECOVERY_DELIVERY_WORKER_ENABLED
-        or not DEFAULT_FROM_EMAIL or EMAIL_BACKEND.lower().endswith(('console.emailbackend', 'locmem.emailbackend'))
-        or (EMAIL_BACKEND == 'config.https_email.EmailBackend' and not RESEND_API_KEY)):
-    raise ImproperlyConfigured('Configure email recovery, its encryption key and an accepted HTTPS email transport.')
+# Actor, OTP encryption and delivery configuration belong to worker/operation
+# validation. They must not prevent the independent web service from booting.
+# In particular, DIC_AUTOMATION_ACTOR_ID is checked by run_dic_workers and the
+# read-only full-launch command, never required merely to import these settings.
