@@ -15,6 +15,8 @@ export DEFAULT_FROM_EMAIL=ci@example.test RESEND_API_KEY=synthetic-ci-only
 export PAYSTACK_MODE=test PAYSTACK_LIVE_ENABLED=false PAYSTACK_SECRET_KEY=''
 export PORT=8080
 python backend/manage.py check --deploy --fail-level ERROR
+# Import/parse the actual worker command without running jobs or touching a DB.
+python backend/manage.py run_dic_workers --help > /dev/null
 bash backend/native-start.sh web &
 web_pid=$!
 cleanup() {

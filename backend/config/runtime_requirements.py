@@ -8,8 +8,9 @@ from importlib.metadata import version
 
 
 def verify_runtime():
-    if sys.version_info[:2] != (3, 13):
-        raise RuntimeError('Production requires the CI-tested Python 3.13 runtime.')
+    # Native ZevCloud uses 3.12; retain 3.13 for the archived rollback path.
+    if sys.version_info[:2] not in ((3, 12), (3, 13)):
+        raise RuntimeError('Production requires Python 3.12 or 3.13.')
     if version('Django') != '5.2.18':
         raise RuntimeError('Production Django must match the tested pinned version.')
     for package in ('gunicorn', 'reportlab', 'Pillow', 'qrcode', 'psycopg'):

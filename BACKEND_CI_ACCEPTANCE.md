@@ -111,9 +111,9 @@ and configures synthetic settings without loading dotenv.
 `backend/requirements.txt` pins Django 5.2.18, whose declared Python floor is 3.10
 and PostgreSQL floor is 14. The complete acceptance tests have a Python 3.11 floor
 because the payment regression fixtures use unittest.TestCase.enterContext.
-There is no existing project-wide Python/PostgreSQL runtime pin. Some historical
-local scripts demand PostgreSQL 18 for their own identity guard; that is not a
-minimum for the application. The prepared workflow uses Python 3.13 and tests both
+Native ZevCloud pins Python 3.12 and retains the existing PostgreSQL 18 service.
+Some historical local scripts demand PostgreSQL 18 for their own identity guard;
+that is not a minimum for the application. The workflow uses Python 3.12 and tests both
 PostgreSQL 14 and 18. These selections are proposed CI coverage, not verified
 production version acceptance. Existing bounded dependencies are not a fully
 hashed dependency lock; their allowed resolutions can change between runs.

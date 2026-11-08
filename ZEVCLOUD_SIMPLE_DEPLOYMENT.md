@@ -36,7 +36,7 @@ Create a Git-backed **Web Application**, framework **Django / Python**, builder
 | Setting | Exact value |
 | --- | --- |
 | Root/base directory | `.` |
-| Python | `3.13` (manifest; matches pinned dependencies/CI) |
+| Python | `3.12` (native selector, manifest and deployment/backend CI) |
 | Install | Leave unset; use manifest command below |
 | Build | `bash backend/native-build.sh` |
 | Start | `bash backend/native-start.sh web` |
@@ -56,6 +56,13 @@ existing media validation/PDFs. Gunicorn runs config.wsgi:application from backe
 binding 0.0.0.0 to supplied PORT (8080 default). Dashboard commands need no shell
 variable expansion. Build/start never migrate, seed, create users or enable live
 payments.
+
+Select **Python 3.12** in ZevCloud. The manifest and native/backend CI match it;
+existing dependency requirements/constraints remain unchanged. Native CI checks
+resolved package Requires-Python metadata, production/binary imports, Django
+startup and worker-command imports on 3.12. Actual local Python 3.12 execution
+is unavailable; those CI results are still required. Python 3.13 remains accepted
+only to preserve the archived rollback path, not as a native selector requirement.
 
 ### Minimum Backend and Worker environment
 

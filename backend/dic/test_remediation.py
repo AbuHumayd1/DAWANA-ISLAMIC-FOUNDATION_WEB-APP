@@ -97,9 +97,10 @@ class RemediationPolicyTests(SimpleTestCase):
                 patch('config.runtime_requirements.Path.is_file', return_value=False):
             with self.assertRaisesMessage(RuntimeError, 'Liberation'):
                 verify_runtime()
-        with patch('config.runtime_requirements.sys.version_info', (3, 12)):
-            with self.assertRaisesMessage(RuntimeError, 'Python 3.13'):
-                verify_runtime()
+        for unsupported in ((3, 11), (3, 14), (4, 0)):
+            with self.subTest(runtime=unsupported), patch('config.runtime_requirements.sys.version_info', unsupported):
+                with self.assertRaisesMessage(RuntimeError, 'Python 3.12 or 3.13'):
+                    verify_runtime()
         with patch('config.runtime_requirements.sys.version_info', (3, 13)), \
                 patch('config.runtime_requirements.version', return_value='5.2.18'), \
                 patch('config.runtime_requirements.os.environ', {}), \
@@ -108,3 +109,19 @@ class RemediationPolicyTests(SimpleTestCase):
                       side_effect=lambda path: path.name != 'ffprobe'):
             with self.assertRaisesMessage(RuntimeError, 'ffprobe'):
                 verify_runtime()
+
+    def test_runtime_gate_accepts_native_312_and_retained_313_without_skipping_checks(self):
+        from config.runtime_requirements import verify_runtime
+        for runtime in ((3, 12), (3, 13)):
+            with self.subTest(runtime=runtime), \
+                    patch('config.runtime_requirements.sys.version_info', runtime), \
+                    patch('config.runtime_requirements.version', return_value='5.2.18') as packages, \
+                    patch('config.runtime_requirements.Path.is_file', return_value=True), \
+                    patch('config.runtime_requirements.os.environ', {}), \
+                    patch('config.runtime_requirements.shutil.which', return_value='/usr/bin/ffprobe'), \
+                    patch('config.runtime_requirements.subprocess.run') as probe:
+                verify_runtime()
+                self.assertEqual([call.args[0] for call in packages.call_args_list],
+                    ['Django', 'gunicorn', 'reportlab', 'Pillow', 'qrcode', 'psycopg'])
+                self.assertEqual(probe.call_args.args[0], ['/usr/bin/ffprobe', '-version'])
+                self.assertTrue(probe.call_args.kwargs['check'])
