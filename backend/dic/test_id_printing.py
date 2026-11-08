@@ -291,13 +291,35 @@ class PrintingTests(PortalFixtures, TestCase):
         import cv2
         import fitz
         import numpy as np
+        from .premium_hybrid_badge import QR
         self.issue()
         context = card_context(RequestFactory().get('/'), self.enrollment)
-        document = fitz.open(stream=render_pdf([context]), filetype='pdf')
-        pixmap = document[0].get_pixmap(matrix=fitz.Matrix(4, 4))
-        pixels = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(pixmap.height, pixmap.width, pixmap.n)
-        decoded, _, _ = cv2.QRCodeDetector().detectAndDecode(pixels)
-        self.assertEqual(decoded, context['verification_url'])
+        width, height, gap = geometry()
+        qr_x, qr_top, qr_size = QR
+        # Scan the QR as printed, including its existing four-module quiet zone.
+        # OpenCV normalizes large detection images: a whole A4 sheet makes this
+        # 33 mm symbol unnecessarily small relative to the input. Decode pixels
+        # rasterized from the actual PDF, never a regenerated/extracted source QR.
+        # Five cards cover every slot and the partially filled following page.
+        with fitz.open(stream=render_pdf([context] * 5), filetype='pdf') as document:
+            for index in range(5):
+                slot = index % 4
+                left = (A4[0] - 2 * width - gap) / 2 + slot % 2 * (width + gap)
+                top = (A4[1] - 2 * height - gap) / 2 + slot // 2 * (height + gap)
+                bounds = fitz.Rect(left + qr_x * mm, top + qr_top * mm,
+                    left + (qr_x + qr_size) * mm, top + (qr_top + qr_size) * mm)
+                for scale in (4, 6):
+                    with self.subTest(page=index // 4, slot=slot, scale=scale,
+                                      opencv=cv2.__version__, pymupdf=fitz.VersionBind):
+                        pixmap = document[index // 4].get_pixmap(matrix=fitz.Matrix(scale, scale),
+                            clip=bounds, colorspace=fitz.csGRAY, alpha=False)
+                        self.assertEqual(pixmap.n, 1)
+                        pixels = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(pixmap.height, pixmap.width)
+                        # Cropping must retain white margins around the symbol.
+                        for edge in (pixels[0, :], pixels[-1, :], pixels[:, 0], pixels[:, -1]):
+                            self.assertTrue(np.all(edge == 255))
+                        decoded, _, _ = cv2.QRCodeDetector().detectAndDecode(pixels)
+                        self.assertEqual(decoded, context['verification_url'])
 
     def test_individual_portrait_and_portal_scope(self):
         self.issue()
