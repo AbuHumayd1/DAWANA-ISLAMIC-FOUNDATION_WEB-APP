@@ -1,24 +1,28 @@
 """Pure gateway rendering. No provider assumptions, network or secret output."""
 from ipaddress import ip_network
 import re
+from startup_errors import StartupError
 
 
 def configuration(env):
     host = env.get('PUBLIC_HOST', '')
     if not re.fullmatch(r'[a-z0-9]+(?:[.-][a-z0-9]+)*', host) or '.' not in host:
-        raise ValueError('PUBLIC_HOST must be one exact approved DNS hostname.')
+        raise StartupError('GW_PUBLIC_HOST', 'Set PUBLIC_HOST to the single hostname currently used for acceptance, without scheme, port or path.')
     port = env.get('PORT', '8080')
     if not port.isascii() or not port.isdecimal() or not 1024 <= int(port) <= 65535 or int(port) in (9090, 10000):
-        raise ValueError('PORT must be an unprivileged ingress port distinct from internal ports.')
+        raise StartupError('GW_PORT', 'Use service PORT=8080; ingress must be unprivileged and distinct from internal ports.')
     mode = env.get('GATEWAY_TLS_MODE')
     prelude, checks = '', ''
     if mode == 'trusted-edge':
         if env.get('EDGE_TRUST_VERIFIED') != '1':
-            raise ValueError('Verified upstream TLS and replacement-header guarantees are required.')
+            raise StartupError('GW_EDGE_UNVERIFIED', 'Obtain provider HTTPS, header-replacement and bypass guarantees before setting EDGE_TRUST_VERIFIED=1.')
         cidrs = env.get('TRUSTED_EDGE_CIDRS', '').split(',')
-        networks = [ip_network(value.strip(), strict=True) for value in cidrs if value.strip()]
+        try:
+            networks = [ip_network(value.strip(), strict=True) for value in cidrs if value.strip()]
+        except ValueError:
+            raise StartupError('GW_EDGE_CIDRS', 'Supply provider-confirmed, strict immediate-proxy CIDRs in TRUSTED_EDGE_CIDRS; values are not logged.') from None
         if not networks or any(network.prefixlen == 0 for network in networks):
-            raise ValueError('Supply bounded immediate-edge CIDRs; wildcard trust is prohibited.')
+            raise StartupError('GW_EDGE_CIDRS', 'Supply bounded provider-confirmed TRUSTED_EDGE_CIDRS; empty or wildcard networks are prohibited.')
         prelude = 'geo $trusted_edge { default 0; ' + ' '.join(f'{network} 1;' for network in networks) + ' }\n'
         checks = '''if ($trusted_edge = 0) { return 444; }
         if ($http_x_forwarded_proto != https) { return 400; }
@@ -30,13 +34,13 @@ def configuration(env):
         def path(name):
             value = env.get(name, '')
             if not re.fullmatch(r'/[A-Za-z0-9_./-]+', value):
-                raise ValueError('Direct TLS requires safe absolute certificate/key file paths.')
+                raise StartupError('GW_' + name, 'Direct TLS requires an absolute mounted file path in ' + name + '.')
             return value
         tls = f'ssl_certificate {path("GATEWAY_TLS_CERT_FILE")};\nssl_certificate_key {path("GATEWAY_TLS_KEY_FILE")};\nssl_protocols TLSv1.2 TLSv1.3;'
         listen = f'listen 0.0.0.0:{int(port)} ssl;'
         client = '$remote_addr'
     else:
-        raise ValueError('Explicit direct or trusted-edge TLS mode is required.')
+        raise StartupError('GW_TLS_MODE', 'Use GATEWAY_TLS_MODE=trusted-edge for verified managed ingress; direct requires mounted TLS files and TLS passthrough.')
     proxy = f'''proxy_pass http://127.0.0.1:10000;
         proxy_set_header Host {host};
         proxy_set_header X-Forwarded-For "";
@@ -50,7 +54,7 @@ def configuration(env):
     frontend_headers = 'add_header X-Content-Type-Options nosniff always; add_header X-Frame-Options DENY always;'
     website_only = env.get('DAWANA_WEBSITE_ONLY', 'true').lower()
     if website_only not in ('true', 'false'):
-        raise ValueError('DAWANA_WEBSITE_ONLY must be true or false.')
+        raise StartupError('GW_WEBSITE_MODE', 'Set DAWANA_WEBSITE_ONLY=true for the initial public website.')
     application = proxy
     if website_only == 'true':
         application = 'default_type application/json; add_header Cache-Control "no-store" always; return 503 \'{"detail":"Registration and online services are not open yet."}\';'

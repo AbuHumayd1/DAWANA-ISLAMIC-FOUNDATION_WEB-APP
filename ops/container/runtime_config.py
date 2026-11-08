@@ -1,4 +1,22 @@
 """Container-owned defaults. No I/O, secrets output or provider assumptions."""
+import os
+from urllib.parse import urlsplit, parse_qs
+from startup_errors import StartupError
+
+
+def boolean(value, name):
+    value = value.strip().lower()
+    if value in ('true', '1', 'yes', 'on'):
+        return 'true'
+    if value in ('false', '0', 'no', 'off'):
+        return 'false'
+    raise StartupError('CFG_BOOLEAN_' + name, 'Use a valid true/false value for ' + name + '.')
+
+
+def csv(value):
+    return list(dict.fromkeys(part.strip() for part in value.split(',') if part.strip()))
+
+
 def configure(env):
     host = env.get('PUBLIC_HOST', '')
     fixed = {
@@ -11,16 +29,30 @@ def configure(env):
         'DJANGO_CSRF_TRUSTED_ORIGINS': 'https://' + host,
         'DJANGO_CORS_ALLOWED_ORIGINS': '',
         'DB_SSLMODE': 'verify-full',
+        'DJANGO_DEBUG': 'false',
     }
     for name, value in fixed.items():
-        if name in env and env[name] != value:
-            raise ValueError('Conflicting container security setting: ' + name)
+        supplied = env.get(name, value)
+        if name in ('DJANGO_TRUST_PROXY_HTTPS', 'DJANGO_DEBUG'):
+            supplied = boolean(supplied, name)
+        elif name in ('DJANGO_ALLOWED_HOSTS', 'DJANGO_CSRF_TRUSTED_ORIGINS', 'DJANGO_CORS_ALLOWED_ORIGINS'):
+            values = csv(supplied)
+            allowed = [value] if value else []
+            if name == 'DJANGO_CORS_ALLOWED_ORIGINS' and values == ['https://' + host]:
+                value = 'https://' + host  # Existing entrypoint already permits this safe origin.
+            elif values != allowed:
+                raise StartupError('CFG_CONFLICT_' + name,
+                    'Remove ' + name + ' to derive the single PUBLIC_HOST policy, or supply its matching exact value.')
+            supplied = value
+        elif name == 'DAWANA_TRUSTED_GATEWAYS':
+            supplied = ','.join(csv(supplied))
+        if supplied != value:
+            raise StartupError('CFG_CONFLICT_' + name, 'Remove the conflicting ' + name + ' override; the container derives its secure value.')
         env[name] = value
     env.setdefault('GATEWAY_TLS_MODE', 'trusted-edge')
     env.setdefault('DAWANA_WEBSITE_ONLY', 'true')
-    website = env['DAWANA_WEBSITE_ONLY'].lower()
-    if website not in ('true', 'false'):
-        raise ValueError('DAWANA_WEBSITE_ONLY must be true or false.')
+    website = boolean(env['DAWANA_WEBSITE_ONLY'], 'DAWANA_WEBSITE_ONLY')
+    env['DAWANA_WEBSITE_ONLY'] = website
     if website == 'true':
         disabled = {
             'PAYSTACK_MODE': 'test', 'PAYSTACK_LIVE_ENABLED': 'false',
@@ -35,8 +67,12 @@ def configure(env):
             'DIC_BACKGROUND_WORKER_ENABLED': 'false',
         }
         for name, value in disabled.items():
-            if name in env and env[name] != value:
-                raise ValueError('Website-only mode conflicts with: ' + name)
+            supplied = env.get(name, value)
+            if value == 'false':
+                supplied = boolean(supplied, name)
+            if supplied != value:
+                raise StartupError('CFG_WEBSITE_ONLY_' + name,
+                    'Website-only mode requires ' + name + ' disabled or absent; remove its conflicting override.')
             env[name] = value
     else:
         defaults = {
@@ -52,7 +88,39 @@ def configure(env):
         }
         for name, value in defaults.items():
             env.setdefault(name, value)
-        if env['DIC_BACKGROUND_WORKER_ENABLED'] not in ('true', 'false'):
-            raise ValueError('DIC_BACKGROUND_WORKER_ENABLED must be true or false.')
+        env['DIC_BACKGROUND_WORKER_ENABLED'] = boolean(env['DIC_BACKGROUND_WORKER_ENABLED'], 'DIC_BACKGROUND_WORKER_ENABLED')
     env.setdefault('DIC_BACKGROUND_WORKER_ENABLED', 'false')
     return env
+
+
+def validate_inputs(env):
+    """Preflight local configuration only. Never connect or print supplied values."""
+    secret = env.get('DJANGO_SECRET_KEY', '')
+    if len(secret) < 50 or secret.startswith('django-insecure-'):
+        raise StartupError('CFG_SECRET_KEY', 'Set an independent DJANGO_SECRET_KEY of at least 50 characters.')
+    if env.get('DATABASE_URL'):
+        try:
+            parsed = urlsplit(env['DATABASE_URL'])
+            valid = (parsed.scheme in ('postgres', 'postgresql', 'psql', 'pgsql')
+                     and bool(parsed.hostname) and bool(parsed.path.strip('/'))
+                     and parsed.port != 0 and not parsed.fragment)
+            options = parse_qs(parsed.query, keep_blank_values=True)
+        except ValueError:
+            valid, options = False, {}
+        if not valid:
+            raise StartupError('CFG_DATABASE_URL', 'Supply a valid PostgreSQL DATABASE_URL, or remove it and use the existing DB_* fields.')
+        if 'sslmode' in options and options['sslmode'] != ['verify-full']:
+            raise StartupError('CFG_DATABASE_URL_TLS', 'Remove the conflicting DATABASE_URL sslmode option or set it to verify-full.')
+        if env.get('DB_SSLROOTCERT') and 'sslrootcert' in options and options['sslrootcert'] != [env['DB_SSLROOTCERT']]:
+            raise StartupError('CFG_DATABASE_CA_CONFLICT', 'Use one matching CA file configuration in DB_SSLROOTCERT and DATABASE_URL.')
+        ca = env.get('DB_SSLROOTCERT') or (options.get('sslrootcert') or [''])[0]
+    else:
+        for name in ('DB_HOST', 'DB_NAME', 'DB_USER'):
+            if not env.get(name, '').strip():
+                raise StartupError('CFG_MISSING_' + name, 'Keep the existing ' + name + ', or configure DATABASE_URL instead.')
+        port = env.get('DB_PORT', '5432')
+        if not port.isascii() or not port.isdecimal() or not 1 <= int(port) <= 65535:
+            raise StartupError('CFG_DB_PORT', 'Set DB_PORT to the provider PostgreSQL port.')
+        ca = env.get('DB_SSLROOTCERT', '')
+    if ca and not (os.path.isfile(ca) and os.access(ca, os.R_OK)):
+        raise StartupError('CFG_DATABASE_CA_FILE', 'Mount the trusted PostgreSQL CA file readably for UID 10001; DB_SSLROOTCERT is a file path, not PEM text.')

@@ -55,5 +55,5 @@ USER 10001:10001
 EXPOSE 8080
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
-    CMD ["python", "/app/container/healthcheck.py"]
+    CMD ["/opt/venv/bin/python", "/app/container/healthcheck.py"]
 ENTRYPOINT ["/usr/bin/tini", "--", "python", "/app/container/entrypoint.py"]
