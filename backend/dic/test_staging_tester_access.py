@@ -184,7 +184,8 @@ class StagingTesterAccessTests(APITestCase):
             'BaseDatabaseWrapper.ensure_connection=deny;'
             'guard=patch.object(environ.Env,"read_env");guard.start();'
             'from config.settings import production;import json;'
-            'print(json.dumps(production.MIDDLEWARE))'
+            'print(json.dumps({"middleware":production.MIDDLEWARE,'
+            '"website_only":production.DAWANA_WEBSITE_ONLY}))'
         )
         env = {key: os.environ[key] for key in ('SYSTEMROOT', 'WINDIR', 'PATH') if key in os.environ}
         env.update(DJANGO_SETTINGS_MODULE='config.settings.production',
@@ -195,14 +196,51 @@ class StagingTesterAccessTests(APITestCase):
         result = subprocess.run([sys.executable, '-I', '-B', '-c', code], env=env,
             capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
-        middleware = json.loads(result.stdout)
+        production = json.loads(result.stdout)
+        middleware = production['middleware']
 
         self.assertNotIn("config.staging_tester_access.DICStagingTesterMiddleware",
                          middleware)
-        with override_settings(MIDDLEWARE=middleware):
-            response = APIClient().post("/api/v1/dic/orders/", self.order_payload, format="json",
+        self.assertIn('config.request_security.WebsiteOnlyMiddleware', middleware)
+        self.assertIs(production['website_only'], True)
+        order_count = RegistrationOrder.objects.count()
+
+        def create_order():
+            # No tester session: production must support the ordinary public flow.
+            return APIClient().post("/api/v1/dic/orders/", self.order_payload, format="json",
                 HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
-        self.assertEqual(response.status_code, 201)
+
+        with override_settings(MIDDLEWARE=middleware):
+            with self.subTest(mode='website-only'), override_settings(
+                    DAWANA_WEBSITE_ONLY=production['website_only']):
+                response = create_order()
+                self.assertEqual(response.status_code, 503)
+                self.assertContains(response, 'Registration and online services are not open yet.', status_code=503)
+                self.assertEqual(RegistrationOrder.objects.count(), order_count)
+
+            # This test exercises full-application mode, not the website-only
+            # launch default. Keep the real middleware and readiness checks.
+            with override_settings(DAWANA_WEBSITE_ONLY=False):
+                with self.subTest(mode='accounts-not-ready'), override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=False):
+                    response = create_order()
+                    self.assertEqual(response.status_code, 503)
+                    self.assertContains(response, 'Account sign-in awaits approved setup.', status_code=503)
+                    self.assertEqual(RegistrationOrder.objects.count(), order_count)
+
+                with self.subTest(mode='registration-closed'):
+                    self.edition.registration_status = 'draft'
+                    self.edition.save(update_fields=['registration_status'])
+                    response = create_order()
+                    self.assertEqual(response.status_code, 400)
+                    self.assertContains(response, 'DIC registration is not currently open.', status_code=400)
+                    self.assertEqual(RegistrationOrder.objects.count(), order_count)
+
+                with self.subTest(mode='application-ready'):
+                    self.edition.registration_status = 'open'
+                    self.edition.save(update_fields=['registration_status'])
+                    response = create_order()
+                    self.assertEqual(response.status_code, 201)
+                    self.assertEqual(RegistrationOrder.objects.count(), order_count + 1)
 
     def create_ordinary_tester(self, index):
         user = get_user_model().objects.create_user(
