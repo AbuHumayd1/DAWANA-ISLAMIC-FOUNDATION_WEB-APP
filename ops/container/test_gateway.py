@@ -2,6 +2,9 @@
 import unittest
 from pathlib import Path
 import runpy
+from io import StringIO
+from contextlib import redirect_stderr
+from urllib.error import HTTPError, URLError
 from unittest.mock import MagicMock, patch
 from gateway import configuration
 
@@ -73,6 +76,28 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(exit_result.exception.code, expected)
             proxy.assert_called_once_with({})
             opener.open.assert_called_once_with('http://127.0.0.1:9090/_container/ready', timeout=4)
+
+    def test_gateway_failure_names_the_requirement_without_exposing_networks(self):
+        from startup_errors import StartupError
+        with self.assertRaises(StartupError) as error:
+            configuration({**self.edge(), 'TRUSTED_EDGE_CIDRS': 'internal-private-not-a-network'})
+        self.assertEqual(error.exception.code, 'GW_EDGE_CIDRS')
+        self.assertNotIn('internal-private', str(error.exception))
+
+    def test_health_failures_keep_readiness_unhealthy_and_redact_details(self):
+        script = str(Path(__file__).with_name('healthcheck.py'))
+        for failure, code in ((HTTPError('http://private', 503, 'private database error', {}, None), 'HC_HTTP'),
+                              (URLError('private connection details'), 'HC_CONNECTION')):
+            output = StringIO()
+            opener = MagicMock()
+            opener.open.side_effect = failure
+            with patch('urllib.request.build_opener', return_value=opener), redirect_stderr(output), self.assertRaises(SystemExit) as result:
+                runpy.run_path(script)
+            self.assertEqual(result.exception.code, 1)
+            self.assertIn(code, output.getvalue())
+            self.assertNotIn('private connection details', output.getvalue())
+            self.assertNotIn('private database error', output.getvalue())
+            self.assertNotIn('http://private', output.getvalue())
 
 
 if __name__ == '__main__':
