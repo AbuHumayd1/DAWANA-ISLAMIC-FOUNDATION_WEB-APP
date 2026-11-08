@@ -2,7 +2,7 @@
 providers = ["python"]
 
 [variables]
-NIXPACKS_PYTHON_VERSION = "3.13"
+NIXPACKS_PYTHON_VERSION = "3.12"
 DJANGO_SETTINGS_MODULE = "config.settings.zevcloud"
 
 [phases.setup]

@@ -6,11 +6,11 @@ production configuration. The initial custom user model is `accounts.User`.
 
 ## Local setup
 
-From the repository root, create and activate a Python 3.13 virtual environment,
+From the repository root, create and activate a Python 3.12 virtual environment,
 then install the pinned dependencies:
 
 ```powershell
-py -3.13 -m venv backend\.venv
+py -3.12 -m venv backend\.venv
 backend\.venv\Scripts\Activate.ps1
 python -m pip install -r backend\requirements.txt
 Copy-Item backend\.env.example backend\.env

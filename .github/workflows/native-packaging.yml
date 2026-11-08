@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -38,5 +38,25 @@ jobs:
         run: |
           bash backend/native-install.sh
           bash backend/native-build.sh
+      - name: Python 3.12 production dependency metadata and binary imports
+        run: |
+          python -m pip install -c backend/constraints-staging.txt packaging
+          python -m pip check
+          python - <<'PY'
+          from importlib import import_module, metadata
+          from platform import python_version
+          from packaging.specifiers import SpecifierSet
+          for distribution in metadata.distributions():
+              required = distribution.metadata.get('Requires-Python', '')
+              if required and not SpecifierSet(required).contains(python_version()):
+                  raise RuntimeError('Installed dependency excludes the native Python runtime.')
+              print(distribution.metadata['Name'], distribution.version, required)
+          for module in ('django', 'rest_framework', 'environ', 'corsheaders', 'psycopg',
+                         'cryptography.fernet', 'docx', 'gunicorn', 'whitenoise',
+                         'PIL.Image', 'boto3', 'qrcode', 'reportlab.pdfgen.canvas',
+                         'google.auth.transport.requests', 'lxml.etree', 'cffi'):
+              import_module(module)
+          print('PASS: resolved dependency metadata and production imports on Python', python_version())
+          PY
       - name: Standalone Django startup, CORS and fail-closed readiness without a database
         run: bash backend/native-smoke.sh
