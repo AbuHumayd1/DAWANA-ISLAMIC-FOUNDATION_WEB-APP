@@ -15,7 +15,14 @@ export PAYSTACK_MODE=test PAYSTACK_LIVE_ENABLED=false PAYSTACK_SECRET_KEY=''
 export PORT=8080
 bash backend/native-start.sh web &
 web_pid=$!
-trap 'kill -TERM "$web_pid" 2>/dev/null || true; wait "$web_pid" 2>/dev/null || true' EXIT
+cleanup() {
+  status=$?
+  trap - EXIT
+  kill -TERM "$web_pid" 2>/dev/null || true
+  wait "$web_pid" 2>/dev/null || true
+  exit "$status"
+}
+trap cleanup EXIT
 probe() {
   curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 \
     -H 'Host: native.example.test' -H 'X-Forwarded-Proto: https' "http://127.0.0.1:8080$1"
@@ -23,7 +30,10 @@ probe() {
 started=false
 for attempt in $(seq 1 60); do
   if [ "$(probe / || true)" = 200 ]; then started=true; break; fi
-  kill -0 "$web_pid"
+  if ! kill -0 "$web_pid" 2>/dev/null; then
+    echo 'Native web process exited before startup completed.' >&2
+    if wait "$web_pid"; then exit 1; else exit $?; fi
+  fi
   sleep 1
 done
 [ "$started" = true ]

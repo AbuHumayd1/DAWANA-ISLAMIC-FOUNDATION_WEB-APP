@@ -8,10 +8,28 @@ from django.core.exceptions import DisallowedHost
 from django.urls import resolve, Resolver404
 from .native_defaults import configure
 from .native_security import ManagedHttpsMiddleware
-from .spa import frontend, validate_frontend
+from .spa import frontend, validate_frontend, static_headers
 
 
 class NativeDeploymentTests(SimpleTestCase):
+    def test_whitenoise_invokes_header_callback_for_html_and_assets(self):
+        from whitenoise.middleware import WhiteNoiseMiddleware
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'index.html').write_text('<html>React</html>', encoding='utf-8')
+            (root / 'app.js').write_text('console.log("asset");', encoding='utf-8')
+            with self.settings(WHITENOISE_ROOT=str(root), STATIC_ROOT=None,
+                    WHITENOISE_ADD_HEADERS_FUNCTION=static_headers, WHITENOISE_MAX_AGE=0,
+                    WHITENOISE_AUTOREFRESH=False):
+                middleware = WhiteNoiseMiddleware(lambda request: HttpResponse(status=404))
+                for path in ('/index.html', '/app.js'):
+                    response = middleware(RequestFactory().get(path))
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response['X-Frame-Options'], 'DENY')
+                    if path.endswith('.html'):
+                        self.assertEqual(response['Cache-Control'], 'no-store')
+                    response.close()
+
     def test_defaults_keep_same_origin_full_workflow_and_live_collection_off(self):
         env = configure({'PUBLIC_HOST': 'foundation.example.test'})
         self.assertEqual(env['PAYSTACK_CALLBACK_URL'], 'https://foundation.example.test/dic/register/payment-return')

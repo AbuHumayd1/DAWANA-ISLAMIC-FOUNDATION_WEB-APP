@@ -20,11 +20,11 @@ MIDDLEWARE = ['config.native_security.ManagedHttpsMiddleware', *[
         'config.request_security.WebsiteOnlyMiddleware')]]
 ROOT_URLCONF = 'config.native_urls'
 FRONTEND_ROOT = BASE_DIR.parent / 'dawana-platform/dist'
-from config.spa import validate_frontend
+from config.spa import validate_frontend, static_headers
 validate_frontend(FRONTEND_ROOT)
 WHITENOISE_ROOT = FRONTEND_ROOT
 WHITENOISE_MAX_AGE = 0
-WHITENOISE_ADD_HEADERS_FUNCTION = 'config.spa.static_headers'
+WHITENOISE_ADD_HEADERS_FUNCTION = static_headers
 DIC_WORKER_HEARTBEAT_CACHE = True
 if not DIC_PORTAL_ACCOUNTS_ENABLED or not DIC_BACKGROUND_WORKER_ENABLED:
     raise ImproperlyConfigured('Full native operation requires portal accounts and the durable worker service.')
