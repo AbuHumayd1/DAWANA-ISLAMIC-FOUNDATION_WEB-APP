@@ -52,7 +52,8 @@ if test "$ready" != 1; then
 fi
 docker exec -i "$name" python - <<'PY'
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
+from time import sleep
 def status(path, headers):
     request = Request('http://127.0.0.1:8080' + path, headers={'Host': 'foundation.example.test', **headers})
     try:
@@ -61,6 +62,19 @@ def status(path, headers):
 assert status('/', {}) == 400
 assert status('/', {'X-Forwarded-Proto': 'http', 'X-Real-IP': '192.0.2.4'}) == 400
 trusted = {'X-Forwarded-Proto': 'https', 'X-Real-IP': '192.0.2.4'}
+# A listening gateway can still return 502 while Gunicorn loads Django.
+# Wait for a database-free application response, not DB-dependent readiness.
+for attempt in range(30):
+    try:
+        actual = status('/api/v1/not-a-route/', trusted)
+    except (URLError, TimeoutError, ConnectionError):
+        actual = None
+    if actual == 404:
+        break
+    assert actual in (None, 502), f'Django startup probe expected 404, got {actual}'
+    sleep(1)
+else:
+    raise AssertionError(f'Django did not respond with 404 within 30 attempts (last status {actual})')
 actual = status('/dic/register/payment-return', trusted)
 print(f'Trusted-edge payment-return: expected 200, got {actual}', flush=True)
 assert actual == 200, f'Expected 200, got {actual}'
