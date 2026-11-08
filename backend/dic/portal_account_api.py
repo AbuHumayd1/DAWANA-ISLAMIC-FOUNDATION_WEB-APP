@@ -199,14 +199,14 @@ class EmailVerifyView(PortalView):
 @method_decorator(sensitive_post_parameters(), name='dispatch')
 class EmailResendView(PortalView):
     def post(self, request):
-        from .registration_accounts import credential_account, deliver_verification
+        from .registration_accounts import credential_account, schedule_verification
         from rest_framework.exceptions import AuthenticationFailed
         accounts.require_accounts()
         data = values(Credentials, request)
         accounts.rate_limit(request, data['identifier'], 'email-resend')
         try:
             account = credential_account(data['identifier'], data['password'])
-            if not account.user.is_active: deliver_verification(account)
+            if not account.user.is_active: schedule_verification(account)
         except Exception:
             pass
         return Response({'detail': 'If these credentials identify an account awaiting verification, an email has been requested.'}, status=202)

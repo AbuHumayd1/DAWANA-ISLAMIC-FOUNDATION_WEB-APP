@@ -86,6 +86,9 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="")
+RESEND_API_KEY = env('RESEND_API_KEY', default='')
+DIC_BACKGROUND_WORKER_ENABLED = env.bool('DIC_BACKGROUND_WORKER_ENABLED', default=False)
+DIC_AUTOMATION_ACTOR_ID = env.int('DIC_AUTOMATION_ACTOR_ID', default=0)
 if not 1 <= DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS <= 30:
     raise ImproperlyConfigured(
         "DIC_RECOVERY_PROVIDER_TIMEOUT_SECONDS must be between 1 and 30."

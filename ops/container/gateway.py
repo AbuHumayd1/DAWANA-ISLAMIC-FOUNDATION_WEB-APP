@@ -48,6 +48,12 @@ def configuration(env):
         add_header Cache-Control "private, no-store" always;
         proxy_read_timeout 60s;'''
     frontend_headers = 'add_header X-Content-Type-Options nosniff always; add_header X-Frame-Options DENY always;'
+    website_only = env.get('DAWANA_WEBSITE_ONLY', 'true').lower()
+    if website_only not in ('true', 'false'):
+        raise ValueError('DAWANA_WEBSITE_ONLY must be true or false.')
+    application = proxy
+    if website_only == 'true':
+        application = 'default_type application/json; add_header Cache-Control "no-store" always; return 503 \'{"detail":"Registration and online services are not open yet."}\';'
     return f'''pid /run/dawana/nginx.pid;
 error_log /dev/stderr emerg;
 worker_processes 1;
@@ -72,7 +78,9 @@ http {{
         root /app/frontend;
         index index.html;
         client_max_body_size 101m;
-        location ~ ^/(api|admin|static)(/|$) {{ {proxy} }}
+        location = /api/v1/health/ {{ {proxy} }}
+        location ~ ^/(api|admin)(/|$) {{ {application} }}
+        location ~ ^/static(/|$) {{ {proxy} }}
         location ~ ^/(media|health)(/|$) {{ return 404; }}
         location = /_container/live {{ access_log off; add_header Cache-Control no-store; return 200 'gateway-alive'; }}
         location = /_container/ready {{ rewrite ^ /api/v1/health/ break; {proxy} }}

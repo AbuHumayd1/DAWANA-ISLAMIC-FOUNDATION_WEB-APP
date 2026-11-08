@@ -1,10 +1,24 @@
 from unittest.mock import patch
 from django.test import SimpleTestCase, RequestFactory
 from django.http import HttpResponse
-from .request_security import resolved_client, TrustedGatewayMiddleware, AdminLoginThrottleMiddleware
+from .request_security import resolved_client, TrustedGatewayMiddleware, AdminLoginThrottleMiddleware, WebsiteOnlyMiddleware
 
 
 class GatewaySecurityTests(SimpleTestCase):
+    def test_website_launch_blocks_all_application_writes_without_database(self):
+        middleware = WebsiteOnlyMiddleware(lambda r: HttpResponse())
+        with self.settings(DAWANA_WEBSITE_ONLY=True):
+            for path in ('/api/v1/dic/orders/', '/api/v1/dic/payments/paystack/webhook/',
+                         '/api/v1/foundation/donations/', '/api/v1/dic/participant/auth/password/login/',
+                         '/admin/login/'):
+                with self.subTest(path=path):
+                    response = middleware.process_request(RequestFactory().post(path))
+                    self.assertEqual(response.status_code, 503)
+                    self.assertIn('no-store', response['Cache-Control'])
+            self.assertIsNone(middleware.process_request(RequestFactory().get('/api/v1/health/')))
+        with self.settings(DAWANA_WEBSITE_ONLY=False):
+            self.assertIsNone(middleware.process_request(RequestFactory().post('/api/v1/dic/orders/')))
+
     def test_untrusted_forwarding_cannot_change_client(self):
         meta = {'REMOTE_ADDR': '192.0.2.3', 'HTTP_X_FORWARDED_FOR': '198.51.100.4',
                 'HTTP_X_DAWANA_CLIENT_IP': '198.51.100.5'}

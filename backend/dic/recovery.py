@@ -119,6 +119,8 @@ def channel_available(channel):
             return False
         if backend.endswith("smtp.emailbackend") and not settings.EMAIL_HOST:
             return False
+        if backend == 'config.https_email.emailbackend' and not getattr(settings, 'RESEND_API_KEY', ''):
+            return False
         return True
     if channel == "sms":
         return bool(getattr(settings, "DIC_SMS_RECOVERY_ADAPTER", ""))

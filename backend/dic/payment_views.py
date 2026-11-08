@@ -73,12 +73,14 @@ def _order_for_access(request, public_id):
 
 
 def _attempt_response(attempt, order, *, replayed=False):
+    from .payment_followups import status as followup_status
     response = Response(
         {
             "order_id": str(order.public_id),
             "payment_reference": attempt.reference,
             "attempt_status": attempt.status,
             "payment_status": order.payment_status,
+            "processing": followup_status(order),
             "amount_kobo": attempt.amount_kobo,
             "currency": attempt.currency,
             "authorization_url": attempt.authorization_url or None,
@@ -352,6 +354,11 @@ def _apply_verified_transaction(attempt_id, provider_data):
                 "updated_at",
             )
         )
+        if attempt.status == PaymentAttempt.Status.SUCCESSFUL:
+            # Persist the existing queue job with settlement. Allocation happens
+            # later, outside payment locks; duplicate notifications cannot reset it.
+            from .payment_followups import enqueue_housing
+            enqueue_housing(order)
         return attempt, order
 
 

@@ -1,5 +1,16 @@
 # Single-origin production container — packaging, not deployment approval
 
+For the simplified ZevCloud **website-only** launch, follow
+[ZEVCLOUD_DEPLOYMENT.md](ZEVCLOUD_DEPLOYMENT.md). The container now derives internal
+Django host/proxy settings, defaults to website-only mode, and builds without
+mandatory build arguments. The older full-application inventory below remains
+reference material; it is not the minimal website launch configuration. Provider
+ingress trust and authenticated database TLS remain unresolved release gates.
+
+For the approved combined **full application** release, use
+[FULL_LAUNCH.md](FULL_LAUNCH.md), including supervised housing/recovery workers and
+explicit guardian declarations. This does not authorize deployment or live payments.
+
 Accepted application baseline: `116a3f626bd6baa7cea6dc2929f55c7731186d21`.
 Owner reports main acceptance run 42412886596 passed 9/9. That is not evidence
 for this new container. No image has been built, published or deployed locally.
@@ -16,18 +27,86 @@ Gunicorn -> verify-full PostgreSQL and independently configured R2 buckets
 Tini -> validating entrypoint -> Supervisor -> Nginx + Gunicorn
 ```
 
-Preferred: verified provider Dockerfile build from the reviewed packaging commit,
-repository root, this Dockerfile, explicit base-image digest build arguments.
-Naijacloud's generic Node/Python custom build command is NOT a Docker build API.
-Its GitHub Dockerfile build support remains unconfirmed. Do not enter a fictitious
-Docker command in the generic build field or deploy the repository as plain Python.
+Naijacloud accepts public GHCR images and does not currently expose a GitHub
+Dockerfile build option. Use its Docker image source for the complete Django +
+React image. Do not use a generic Node/Python build command for this container.
+Architecture, digest support, ingress and health-probe behavior still require
+provider confirmation before deployment.
 
-Fallback: build on a controlled Docker builder/CI, approve registry publication
-separately, and deploy the resulting `registry/image@sha256:DIGEST` using the
-dashboard's Docker image source. Do not deploy a mutable `latest` tag. Image-source
-support is owner-confirmed dashboard evidence, not a completed deployment test.
-Registry authentication, architecture, pull behavior and digest support still need
-verification. Private registry credentials must be scoped read-only for hosting.
+## GHCR publication (requires approval before push/merge)
+
+The existing .github/workflows/container-packaging.yml now verifies every pull
+request and every push to main, with an optional workflow_dispatch. Publication
+runs only in AbuHumayd1/DAWANA-ISLAMIC-FOUNDATION_WEB-APP on refs/heads/main for a
+push or manual dispatch, and only after the packaging job succeeds. A dispatch on
+another branch verifies only. Merging this workflow enables publication on future
+main pushes, including the merge itself; obtain explicit approval first.
+
+Verification retains all pure gateway tests, offline packaging checks, fail-closed
+startup, direct-TLS and trusted-edge smoke tests, unavailable-DB readiness and
+shutdown coverage. It builds the existing production Dockerfile with repository
+root context for linux/amd64. Node/Python bases are resolved to digests before the
+build and recorded with the source revision and dependency inventories. The exact
+loaded image that passes verification is transferred by a same-run artifact to a
+separate publish job; publication never rebuilds it. A failed verification skips
+publication. Backend production acceptance remains a separate required PR check;
+configure branch protection to require its nine jobs and container packaging.
+
+All actions in this workflow use immutable commit SHA pins. Docker action pins
+were checked against their upstream commit pages; this is not a full dependency
+security audit. Only the publishing job gets contents: read and packages: write;
+it authenticates to ghcr.io using secrets.GITHUB_TOKEN. No PAT or production
+secrets are required. Checkout disables persisted credentials. The publishing job
+does not check out or execute application code. No pull_request_target or
+cross-run artifact promotion is used.
+
+Only a clean hosted-runner checkout is built. Local untracked artifacts are never
+uploaded. Preserve the default-deny .dockerignore and its exclusions for .env,
+credentials, keys, databases, media, uploads, caches and Git metadata. Never add
+production secrets as build arguments or copy local directories into CI context.
+
+Published image references:
+
+- ghcr.io/abuhumayd1/dawana-web:sha-<full-40-character-commit-SHA>
+- ghcr.io/abuhumayd1/dawana-web:main (moving convenience tag)
+- ghcr.io/abuhumayd1/dawana-web@sha256:<published-digest> (preferred deployment)
+
+No latest tag is generated. Commit tags identify source; registry tags are
+technically mutable, so retain and deploy the digest reported in the publish job
+summary. A rerun can rebuild different dependency versions for the same source;
+do not treat a SHA tag as a substitute for a content digest. Retain prior release
+digests and avoid deleting versions needed for rollback. Serialized main runs
+prevent concurrent publishing jobs; manually rerunning an older run can still
+move main backwards, so never use main as a pinned production release.
+
+After the first approved publication, open GitHub profile Packages > dawana-web >
+Package settings, confirm its linked repository and Actions access, and change
+visibility to Public. Public visibility is a separate owner action, not performed
+by this workflow; review that decision before enabling anonymous pulls. If an
+existing package denies GITHUB_TOKEN writes, grant this repository Actions write
+access in package settings rather than introducing a PAT. Verify an anonymous
+pull of the exact digest from a clean client before configuring Naijacloud.
+
+In Naijacloud select Docker image and use the published digest above, or the full
+sha-commit tag if the provider cannot accept digests. Confirm linux/amd64 support.
+Set the service ingress port and PORT to 8080. Keep the image entrypoint/default
+startup; it runs Tini, validates production settings and gateway configuration,
+then starts Supervisor with Nginx and private Gunicorn. Missing/unsafe settings
+fail startup. No migrations, seeds, superuser creation or workers run at startup.
+Inject approved runtime secrets separately using the inventory below.
+
+Use /_container/ready as the provider readiness path only after verifying the
+trusted TLS-edge headers and separately approving database access; database
+unavailability must return 503. /_container/live checks Nginx only. Docker's
+internal healthcheck uses loopback :9090; expose only 8080, never 9090 or 10000.
+Retain the TLS/client-IP contract below and allow at least 45 seconds shutdown
+grace. Image publication does not authorize deployment, DNS, payments or DB work.
+
+Rollback: select the previous retained image@sha256 digest in Naijacloud, preserve
+its compatible runtime configuration, and verify schema compatibility before an
+approved redeployment. Check readiness and browser/API routes afterward. Image
+rollback does not reverse migrations; never restore or modify a production DB as
+an automatic rollback action.
 
 The dashboard's repository/branch/root, commands, variables, secret files, region,
 size, port and health-path controls are owner-confirmed. Multi-process compatibility,
@@ -38,8 +117,9 @@ remain unverified. Public web-service documentation was inaccessible during revi
 
 Use a clean reviewed checkout/CI SHA descended from the accepted application SHA.
 Do not package a dirty tree for publication or use local main merely by name.
-The branch-creation attempt in the current workspace was blocked by read-only Git
-metadata; local main remains older while cached origin/main is the accepted SHA.
+The current workspace has read-only Git metadata and stale cached origin/main.
+Fetch/main-merge verification and a new branch/commit could not be completed here.
+Use a fresh checkout from current origin/main before committing this patch.
 
 Example Bash procedure on an approved builder (build only; no registry push):
 
@@ -232,13 +312,13 @@ Budget web compute, PostgreSQL, backups/export retention, R2, SMTP, monitoring,
 domain renewal, registry storage/pulls and scheduled jobs. No new provider price
 or uptime guarantee is asserted here. Printing remains bounded; load tests pending.
 
-1. Owner reviews packaging patch and authorizes exact-path publication/branch.
+1. Owner reviews the GHCR workflow and explicitly approves push/PR and later merge/publication.
 2. Run existing nine backend jobs and new container-packaging synthetic workflow.
 3. Resolve any build/smoke failures; retain exact image digest, source SHA, package
-   inventories and successful job artifacts. No automatic image publication exists.
+   inventories and successful job artifacts. Publication is gated on packaging success.
 4. Verify provider Docker/image source, multi-process, UID/filesystem, network,
    port, edge headers, termination grace and health-probe protocol.
-5. Separate approval for registry publication, synthetic hosted test and costs.
+5. Confirm public GHCR visibility; separately approve hosted tests, deployment and costs.
 6. Approve production DB/TLS/roles, R2, secrets, SMTP/scheduling, backup/restore,
    domain/HTTPS and migration manifest. No existing database access here.
 7. Controlled browser/security/payment test-mode acceptance, then separate live
@@ -256,8 +336,8 @@ passed. The complete frontend service suite also ran: 234 passed, zero failed,
 skipped or cancelled (21.31 seconds). Git diff --check passed. Docker, Nginx and
 Python commands are unavailable in this terminal; image
 build, Python tests, production-settings startup, nginx -t, Gunicorn, runtime routes,
-readiness, TLS and signals have NOT executed locally. New synthetic workflow has
-not executed. It builds a local image only and tests unavailable-DB readiness (503),
+readiness, TLS and signals have NOT executed locally. The GHCR workflow changes have not executed in Actions. Verification builds a
+local image before publication and tests unavailable-DB readiness (503),
 not a successful PostgreSQL connection. Real DB/schema readiness remains a gate.
 Byte-for-byte rebuilding and actual Naijacloud ingress remain unverified.
 
@@ -273,3 +353,14 @@ deny-write Git metadata ACLs in the Codex sandbox explain the branch-creation
 failure. No permissions or locks were changed. Use the ordinary owner terminal
 for separately approved exact-path branch publication; never stage all untracked
 files. No actual base-image digests have been resolved in this environment.
+
+## GHCR change validation in this workspace
+
+The offline Node packaging contract check passed with the Dockerfile and test
+scripts unchanged. Git diff whitespace validation and structural YAML/workflow
+checks are recorded in the change report. Docker is not installed in this shell;
+Python resolves to an inaccessible interpreter. Full gateway Python tests, image
+build and smoke tests must run on the PR in GitHub Actions. No image was published.
+Fetch failed because .git/FETCH_HEAD is read-only; direct GitHub Git access is also
+unavailable here. The owner-reported PR #1 merge could not be verified locally.
+Existing untracked files were preserved; no branch or commit was created.

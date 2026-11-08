@@ -3,8 +3,12 @@ import os
 
 
 DEBUG = False
+# Public launch is independent of the unfinished registration rollout.
+DAWANA_WEBSITE_ONLY = env.bool('DAWANA_WEBSITE_ONLY', default=True)
 # Legacy staging imports these HTTPS settings; retain its existing storage path.
 DIC_PRODUCTION_STORAGE = os.environ.get('DJANGO_SETTINGS_MODULE') != 'config.settings.staging'
+if DIC_PRODUCTION_STORAGE and DAWANA_WEBSITE_ONLY and (PAYSTACK_MODE != 'test' or PAYSTACK_LIVE_ENABLED or PAYSTACK_SECRET_KEY):
+    raise ImproperlyConfigured('Website-only launch requires payments disabled and no Paystack key.')
 DJANGO_DEPLOYMENT_TARGET = env('DJANGO_DEPLOYMENT_TARGET', default='self-managed')
 if DJANGO_DEPLOYMENT_TARGET not in ('self-managed', 'render', 'managed'):
     raise ImproperlyConfigured('Unsupported production deployment target.')
@@ -43,6 +47,7 @@ if DIC_PRODUCTION_STORAGE and DIC_MEMORY_STORAGE == 's3':
 MIDDLEWARE = [*MIDDLEWARE]
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 if DIC_PRODUCTION_STORAGE:
+    MIDDLEWARE.insert(0, 'config.request_security.WebsiteOnlyMiddleware')
     MIDDLEWARE.insert(0, 'config.request_security.TrustedGatewayMiddleware')
     MIDDLEWARE.append('config.request_security.AdminLoginThrottleMiddleware')
 # Never trust an arbitrary X-Forwarded-For chain. A verified immediate gateway

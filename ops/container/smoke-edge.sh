@@ -1,12 +1,29 @@
 #!/usr/bin/env bash
 # Isolated synthetic peer/header and child-failure test; no DB or external calls.
-set -euo pipefail
+set -Eeuo pipefail
 image=${1:?Supply local image tag}
 name="dawana-edge-smoke-$$"
-trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+# Report failures before cleanup; never dump the container environment or TLS keys.
+smoke_error() {
+  printf 'ERROR: %s:%s: exit %s: %s\n' "${BASH_SOURCE[1]}" "$2" "$1" "$3" >&2
+}
+cleanup() {
+  status=$?
+  trap - ERR
+  set +e
+  if test "$status" -ne 0; then
+    echo "ERROR: synthetic smoke failed; container state and last 200 log lines follow." >&2
+    docker inspect --format '{{json .State}}' "$name" >&2
+    docker logs --tail 200 "$name" >&2
+  fi
+  docker rm -f "$name" >/dev/null 2>&1
+  exit "$status"
+}
+trap 'smoke_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
+trap cleanup EXIT
 docker run -d --name "$name" --read-only --tmpfs /run/dawana:uid=10001,gid=10001,mode=700 --tmpfs /tmp:mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
-  -e PUBLIC_HOST=foundation.example.test -e GATEWAY_TLS_MODE=trusted-edge \
+  -e PUBLIC_HOST=foundation.example.test -e GATEWAY_TLS_MODE=trusted-edge -e DAWANA_WEBSITE_ONLY=false -e DIC_BACKGROUND_WORKER_ENABLED=false \
   -e EDGE_TRUST_VERIFIED=1 -e TRUSTED_EDGE_CIDRS=127.0.0.1/32 \
   -e DAWANA_TRUSTED_GATEWAYS=127.0.0.1/32 -e DJANGO_TRUST_PROXY_HTTPS=true \
   -e DJANGO_ALLOWED_HOSTS=foundation.example.test \

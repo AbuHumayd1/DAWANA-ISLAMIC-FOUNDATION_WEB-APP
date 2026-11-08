@@ -35,11 +35,18 @@ class GatewayTests(unittest.TestCase):
 
     def test_reserved_routes_private_cache_assets_and_readiness(self):
         value = configuration(self.edge())
-        for expected in ('^/(api|admin|static)(/|$)', '^/(media|health)(/|$)',
+        for expected in ('^/(api|admin)(/|$)', '^/static(/|$)', '^/(media|health)(/|$)',
                          'private, no-store', 'try_files $uri =404;',
                          'try_files $uri $uri/ /index.html;', '127.0.0.1:10000/api/v1/health/',
                          'listen 127.0.0.1:9090;', "log_format private_status '$status $request_time';"):
             self.assertIn(expected, value)
+
+    def test_website_only_blocks_application_but_keeps_health_and_spa(self):
+        value = configuration(self.edge())
+        self.assertIn('return 503', value)
+        self.assertIn('location = /api/v1/health/', value)
+        self.assertIn('try_files $uri $uri/ /index.html;', value)
+        self.assertNotIn('return 503', configuration({**self.edge(), 'DAWANA_WEBSITE_ONLY': 'false'}))
 
     def test_direct_tls_uses_socket_client_and_certificate_files(self):
         value = configuration({**self.edge(), 'GATEWAY_TLS_MODE': 'direct',

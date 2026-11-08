@@ -1,10 +1,26 @@
 #!/usr/bin/env bash
 # LOCAL/CI SYNTHETIC ONLY. Creates disposable containers/certificates; never a DB.
-set -euo pipefail
+set -Eeuo pipefail
 image=${1:?Supply the locally built image tag}
 name="dawana-package-smoke-$$"
 evidence=$(mktemp -d)
-cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
+# Report failures before cleanup; never dump the container environment or TLS keys.
+smoke_error() {
+  printf 'ERROR: %s:%s: exit %s: %s\n' "${BASH_SOURCE[1]}" "$2" "$1" "$3" >&2
+}
+cleanup() {
+  status=$?
+  trap - ERR
+  set +e
+  if test "$status" -ne 0; then
+    echo "ERROR: synthetic smoke failed; container state and last 200 log lines follow." >&2
+    docker inspect --format '{{json .State}}' "$name" >&2
+    docker logs --tail 200 "$name" >&2
+  fi
+  docker rm -f "$name" >/dev/null 2>&1
+  exit "$status"
+}
+trap 'smoke_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
 trap cleanup EXIT
 # Synthetic short-lived TLS fixture, never a production certificate/key.
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
@@ -15,7 +31,7 @@ chmod 755 "$evidence" # UID 10001 must also be able to traverse the bind mount.
 docker run -d --name "$name" --read-only --tmpfs /run/dawana:uid=10001,gid=10001,mode=700 --tmpfs /tmp:mode=1777 \
   --cap-drop ALL --security-opt no-new-privileges \
   -p 127.0.0.1::8080 -v "$evidence:/run/tls:ro" \
-  -e PUBLIC_HOST=foundation.example.test -e GATEWAY_TLS_MODE=direct \
+  -e PUBLIC_HOST=foundation.example.test -e GATEWAY_TLS_MODE=direct -e DAWANA_WEBSITE_ONLY=false -e DIC_BACKGROUND_WORKER_ENABLED=false \
   -e GATEWAY_TLS_CERT_FILE=/run/tls/cert.pem -e GATEWAY_TLS_KEY_FILE=/run/tls/key.pem \
   -e DAWANA_TRUSTED_GATEWAYS=127.0.0.1/32 -e DJANGO_TRUST_PROXY_HTTPS=true \
   -e DJANGO_ALLOWED_HOSTS=foundation.example.test \

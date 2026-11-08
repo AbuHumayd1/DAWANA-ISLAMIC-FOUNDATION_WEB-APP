@@ -12,6 +12,8 @@ class PortalAccount(models.Model):
     contact_channel = models.CharField(max_length=10)
     contact_digest = models.CharField(max_length=64)
     credential_version = models.PositiveIntegerField(default=1)
+    verification_delivery_at = models.DateTimeField(null=True, blank=True)
+    verification_delivery_attempts = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:

@@ -21,7 +21,7 @@ for (const path of files.filter(path => /(^|\/)\.env($|\.)/.test(path))) {
   assert(ignore.includes('**/.env.*') && ignore.includes('**/.env'))
 }
 for (const path of ['ops/container/entrypoint.py', 'ops/container/gateway.py', 'ops/container/healthcheck.py',
-  'ops/container/process_failure.py', 'ops/container/static_settings.py', 'ops/container/supervisord.conf', 'ops/container/smoke.sh']) {
+  'ops/container/runtime_config.py', 'ops/container/process_failure.py', 'ops/container/static_settings.py', 'ops/container/supervisord.conf', 'ops/container/smoke.sh']) {
   assert(!read(path).includes('\r'), 'Container scripts/config must use LF: ' + path)
 }
 assert.match(read('ops/container/entrypoint.py'), /child\.wait\(\)/)
