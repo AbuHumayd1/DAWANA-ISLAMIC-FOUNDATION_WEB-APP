@@ -1,195 +1,170 @@
-# ZevCloud website-only launch
+# DA'WANA: native ZevCloud full application
 
-For full registration/portal operation, use [FULL_LAUNCH.md](FULL_LAUNCH.md).
-This guide remains the maintenance/public-pages-only path.
+## Architecture
 
-Local preparation only. No deployment, DNS changes, migrations or payment activation
-are performed by this configuration. Public pages can launch independently of the
-registration/housing rollout. APIs, Admin, registration, recovery, donations and
-portal access return 503 in website-only mode. Uploaded media is unavailable;
-bundled frontend assets remain available. Health checks still verify PostgreSQL.
+Use **two native Web Application services**, both built from the repository root:
 
-## Builder settings
+1. **Web:** Gunicorn + Django + WhiteNoise serve the built React/Vite frontend,
+   `/api/v1/`, `/admin/` and static files on one HTTPS origin.
+2. **Worker:** the existing durable housing/recovery/account-delivery command,
+   with a read-only health endpoint to fit ZevCloud's long-running Web App model.
 
-- Repository root directory: `.` (not `backend` or `dawana-platform`).
-- Build pack: Dockerfile; file: `Dockerfile`; context: repository root.
-- Target: final stage `runtime` (or leave target blank).
-- Platform: `linux/amd64`; service port: `8080`.
-- Install/build/start overrides: leave blank; use the Dockerfile ENTRYPOINT.
-- Static-site mode: off. No build arguments are required.
-- ZevCloud supplies PORT; keep the service setting at 8080. Nginx binds
-  0.0.0.0:$PORT; Gunicorn intentionally stays private on loopback.
-- Docker health command: `/opt/venv/bin/python /app/container/healthcheck.py`.
-  It probes the private loopback readiness endpoint and requires Django's exact
-  database-success response. It needs neither curl nor wget. Keep this exec-form
-  check; do not replace it with a homepage check. A curl/wget warning alone is
-  not evidence this Python command is unsupported. Ask ZevCloud to confirm it
-  honors Docker HEALTHCHECK; remove a conflicting service-side command override.
-  If using a provider HTTP probe, `/_container/ready` must pass through the verified
-  HTTPS ingress with its required host/header contract; raw HTTP probes cannot
-  bypass the gateway trust checks. The Docker check needs no public-header exception.
-- Defaults use Node 22.19.0 Bookworm and Python 3.13 Bookworm image tags. These are
-  mutable registry inputs; release CI continues supplying resolved NODE_IMAGE,
-  PYTHON_IMAGE digests and SOURCE_REVISION. Without that override the image label
-  honestly reads `unversioned`; record the ZevCloud source commit/build/image ID.
+Both use the **existing PostgreSQL 18 service** and its database-backed queue/cache.
+No second database, Redis, Celery, Nginx, Supervisor or custom gateway is required.
+The frontend needs no separate static service, API-origin variable or cross-origin
+cookies. Client code still uses `/api/v1`; business workflows remain real services.
 
-## Essential runtime variables
+ZevCloud documents Nixpacks, Python/Node, custom start commands and a listening
+service port. No dedicated worker/cron product was established in the documentation
+inspected, so both roles use ordinary Web Apps. The included nixpacks.toml selects
+Python 3.13/Node 22, ffprobe and fonts. The platform builds its own runtime image;
+there is no application-maintained Dockerfile on this path.
 
-| Name | Exact value / format |
+## 1. Builder and start commands
+
+Connect the reviewed branch to both services. Do not deploy without authorization.
+
+| Setting | Both services |
 | --- | --- |
-| PUBLIC_HOST | `dawana-islamic-foundation-web-app.zevcloud.app` for the current website-only acceptance; change to the custom domain only after separate domain authorization/verification |
-| DJANGO_SECRET_KEY | Independent random secret of at least 50 characters; do not reuse database credentials |
-| DAWANA_WEBSITE_ONLY | `true` explicitly; registration, portal, Admin, donations and payment remain unavailable |
-| GATEWAY_TLS_MODE | `trusted-edge`, conditional on the verified managed-ingress contract below |
-| TRUSTED_EDGE_CIDRS | **Unresolved:** provider-confirmed bounded immediate ingress networks, comma-separated; never guess or use /0 |
-| EDGE_TRUST_VERIFIED | `1` **only after** the guarantees below are verified |
+| Root directory | `.` |
+| Build pack | Native / Nixpacks, not Dockerfile |
+| Install | Leave unset: use nixpacks.toml, which creates/activates `/opt/venv` and runs `bash backend/native-install.sh` |
+| Build | `bash backend/native-build.sh` |
+| Static-site mode | Off |
+| Service port | `8080`; ZevCloud supplies PORT |
 
-Keep the existing service port at `8080` and PORT at `8080` if explicitly supplied.
-Keep the existing purchased database; no new PostgreSQL service is required.
-Choose one connection configuration:
+| Role | Start | Health path |
+| --- | --- | --- |
+| Web | `bash backend/native-start.sh web` | `/api/v1/health/` through managed ingress |
+| Worker | `bash backend/native-start.sh worker` | `/health/` |
 
-- **Keep the existing legacy connection:** retain DB_HOST, DB_NAME, DB_USER,
-  DB_PASSWORD and DB_PORT with their existing provider values. Do not substitute
-  the service label for a database name/hostname. Leave DATABASE_URL absent.
-- **Alternatively use DATABASE_URL:** supply the existing correct PostgreSQL URL
-  and delete redundant DB_HOST/DB_NAME/DB_USER/DB_PASSWORD/DB_PORT fields. Existing
-  Django behavior gives DATABASE_URL precedence if both are present; startup now
-  reports CFG_DB_PRECEDENCE without printing any values. No automatic conversion
-  or credential change occurs.
+Use two services, not a background command appended to web startup. The worker's
+HTTP endpoint performs no business work. The root Dockerfile was archived at
+`ops/container/Dockerfile.rollback` to prevent Docker autodetection. Rollback CI
+uses that explicit path. Build/start never migrate, seed, create users or enable
+live collection. Builds use database-free static settings and constrained packages.
+If an explicit install override is required, use exactly:
+`python -m venv --copies /opt/venv && . /opt/venv/bin/activate && bash backend/native-install.sh`.
+Keep the manifest's `/opt/venv/bin` runtime PATH; do not replace the Nixpacks
+install phase with a bare pip command.
 
-In either case edit DB_SSLMODE to `verify-full` (or omit it to use the same secure
-default). A URL sslmode option must also be verify-full. Plaintext/require modes
-are rejected, not downgraded or silently accepted.
+## 2. Minimum runtime configuration
 
-If the database uses a custom CA, also set `DB_SSLROOTCERT` to its absolute
-readable certificate-file path. Provision that file with ZevCloud's supported
-secret/file mount mechanism; do not commit it or put PEM text in the path variable.
-If system/libpq trust is sufficient, prove that with a real verify-full connection.
-Do not add sslmode=require to the URL or use an IP not covered by the certificate.
+Use the same application configuration on both services. PUBLIC_HOST is the
+**Web** hostname on both; the worker's generated hostname is only for its health.
 
-### Existing variables: keep, edit or delete
-
-| Existing variable(s) | Website-only action |
+| Variable | Value |
 | --- | --- |
-| DJANGO_SECRET_KEY | Keep if it meets production strength requirements; never print it |
-| DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT | Keep unchanged when using the existing legacy connection; delete only if choosing DATABASE_URL instead |
-| DATABASE_URL | Leave absent for legacy DB_*; if already correct and selected, keep it and remove redundant DB_* connection fields |
-| DB_SSLMODE | Edit to `verify-full`, or delete to use that default; weaker values fail explicitly |
-| DB_SSLROOTCERT | Keep/set to the mounted readable CA path when required; not PEM text; never remove a required CA to silence an error |
-| PUBLIC_HOST | Edit to `dawana-islamic-foundation-web-app.zevcloud.app` now; do not list two hosts |
-| PORT | Keep/set `8080`; service port also `8080` |
-| DAWANA_WEBSITE_ONLY | Set `true` |
-| GATEWAY_TLS_MODE | Set `trusted-edge` only with the verified provider requirements below |
-| TRUSTED_EDGE_CIDRS, EDGE_TRUST_VERIFIED | Supply only verified values; if unverified this remains a release blocker |
-| DJANGO_SETTINGS_MODULE, DJANGO_DEPLOYMENT_TARGET, DJANGO_BIND_ADDRESS, DJANGO_BIND_PORT, DAWANA_TRUSTED_GATEWAYS, DJANGO_TRUST_PROXY_HTTPS, DJANGO_DEBUG | Delete manual overrides and use container-owned secure defaults; genuinely different values fail explicitly |
-| DJANGO_ALLOWED_HOSTS, DJANGO_CSRF_TRUSTED_ORIGINS, DJANGO_CORS_ALLOWED_ORIGINS | Delete legacy lists; derive them from PUBLIC_HOST. Equivalent single-host/same-origin entries are accepted; localhost, foreign or additional origins are rejected |
-| PAYSTACK_MODE | Set `test`, or delete for the website-only default |
-| PAYSTACK_LIVE_ENABLED | Set `false`, or delete for the website-only default |
-| PAYSTACK_SECRET_KEY, PAYSTACK_WEBHOOK_SECRET, PAYSTACK_PUBLIC_KEY | Remove from this website-only service; do not revoke/rotate the real account credentials |
-| PAYSTACK_CALLBACK_URL | Delete the unused legacy override; it is not needed while payments are disabled |
-| DIC_PORTAL_ACCOUNTS_ENABLED, DIC_ASSISTED_BOOKING_ENABLED, DIC_EMAIL_RECOVERY_ENABLED, DIC_RECOVERY_DELIVERY_WORKER_ENABLED, DIC_BACKGROUND_WORKER_ENABLED, FOUNDATION_DONATIONS_ENABLED, FOUNDATION_CONTACT_FORM_ENABLED | Delete full-mode overrides, or set every one to `false` |
-| DIC_MEMORY_STORAGE | Delete the override or set `disabled`; uploads stay unavailable |
-| DIC_AUTOMATION_ACTOR_ID, DIC_PORTAL_EMAIL_VERIFY_URL, DIC_PORTAL_FRONTEND_URL, RESEND_API_KEY, SMTP/Google/R2 delivery settings | Not required for website-only operation; remove unused full-launch configuration from this service |
+| PUBLIC_HOST | Actual Web hostname; initially `dawana-islamic-foundation-web-app.zevcloud.app`; custom domain only after separate authorization/verification |
+| DJANGO_SECRET_KEY | Existing independent secret, at least 50 characters; same on both |
+| DATABASE_URL | Existing PostgreSQL connection with restricted role and certificate-matching hostname |
+| ZEV_PROXY_HEADERS_VERIFIED | `true` only after the provider requirements below are confirmed |
+| DIC_AUTOMATION_ACTOR_ID | Existing active staff service-user ID, no superuser rights or usable password |
+| DIC_RECOVERY_ENCRYPTION_KEY | Existing stable Fernet key, same on both |
+| DEFAULT_FROM_EMAIL | Provider-verified sender |
+| RESEND_API_KEY | Sending secret for the included HTTPS email backend |
 
-Boolean spelling/case such as True/False and equivalent duplicate/whitespace-only
-host-list formatting are normalized safely. This never expands the hostname,
-trusted networks or allowed origins. EDGE_TRUST_VERIFIED is never inferred.
+Instead of DATABASE_URL, existing DB_HOST/DB_NAME/DB_USER/DB_PASSWORD/DB_PORT remain
+supported. Choose one source; DATABASE_URL takes precedence. DB_SSLMODE stays
+**verify-full**. When required, also set DB_SSLROOTCERT to the readable mounted CA
+file on both services. Never guess a certificate, use an unmatched IP or disable
+verification. Do not create another database.
 
-Do not supply Paystack credentials. No SMTP, R2, Google, worker, Vite or duplicate
-Django host/proxy settings are needed for this website-only launch. The entrypoint
-derives exact hosts/CSRF, loopback proxy trust and verify-full; conflicting
-overrides fail closed. DAWANA_WEBSITE_ONLY defaults to true. Live collection,
-portal/recovery, contact submissions and uploads remain disabled. Do not set
-DAWANA_WEBSITE_ONLY=false until the separate application release is approved.
+Derived defaults include production settings, exact host/same-origin CSRF, empty
+CORS, Secure/HttpOnly/SameSite=Lax cookies, full application/accounts/recovery/
+workers, HTTPS email, frontend payment callback and portal verification URLs.
+No frontend VITE_API_BASE_URL or external scheduler is required.
 
-## Startup diagnostics and the reported rollback
+Live payments default off. An approved isolated test can use PAYSTACK_MODE=test
+and its matching test key. Test-mode receipts never grant production paid access.
+After separate live approval only, set PAYSTACK_MODE=live, PAYSTACK_LIVE_ENABLED=true
+and the existing matching PAYSTACK_SECRET_KEY on both services. Account URLs:
 
-The old generic message proves entrypoint validation failed before Supervisor
-started the application processes. It does not identify the failed branch, and
-does not prove a database connection failure or a missing curl/wget binary.
-Entrypoint does not connect to PostgreSQL; actual connection/TLS failures occur
-in readiness after startup. No deployed variable values were inspected here.
+- Callback: `https://<PUBLIC_HOST>/dic/register/payment-return` (frontend route).
+- Webhook: `https://<PUBLIC_HOST>/api/v1/dic/payments/paystack/webhook/`.
 
-Repository-confirmed compatibility defects repaired: raw string comparisons
-rejected safe legacy boolean spellings and a same-origin CORS value that the
-later Django contract already allowed. These are possible causes, not confirmed
-values from the failed deployment. Stale host lists, enabled Paystack/portal
-flags, missing edge trust, or other invalid settings remain hypotheses.
+Keep PAYSTACK_WEBHOOK_SECRET absent unless the account uses the supported
+timestamped signing format. Existing signature, independent verification,
+amount/currency/reference/identity checks and idempotency remain unchanged.
+Use existing R2 media/private configuration for uploads/portraits when needed;
+no local production upload storage is introduced. Optional Google/SMS/WhatsApp
+and feedback features retain their existing configuration contracts.
 
-New errors log only a code and curated remedy, not original exception text,
-credentials, URLs, private addresses/CIDRs, certificate paths or secret values:
+### Delete obsolete container overrides
 
-| Code | Required response |
-| --- | --- |
-| CFG_CONFLICT_<variable> | Remove/repair the named container-policy override |
-| CFG_BOOLEAN_<variable> | Correct the named boolean's format |
-| CFG_WEBSITE_ONLY_<variable> | Remove an enabled feature/credential incompatible with website-only mode |
-| GW_PUBLIC_HOST / GW_PORT / GW_TLS_MODE | Correct the hostname/port/mode using the configuration above |
-| GW_EDGE_UNVERIFIED / GW_EDGE_CIDRS | Obtain verified managed-ingress guarantees/networks; do not invent them |
-| CFG_SECRET_KEY | Supply a production-strength independent Django secret |
-| CFG_DATABASE_URL / CFG_DATABASE_URL_TLS / CFG_DATABASE_CA_CONFLICT | Repair connection format/TLS settings or the selected configuration source |
-| CFG_MISSING_DB_HOST / CFG_MISSING_DB_NAME / CFG_MISSING_DB_USER / CFG_DB_PORT | Complete the existing legacy connection fields |
-| CFG_DATABASE_CA_FILE | Mount the required CA file readably; do not disable certificate verification |
-| DJ_SETUP / DJ_CONTRACT / DJ_HOSTS / DJ_ORIGINS / DJ_WORKERS / DJ_EMAIL_URL | Review production settings/application loading; website-only must not start workers |
-| RUNTIME_REQUIREMENTS | Use the reviewed image with its pinned Python/Django, fonts and ffprobe |
-| NGINX_WRITE | Make /run/dawana writable by UID 10001 |
-| NGINX_VALIDATE | Check generated config/direct-TLS file mounts and permissions; raw Nginx errors are suppressed to avoid disclosing paths/networks |
-| SUPERVISOR_START / STARTUP_INTERNAL | Verify image contents and runtime process/directory permissions |
-| HC_CONNECTION | The private readiness socket is unavailable/timed out; inspect startup codes first |
-| HC_HTTP / HC_RESPONSE | Django readiness failed or returned the wrong payload; verify DB hostname/CA/connectivity (and workers only in full mode) |
+Remove GATEWAY_TLS_MODE, GATEWAY_TLS_CERT_FILE, GATEWAY_TLS_KEY_FILE,
+EDGE_TRUST_VERIFIED, TRUSTED_EDGE_CIDRS, DAWANA_TRUSTED_GATEWAYS,
+DJANGO_TRUST_PROXY_HTTPS, DJANGO_BIND_ADDRESS, DJANGO_BIND_PORT,
+DJANGO_DEPLOYMENT_TARGET and DAWANA_WEBSITE_ONLY from the native services.
+Remove stale DJANGO_ALLOWED_HOSTS/CSRF/CORS and account/worker-disable overrides
+so native defaults apply. Keep required secrets/database fields. No ops/container
+script is used by native build/start. Never put secrets in the build manifest.
 
-Do not dump the service environment, Docker environment inspection or provider
-exceptions while diagnosing. Share the safe code/remedy and image revision only.
+## 3. External requirements that cannot be assumed
 
-## Provider security requirements: currently unresolved
+**Managed HTTPS:** verify ingress isolation/no direct bypass, preserved Host,
+and replacement of client X-Forwarded-Proto with the real single http/https value.
+Django retains HTTPS redirects and Secure cookies; missing/ambiguous schemes fail
+closed. Verify X-Forwarded-For is stripped or includes the real provider-added
+client address, never a client-only value. Only a single valid sanitized IP is
+used; chains/invalid/absent values retain the socket peer and conservative shared
+limits. Verify normal per-client throttling. There is no CIDR list or custom
+identity header. A certificate alone does not justify ZEV_PROXY_HEADERS_VERIFIED.
 
-Before deploying, obtain evidence that ZevCloud:
+**Database:** provider documentation does not establish authenticated TLS/hostname
+or CA mounting details for this purchased endpoint. Verify them without downgrading
+verify-full. No production database was accessed by this refactor.
 
-1. Terminates public HTTPS with a valid certificate and redirects public HTTP to
-   HTTPS before requests reach this container.
-2. Connects from the exact TRUSTED_EDGE_CIDRS visible at the container socket.
-3. Replaces client-supplied X-Forwarded-Proto with exactly `https` and X-Real-IP
-   with one valid client address; does not preserve a forged value or append a chain.
-4. Prevents direct/untrusted bypass of that ingress. The gateway rejects untrusted
-   peers and does not trust arbitrary forwarded headers.
-5. Supplies PostgreSQL authenticated TLS with a matching hostname, trusted chain,
-   and a supported way to provision any CA certificate file.
+**Email:** accept real verification/recovery delivery with a verified HTTPS sender.
+ZevCloud documents SMTP restrictions. The included Resend adapter is implemented;
+no provider account or sender DNS was provisioned. An existing accepted HTTPS Django
+email backend can instead be configured with EMAIL_BACKEND and its credentials.
 
-Managed SSL documentation alone does not verify those guarantees. Setting
-EDGE_TRUST_VERIFIED is an acknowledgement of evidence, not a security test.
+**Native runtime:** verify the resolved build log honors nixpacks.toml and supplies
+Python 3.13, Node 22, ffprobe and Liberation fonts. Native builds/process startup
+were not executed locally. Do not infer deployed support from configuration alone.
 
-## Deployment procedure after security acceptance
+## 4. Short release checklist
 
-1. Review/publish the approved source through a separately authorized process.
-2. Connect the repository; select the builder settings above.
-3. Enter only essential runtime variables and the conditional CA path/mount.
-4. Keep website-only defaults. No migration, seeding, cache-table creation or
-   superuser command belongs in the start command.
-5. In a separately authorized deployment, validate HTTPS, rejection of spoofed
-   forwarding headers, DB readiness, SPA deep-link refresh and static assets.
-   Registration, payment, webhook, portal and Admin routes must remain 503.
-6. Record the source commit and image/build identity. Retain existing DB/backups.
+1. Obtain passing backend/PostgreSQL 18 acceptance, native configuration tests and
+   Vite tests/build for this exact commit. Never test against production.
+2. Verify managed ingress, DB TLS/CA and HTTPS email requirements above.
+3. Back up production and use the existing separately approved release_migrations
+   process with `DJANGO_SETTINGS_MODULE=config.settings.zevcloud`. Exact target,
+   cluster binding and approved manifest remain mandatory; never migrate at startup.
+4. Separately approve the existing cache table and automation actor with
+   `dic.can_process_housing_queue`, `dic.can_allocate_participants` and
+   `dic.can_approve_housing_guardians`. Configure approved edition, fees/dates,
+   inventory and allocation fingerprint. No automatic administrator creation.
+5. After deployment authorization, start Worker and Web. Web readiness requires
+   DB connectivity and a recent worker heartbeat in the existing shared DB cache.
+   Worker failure makes health unready after heartbeat expiry. No shared filesystem.
+6. Run `python backend/manage.py check_dic_launch --settings=config.settings.zevcloud`
+   (read-only). Accept deep-link refresh, Admin/static files, cookies, CSRF,
+   delivery/recovery, guardian group/capacity safety and scoped portal access.
+7. Separately approve live Paystack activation and a controlled acceptance payment,
+   then invite registrants. A redirect is never payment proof.
 
-Website readiness performs SELECT 1 only; it does not require application tables
-or prove migration, cache, SMTP or storage readiness. No migrations are necessary
-for this website-only gate. Failed DB verification still prevents healthy status.
+Existing jobs/leases/retries/holds are retained. Valid payments survive housing or
+email delays. Accounts are separate from email delivery. Tutor accommodation stays
+offline; ambiguous guardians/capacity failures remain holds for exceptional review.
 
-## Smallest alternative if ingress is incompatible
+## Sources and limits
 
-Keep the combined container and use its existing `GATEWAY_TLS_MODE=direct` with
-mounted GATEWAY_TLS_CERT_FILE and GATEWAY_TLS_KEY_FILE **only if** ZevCloud supports
-TLS passthrough to the container. Verify passthrough, certificate renewal and
-client identity first. Otherwise the existing production-start.sh/Gunicorn path
-needs a provider-specific trusted-ingress adapter and a way to serve the Vite
-build. Switching to Gunicorn alone does not remove the trust requirement and is
-not a verified fallback. Do not deploy by weakening HTTPS or database TLS.
+- [ZevCloud native services](https://docs.zevcloud.net/guide/web-apps)
+- [ZevCloud build detection](https://docs.zevcloud.net/guide/how-deploys-work)
+- [Nixpacks multiple providers](https://nixpacks.com/docs/guides/configuring-builds)
+- [WhiteNoise](https://whitenoise.readthedocs.io/en/stable/django.html)
+- [Django proxy trust](https://docs.djangoproject.com/en/5.2/ref/settings/#secure-proxy-ssl-header)
 
-## Sources checked
+Local validation: all 237 frontend tests, Vite production build, native shell
+syntax, rollback packaging contract and git whitespace checks passed. Python
+execution is denied by this Windows environment; new backend tests have not run.
+The native-packaging workflow runs a database-free build and synthetic routing/
+fail-closed readiness checks in CI; PostgreSQL core discovery includes the new
+configuration/heartbeat tests. These CI results are still required.
 
-- https://docs.zevcloud.net/guide/dockerfile — root Dockerfile, PORT, amd64.
-- https://docs.zevcloud.net/guide/web-apps — managed web apps; outbound SMTP blocked.
-- https://docs.zevcloud.net/ — managed SSL and PostgreSQL offerings.
-
-These sources did not establish ingress CIDRs/header replacement or database CA
-provisioning. Later email rollout needs a supported HTTPS email adapter because
-ZevCloud documents outbound SMTP restrictions; it is not a website-only dependency.
+Python/Nixpacks and production connectivity are unavailable locally. Provider
+guarantees, actual native build/start, real email and live payment acceptance remain
+unverified. No deploy, purchase, DNS change, production access/migration, live
+activation, commit or push occurred. This is an implemented path, not a live release.

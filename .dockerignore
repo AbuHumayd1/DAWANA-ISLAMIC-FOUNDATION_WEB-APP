@@ -1,6 +1,11 @@
 # Default deny: only reviewed application/build inputs enter the context.
 **
 !Dockerfile
+!nixpacks.toml
+!package.json
+!requirements.txt
+!.nixpacks/
+!.nixpacks/**
 !backend/
 !backend/**
 !dawana-platform/

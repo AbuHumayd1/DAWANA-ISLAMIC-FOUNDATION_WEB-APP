@@ -141,9 +141,12 @@ class PaymentEntitlementModeTests(SimpleTestCase):
 
     def test_production_test_configuration_never_grants_paid_entitlement(self):
         self.attempt.provider_mode = 'test'
-        with self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE='config.settings.production'):
-            self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
-            self.assertFalse(self.eligible())
+        from .settlement_evidence import settlement_reason
+        for module in ('config.settings.production', 'config.settings.zevcloud'):
+            with self.subTest(settings_module=module), self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE=module):
+                self.assertEqual(settings.SETTINGS_MODULE, module)
+                self.assertFalse(self.eligible())
+                self.assertEqual(settlement_reason(self.attempt), 'provider_mode_review')
         for mode in ('', None, 'invalid'):
             with self.settings(PAYSTACK_MODE=mode, SETTINGS_MODULE='config.settings.production'):
                 self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')

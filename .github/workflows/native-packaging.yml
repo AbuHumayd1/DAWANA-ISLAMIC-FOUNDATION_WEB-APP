@@ -1,0 +1,30 @@
+name: Native ZevCloud packaging (no production access)
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install runtime tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-liberation
+      - name: Native install and database-free build
+        run: |
+          bash backend/native-install.sh
+          bash backend/native-build.sh
+      - name: Synthetic routing and fail-closed readiness without a database
+        run: bash backend/native-smoke.sh

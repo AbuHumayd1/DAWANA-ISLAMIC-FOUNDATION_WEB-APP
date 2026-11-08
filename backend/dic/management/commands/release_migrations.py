@@ -23,7 +23,7 @@ class Command(BaseCommand):
 
     def handle(self,*args,**options):
         module=settings.SETTINGS_MODULE
-        if module not in ('config.settings.production','config.settings.staging'):
+        if module not in ('config.settings.production','config.settings.staging','config.settings.zevcloud'):
             raise CommandError('Release planning requires explicit staging/production settings.')
         name=options['database_name']
         if name in ('dawana_dev','dic_2026_demo','postgres','template0','template1') or settings.DATABASES['default']['NAME']!=name:

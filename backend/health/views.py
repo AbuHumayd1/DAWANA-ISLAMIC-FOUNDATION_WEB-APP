@@ -16,8 +16,13 @@ class HealthCheckView(APIView):
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
             if getattr(settings, 'DIC_BACKGROUND_WORKER_ENABLED', False):
-                heartbeat = Path('/run/dawana/worker-heartbeat')
-                if not heartbeat.is_file() or time() - heartbeat.stat().st_mtime > 300:
+                if getattr(settings, 'DIC_WORKER_HEARTBEAT_CACHE', False):
+                    from config.worker_health import healthy
+                    ready = healthy()
+                else:
+                    heartbeat = Path('/run/dawana/worker-heartbeat')
+                    ready = heartbeat.is_file() and time() - heartbeat.stat().st_mtime <= 300
+                if not ready:
                     return Response({'status': 'unavailable'}, status=503, headers={'Cache-Control': 'no-store'})
         except (DatabaseError, OSError):
             response = Response({"status": "unavailable"}, status=503)

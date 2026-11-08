@@ -1,5 +1,12 @@
 # Single-origin production container — packaging, not deployment approval
 
+**Archived rollback architecture.** Recommended native deployment:
+[ZEVCLOUD_DEPLOYMENT.md](ZEVCLOUD_DEPLOYMENT.md). For separately authorized Docker
+rollback use `-f ops/container/Dockerfile.rollback` and repository-root context.
+Old guides: `ops/container/WEBSITE_ONLY.rollback.md` and
+`ops/container/FULL_LAUNCH.rollback.md`. The historical instructions below do not
+describe the recommended deployment.
+
 For the simplified ZevCloud **website-only** launch, follow
 [ZEVCLOUD_DEPLOYMENT.md](ZEVCLOUD_DEPLOYMENT.md). The container now derives internal
 Django host/proxy settings, defaults to website-only mode, and builds without
