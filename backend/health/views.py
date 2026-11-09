@@ -5,6 +5,7 @@ from time import time
 import logging
 from django.core.exceptions import ImproperlyConfigured
 from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 class HealthCheckView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
     check_workers = True
     check_database = True
 
