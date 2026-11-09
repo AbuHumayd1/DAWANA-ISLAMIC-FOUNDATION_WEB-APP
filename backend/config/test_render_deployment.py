@@ -8,11 +8,14 @@ import textwrap
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db import OperationalError
+from django.db import OperationalError, connections
 from django.test import SimpleTestCase, override_settings
+from django.test.testcases import DatabaseOperationForbidden
 from rest_framework.test import APIRequestFactory
 
+from health import views as health_views
 from health.views import HealthCheckView, WebHealthCheckView
 from .render_logging import RenderRequestPrivacyFilter
 
@@ -95,37 +98,70 @@ class RenderDeploymentTests(SimpleTestCase):
 
     @override_settings(DIC_BACKGROUND_WORKER_ENABLED=True, DIC_WORKER_HEARTBEAT_CACHE=True)
     def test_web_probe_never_accesses_database_cache_or_delivery(self):
-        with patch('health.views.connection.cursor') as cursor, \
+        with patch('health.views.connection') as database, \
                 patch('config.worker_health.healthy') as heartbeat, \
                 patch('dic.recovery.channel_available') as delivery:
             response = WebHealthCheckView.as_view()(APIRequestFactory().get('/api/v1/health/web/'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Cache-Control'], 'no-store')
-        cursor.assert_not_called()
+        database.cursor.assert_not_called()
         heartbeat.assert_not_called()
         delivery.assert_not_called()
 
     @override_settings(HEALTH_CHECK_WORKERS=False, DIC_BACKGROUND_WORKER_ENABLED=True)
     def test_render_database_probe_does_not_require_worker_or_delivery(self):
-        with patch('health.views.connection.cursor') as cursor, \
+        with patch('health.views.connection') as database, \
                 patch('config.worker_health.healthy') as heartbeat, \
                 patch('dic.recovery.channel_available') as delivery:
             response = HealthCheckView.as_view()(APIRequestFactory().get('/api/v1/health/'))
         self.assertEqual(response.status_code, 200)
-        cursor.return_value.__enter__.return_value.execute.assert_called_once_with('SELECT 1')
+        database.cursor.return_value.__enter__.return_value.execute.assert_called_once_with('SELECT 1')
         heartbeat.assert_not_called()
         delivery.assert_not_called()
 
     def test_database_and_unexpected_failures_are_safe_logged_503s(self):
         for error in (OperationalError, OSError, ImproperlyConfigured, RuntimeError):
             with self.subTest(error=error), \
-                    patch('health.views.connection.cursor', side_effect=error('secret-connection-detail')), \
+                    patch('health.views.connection') as database, \
                     self.assertLogs('health.views', level='WARNING') as logs:
+                database.cursor.side_effect = error('secret-connection-detail')
                 response = HealthCheckView.as_view()(APIRequestFactory().get('/api/v1/health/'))
             self.assertEqual(response.status_code, 503)
             self.assertEqual(response.data, {'status': 'unavailable'})
             self.assertEqual(response['Cache-Control'], 'no-store')
             self.assertNotIn('secret-connection-detail', '\n'.join(logs.output))
+
+    def test_connection_mock_and_settings_restore_after_exception(self):
+        original_binding = health_views.connection
+        real_connection = connections['default']
+        original_cursor = real_connection.cursor
+        missing = object()
+        original_setting = getattr(settings, 'HEALTH_CHECK_WORKERS', missing)
+        # Exercise the actual probe tests, so reintroducing a proxy-attribute
+        # patch is caught here rather than only during later class cleanup.
+        for name in (
+            'test_web_probe_never_accesses_database_cache_or_delivery',
+            'test_render_database_probe_does_not_require_worker_or_delivery',
+            'test_database_and_unexpected_failures_are_safe_logged_503s',
+        ):
+            with self.subTest(probe=name):
+                getattr(self, name)()
+                self.assertIs(health_views.connection, original_binding)
+                self.assertIs(real_connection.cursor, original_cursor)
+                self.assertIs(getattr(settings, 'HEALTH_CHECK_WORKERS', missing), original_setting)
+        # Patch the module binding, never an attribute of Django's proxy: proxy
+        # attribute cleanup can delete SimpleTestCase's real query guard.
+        with self.assertRaisesMessage(RuntimeError, 'simulated test failure'):
+            with self.settings(HEALTH_CHECK_WORKERS=False), \
+                    patch('health.views.connection') as database:
+                database.cursor.side_effect = OperationalError('synthetic failure')
+                self.assertIs(real_connection.cursor, original_cursor)
+                raise RuntimeError('simulated test failure')
+        self.assertIs(health_views.connection, original_binding)
+        self.assertIs(real_connection.cursor, original_cursor)
+        self.assertIs(getattr(settings, 'HEALTH_CHECK_WORKERS', missing), original_setting)
+        with self.assertRaises(DatabaseOperationForbidden):
+            real_connection.cursor()
 
     def test_render_server_error_logs_retain_locations_without_private_details(self):
         try:
