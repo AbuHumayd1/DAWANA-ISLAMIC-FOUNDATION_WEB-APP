@@ -9,5 +9,6 @@ DATABASES = {}
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR.parent / 'dawana-platform/public', BASE_DIR / 'dic/static',
-    str(Path(find_spec('django').origin).parent / 'contrib/admin/static')]
+    str(Path(find_spec('django').origin).parent / 'contrib/admin/static'),
+    str(Path(find_spec('rest_framework').origin).parent / 'static')]
 STORAGES = {'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'}}

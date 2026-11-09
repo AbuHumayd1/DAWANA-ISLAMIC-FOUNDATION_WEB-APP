@@ -53,7 +53,10 @@ if DIC_PRODUCTION_STORAGE:
 # Never trust an arbitrary X-Forwarded-For chain. A verified immediate gateway
 # must replace X-Dawana-Client-IP and strip client-supplied forwarding headers.
 DAWANA_TRUSTED_GATEWAYS = env.list('DAWANA_TRUSTED_GATEWAYS', default=[])
-REST_FRAMEWORK = {**REST_FRAMEWORK, 'NUM_PROXIES': 0}
+# Production APIs return JSON, including errors; the browsable API is a
+# development interface whose HTML templates depend on static asset rendering.
+REST_FRAMEWORK = {**REST_FRAMEWORK, 'NUM_PROXIES': 0,
+    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer']}
 STATIC_URL = '/static/'
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
