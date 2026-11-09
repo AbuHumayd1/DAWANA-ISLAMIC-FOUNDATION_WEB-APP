@@ -23,8 +23,19 @@ class HealthCheckTests(APITestCase):
     def test_native_readiness_requires_the_independent_durable_worker(self):
         with patch('config.worker_health.healthy', return_value=False):
             self.assertEqual(self.client.get('/api/v1/health/').status_code, 503)
-        with patch('config.worker_health.healthy', return_value=True):
+        with patch('config.worker_health.healthy', return_value=True), patch('dic.recovery.channel_available', return_value=True):
             self.assertEqual(self.client.get('/api/v1/health/').status_code, 200)
+
+    @override_settings(DIC_BACKGROUND_WORKER_ENABLED=True, DIC_WORKER_HEARTBEAT_CACHE=True,
+                       DIC_RECOVERY_ENCRYPTION_KEY='', DEFAULT_FROM_EMAIL='', RESEND_API_KEY='')
+    def test_web_health_is_independent_while_full_readiness_refuses_missing_delivery(self):
+        with patch('config.worker_health.healthy', return_value=True):
+            self.assertEqual(self.client.get('/api/v1/health/web/').status_code, 200)
+            self.assertEqual(self.client.get('/api/v1/health/').status_code, 503)
+        with patch('health.views.connection.cursor', side_effect=OperationalError('private connection detail')):
+            response = self.client.get('/api/v1/health/web/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok'})
 
     @override_settings(
         CORS_ALLOWED_ORIGINS=["http://localhost:5173"],

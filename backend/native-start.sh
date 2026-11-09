@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-export DJANGO_SETTINGS_MODULE=config.settings.zevcloud
+if [[ "${RENDER:-}" == 'true' ]]; then
+  export DJANGO_SETTINGS_MODULE=config.settings.render
+else
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.zevcloud}"
+fi
 python -m config.runtime_requirements
 case "${1:-web}" in
   web) exec python -m gunicorn config.wsgi:application --config gunicorn.native.py ;;
