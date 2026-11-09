@@ -12,6 +12,48 @@ from .spa import frontend, validate_frontend, static_headers
 
 
 class NativeDeploymentTests(SimpleTestCase):
+    def test_real_native_wsgi_starts_without_an_automation_actor_or_database_access(self):
+        import os
+        import subprocess
+        import sys
+        import textwrap
+
+        backend = Path(__file__).resolve().parents[1]
+        code = 'import sys; sys.path.insert(0, ' + repr(str(backend)) + ')\n' + textwrap.dedent('''
+            import os
+            from unittest.mock import patch
+            import environ
+            from django.db.backends.base.base import BaseDatabaseWrapper
+            def denied(*args, **kwargs):
+                raise RuntimeError('External access is forbidden in this startup regression.')
+            with patch.object(environ.Env, 'read_env'), \\
+                    patch.object(BaseDatabaseWrapper, 'ensure_connection', denied), \\
+                    patch('socket.socket.connect', denied), \\
+                    patch('socket.create_connection', denied):
+                from django.core.wsgi import get_wsgi_application
+                application = get_wsgi_application()
+                from django.conf import settings
+                assert callable(application)
+                assert 'DIC_AUTOMATION_ACTOR_ID' not in os.environ
+                assert settings.DIC_AUTOMATION_ACTOR_ID == 0
+                assert settings.DEBUG is False
+                assert settings.SECURE_SSL_REDIRECT is True
+                assert settings.SESSION_COOKIE_SECURE is True
+                assert settings.DATABASES['default']['OPTIONS']['sslmode'] == 'verify-full'
+                assert settings.PAYSTACK_LIVE_ENABLED is False
+            print('PASS: native WSGI starts without an actor; production security retained.')
+        ''')
+        environment = {key: os.environ[key] for key in ('PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP') if key in os.environ}
+        environment.update(
+            DJANGO_SETTINGS_MODULE='config.settings.zevcloud',
+            PUBLIC_HOST='backend.example.test', FRONTEND_ORIGIN='https://foundation.example.test',
+            DJANGO_SECRET_KEY='synthetic-startup-regression-only-' * 3,
+            DATABASE_URL='postgresql://synthetic:unused@database.example.test/startup_only')
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', code], env=environment,
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PASS: native WSGI starts without an actor', result.stdout)
+
     def test_whitenoise_invokes_header_callback_for_html_and_assets(self):
         from whitenoise.middleware import WhiteNoiseMiddleware
         with TemporaryDirectory() as directory:
@@ -43,6 +85,24 @@ class NativeDeploymentTests(SimpleTestCase):
         self.assertEqual(env['DJANGO_DEBUG'], 'false')
         self.assertNotIn('ZEV_PROXY_HEADERS_VERIFIED', env)
         self.assertNotIn('TRUSTED_EDGE_CIDRS', env)
+        for credential in ('DIC_AUTOMATION_ACTOR_ID', 'DIC_RECOVERY_ENCRYPTION_KEY', 'DEFAULT_FROM_EMAIL', 'RESEND_API_KEY'):
+            self.assertNotIn(credential, env)
+
+    @override_settings(DIC_RECOVERY_ENCRYPTION_KEY='', DEFAULT_FROM_EMAIL='', RESEND_API_KEY='',
+                       DIC_RECOVERY_DELIVERY_WORKER_ENABLED=True, DIC_EMAIL_RECOVERY_ENABLED=True)
+    def test_missing_operation_credentials_cannot_issue_or_encrypt_recovery_or_portal_codes(self):
+        from types import SimpleNamespace
+        from dic.recovery import channel_available, encrypt_delivery_payload, RecoveryDeliveryError
+        from dic.recovery_views import RecoveryChallengeView, RecoveryChannelUnavailable
+        from dic.participant_api import PortalChallengeView
+        self.assertFalse(channel_available('email'))
+        with self.assertRaises(RecoveryDeliveryError):
+            encrypt_delivery_payload('email', 'owned@example.test', '123456')
+        request = SimpleNamespace(data={'channel': 'email', 'contact': 'owned@example.test'})
+        for view in (RecoveryChallengeView, PortalChallengeView):
+            with self.assertRaises(RecoveryChannelUnavailable) as error:
+                view().post(request)
+            self.assertEqual(error.exception.status_code, 503)
 
     def test_frontend_origin_rejects_credentials_http_paths_and_wildcards(self):
         for origin in ('', 'http://foundation.example.test', 'https://user@foundation.example.test',
