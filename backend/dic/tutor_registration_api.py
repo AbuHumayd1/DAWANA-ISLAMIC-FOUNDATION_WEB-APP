@@ -5,13 +5,14 @@ from datetime import timedelta
 from django.db import transaction
 from django.middleware.csrf import get_token
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.debug import sensitive_post_parameters
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from .participant_api import PortalView
 from .models import TutorRegistrationAuthorization, TutorVerification
-from .serializers import ParticipantInputSerializer, StrictSerializer
+from .serializers import ParticipantInputSerializer, StrictSerializer, RegistrationCredentialsSerializer
 from .security import digest_value
-from .recovery import channel_available, send_recovery_code, RecoveryDeliveryError
 from .recovery_views import _consume_request_limits, _code_digest
 from .tutor_registration import valid_invitation, redeem, audit
 from rest_framework import serializers
@@ -43,6 +44,7 @@ class VerifyInput(StrictSerializer):
 class RedeemInput(StrictSerializer):
     verification_id = serializers.UUIDField()
     participant = TutorParticipantInput()
+    portal_account = RegistrationCredentialsSerializer(write_only=True)
 
 
 class TutorChallengeView(PortalView):
@@ -55,31 +57,32 @@ class TutorChallengeView(PortalView):
         data = ChallengeInput(data=request.data); data.is_valid(raise_exception=True)
         auth = TutorRegistrationAuthorization.objects.select_related('edition').filter(
             invitation_digest=digest_value(data.validated_data['invitation'])).first()
-        # Same shape for absent/expired/revoked invitations; no identity disclosed.
-        response = Response({'verification_id': str(uuid.uuid4()), 'detail': 'If this invitation is available, a code will be sent to its authorized email.'}, status=202)
+        # Invalid invitation responses disclose no identity. A valid confidential
+        # staff-issued bearer invitation authorizes this identity-bound workflow.
+        response = Response({'verification_id': str(uuid.uuid4()), 'detail': 'Tutor invitation is unavailable. Ask the authorizing administrator for assistance.'}, status=202)
         browser = secrets.token_urlsafe(32)
         set_cookie(response, request, COOKIE, browser)
         if not valid_invitation(auth):
             return response
+        # The high-entropy invitation is issued by an explicit tutor authorizer
+        # and handed directly to the reviewed tutor. It is not email proof.
         _consume_request_limits('email', auth.email, request, timezone.now())
-        if not channel_available('email'):
-            return response
-        code = f'{secrets.randbelow(1000000):06d}'
+        capability = secrets.token_urlsafe(32)
         with transaction.atomic():
             auth = TutorRegistrationAuthorization.objects.select_for_update(of=('self',)).select_related('edition').get(pk=auth.pk)
             if not valid_invitation(auth):
                 return response
             verification = TutorVerification.objects.create(authorization=auth,
                 invitation_digest=auth.invitation_digest, browser_digest=digest_value(browser),
-                code_digest='', expires_at=timezone.now() + timedelta(minutes=10))
-            verification.code_digest = _code_digest(verification.pk, code)
-            verification.save(update_fields=['code_digest'])
-            audit(auth, None, 'verification_requested', verification=str(verification.pk))
-        try:
-            send_recovery_code('email', auth.email, code)
-        except RecoveryDeliveryError:
-            TutorVerification.objects.filter(pk=verification.pk).update(code_digest='')
-        response.data['verification_id'] = str(verification.pk)
+                code_digest='', capability_digest=digest_value(capability), verified_at=timezone.now(),
+                expires_at=timezone.now() + timedelta(minutes=10))
+            audit(auth, None, 'invitation_accepted', verification=str(verification.pk))
+        response.data.update(verification_id=str(verification.pk), verified=True,
+            name=auth.intended_name, email=auth.email,
+            edition={'name': auth.edition.name, 'camp_start_date': auth.edition.camp_start_date,
+                'camp_end_date': auth.edition.camp_end_date, 'venue': auth.edition.venue_name},
+            detail='Authorized invitation accepted. Choose your portal username and password.')
+        set_cookie(response, request, CAPABILITY, capability)
         return response
 
 
@@ -114,6 +117,7 @@ class TutorVerifyView(PortalView):
         return response
 
 
+@method_decorator(sensitive_post_parameters(), name='dispatch')
 class TutorRedeemView(PortalView):
     throttle_scope = 'dic_participant_verify'
 
@@ -121,7 +125,7 @@ class TutorRedeemView(PortalView):
         data = RedeemInput(data=request.data); data.is_valid(raise_exception=True)
         try:
             order = redeem(data.validated_data['verification_id'], request.COOKIES.get(COOKIE, ''),
-                request.COOKIES.get(CAPABILITY, ''), data.validated_data['participant'])
+                request.COOKIES.get(CAPABILITY, ''), data.validated_data['participant'], data.validated_data['portal_account'])
         except TutorVerification.DoesNotExist:
             raise ValidationError(INVALID)
         return Response({'registration_basis': 'tutor', 'payment_status': 'not_required',

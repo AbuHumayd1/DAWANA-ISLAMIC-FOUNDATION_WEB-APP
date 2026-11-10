@@ -18,15 +18,11 @@ HEARTBEAT = Path('/run/dawana/worker-heartbeat')
 
 def validate_worker_configuration():
     from dic.recovery import recovery_encryption_configured, channel_available
-    from dic.registration_accounts import verification_url
     if not recovery_encryption_configured():
         raise CommandError('Worker requires the existing valid DIC_RECOVERY_ENCRYPTION_KEY; no replacement key was generated.')
     if not channel_available('email'):
         raise CommandError('Worker requires enabled recovery delivery, DEFAULT_FROM_EMAIL and a configured real email backend (RESEND_API_KEY for the default backend).')
-    try:
-        verification_url()
-    except Exception:
-        raise CommandError('Worker requires a valid portal email verification URL.') from None
+
 
 
 def configured_actor_id():

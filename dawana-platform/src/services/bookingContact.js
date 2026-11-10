@@ -7,9 +7,11 @@ export function primaryRegistrantPayload(contact) {
 }
 
 export function registrationCredentialsPayload(credentials) {
+  const username = String(credentials?.username || '').trim().toLowerCase()
+  if (!/^[a-z0-9][a-z0-9_.-]{2,39}$/.test(username)) throw new Error('Choose a username of 3–40 letters, digits, dots, hyphens or underscores.')
   const password = credentials?.password || ''
   const confirmation = credentials?.password_confirmation || ''
   if (password.length < 12 || password.length > 128) throw new Error('Use a password between 12 and 128 characters.')
   if (password !== confirmation) throw new Error('Passwords must match.')
-  return { password, password_confirmation: confirmation }
+  return { username, password, password_confirmation: confirmation }
 }

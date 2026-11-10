@@ -5,6 +5,7 @@ import json
 import secrets
 from django.db import transaction
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import (TutorRegistrationAuthorization, TutorVerification, CampEdition,
     Participant, PrimaryRegistrant, RegistrationOrder, RegistrationOrderItem,
@@ -146,7 +147,8 @@ def validate_tutor(data, auth):
 
 
 @transaction.atomic
-def redeem(verification_id, browser, capability, data):
+@sensitive_variables()
+def redeem(verification_id, browser, capability, data, credentials=None):
     reference = TutorVerification.objects.select_related('authorization').get(pk=verification_id)
     CampEdition.objects.select_for_update().get(pk=reference.authorization.edition_id)
     auth = TutorRegistrationAuthorization.objects.select_for_update(of=('self',)).select_related('edition').get(pk=reference.authorization_id)
@@ -161,7 +163,11 @@ def redeem(verification_id, browser, capability, data):
     if auth.redeemed_at:
         if verification.request_fingerprint != fingerprint:
             raise ValidationError('This invitation was already used with different details.')
-        return auth.enrollment.source_item.order
+        order = auth.enrollment.source_item.order
+        if credentials:
+            from .registration_accounts import bind_registration
+            bind_registration(order, credentials)
+        return order
     if not valid_invitation(auth, now):
         raise ValidationError('Tutor invitation is unavailable.')
     validate_tutor(data, auth)
@@ -190,6 +196,9 @@ def redeem(verification_id, browser, capability, data):
     auth.save(update_fields=['enrollment', 'redeemed_at', 'verified_at'])
     verification.request_fingerprint = fingerprint
     verification.save(update_fields=['request_fingerprint'])
+    if credentials:
+        from .registration_accounts import bind_registration
+        bind_registration(order, credentials)
     audit(auth, None, 'redeemed', enrollment=str(auth.enrollment_id), order=str(order.public_id))
     return order
 

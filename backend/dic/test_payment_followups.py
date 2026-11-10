@@ -66,26 +66,20 @@ class SettlementFollowupTests(APITestCase):
         self.assertEqual(self.order.payment_status, 'paid')
         self.assertEqual(self.order.status, 'confirmed')
 
-    def test_email_failure_preserves_account_binding_and_verified_payment(self):
+    def test_retired_email_queue_preserves_account_binding_and_verified_payment(self):
         attempt = self.create_pending_attempt()
         _apply_verified_transaction(attempt.pk, self.provider_result(attempt.reference))
         account = PortalAccountBooking.objects.get(order=self.order).account
         PortalAccount.objects.filter(pk=account.pk).update(verification_delivery_at=timezone.now())
-        with patch('dic.registration_accounts.pending_registration', return_value=True), \
-                patch('dic.registration_accounts.deliver_verification', side_effect=RuntimeError('private provider detail')):
-            self.assertEqual(process_verification_delivery(account.pk), 'pending')
+        with patch('django.core.mail.send_mail', side_effect=AssertionError('Retired queue must not send')):
+            self.assertEqual(process_verification_delivery(account.pk), 'suppressed')
+            self.assertEqual(process_verification_delivery(account.pk), 'skipped')
         account.refresh_from_db()
-        self.assertGreater(account.verification_delivery_at, timezone.now())
-        self.assertEqual(account.verification_delivery_attempts, 1)
+        self.assertIsNone(account.verification_delivery_at)
         self.order.refresh_from_db()
         self.assertEqual(self.order.payment_status, 'paid')
         self.assertTrue(PortalAccountBooking.objects.filter(account=account, order=self.order).exists())
-        PortalAccount.objects.filter(pk=account.pk).update(verification_delivery_at=timezone.now()-timedelta(seconds=1))
-        with patch('dic.registration_accounts.pending_registration', return_value=True), \
-                patch('dic.registration_accounts.deliver_verification') as send:
-            self.assertEqual(process_verification_delivery(account.pk), 'sent')
-            self.assertEqual(process_verification_delivery(account.pk), 'skipped')
-            send.assert_called_once()
+
 
 
 class HousingRetryTests(HousingFixtures, TestCase):

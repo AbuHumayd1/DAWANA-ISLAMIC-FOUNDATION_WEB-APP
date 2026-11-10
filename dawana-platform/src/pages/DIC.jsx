@@ -521,7 +521,7 @@ function RegularDIC() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(loadedFlow.expired ? 'Your temporary draft expired. If an order was already created, recover that registration before entering another.' : '')
   // Credentials never enter flow, sessionStorage, router state or payment data.
-  const [registrationCredentials, setRegistrationCredentials] = useState({ password: '', password_confirmation: '' })
+  const [registrationCredentials, setRegistrationCredentials] = useState({ username: '', password: '', password_confirmation: '' })
   const [paymentNotice, setPaymentNotice] = useState(
     loadedFlow.storageAvailable ? null : { kind: 'error', text: 'This browser could not retain a temporary recovery draft. Keep this tab open until payment is verified.' },
   )
@@ -591,7 +591,7 @@ function RegularDIC() {
   const add = () => { setEditing(null); go('form') }
   const edit = (index) => { setEditing(index); go('form') }
   const reset = () => {
-    setRegistrationCredentials({ password: '', password_confirmation: '' })
+    setRegistrationCredentials({ username: '', password: '', password_confirmation: '' })
     clearSavedFlow()
     setAccessToken(null)
     setError('')
@@ -737,7 +737,7 @@ function RegularDIC() {
     try {
       const payload = registrationSubmission(flow, registrationCredentials, primaryRegistrantPayload, participantPayload, registrationCredentialsPayload)
       const created = await createRegistrationOrder(payload, flow.idempotencyKey)
-      setRegistrationCredentials({ password: '', password_confirmation: '' })
+      setRegistrationCredentials({ username: '', password: '', password_confirmation: '' })
       const { access_token: newAccessToken, ...safeOrderSummary } = created
       const nextFlow = {
         ...flow,
@@ -778,7 +778,7 @@ function RegularDIC() {
         registrationSubmission(flow, registrationCredentials, primaryRegistrantPayload, participantPayload, registrationCredentialsPayload),
         flow.idempotencyKey,
       )
-      setRegistrationCredentials({ password: '', password_confirmation: '' })
+      setRegistrationCredentials({ username: '', password: '', password_confirmation: '' })
       const { access_token: newAccessToken, ...safeOrderSummary } = restored
       setAccessToken(newAccessToken)
       const restoredOrder = await getRegistrationOrder(restored.order_id, newAccessToken)
@@ -883,7 +883,7 @@ function RegularDIC() {
     if (!flow.participants.length) return <section className="dic-summary"><Container><div className="confirmation-box"><h1>Recover existing registration</h1><p>{error || 'This tab has no registration draft. Recover the existing registration securely; do not register or pay again.'}</p><Link className="button" to="/dic/register/payment-return">Open secure registration status</Link><Link className="dic-recovery-link" to="/dic/register/recover">Verify your contact to recover registration</Link></div></Container></section>
     return <Checkout flow={flow} categories={options?.categories || []} options={options} accessToken={accessToken} busy={busy} error={error} paymentNotice={paymentNotice} repricingOffer={repricingOffer} onAcceptRepricing={acceptRepricing} onBack={() => go('summary')} onCreateOrder={createOrder} onResume={resumeCheckout} onInitialize={startAnotherPayment} onRetryGrant={retryReturnGrant} onVerify={verifyCurrentPayment} onCheckoutClosed={reportCheckoutClosed} onPrimaryContact={primaryRegistrant => persistFlow({ ...flow, primaryRegistrant })} registrationCredentials={registrationCredentials} onCredentials={setRegistrationCredentials} />
   }
-  return <><Confirmation flow={flow} onReset={reset} />{flow.orderId && <div className="container" style={{ paddingBottom: '2rem', textAlign: 'center' }}><div className="cp-portal-handoff-brand"><CamperBrand /></div><PortalContinuation orderReference={flow.orderId} /><p>Verify your email using the link sent to your booking email, then sign in with your email and password when your booking is eligible. Ordinary paid participants receive access after payment is verified; authorized complimentary tutors may receive access without payment. Contact-code recovery remains available for existing bookings.</p></div>}</>
+  return <><Confirmation flow={flow} onReset={reset} />{flow.orderId && <div className="container" style={{ paddingBottom: '2rem', textAlign: 'center' }}><div className="cp-portal-handoff-brand"><CamperBrand /></div><PortalContinuation orderReference={flow.orderId} /><p>Sign in with your chosen username and password when your booking is eligible. No email activation is required. Ordinary paid participants receive access after payment is verified; authorized complimentary tutors may receive access without payment. Contact-code recovery remains available for existing bookings.</p></div>}</>
 }
 
 export default function DIC() {

@@ -428,39 +428,36 @@ class DicAdminTests(TestCase):
         self.assertIn("/admin/login/", response.url)
 
 
-@override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=True, DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant')
+@override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=True)
 class RegistrationApiTests(APITestCase):
-    def test_local_registration_delivers_real_verification_message_without_entitlement(self):
-        from django.core import mail
+    @override_settings(DEBUG=False, EMAIL_BACKEND='config.https_email.EmailBackend',
+                       RESEND_API_KEY='', EMAIL_HOST='', DEFAULT_FROM_EMAIL='')
+    def test_username_registration_needs_no_email_delivery_or_activation(self):
         from .models import PortalAccountBooking, DigitalIDIssue
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.create_order()
+        with patch('django.core.mail.send_mail', side_effect=AssertionError('Registration must not send email')):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.create_order()
         self.assertEqual(response.status_code, 201, response.data)
         binding = PortalAccountBooking.objects.select_related('account__user', 'order').get()
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, [binding.account.login_email])
-        self.assertIn('https://example.test/dic/participant#verify-email=', mail.outbox[0].body)
-        binding.account.refresh_from_db()
+        self.assertEqual(binding.account.username_key, 'synthetic-registrant')
+        self.assertTrue(binding.account.user.is_active)
+        self.assertFalse(binding.account.user.is_staff)
+        self.assertFalse(binding.account.user.is_superuser)
+        self.assertTrue(binding.account.user.check_password('River-Cedar!Sparrow-84'))
         self.assertIsNone(binding.account.verification_delivery_at)
-        self.assertFalse(binding.account.user.is_active)
+        self.assertEqual(binding.account.contact_channel, 'username')
         self.assertEqual(binding.order.payment_status, 'pending')
         self.assertFalse(DigitalIDIssue.objects.exists())
+        self.assertNotIn('portal_account', response.data)
 
-    def test_production_delivery_unavailable_rolls_back_registration(self):
+    def test_username_collision_rolls_back_all_registration_records(self):
         from .models import PortalAccount, PortalAccountBooking, CampEnrollment
-        for backend in ('django.core.mail.backends.locmem.EmailBackend',
-                        'django.core.mail.backends.smtp.EmailBackend',
-                        'config.https_email.EmailBackend'):
-            with self.subTest(backend=backend), override_settings(DEBUG=False,
-                    EMAIL_BACKEND=backend, EMAIL_HOST='', RESEND_API_KEY=''), \
-                    patch('dic.registration_accounts.send_mail') as send:
-                response = self.create_order()
-                self.assertEqual(response.status_code, 503, response.data)
-                self.assertNotIn('order_id', response.data)
-                send.assert_not_called()
-                for model in (RegistrationOrder, RegistrationOrderItem, PrimaryRegistrant,
-                              Participant, PortalAccount, PortalAccountBooking, CampEnrollment):
-                    self.assertFalse(model.objects.exists(), model.__name__)
+        get_user_model().objects.create_user(username='synthetic-registrant', password='Unrelated-Cedar!84')
+        response = self.create_order()
+        self.assertEqual(response.status_code, 403, response.data)
+        for model in (RegistrationOrder, RegistrationOrderItem, PrimaryRegistrant,
+                      Participant, PortalAccount, PortalAccountBooking, CampEnrollment):
+            self.assertFalse(model.objects.exists(), model.__name__)
 
     def test_registration_prepares_enrollment_once_without_issuing_credentials(self):
         from .models import CampEnrollment, DigitalIDIssue
@@ -472,16 +469,15 @@ class RegistrationApiTests(APITestCase):
         self.assertEqual(ensure_enrollment(enrollment.source_item_id).pk, enrollment.pk)
         self.assertFalse(eligibility(enrollment)['eligible'])
         self.assertFalse(DigitalIDIssue.objects.exists())
+        from .models import PortalAccountBooking
+        binding = PortalAccountBooking.objects.get(order__public_id=first.data['order_id'])
+        self.assertEqual(binding.account.username_key, 'synthetic-registrant')
+        self.assertEqual(binding.order.items.count(), 1)
         repeated = self.create_order(key=key)
         self.assertIn(repeated.status_code, (200, 201))
         self.assertEqual(CampEnrollment.objects.count(), 1)
 
     def setUp(self):
-        # Keep this on the shared setup: other suites reuse this method directly.
-        self.enterContext(override_settings(DEBUG=True,
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            DEFAULT_FROM_EMAIL='sender@example.test', DIC_PORTAL_ACCOUNTS_ENABLED=True,
-            DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant'))
         self.today = timezone.localdate()
         camp_start = self.today + timedelta(days=30)
         self.edition = CampEdition.objects.create(
@@ -526,7 +522,7 @@ class RegistrationApiTests(APITestCase):
 
     def order_payload(self, participants=None, **overrides):
         values = {
-            'portal_account': {'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'},
+            'portal_account': {'username': 'synthetic-registrant', 'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'},
             "primary_registrant": {
                 "full_name": "Primary Registrant",
                 "phone": "+233200000001",
@@ -1066,7 +1062,6 @@ class RegistrationApiTests(APITestCase):
 
 @override_settings(
     DIC_PORTAL_ACCOUNTS_ENABLED=True,
-    DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant',
     PAYSTACK_MODE="test",
     PAYSTACK_SECRET_KEY="sk_test_unit_mock",
     PAYSTACK_CALLBACK_URL="https://example.test/dic/payment/return",
@@ -1074,11 +1069,6 @@ class RegistrationApiTests(APITestCase):
 )
 class PaymentApiTests(APITestCase):
     def setUp(self):
-        # Keep this on the shared setup: other suites reuse this method directly.
-        self.enterContext(override_settings(DEBUG=True,
-            EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-            DEFAULT_FROM_EMAIL='sender@example.test', DIC_PORTAL_ACCOUNTS_ENABLED=True,
-            DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant'))
         today = timezone.localdate()
         camp_start = today + timedelta(days=30)
         self.edition = CampEdition.objects.create(
@@ -1097,7 +1087,7 @@ class PaymentApiTests(APITestCase):
             fee_ngn=Decimal("12500.25"),
         )
         payload = {
-            'portal_account': {'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'},
+            'portal_account': {'username': 'synthetic-registrant', 'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'},
             "primary_registrant": {
                 "full_name": "Primary Registrant",
                 "phone": "+233200000001",

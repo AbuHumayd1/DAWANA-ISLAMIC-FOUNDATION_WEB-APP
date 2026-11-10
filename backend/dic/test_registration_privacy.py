@@ -109,9 +109,7 @@ class RegistrationPrivacyPolicyTests(SimpleTestCase):
             with self.subTest(field=field), self.assertRaises(ValidationError): payload(**{field: 'synthetic'})
 
 
-# Local delivery is explicit; Django otherwise forces DEBUG=False in tests.
-@override_settings(DEBUG=True, EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
-                  DEFAULT_FROM_EMAIL='sender@example.test', DIC_PORTAL_ACCOUNTS_ENABLED=True, DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant')
+@override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=True)
 class RegistrationPrivacyIntegrationTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -163,7 +161,7 @@ class RegistrationPrivacyIntegrationTests(TestCase):
         raw = camper(); raw.update(category_id=self.category.pk, age_declaration='adult', date_of_birth=None, height_cm=None, weight_kg=None)
         client = APIClient(); key = str(uuid4())
         data = {'primary_registrant': {'full_name': 'Synthetic guardian', 'email': 'guardian@example.test'}, 'participants': [raw],
-            'portal_account': {'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'}}
+            'portal_account': {'username': 'synthetic-guardian', 'password': 'River-Cedar!Sparrow-84', 'password_confirmation': 'River-Cedar!Sparrow-84'}}
         response = client.post(reverse('dic:order-create'), data, format='json', HTTP_IDEMPOTENCY_KEY=key)
         self.assertEqual(response.status_code, 201, response.data)
         replay = client.post(reverse('dic:order-create'), data, format='json', HTTP_IDEMPOTENCY_KEY=key)

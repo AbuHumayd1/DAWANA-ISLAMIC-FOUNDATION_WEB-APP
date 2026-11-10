@@ -144,9 +144,9 @@ test('issued ID presentation renders separate protected staff and participant do
   const card = { id: '12345678-abcd-4321-abcd-123456789012', name: 'Synthetic camper', participant_number: 'SYNTHETIC-ID' }
   const render = staff => renderToStaticMarkup(createElement(IDPresentation, { card, staff, onClose() {} }))
   const staff = render(true), participant = render(false)
-  assert.match(staff, /href="\/api\/v1\/dic\/ids\/cards\//)
+  assert.match(staff, /href="(?:https:\/\/api\.dawanaislamicfoundation\.org)?\/api\/v1\/dic\/ids\/cards\//)
   assert.doesNotMatch(staff, /\/participant\/enrollments\//)
-  assert.match(participant, /href="\/api\/v1\/dic\/participant\/enrollments\//)
+  assert.match(participant, /href="(?:https:\/\/api\.dawanaislamicfoundation\.org)?\/api\/v1\/dic\/participant\/enrollments\//)
   assert.doesNotMatch(participant, /\/ids\/cards\//)
   for (const html of [staff, participant]) {
     assert.match(html, /format=portrait&amp;download=1/)

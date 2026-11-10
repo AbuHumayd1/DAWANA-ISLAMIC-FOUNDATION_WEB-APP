@@ -75,7 +75,7 @@ class AccountStatusView(PortalView):
                     proof, orders = accounts.fresh_otp(request)
                 except PermissionDenied:
                     return Response({'enabled': True, 'fresh_otp': False, 'account': None})
-                account = accounts.PortalAccount.objects.filter(contact_channel=proof.channel, contact_digest=proof.contact_digest,
+                account = accounts.PortalAccount.objects.filter(contact_channel__in=accounts.proof_channels(proof.channel), contact_digest=proof.contact_digest,
                     bookings__order__in=orders, bookings__revoked_at__isnull=True).select_related('user').distinct().first()
                 fresh = True
         from .registration_accounts import pending_registration
@@ -182,32 +182,51 @@ class GoogleUnlinkView(PortalView):
         return Response({'updated': True})
 
 
-class EmailVerifyInput(serializers.Serializer):
-    token = serializers.CharField(max_length=2048, trim_whitespace=False, write_only=True)
-
-
-@method_decorator(sensitive_post_parameters(), name='dispatch')
 class EmailVerifyView(PortalView):
     def post(self, request):
-        from .registration_accounts import verify_email
-        data = values(EmailVerifyInput, request)
-        accounts.rate_limit(request, request.META.get('REMOTE_ADDR', 'unknown'), 'email-verify')
-        verify_email(data['token'])
-        return Response({'verified': True, 'detail': 'Email verified. Sign in with your email and password when your booking is eligible. Ordinary registrations require verified payment; authorized complimentary tutors do not.'})
+        return Response({'detail': 'Email activation has been retired. Use your username or authorized account recovery.'}, status=410)
+
+
+class EmailResendView(EmailVerifyView):
+    pass
+
+
+class TransitionInput(Activation):
+    email = None
+    token = serializers.CharField(min_length=43, max_length=43, trim_whitespace=False, write_only=True)
 
 
 @method_decorator(sensitive_post_parameters(), name='dispatch')
-class EmailResendView(PortalView):
+class CredentialTransitionView(PortalView):
+    throttle_scope = 'dic_participant_verify'
+
     def post(self, request):
-        from .registration_accounts import credential_account, schedule_verification, require_verification_delivery
-        from rest_framework.exceptions import AuthenticationFailed
         accounts.require_accounts()
-        require_verification_delivery()
-        data = values(Credentials, request)
-        accounts.rate_limit(request, data['identifier'], 'email-resend')
+        accounts.rate_limit(request, request.META.get('REMOTE_ADDR', ''), 'credential-transition')
+        data = values(TransitionInput, request)
+        from .credential_transition import consume
+        consume(data['token'], data['username'], data['password'])
+        return Response({'updated': True, 'detail': 'Credentials updated. Sign in with your username when your booking is eligible.'})
+
+
+from .operations_api import OperationsBaseView
+
+
+@method_decorator(sensitive_post_parameters(), name='dispatch')
+class IssueCredentialTransitionView(OperationsBaseView):
+    def post(self, request):
+        from .credential_transition import issue, require_owner
+        from .models import RegistrationOrder
+        require_owner(request.user)
+        accounts.rate_limit(request, request.user.pk, 'authorize-transition')
+        class Input(serializers.Serializer):
+            order_reference = serializers.UUIDField()
+            review_reference = serializers.CharField(min_length=10, max_length=240)
+            password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+        data = values(Input, request)
         try:
-            account = credential_account(data['identifier'], data['password'])
-            if not account.user.is_active: schedule_verification(account)
-        except Exception:
-            pass
-        return Response({'detail': 'If these credentials identify an account awaiting verification, an email has been requested.'}, status=202)
+            token = issue(request.user, data['order_reference'], data['review_reference'], data['password'])
+        except RegistrationOrder.DoesNotExist:
+            raise PermissionDenied('Credential recovery is unavailable.') from None
+        return Response({'token': token, 'expires_in': 900,
+            'detail': 'Give this one-use code directly to the reviewed owner through an authorized private channel. It is not email verification.'})

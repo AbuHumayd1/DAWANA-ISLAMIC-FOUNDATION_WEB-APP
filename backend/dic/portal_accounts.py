@@ -12,11 +12,25 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 from rest_framework.exceptions import APIException, AuthenticationFailed, PermissionDenied, ValidationError
 from .models import (PortalAccount, PortalAccountBooking, PortalAccountSession, PortalGoogleLink, PortalOAuthAttempt,
-    ParticipantPortalGrant, ParticipantPortalScope, CampEnrollment, DICAdminAuditEvent)
+    ParticipantPortalGrant, ParticipantPortalScope, CampEnrollment, DICAdminAuditEvent, PortalCredentialTransition)
 from .security import digest_value
 from .portal_phase3 import session_seconds
 
 INVALID = 'Sign-in could not be completed. Check your details or use verified booking recovery.'
+RESERVED_USERNAMES = {'admin', 'administrator', 'staff', 'supervisor', 'superuser', 'root',
+    'support', 'system', 'dic', 'dif', 'dawana', 'api', 'tutor', 'operations'}
+
+
+def normalize_username(value):
+    if not isinstance(value, str):
+        raise ValidationError('Choose a valid username.')
+    value = value.strip().lower()
+    if (not re.fullmatch(r'[a-z0-9][a-z0-9_.-]{2,39}', value)
+            or value in RESERVED_USERNAMES or value.startswith(('dic_', 'admin.', 'staff.'))):
+        raise ValidationError('Choose 3–40 letters, digits, dots, hyphens or underscores, starting with a letter or digit. This name may be reserved.')
+    return value
+
+
 ACCOUNT_TOKEN_PREFIX = 'pa1.'  # Dot cannot occur in existing token_urlsafe OTP credentials.
 
 
@@ -26,8 +40,9 @@ def enabled():
 
 def require_accounts():
     if not enabled() or not {PortalAccount._meta.db_table, PortalAccountBooking._meta.db_table,
-            PortalAccountSession._meta.db_table, PortalGoogleLink._meta.db_table, PortalOAuthAttempt._meta.db_table}.issubset(connection.introspection.table_names()):
-        error = APIException('Account sign-in awaits approved setup. Use a verification code.')
+            PortalAccountSession._meta.db_table, PortalGoogleLink._meta.db_table, PortalOAuthAttempt._meta.db_table,
+            PortalCredentialTransition._meta.db_table}.issubset(connection.introspection.table_names()):
+        error = APIException('Account sign-in awaits approved setup. Contact authorized DIC staff.')
         error.status_code = 503
         raise error
 
@@ -80,10 +95,16 @@ def fresh_otp(request):
     return grant, orders
 
 
+def proof_channels(channel):
+    # A fresh email OTP may recover a username account bound to that same
+    # contact snapshot. The account's channel remains unverified username.
+    return ('email', 'username') if channel == 'email' else (channel,)
+
+
 def owned_account(grant, orders, allow_pending=False):
     ids = PortalAccountBooking.objects.filter(order__in=orders, revoked_at__isnull=True).values('account_id')
     account = PortalAccount.objects.select_for_update().select_related('user').filter(pk__in=ids,
-        contact_channel=grant.channel, contact_digest=grant.contact_digest,
+        contact_channel__in=proof_channels(grant.channel), contact_digest=grant.contact_digest,
         ).first()
     pending = False
     if allow_pending and account and grant.channel == 'email' and not account.user.is_active:
@@ -108,8 +129,7 @@ def password_policy(password, user):
 def activate(request, username, password, email=''):
     require_accounts()
     grant, orders = fresh_otp(request)
-    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{2,39}', username):
-        raise ValidationError('Choose a username of 3–40 letters, digits, dots, hyphens or underscores.')
+    username = normalize_username(username)
     from .recovery import normalize_email
     from .recovery_views import _contact_digest
     email = normalize_email(email)
@@ -138,7 +158,7 @@ def activate(request, username, password, email=''):
 
 @sensitive_variables()
 def password_account(identifier, password):
-    query = {'login_email': identifier.strip().lower()} if '@' in identifier else {'username_key': identifier.strip().casefold()}
+    query = {'login_email': identifier.strip().lower()} if '@' in identifier else {'username_key__iexact': identifier.strip().lower()}
     account = PortalAccount.objects.select_related('user').filter(**query).first()
     if not account:
         get_user_model()().set_password(password)  # Same password-hash cost; no account enumeration shortcut.
@@ -216,7 +236,7 @@ def link_booking(request, identifier, password):
     account = PortalAccount.objects.select_for_update().select_related('user').get(pk=account.pk)
     if not usable(account) or account.credential_version != authenticated_version:
         raise AuthenticationFailed(INVALID)
-    if account.contact_channel != grant.channel or not secrets.compare_digest(account.contact_digest, grant.contact_digest):
+    if account.contact_channel not in proof_channels(grant.channel) or not secrets.compare_digest(account.contact_digest, grant.contact_digest):
         raise PermissionDenied(INVALID)
     try:
         with transaction.atomic():

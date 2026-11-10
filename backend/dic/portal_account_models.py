@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.db.models.functions import Lower
 
 
 class PortalAccount(models.Model):
@@ -18,7 +19,8 @@ class PortalAccount(models.Model):
 
     class Meta:
         default_permissions = ()
-        constraints = [models.UniqueConstraint(fields=('contact_channel', 'contact_digest'), name='dic_portal_account_contact')]
+        constraints = [models.UniqueConstraint(fields=('contact_channel', 'contact_digest'), name='dic_portal_account_contact'),
+            models.UniqueConstraint(Lower('username_key'), name='dic_portal_username_ci')]
 
 
 class PortalAccountBooking(models.Model):
@@ -62,6 +64,21 @@ class PortalOAuthAttempt(models.Model):
     expires_at = models.DateTimeField()
     consumed_at = models.DateTimeField(null=True)
     remember_device = models.BooleanField(default=False)
+
+    class Meta:
+        default_permissions = ()
+
+
+class PortalCredentialTransition(models.Model):
+    """One-use, short-lived authority issued after an administrator reviews ownership."""
+    order = models.ForeignKey('dic.RegistrationOrder', on_delete=models.PROTECT)
+    account = models.ForeignKey(PortalAccount, null=True, on_delete=models.PROTECT)
+    credential_version = models.PositiveIntegerField(null=True)
+    password_digest = models.CharField(max_length=64, blank=True, default='')
+    token_digest = models.CharField(max_length=64, unique=True)
+    issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True)
 
     class Meta:
         default_permissions = ()

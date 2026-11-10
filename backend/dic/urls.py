@@ -230,8 +230,10 @@ urlpatterns = [
 
 
 from .portal_account_api import (AccountStatusView, AccountActivateView, PasswordLoginView,
-    PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView)
+    PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView, CredentialTransitionView, IssueCredentialTransitionView)
 urlpatterns += [
+    path('participant/auth/credentials/transition/', CredentialTransitionView.as_view(), name='portal-credential-transition'),
+    path('operations/account-recovery/', IssueCredentialTransitionView.as_view(), name='operations-account-recovery'),
     path('participant/auth/email/verify/', EmailVerifyView.as_view(), name='portal-email-verify'),
     path('participant/auth/email/resend/', EmailResendView.as_view(), name='portal-email-resend'),
     path('participant/auth/account/', AccountStatusView.as_view(), name='portal-account'),

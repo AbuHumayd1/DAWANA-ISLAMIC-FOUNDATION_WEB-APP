@@ -64,8 +64,7 @@ export function processingMessages(order) {
   const messages = []
   if (order.processing?.housing === 'pending') messages.push('Your payment is confirmed. House allocation is pending. Do not pay again.')
   if (order.processing?.housing === 'review') messages.push('Your payment is confirmed. House allocation needs assistance from the DIC team. Do not pay again.')
-  if (order.processing?.portal === 'delivery_pending') messages.push('Your account is saved. Verification email delivery is delayed; retry from portal sign-in if needed.')
-  if (order.processing?.portal === 'verification_required') messages.push('Verify your email using the link sent to you, then sign in to the portal.')
+  if (['recovery_required', 'delivery_pending', 'verification_required'].includes(order.processing?.portal)) messages.push('Your booking is saved. Ask an authorized DIC administrator to review legacy username access; do not register or pay again.')
   if (order.processing?.portal === 'pending') messages.push('Your payment is confirmed. Portal setup is pending; contact the DIC team if it remains unavailable.')
   return messages
 }

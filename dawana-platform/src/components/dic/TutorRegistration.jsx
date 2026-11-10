@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PasswordField } from './PortalAccountAccess'
+import { registrationCredentialsPayload } from '../../services/bookingContact'
 import { privacyPayload } from '../../services/registrationPrivacy'
 
 const base = `${(import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')}/dic/tutor-registration`
@@ -9,7 +11,7 @@ export default function TutorRegistration({ invitation, ParticipantForm }) {
   const started = useRef(false)
   const [verification, setVerification] = useState(null)
   const [identity, setIdentity] = useState(null)
-  const [code, setCode] = useState('')
+  const [credentials, setCredentials] = useState({ username: '', password: '', password_confirmation: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
@@ -27,16 +29,12 @@ export default function TutorRegistration({ invitation, ParticipantForm }) {
     ;(async () => {
       try {
         const token = await request('challenges'); csrf.current = token.csrfToken
-        setVerification(await request('challenges', { invitation }))
+        const accepted = await request('challenges', { invitation })
+        setVerification(accepted)
+        if (accepted.verified) setIdentity(accepted)
       } catch (failure) { setError(failure.message) }
     })()
   }, [invitation])
-  async function verify(event) {
-    event.preventDefault(); setBusy(true); setError('')
-    try { setIdentity(await request('verify', { verification_id: verification.verification_id, code })) }
-    catch (failure) { setError(failure.message) }
-    finally { setBusy(false) }
-  }
   async function save(person) {
     if (busy) return
     setBusy(true); setError('')
@@ -46,16 +44,17 @@ export default function TutorRegistration({ invitation, ParticipantForm }) {
       const participant = { full_name: person.fullName, address: person.address, phone: person.phone,
         email: person.email, sex: person.sex, academic_status: person.academicStatus,
         occupation: person.occupation, marital_status: person.maritalStatus, ...privacyPayload(person, today) }
-      setResult(await request('redeem', { verification_id: verification.verification_id, participant }))
+      const portal_account = registrationCredentialsPayload(credentials)
+      setCredentials(current => ({ ...current, password: '', password_confirmation: '' }))
+      setResult(await request('redeem', { verification_id: verification.verification_id, participant, portal_account }))
     } catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
   return <div className="dic-flow"><div className="container">
     <h1>Complimentary Tutor Registration — No Payment Required</h1>
     {error && <p role="alert">{error}</p>}
-    {result ? <><p>Registration confirmed. Keep your booking reference: <strong>{result.order_id}</strong></p><Link to="/dic/participant" state={{ bookingReference: result.order_id }}>Open participant portal</Link><p>Use your authorized email and booking reference. Digital ID issuance requires authorized staff.</p></>
-      : identity ? <fieldset disabled={busy}><ParticipantForm tutor initial={{ fullName: identity.name, email: identity.email, ageChoice: '' }} categories={[]} options={identity.edition} onBack={() => window.location.assign('/dic')} onSave={save} /></fieldset>
-        : verification ? <form onSubmit={verify}><p>{verification.detail} Codes and verified access expire after ten minutes. Reopen your invitation to request another code.</p><label>Verification code<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value)} /></label><button disabled={busy}>Verify authorized email</button></form>
-          : <p>{error ? 'Reopen your invitation or contact the authorizing administrator.' : 'Checking tutor invitation…'}</p>}
+    {result ? <><p>Registration confirmed. Keep your booking reference: <strong>{result.order_id}</strong></p><Link to="/dic/participant" state={{ bookingReference: result.order_id }}>Open participant portal</Link><p>Sign in with your username and password. Digital ID issuance requires authorized staff.</p></>
+      : identity ? <fieldset disabled={busy}><legend>Portal credentials</legend><label>Username<input required minLength={3} maxLength={40} autoComplete="username" value={credentials.username} onChange={event => setCredentials({ ...credentials, username: event.target.value })} /></label><PasswordField value={credentials.password} onChange={password => setCredentials({ ...credentials, password })} autoComplete="new-password" label="Create password" /><PasswordField value={credentials.password_confirmation} onChange={password_confirmation => setCredentials({ ...credentials, password_confirmation })} autoComplete="new-password" label="Confirm password" /><ParticipantForm tutor initial={{ fullName: identity.name, email: identity.email, ageChoice: '' }} categories={[]} options={identity.edition} onBack={() => window.location.assign('/dic')} onSave={save} /></fieldset>
+        : <p>{error || verification ? 'Reopen your invitation or contact the authorizing administrator.' : 'Checking tutor invitation…'}</p>}
   </div></div>
 }

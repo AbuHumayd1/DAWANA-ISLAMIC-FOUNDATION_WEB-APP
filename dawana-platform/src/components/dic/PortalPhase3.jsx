@@ -54,5 +54,5 @@ export function PortalContinuation({ orderReference }) {
     } catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
-  return <div className="cp-secure-continuation"><button type="button" className="button" disabled={busy} onClick={proceed}>{busy ? 'Checking secure access…' : 'Continue to Camper Portal'}</button><p>Sign in with the email and password chosen during registration. New accounts must verify email once using the email link. Payment confirmation alone does not sign you in. Older registrations can use First-Time Account Setup.</p>{error && <p role="alert">{error}</p>}</div>
+  return <div className="cp-secure-continuation"><button type="button" className="button" disabled={busy} onClick={proceed}>{busy ? 'Checking secure access…' : 'Continue to Camper Portal'}</button><p>Sign in with the username and password chosen during registration. No email activation is required. Payment confirmation alone does not sign you in. Older registrations can use authorized account recovery.</p>{error && <p role="alert">{error}</p>}</div>
 }

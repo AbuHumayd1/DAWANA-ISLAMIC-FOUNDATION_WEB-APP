@@ -38,12 +38,15 @@ INVALID = "The code could not be verified. Check the details or request a new co
 
 
 def primary_contact_matches(order, channel, contact_hash):
-    raw = order.primary_registrant.email if channel == "email" else order.primary_registrant.phone
+    raw = order.primary_registrant.email if channel in ("email", "username") else order.primary_registrant.phone
     try:
-        normalized = normalize_email(raw) if channel == "email" else normalize_phone(raw)
+        normalized = normalize_email(raw) if channel in ("email", "username") else normalize_phone(raw)
     except (ValueError, AttributeError):
         return False
-    return hmac.compare_digest(_contact_digest(channel, normalized), contact_hash)
+    # Username accounts retain a contact snapshot for change/revocation checks;
+    # this is not contact ownership proof and cannot be used as an OTP channel.
+    digest_channel = "email" if channel == "username" else channel
+    return hmac.compare_digest(_contact_digest(digest_channel, normalized), contact_hash)
 
 
 def cookie(response, name, value, seconds):

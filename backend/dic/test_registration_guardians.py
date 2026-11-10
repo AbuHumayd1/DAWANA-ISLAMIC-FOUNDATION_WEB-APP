@@ -44,6 +44,11 @@ class ExplicitGuardianTests(APITestCase):
         relation.refresh_from_db()
         self.assertEqual(relation.status, 'pending')  # Email is not yet proved.
         account = PortalAccountBooking.objects.get(order=self.order).account
+        # Model an already verified legacy email identity explicitly. A new
+        # active username account alone must never satisfy this separate proof.
+        account.contact_channel = 'email'
+        account.login_email = self.order.primary_registrant.email
+        account.save(update_fields=['contact_channel', 'login_email'])
         account.user.is_active = True
         account.user.save(update_fields=['is_active'])
         HousingJob.objects.filter(edition=self.edition).update(state='held',
@@ -59,6 +64,9 @@ class ExplicitGuardianTests(APITestCase):
         attempt = self.create_pending_attempt('ambiguous-family')
         _apply_verified_transaction(attempt.pk, self.provider_result(attempt.reference))
         account = PortalAccountBooking.objects.get(order=self.order).account
+        account.contact_channel = 'email'
+        account.login_email = self.order.primary_registrant.email
+        account.save(update_fields=['contact_channel', 'login_email'])
         account.user.is_active = True
         account.user.save(update_fields=['is_active'])
         relation.guardian.full_name = 'Different adult'

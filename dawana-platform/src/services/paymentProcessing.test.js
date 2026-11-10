@@ -3,10 +3,12 @@ import assert from 'node:assert/strict'
 import { processingMessages, paystackCheckoutUrl } from './paymentReturnApi.js'
 
 test('pending downstream work preserves payment confirmation and never requests another charge', () => {
-  const paid = { payment_status: 'paid', status: 'confirmed', processing: { housing: 'pending', portal: 'delivery_pending' } }
+  const paid = { payment_status: 'paid', status: 'confirmed', processing: { housing: 'pending', portal: 'recovery_required' } }
   assert.equal(processingMessages(paid).length, 2)
   assert.match(processingMessages(paid).join(' '), /Do not pay again/)
-  assert.match(processingMessages(paid).join(' '), /account is saved/)
+  assert.match(processingMessages(paid).join(' '), /booking is saved/)
+  assert.doesNotMatch(processingMessages(paid).join(' '), /email|link sent/)
+  assert.equal(processingMessages({ ...paid, processing: { portal: 'delivery_pending' } }).length, 1)
   assert.deepEqual(processingMessages({ ...paid, payment_status: 'pending' }), [])
   assert.deepEqual(processingMessages({ ...paid, status: 'cancelled' }), [])
   assert.deepEqual(processingMessages({ ...paid, processing: { housing: 'ready', portal: 'ready' } }), [])

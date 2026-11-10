@@ -103,11 +103,12 @@ test('eligible OTP recovery controls appear only when delivery is configured', (
   const props = { capabilities: { accounts: { enabled: true } } }
   const disabled = render(accounts.PortalCredentialLogin, props)
   assert.doesNotMatch(disabled, />Forgot Password<|>First-Time Account Setup</)
-  assert.match(disabled, /Resend email verification link/)
+  assert.doesNotMatch(disabled, /Resend email verification link/)
+  assert.match(disabled, /Recover username access without email/)
   const configured = render(accounts.PortalCredentialLogin, { ...props, recoveryAvailable: true })
   assert.match(configured, />Forgot Password</)
   assert.match(configured, />First-Time Account Setup</)
-  assert.match(configured, /Payment verification and account activation are separate/)
+  assert.match(configured, /No email activation is required/)
 })
 
 test('food deep link and participant switch keep the real timetable item scope', () => {
