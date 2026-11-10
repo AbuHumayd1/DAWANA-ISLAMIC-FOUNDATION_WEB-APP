@@ -76,8 +76,6 @@ class RegistrationRecoveryTests(TransactionTestCase):
             fee_ngn=Decimal("12500.25"),
         )
         MockSMSAdapter.deliveries.clear()
-        # Account-verification mail is separate from the recovery delivery under test.
-        self.enterContext(patch('dic.registration_accounts.send_mail', return_value=1))
         self.client = APIClient()
 
     def participant(self, *, name="Test Participant", email="participant@example.test", phone="+2348012345678"):
@@ -100,7 +98,7 @@ class RegistrationRecoveryTests(TransactionTestCase):
         response = self.client.post(
             reverse("dic:order-create"),
             {"primary_registrant": {"full_name": "Recovery Test Guardian", "email": email, "phone": phone},
-             "portal_account": {"password": "River-Cedar!Sparrow-84",
+             "portal_account": {"username": "recovery-" + uuid.uuid5(uuid.NAMESPACE_URL, email.strip().lower()).hex[:20], "password": "River-Cedar!Sparrow-84",
                                 "password_confirmation": "River-Cedar!Sparrow-84"},
              "participants": [self.participant(name=name, email=email, phone=phone)]},
             format="json",

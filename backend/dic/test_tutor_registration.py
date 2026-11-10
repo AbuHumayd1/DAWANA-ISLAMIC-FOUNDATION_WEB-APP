@@ -176,18 +176,37 @@ class TutorIntegrationTests(TestCase):
         self.assertTrue(actor.has_perm('dic.can_authorize_dic_tutors'))
         require_authorizer(actor)
 
-    def test_contact_verification_and_single_use_code(self):
+    def test_authorized_invitation_creates_username_account_without_email_delivery(self):
+        from django.test import override_settings
         from .tutor_registration_api import PATH
-        codes = []
-        client = APIClient()
-        with patch('dic.tutor_registration_api.channel_available', return_value=True), patch(
-                'dic.tutor_registration_api.send_recovery_code', side_effect=lambda channel, email, code: codes.append((email, code))):
-            challenge = client.post(PATH+'challenges/', {'invitation': self.token}, format='json')
-        self.assertEqual(challenge.status_code, 202)
-        self.assertEqual(codes[0][0], self.auth.email)
-        data = dict(verification_id=challenge.data['verification_id'], code=codes[0][1])
-        self.assertEqual(client.post(PATH+'verify/', data, format='json').status_code, 200)
-        self.assertEqual(client.post(PATH+'verify/', data, format='json').status_code, 400)
+        from .models import PortalAccountBooking
+        client = APIClient(enforce_csrf_checks=True)
+        csrf = client.get(PATH+'challenges/').data['csrfToken']
+        with override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=True, DEBUG=False,
+                EMAIL_BACKEND='config.https_email.EmailBackend', RESEND_API_KEY='', DEFAULT_FROM_EMAIL=''), \
+                patch('django.core.mail.send_mail', side_effect=AssertionError('No email required')):
+            challenge = client.post(PATH+'challenges/', {'invitation': self.token}, format='json', HTTP_X_CSRFTOKEN=csrf)
+            self.assertEqual(challenge.status_code, 202)
+            self.assertTrue(challenge.data['verified'])
+            person = dict(tutor_data())
+            for field in ('date_of_birth', 'height_cm', 'weight_kg'):
+                if person[field] is not None: person[field] = str(person[field])
+            data = {'verification_id': challenge.data['verification_id'], 'participant': person,
+                'portal_account': {'username': 'synthetic-tutor', 'password': 'River-Cedar!Sparrow-84',
+                    'password_confirmation': 'River-Cedar!Sparrow-84'}}
+            created = client.post(PATH+'redeem/', data, format='json', HTTP_X_CSRFTOKEN=csrf)
+            self.assertEqual(created.status_code, 200, created.data)
+            self.assertEqual(created.data['payment_status'], 'not_required')
+            binding = PortalAccountBooking.objects.select_related('account__user').get()
+            self.assertTrue(binding.account.user.is_active)
+            self.assertFalse(binding.account.user.is_staff)
+            self.assertEqual(binding.account.username_key, 'synthetic-tutor')
+            csrf = client.get('/api/v1/dic/participant/auth/csrf/').json()['csrfToken']
+            signed_in = client.post('/api/v1/dic/participant/auth/password/login/', {
+                'identifier': 'synthetic-tutor', 'password': 'River-Cedar!Sparrow-84'}, format='json', HTTP_X_CSRFTOKEN=csrf)
+            self.assertEqual(signed_in.status_code, 200, signed_in.data)
+            revoke(self.staff, self.auth.pk, 'End tutor access')
+            self.assertEqual(client.get('/api/v1/dic/participant/auth/me/').status_code, 403)
 
     def test_existing_portal_scope_admits_tutor_and_revocation_removes_it(self):
         from .participant_api import scoped_orders

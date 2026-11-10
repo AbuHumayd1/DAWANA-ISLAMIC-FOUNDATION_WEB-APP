@@ -40,11 +40,12 @@ test('draft serialization drops all participant, contact, password and token dat
 test('normal and uncertain retries retain complete payload and require password reentry', () => {
   const flow = { participants: [{ fullName: 'Camper' }], primaryRegistrant: { fullName: 'Guardian', email: 'guardian@example.test' } }
   const password = 'synthetic-password'
-  const credentials = { password, password_confirmation: password }
+  const credentials = { username: 'synthetic-owner', password, password_confirmation: password }
   const submit = value => registrationSubmission(value, credentials, primaryRegistrantPayload, row => row, registrationCredentialsPayload)
   assert.deepEqual(submit(flow), submit({ ...flow, submissionUncertain: true }))
   assert.equal(submit(flow).primary_registrant.email, 'guardian@example.test')
   assert.equal(submit(flow).portal_account.password, password)
+  assert.equal(submit(flow).portal_account.username, 'synthetic-owner')
   assert.throws(() => registrationSubmission(flow, {}, primaryRegistrantPayload, row => row, registrationCredentialsPayload))
   assert.throws(() => submit({ ...flow, participants: [] }))
 })

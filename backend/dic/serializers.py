@@ -224,6 +224,12 @@ class ParticipantInputSerializer(StrictSerializer):
 
 
 class RegistrationCredentialsSerializer(StrictSerializer):
+    username = serializers.CharField(min_length=3, max_length=40, write_only=True)
+
+    def validate_username(self, value):
+        from .portal_accounts import normalize_username
+        return normalize_username(value)
+
     password = serializers.CharField(min_length=12, max_length=128, trim_whitespace=False, write_only=True)
     password_confirmation = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
 
@@ -233,7 +239,7 @@ class RegistrationCredentialsSerializer(StrictSerializer):
             raise serializers.ValidationError({'password_confirmation': 'Passwords must match.'})
         from django.contrib.auth import get_user_model
         from .portal_accounts import password_policy
-        password_policy(data['password'], get_user_model()())
+        password_policy(data['password'], get_user_model()(username=data['username']))
         data.pop('password_confirmation')
         return data
 

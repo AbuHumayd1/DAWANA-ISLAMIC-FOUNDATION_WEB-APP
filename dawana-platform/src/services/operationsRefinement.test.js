@@ -21,16 +21,16 @@ const user = { can_access_campsite: true, permissions: { finance: true, ids: tru
 const render = (Component, props = {}, route = '/dic/operations') => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [route] }, createElement(Component, props)))
 
 test('grouping preserves every allowed route once for all combinations of existing permissions', () => {
-  for (let mask = 0; mask < 2048; mask++) {
-    const permissions = Object.fromEntries(['finance','ids','manage_ids','export_reports','audit','scores','feedback','feedback_entry','welfare','timetables'].map((key,index) => [key, !!(mask & (1 << index))]))
-    const profile = { permissions, can_access_campsite: !!(mask & 1024) }
+  for (let mask = 0; mask < 8192; mask++) {
+    const permissions = Object.fromEntries(['finance','ids','manage_ids','export_reports','audit','scores','feedback','feedback_entry','welfare','timetables','classes','announcements'].map((key,index) => [key, !!(mask & (1 << index))]))
+    const profile = { permissions, can_access_campsite: !!(mask & 4096) }
     const flat = visibleOperationsNavigation(profile).map(item => item.to).sort()
     const grouped = visibleOperationsGroups(profile).flatMap(group => group.items.map(item => item.to)).sort()
     assert.deepEqual(grouped, flat)
     assert.equal(new Set(grouped).size, grouped.length)
   }
   assert.deepEqual(visibleOperationsGroups(user).map(group => group.label), ['Camp Overview','Participants & Registration','Camp Activities','Finance & Reports','Administration'])
-  assert.equal(navigation.length, 18)
+  assert.equal(navigation.length, 21)
   assert.equal(navigation.filter(item => item.to === '/dic/operations/check-in').length, 1)
 })
 

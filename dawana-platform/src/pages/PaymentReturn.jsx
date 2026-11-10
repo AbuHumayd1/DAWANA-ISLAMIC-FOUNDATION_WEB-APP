@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import { getRecoveryChannels } from '../services/dicApi'
-import { callbackLookup, paymentReturnFailureKind, resolvePaymentReturn, processingMessages } from '../services/paymentReturnApi'
+import { callbackLookup, paymentReturnFailureKind, resolvePaymentReturn, processingMessages, paymentConfirmed } from '../services/paymentReturnApi'
 import '../components/dic/RegistrationControls.css'
 import './PaymentReturn.css'
 import { PortalContinuation } from '../components/dic/PortalPhase3'
@@ -39,7 +39,7 @@ function PaymentReturnPage() {
       if (generation.current !== current) return
       if (data.orders?.length === 1) { selectingOrder = true; setLookup({ order_id: data.orders[0].order_id }); return }
       setResult(data)
-      if (data.order?.payment_status === 'paid' && !orderId) {
+      if (paymentConfirmed(data.order) && !orderId) {
         navigate(`/dic/register/confirmation/${data.order.order_id}`, { replace: true })
       }
     } catch (failure) {
@@ -50,7 +50,7 @@ function PaymentReturnPage() {
         setError(kind === 'temporary'
           ? 'The registration service is temporarily unavailable. Your payment status could not be checked. Do not pay again.'
           : kind === 'authorization'
-            ? 'Secure access could not be validated. Sign in through the staging tester access page if required, then retry. No payment outcome has been assumed.'
+            ? 'Secure access could not be validated. Refresh and retry in the original registration browser, or use verified booking recovery. No payment outcome has been assumed.'
             : kind === 'limited' ? 'Too many status checks. Please wait before retrying. No payment outcome has been assumed.'
               : 'This secure return session or payment reference is unavailable. Recover the existing registration securely.')
       }
@@ -77,7 +77,7 @@ function PaymentReturnPage() {
   }, [missing])
 
   const order = result?.order
-  const paid = order?.payment_status === 'paid'
+  const paid = paymentConfirmed(order)
   const inactive = order?.payment_status === 'refunded' || order?.status === 'cancelled'
   const failed = !order?.verification_unavailable && (order?.attempt_status === 'failed' || order?.payment_status === 'failed')
   const review = ['amount_mismatch', 'reconcile'].includes(order?.attempt_status)

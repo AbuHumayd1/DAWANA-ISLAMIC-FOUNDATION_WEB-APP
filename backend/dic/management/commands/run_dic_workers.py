@@ -18,15 +18,11 @@ HEARTBEAT = Path('/run/dawana/worker-heartbeat')
 
 def validate_worker_configuration():
     from dic.recovery import recovery_encryption_configured, channel_available
-    from dic.registration_accounts import verification_url
     if not recovery_encryption_configured():
         raise CommandError('Worker requires the existing valid DIC_RECOVERY_ENCRYPTION_KEY; no replacement key was generated.')
     if not channel_available('email'):
         raise CommandError('Worker requires enabled recovery delivery, DEFAULT_FROM_EMAIL and a configured real email backend (RESEND_API_KEY for the default backend).')
-    try:
-        verification_url()
-    except Exception:
-        raise CommandError('Worker requires a valid portal email verification URL.') from None
+
 
 
 def configured_actor_id():
@@ -62,6 +58,11 @@ def run_cycle():
         call_command('process_dic_followups', edition=edition_id,
             actor=actor_id,
             database_name=str(settings.DATABASES['default']['NAME']), limit=10, **options)
+        if getattr(settings, 'DIC_AUTO_FULFILLMENT_ENABLED', False):
+            # ID authority failures hold ID jobs; they do not block housing/email.
+            call_command('process_camper_fulfillment', edition=edition_id,
+                database_name=str(settings.DATABASES['default']['NAME']),
+                approve_writes=True, limit=10, **options)
     if getattr(settings, 'DIC_WORKER_HEARTBEAT_CACHE', False):
         from config.worker_health import beat
         beat()

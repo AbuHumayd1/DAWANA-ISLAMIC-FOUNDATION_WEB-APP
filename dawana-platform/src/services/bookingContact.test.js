@@ -18,16 +18,19 @@ test('booking contact is explicit and normalized without borrowing a child ident
 test('registration shows explicit contact and keeps existing submitted contact locked', () => {
   const html = renderToStaticMarkup(createElement(Fields, { contact: {}, onChange() {}, locked: true }))
   assert.match(html, /fieldset disabled=""/); assert.match(html, /Booking email/); assert.match(html, /type="email"/)
-  assert.match(html, /one-time email link/); assert.doesNotMatch(html, /type="password"/)
+  assert.match(html, /no email activation is required/); assert.doesNotMatch(html, /type="password"/)
 })
 test('pre-payment password and confirmation are required but separate from persisted contact', () => {
   const password = 'River-Cedar!Sparrow-84'
-  assert.deepEqual(registrationCredentialsPayload({ password, password_confirmation: password }), { password, password_confirmation: password })
-  assert.throws(() => registrationCredentialsPayload({ password, password_confirmation: 'different' }))
-  const html = renderToStaticMarkup(createElement(Fields, { contact: {}, onChange() {}, credentials: { password: '', password_confirmation: '' }, onCredentials() {} }))
+  assert.deepEqual(registrationCredentialsPayload({ username: ' Camper-84 ', password, password_confirmation: password }), { username: 'camper-84', password, password_confirmation: password })
+  assert.throws(() => registrationCredentialsPayload({ username: 'camper-84', password, password_confirmation: 'different' }))
+  const html = renderToStaticMarkup(createElement(Fields, { contact: {}, onChange() {}, credentials: { username: '', password: '', password_confirmation: '' }, onCredentials() {} }))
   assert.equal((html.match(/type="password"/g) || []).length, 2)
+  assert.match(html, /Username/)
+  assert.match(html, /autoComplete="username"/)
+  assert.throws(() => registrationCredentialsPayload({ password, password_confirmation: password }))
 })
-test('post-payment activation submits password confirmation and requires verified email', () => {
+test('legacy optional setup keeps password confirmation while primary signup uses username', () => {
   const source = fs.readFileSync(new URL('../components/dic/PortalAccountAccess.jsx', import.meta.url), 'utf8')
   assert.match(source, /password_confirmation: passwordConfirmation/)
   assert.match(source, /label="Confirm password"/)

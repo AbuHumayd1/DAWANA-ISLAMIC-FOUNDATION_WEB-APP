@@ -1546,7 +1546,9 @@ from .promo_models import PromoVideo, CampFlyer  # noqa: E402,F401
 from .housing_models import GuardianRelationship, HousingJob  # noqa: E402,F401
 from .feedback_models import AnonymousCamperResponse, CamperFeedbackReceipt, LecturerFeedbackAccess, IdentifiedFeedback, WelfareReport, WelfareEvent  # noqa: E402,F401
 from .tutor_models import TutorRegistrationAuthorization, TutorVerification  # noqa: E402,F401
-from .portal_account_models import PortalAccount, PortalAccountBooking, PortalAccountSession, PortalGoogleLink, PortalOAuthAttempt  # noqa: E402,F401
+from .portal_account_models import PortalAccount, PortalAccountBooking, PortalAccountSession, PortalGoogleLink, PortalOAuthAttempt, PortalCredentialTransition  # noqa: E402,F401
 from .timetable_models import TimetableEntry  # noqa: E402,F401
 from .launch_models import AcademicClass, AcademicAssignment, CampAnnouncement  # noqa: E402,F401
 from .foundation_models import ContactEnquiry, FoundationDonation  # noqa: E402,F401
+
+from .fulfillment_models import CamperFulfillmentJob  # noqa: E402,F401

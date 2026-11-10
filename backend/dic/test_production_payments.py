@@ -18,7 +18,7 @@ class ProductionPaymentPolicyTests(SimpleTestCase):
         from rest_framework.exceptions import ValidationError
         from .payment_views import _verify_attempt
         provider = Mock()
-        with self.settings(PAYSTACK_MODE='live'):
+        with self.settings(PAYSTACK_MODE='live', SETTINGS_MODULE='config.settings.render'):
             with self.assertRaises(ValidationError):
                 _verify_attempt(SimpleNamespace(provider_mode='test'), provider)
         provider.verify_transaction.assert_not_called()
@@ -49,6 +49,7 @@ class ProductionPaymentPolicyTests(SimpleTestCase):
         self.assertTrue(verify_webhook_request(body, headers, 'sk_test_synthetic'))
         self.assertFalse(verify_webhook_request(body+b' ', headers, 'sk_test_synthetic'))
         self.assertFalse(verify_webhook_request(body, {'X-Paystack-Signature': 'invalid'}, 'sk_test_synthetic'))
+        self.assertFalse(verify_webhook_request(body, {}, 'sk_test_synthetic'))
 
     @override_settings(PAYSTACK_WEBHOOK_SECRET='whsec_synthetic')
     def test_timestamped_signature_rotation_replay_and_no_downgrade(self):
@@ -80,7 +81,7 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         self.now = timezone.now()
         self.order = NS(pk=1, edition_id=2, registration_basis='paid', status='confirmed',
             payment_status='paid', total_amount_ngn=Decimal('5000.00'), items=Mock(), payment_attempts=Mock())
-        self.revision = NS(order_id=1, accepted_at=self.now, early_bird_cutoff_at=None,
+        self.revision = NS(pk=10, order_id=1, accepted_at=self.now, early_bird_cutoff_at=None,
             items=Mock())
         self.revision.items.all.return_value = [NS(price_type='regular', early_bird_fee_snapshot_ngn=None)]
         self.order.current_price_revision = self.revision
@@ -91,11 +92,12 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         self.order.payment_attempts.exists.return_value = False
         self.enrollment = NS(pk=5, source_item_id=3, participant_id=4, edition_id=2,
             restriction_reason='', source_review_fingerprint='')
-        self.attempt = NS(order=self.order, status='successful', provider_mode='live',
+        self.attempt = NS(order=self.order, order_id=self.order.pk, status='successful', provider_mode='live',
             amount_kobo=500000, currency='NGN', provider_status='success',
             provider_reported_amount_kobo=500000, provider_reported_currency='NGN',
             provider_paid_at=self.now + timedelta(seconds=1), verified_at=self.now,
-            provider_transaction_id='123456', price_revision=self.revision)
+            provider_transaction_id='123456', price_revision=self.revision, price_revision_id=10)
+        self.order.payment_attempts.select_related.side_effect = lambda *args: self.attempts
         self.attempts = [self.attempt]
         self.item_manager = self.enterContext(patch.object(service.RegistrationOrderItem, 'objects'))
         self.item_manager.select_related.return_value.get.return_value = self.item
@@ -113,15 +115,23 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         self.assertFalse(self.eligible())
 
     def test_successful_live_payment_requires_independent_provider_evidence(self):
-        self.assertTrue(self.eligible())
+        from .settlement_evidence import settlement_reason
+        for module in ('config.settings.production', 'config.settings.render', 'config.settings.zevcloud'):
+            with self.subTest(settings_module=module), self.settings(SETTINGS_MODULE=module):
+                self.assertTrue(self.eligible())
+                self.assertEqual(settlement_reason(self.attempt), '')
         for field, invalid in [('provider_status', 'pending'), ('provider_transaction_id', None),
                 ('provider_transaction_id', ''), ('verified_at', None), ('provider_paid_at', None),
                 ('amount_kobo', 1), ('provider_reported_amount_kobo', 1),
-                ('currency', 'USD'), ('provider_reported_currency', 'USD'), ('price_revision', None)]:
+                ('currency', 'USD'), ('provider_reported_currency', 'USD'), ('price_revision', None),
+                ('provider_mode', None), ('provider_mode', ''), ('provider_mode', 'unknown')]:
             original = getattr(self.attempt, field)
             with self.subTest(field=field):
                 setattr(self.attempt, field, invalid)
-                self.assertFalse(self.eligible())
+                with self.settings(SETTINGS_MODULE='config.settings.render'):
+                    self.assertFalse(self.eligible())
+                    if field != 'price_revision':
+                        self.assertTrue(settlement_reason(self.attempt))
             setattr(self.attempt, field, original)
         self.revision.accepted_at = None
         self.assertFalse(self.eligible())
@@ -142,15 +152,36 @@ class PaymentEntitlementModeTests(SimpleTestCase):
     def test_production_test_configuration_never_grants_paid_entitlement(self):
         self.attempt.provider_mode = 'test'
         from .settlement_evidence import settlement_reason
-        for module in ('config.settings.production', 'config.settings.zevcloud'):
-            with self.subTest(settings_module=module), self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE=module):
+        for module in ('config.settings.production', 'config.settings.render', 'config.settings.zevcloud'):
+            with self.subTest(settings_module=module), self.settings(
+                    PAYSTACK_MODE='test', SETTINGS_MODULE=module, DIC_AUTO_FULFILLMENT_ENABLED=True):
                 self.assertEqual(settings.SETTINGS_MODULE, module)
                 self.assertFalse(self.eligible())
                 self.assertEqual(settlement_reason(self.attempt), 'provider_mode_review')
-        for mode in ('', None, 'invalid'):
-            with self.settings(PAYSTACK_MODE=mode, SETTINGS_MODULE='config.settings.production'):
-                self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
-                self.assertFalse(self.eligible())
+                from .settlement_evidence import order_has_verified_settlement
+                from .fulfillment import enqueue_verified
+                self.assertFalse(order_has_verified_settlement(self.order))
+                # A nested override without SETTINGS_MODULE masks its identity
+                # with UserSettingsHolder.SETTINGS_MODULE=None. Keep all settings
+                # in one context so enqueue exercises the same production gate.
+                with patch('dic.fulfillment.CamperFulfillmentJob.objects') as jobs:
+                    self.assertEqual(settings.SETTINGS_MODULE, module)
+                    self.assertEqual(settings.PAYSTACK_MODE, 'test')
+                    self.assertTrue(settings.DIC_AUTO_FULFILLMENT_ENABLED)
+                    self.assertEqual(settlement_reason(self.attempt), 'provider_mode_review')
+                    self.assertFalse(order_has_verified_settlement(self.order))
+                    self.assertIsNone(enqueue_verified(self.order, self.attempt))
+                    self.assertIsNone(enqueue_verified(self.order, self.attempt))
+                    jobs.get_or_create.assert_not_called()
+        for module in ('config.settings.development', 'config.settings.staging'):
+            with self.subTest(settings_module=module), self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE=module):
+                self.assertTrue(self.eligible())
+                self.assertEqual(settlement_reason(self.attempt), '')
+        for module in ('config.settings.production', 'config.settings.render', 'config.settings.development'):
+            for mode in ('', None, 'invalid'):
+                with self.subTest(settings_module=module, mode=mode), self.settings(PAYSTACK_MODE=mode, SETTINGS_MODULE=module):
+                    self.assertFalse(self.eligible())
+                    self.assertEqual(settlement_reason(self.attempt), 'provider_mode_review')
 
     def test_existing_password_and_otp_scopes_recheck_entitlement(self):
         from types import SimpleNamespace as NS
@@ -172,8 +203,9 @@ class PaymentEntitlementModeTests(SimpleTestCase):
                     with self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE='config.settings.staging'):
                         self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.staging')
                         self.assertEqual(scoped_orders(grant), [self.order])
-                    self.assertEqual(settings.SETTINGS_MODULE, 'config.settings.production')
-                    self.assertEqual(scoped_orders(grant), [])
+                    for module in ('config.settings.production', 'config.settings.render'):
+                        with self.subTest(settings_module=module), self.settings(PAYSTACK_MODE='test', SETTINGS_MODULE=module):
+                            self.assertEqual(scoped_orders(grant), [])
 
     def test_tutor_exemption_retains_all_authorization_checks(self):
         from decimal import Decimal
@@ -202,6 +234,12 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         self.order.status = 'cancelled'
         self.assertFalse(self.eligible())
         self.order.status = 'confirmed'
+        self.item.participant_id = 999
+        self.assertFalse(self.eligible())
+        self.item.participant_id = self.enrollment.participant_id
+        self.item.category.edition_id = 999
+        self.assertFalse(self.eligible())
+        self.item.category.edition_id = self.enrollment.edition_id
         self.enrollment.restriction_reason = 'authorized review required'
         self.assertFalse(self.eligible())
 

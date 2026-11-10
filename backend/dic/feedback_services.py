@@ -8,11 +8,12 @@ from django.db import connection, transaction
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from rest_framework.settings import api_settings
 from .models import (AnonymousCamperResponse, CamperFeedbackReceipt, IdentifiedFeedback,
     LecturerFeedbackAccess, WelfareReport, WelfareEvent, RegistrationOrderItem, LecturerAppearance)
 from .campsite_api import require_campsite_staff
 from .participant_api import authorized_grant, scoped_orders
-from .feedback_schema import QUESTIONS, CATEGORIES, STATUSES, questionnaire, RATINGS, LEGACY_RATINGS, CAMP_TIMEZONE
+from .feedback_schema import QUESTIONS, CATEGORIES, STATUSES, questionnaire, rating_scale, CAMP_TIMEZONE
 
 
 def camp_today():
@@ -45,17 +46,29 @@ def require_feedback_storage():
 
 
 class ResponseInput(serializers.Serializer):
+    # Absent version retains v2 for older clients; v1 is historical read-only.
+    questionnaire_version = serializers.ChoiceField(choices=(2, 3), default=2)
     channel = serializers.ChoiceField(choices=tuple(QUESTIONS))
     day = serializers.DateField()
     ratings = serializers.DictField(child=serializers.IntegerField(min_value=1,max_value=5))
     answers = serializers.DictField(child=serializers.CharField(max_length=1000,allow_blank=True), default=dict)
     recommend = serializers.BooleanField(required=False)
 
+    def to_internal_value(self, data):
+        # item_id is resolved independently through the verified booking scope.
+        if not isinstance(data, dict) or set(data) - (set(self.fields) | {'item_id'}):
+            raise ValidationError({api_settings.NON_FIELD_ERRORS_KEY: ['Only the documented feedback fields are accepted.']})
+        return super().to_internal_value(data)
+
 
 def validate_response(payload, edition, allowed, tutor=False):
     form = ResponseInput(data=payload); form.is_valid(raise_exception=True)
     data = form.validated_data
-    kind = data['channel']; spec = questionnaire(kind, tutor=tutor)
+    kind = data['channel']
+    version = data['questionnaire_version']
+    if version == 3 and kind != 'daily':
+        raise ValidationError('This questionnaire version is available for daily feedback only.')
+    spec = questionnaire(kind, tutor=tutor, version=version)
     if kind not in allowed:
         raise PermissionDenied('This feedback channel is not available through this account.')
     required_ratings = set(spec['ratings']) - set(spec.get('optional_ratings', ()))
@@ -114,7 +127,7 @@ def submit_camper(request, item_id, payload):
     _, created = CamperFeedbackReceipt.objects.get_or_create(digest=digest)
     if created:
         AnonymousCamperResponse.objects.create(edition=item.order.edition,day=data['day'],channel=data['channel'],
-            ratings=data['ratings'],answers=data['answers'])
+            ratings=data['ratings'],answers=data['answers'],questionnaire_version=data['questionnaire_version'])
     # No response identifier, participant identifier or precise submission time.
     return created
 
@@ -231,7 +244,7 @@ def feedback_summary(edition, channel='', day=None, details=False, date_from=Non
     for (kind,date,version),rows in sorted(groups.items()):
         suppressed = kind in ('daily','final') and len(rows)<5
         questions = questionnaire(kind, version=version)
-        scale = LEGACY_RATINGS if version == 1 else RATINGS
+        scale = rating_scale(version)
         distributions = {key:{str(rating):sum(row.ratings.get(key)==rating for row in rows) for rating,_ in scale}
             for key in questions['ratings']
             if kind not in ('daily','final') or sum(key in row.ratings for row in rows) >= 5}

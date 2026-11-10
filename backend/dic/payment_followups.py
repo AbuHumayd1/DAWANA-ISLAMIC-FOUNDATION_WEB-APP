@@ -28,7 +28,5 @@ def status(order):
     from .portal_accounts import enabled, booking_eligible
     if binding and not binding.account.user.is_staff and not binding.account.user.is_superuser:
         portal = ('ready' if enabled() and binding.account.user.is_active and booking_eligible(order)
-                  else 'verification_required' if not binding.account.user.is_active else 'pending')
-        if portal != 'ready' and (binding.account.verification_delivery_at or binding.account.verification_delivery_attempts >= 5):
-            portal = 'delivery_pending'
+                  else 'recovery_required' if not binding.account.user.is_active else 'pending')
     return {'housing': housing, 'portal': portal}

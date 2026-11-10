@@ -1,0 +1,33 @@
+.cm-page { display:grid; gap:1.25rem; min-width:0; }
+.cm-page .ops-panel { min-width:0; }
+.cm-heading,.cm-actions,.cm-pager { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; }
+.cm-heading { justify-content:space-between; }
+.cm-page button,.cm-page input,.cm-page select { min-height:44px; }
+.cm-page button { padding:.55rem .85rem; cursor:pointer; }
+.cm-page button:disabled { cursor:default; opacity:.6; }
+.cm-page button[aria-pressed="true"] { outline:2px solid currentColor; outline-offset:2px; }
+.cm-page label,.cm-field { display:grid; gap:.35rem; }
+.cm-page input,.cm-page select,.cm-page textarea { width:100%; box-sizing:border-box; max-width:100%; padding:.65rem; color:var(--heading); background:var(--panel); border:1px solid var(--line); border-radius:.4rem; font:inherit; }
+.cm-page textarea { resize:vertical; }
+.cm-filters { display:flex; flex-wrap:wrap; align-items:end; gap:.8rem; margin:1rem 0; }
+.cm-filters label { flex:1 1 180px; }
+.cm-form fieldset { display:grid; min-width:0; gap:.8rem; border:0; padding:0; }
+.cm-page .cm-check { display:flex; align-items:center; gap:.65rem; }
+.cm-check input { width:1.2rem; flex:0 0 1.2rem; }
+.cm-table-wrap { overflow-x:auto; }
+.cm-table-wrap table { width:100%; border-collapse:collapse; text-align:left; }
+.cm-table-wrap th,.cm-table-wrap td { padding:.75rem; border-bottom:1px solid var(--border,#ccd6d0); vertical-align:top; }
+.cm-table-wrap caption { text-align:left; padding:.5rem 0; }
+.cm-record-list,.cm-history { list-style:none; margin:1rem 0; padding:0; }
+.cm-record-list > li { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:1rem; padding:1rem 0; border-bottom:1px solid var(--border,#ccd6d0); }
+.cm-record-list > li > div { min-width:0; flex:1 1 230px; }
+.cm-preview,.cm-history > li { padding:1rem; margin:.75rem 0; border:1px solid var(--border,#ccd6d0); border-radius:.5rem; }
+.cm-preview p { white-space:pre-wrap; overflow-wrap:anywhere; }
+.cm-history pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.875rem; }
+.cm-page :focus-visible { outline:3px solid var(--green,#18623d); outline-offset:3px; }
+@media (max-width:640px) {
+  .cm-filters { display:grid; grid-template-columns:minmax(0,1fr); }
+  .cm-actions > button { flex:1 1 130px; }
+  .cm-table-wrap th,.cm-table-wrap td { padding:.5rem; }
+  .cm-record-list > li { align-items:stretch; }
+}

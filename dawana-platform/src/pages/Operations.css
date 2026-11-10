@@ -517,6 +517,10 @@ a.ops-metric-card:hover { transform:translateY(-2px); border-color:var(--line); 
   .ops-login-page .ops-brand { max-width:100%; }
 }
 .activity-award-panel { min-width:0; }
+.ops-website-link { color:var(--ops-green); font-size:.875rem; font-weight:700; }
+@media(max-width:640px) {
+  .ops-topbar .ops-website-link { grid-column:1/-1; grid-row:2; padding:.35rem 0; }
+}
 .activity-award-panel .score-form fieldset { min-width:0; }
 .activity-award-panel .activity-check { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; }
 .activity-award-panel .activity-check input[type="checkbox"] { width:1.1rem; min-height:1.1rem; height:1.1rem; flex:0 0 1.1rem; }

@@ -29,7 +29,7 @@ export default function StaffParticipantIDs({ user }) {
     try { await action(); await load() } catch (e) { setError(e.message) } finally { setLoading(false) }
   }
   const manage = (enrollment, action) => perform(() => postOperationsData(`/enrollments/${enrollment.id}/id/`, { action, reason, ...(action === 'review_source' ? { source_item_id: Number(source[enrollment.id]), restriction_reason: restrictions[enrollment.id] ?? enrollment.restriction_reason ?? '' } : {}) }))
-  if (card) return <ParticipantIDCard card={card} onClose={() => setCard(null)} />
+  if (card) return <ParticipantIDCard staff card={card} onClose={() => setCard(null)} />
   return <>
     <div className="ops-page-heading"><div><span className="ops-eyebrow">Participant identification</span><h1>Participant IDs</h1><p>Find a participant and check their ID status.</p></div></div>
     <details className="ops-help"><summary>About participant IDs</summary><p>ID cards do not confirm arrival or authorise camp entry or departure. Issuing, replacing and revoking cards requires the existing staff permission.</p></details>

@@ -58,6 +58,8 @@ function savedDonation() {
 export function DonationExperience() {
   const { data: options, error: optionsError, retry } = useOptions()
   const [saved, setSaved] = useState(savedDonation), [payment, setPayment] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const paymentMode = payment?.payment_mode || options?.payment_mode
+  const collectionAvailable = options?.donations_enabled && ['test', 'live'].includes(options.payment_mode)
   function remember(value) { setSaved(value); try { sessionStorage.setItem('foundation_donation', JSON.stringify(value)) } catch { /* State remains in this tab if storage is unavailable. */ } }
   async function initialize(event) {
     event?.preventDefault(); if (busy) return
@@ -77,11 +79,12 @@ export function DonationExperience() {
     {optionsError && <p role="alert">{optionsError} <button onClick={retry}>Retry</button></p>}
     {!options && !optionsError && <p role="status">Checking donation availability…</p>}
     {options && !options.donations_enabled && <p>Donation collection is awaiting approved configuration. No payment will be initiated here.</p>}
-    {options?.donations_enabled && <><p><strong>Test mode only — no live collection.</strong></p>
-      {!saved && <form onSubmit={initialize}><label>Email<input name="email" type="email" required maxLength={254} /></label><label>Amount (NGN)<input name="amount" type="number" step="0.01" required min={options.minimum} max={options.maximum} /></label><p>Any amount from NGN {options.minimum}. No business maximum applies; payment and storage precision limits apply.</p><button className="button" disabled={busy}>Prepare test donation</button></form>}
+    {options?.donations_enabled && !collectionAvailable && <p role="alert">Donation payment mode could not be confirmed. Please retry before proceeding.</p>}
+    {collectionAvailable && <><p><strong>{paymentMode === 'test' ? 'Test mode only — no live collection.' : 'Live donation collection.'}</strong></p>
+      {!saved && <form onSubmit={initialize}><label>Email<input name="email" type="email" required maxLength={254} /></label><label>Amount (NGN)<input name="amount" type="number" step="0.01" required min={options.minimum} max={options.maximum} /></label><p>Any amount from NGN {options.minimum}. No business maximum applies; payment and storage precision limits apply.</p><button className="button" disabled={busy}>{paymentMode === 'test' ? 'Prepare test donation' : 'Prepare donation'}</button></form>}
       {saved && !saved.reference && <button className="button" disabled={busy} onClick={() => initialize()}>Check existing initialization request</button>}
       {saved?.reference && <><p>Reference: {saved.reference}</p><button className="button" disabled={busy} onClick={verify}>{busy ? 'Checking…' : 'Verify payment status'}</button></>}
-      {payment && <><p role="status">{donationMessage(payment.status)}</p>{safeDonationCheckout(payment.authorization_url) && <><a className="button" href={payment.authorization_url} target="_blank" rel="noopener noreferrer">Open test checkout</a><p>After checkout, return to this tab and verify payment status.</p></>}
+      {payment && <><p role="status">{donationMessage(payment.status)}</p>{safeDonationCheckout(payment.authorization_url) && <><a className="button" href={payment.authorization_url} target="_blank" rel="noopener noreferrer">{paymentMode === 'test' ? 'Open test checkout' : 'Open Paystack checkout'}</a><p>After checkout, return to this tab and verify payment status.</p></>}
         {['successful', 'failed', 'abandoned'].includes(payment.status) && <button onClick={() => { setSaved(null); setPayment(null); try { sessionStorage.removeItem('foundation_donation') } catch { /* Only this tab's state is reset. */ } }}>Prepare another donation</button>}</>}
     </>}{error && <p role="alert">{error}</p>}
   </aside>

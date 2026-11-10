@@ -1,0 +1,28 @@
+/* Keep verified contact details inside their cards at every viewport size. */
+.contact-page .contact-information .contact-details-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.contact-page .contact-information .contact-detail-card {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-width: 0;
+  height: auto;
+  gap: .5rem;
+}
+
+.contact-page .contact-information .contact-detail-card > * {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  .contact-page .contact-information .contact-details-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .75rem;
+  }
+}

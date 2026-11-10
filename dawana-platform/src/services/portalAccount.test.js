@@ -28,10 +28,10 @@ test('callback fragments are hints rather than authenticated profiles', () => {
   assert.match(source, /window\.history\.replaceState/)
 })
 test('password setup remains gated with OTP recovery available and Google hidden', () => {
-  const html = render('PortalCredentialLogin', {})
+  const html = render('PortalCredentialLogin', { recoveryAvailable: true })
   assert.match(html, /fieldset disabled=""/)
   assert.doesNotMatch(html, /Continue with Google|Link Google/)
-  for (const label of ['Email or username', 'Sign In', 'Forgot Password', 'First-Time Account Setup', 'booking verification code']) assert.ok(html.includes(label))
+  for (const label of ['Username', 'Sign In', 'Forgot Password', 'First-Time Account Setup', 'secure booking verification']) assert.ok(html.includes(label))
 })
 test('configured credential form defaults to masked password and explicit unchecked persistence', () => {
   const html = render('PortalCredentialLogin', { capabilities: { accounts: { enabled: true }, google: { available: true } } })
@@ -55,12 +55,32 @@ test('account UI never persists credentials in browser storage or router state',
 test('account settings are absent until approved rollout is enabled', () => {
   assert.equal(render('PortalAccountSettings', {}), '')
 })
-test('one-time email verification requires explicit confirmation and conveys no portal session', () => {
-  const html = render('PortalEmailVerification', { token: 'private-token', run() {} })
-  assert.match(html, /Confirm email ownership/)
-  assert.match(html, /Paid registration or authorized tutor eligibility is still required/)
-  assert.doesNotMatch(html, /private-token/)
+test('username login and reviewed recovery never require email activation', () => {
+  const html = render('PortalCredentialLogin', { capabilities: { accounts: { enabled: true } } })
+  assert.match(html, /Username/)
+  assert.match(html, /No email activation is required/)
+  assert.match(html, /Recover username access without email/)
+  assert.doesNotMatch(html, /Resend email verification|Confirm email ownership/)
+  const recovery = render('PortalCredentialRecovery', { busy: false, onSubmit() {} })
+  assert.match(recovery, /Administrator-issued recovery code/)
+  assert.match(recovery, /15 minutes/)
+  assert.match(recovery, /Confirm password/)
+  assert.doesNotMatch(recovery, /type="email"|private-token/)
   const source = fs.readFileSync(new URL('../pages/ParticipantPortal.jsx', import.meta.url), 'utf8')
-  assert.match(source, /location\.hash\.slice\(14\)/)
-  assert.match(source, /if \(emailToken\) window\.history\.replaceState/)
+  assert.ok(source.includes('/auth/credentials/transition/'))
+  for (const retired of ['/auth/email/verify/', '/auth/email/resend/', 'PortalEmailVerification']) assert.equal(source.includes(retired), false)
+})
+
+
+test('recovery issuance stays in the existing administrator operations workflow', async () => {
+  const component = await server.ssrLoadModule('/src/components/operations/AccountRecovery.jsx')
+  const html = renderToStaticMarkup(createElement(component.default, { orderReference: 'synthetic-reference' }))
+  assert.match(html, /Your administrator password/)
+  assert.match(html, /Ownership review reference/)
+  assert.match(html, /System administrators only/)
+  const source = fs.readFileSync(new URL('../components/operations/AccountRecovery.jsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /localStorage|sessionStorage|console[.]/)
+  assert.ok(source.includes("postOperationsData('/account-recovery/'"))
+  const operations = fs.readFileSync(new URL('../pages/Operations.jsx', import.meta.url), 'utf8')
+  assert.ok(operations.includes("user?.role === 'System Administrator' && <AccountRecovery"))
 })

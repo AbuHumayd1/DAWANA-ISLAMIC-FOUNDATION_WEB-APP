@@ -30,6 +30,8 @@ urlpatterns = [*base_patterns,
     REST_FRAMEWORK={**settings.REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": {
         **settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"], "dic_staging_tester_login": "60/hour",
     }},
+    DIC_PORTAL_ACCOUNTS_ENABLED=True, DEBUG=False,
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     PAYSTACK_MODE="test", PAYSTACK_SECRET_KEY="sk_test_unit_mock",
     ALLOWED_HOSTS=["testserver", "backend-staging.onrender.com"],
 )
@@ -44,6 +46,10 @@ class StagingTesterAccessTests(APITestCase):
         # this local test, then exercise the enabled gate with a real session.
         with override_settings(STAGING_DIC_TESTER_RESTRICTION_ENABLED=False):
             existing.PaymentApiTests.setUp(self)
+        # Shared setup must not leave its temporary disabled-gate settings active.
+        self.assertTrue(settings.STAGING_DIC_TESTER_RESTRICTION_ENABLED)
+        self.assertIn("config.staging_tester_access.DICStagingTesterMiddleware", settings.MIDDLEWARE)
+        self.assertEqual(settings.ROOT_URLCONF, __name__)
         self.client = APIClient(enforce_csrf_checks=True)
         self.user = get_user_model().objects.create_superuser(
             username="DIF", email="tester@example.test", password="test-only"
@@ -60,14 +66,16 @@ class StagingTesterAccessTests(APITestCase):
 
     def test_anonymous_direct_render_mutations_are_denied_even_with_bearer(self):
         attempt = self.create_pending_attempt()
-        for path in ("/api/v1/dic/orders/", self.initialize_url(),
-                     self.verify_url(attempt.reference),
-                     f"/api/v1/dic/orders/{self.order_id}/pricing/accept/"):
-            response = self.client.post(path, {}, format="json", **self.auth,
-                                        HTTP_HOST="backend-staging.onrender.com")
-            self.assertEqual(response.status_code, 403)
-            self.assertEqual(response.json()["code"], "staging_tester_required")
-            self.assertEqual(response["Cache-Control"], "no-store")
+        with patch('dic.payment_views.PaystackClient') as provider:
+            for path in ("/api/v1/dic/orders/", self.initialize_url(),
+                         self.verify_url(attempt.reference),
+                         f"/api/v1/dic/orders/{self.order_id}/pricing/accept/"):
+                response = self.client.post(path, {}, format="json", **self.auth,
+                                            HTTP_HOST="backend-staging.onrender.com")
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.json()["code"], "staging_tester_required")
+                self.assertEqual(response["Cache-Control"], "no-store")
+            provider.assert_not_called()
         self.assertEqual(RegistrationOrder.objects.count(), 1)
         self.assertEqual(PaymentAttempt.objects.count(), 1)
 
@@ -261,7 +269,8 @@ class StagingTesterAccessTests(APITestCase):
                 self.assertEqual(self.client.get("/api/v1/dic/tester-access/login/").status_code, 200)
                 # Distinct registrants exercise ten ordinary flows without
                 # exhausting one contact's real ten-request account limit.
-                payload = {**self.order_payload, 'primary_registrant': {
+                payload = {**self.order_payload, 'portal_account': {
+                    **self.order_payload['portal_account'], 'username': f'registrant-{index}'}, 'primary_registrant': {
                     **self.order_payload['primary_registrant'], 'email': f'registrant-{index}@example.test'}}
                 created = self.client.post("/api/v1/dic/orders/", payload, format="json",
                     HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()), HTTP_X_CSRFTOKEN=csrf)

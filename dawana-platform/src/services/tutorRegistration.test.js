@@ -18,8 +18,9 @@ test('tutor portal has ID and activities but no housing or competition sections'
     const html = render(Content, { tab, participant: { name: 'Tutor', id: 'enrollment', registration_basis: 'tutor',
       eligibility: { eligible: true, code: 'authorized_tutor' }, issue: { status: 'current' } },
     order: { edition: 'Synthetic DIC', reference: 'reference' }, onOpenID() {} })
-    assert.match(html, /Open my Digital ID/)
-    assert.match(html, /Explore approved camp activities/)
+    if (tab === 'home') assert.match(html, /My Digital ID/)
+    if (['profile', 'houses', 'points'].includes(tab)) assert.match(html, /Open my Digital ID/)
+    if (tab === 'camp') assert.match(html, /Explore approved camp activities/)
     assert.doesNotMatch(html, /House assignment|House Arena|My Points|championship|Not yet assigned/)
   }
 })
@@ -31,4 +32,15 @@ test('tutor uses the existing participant form without a selectable category or 
   assert.match(html, /Weight \(optional\)/)
   assert.match(html, /Complete complimentary registration/)
   assert.doesNotMatch(html, /value="minor"|name="categoryId"|Continue to summary/)
+})
+
+
+test('tutor signup chooses username credentials and does not request an email code', async () => {
+  const fs = await import('node:fs')
+  const source = fs.readFileSync(new URL('../components/dic/TutorRegistration.jsx', import.meta.url), 'utf8')
+  assert.ok(source.includes('registrationCredentialsPayload(credentials)'))
+  assert.ok(source.includes('participant, portal_account'))
+  assert.ok(source.includes('autoComplete="username"'))
+  assert.equal(source.includes("request('verify'"), false)
+  assert.equal(source.includes('Verify authorized email'), false)
 })

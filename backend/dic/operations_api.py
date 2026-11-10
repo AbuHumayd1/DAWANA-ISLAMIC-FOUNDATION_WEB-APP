@@ -510,6 +510,10 @@ def _user_data(user):
             user.is_staff and (user.is_superuser or user.has_module_perms("dic"))
         ),
         "permissions": {
+            "classes": user.has_perm('dic.manage_dic_classes'),
+            "announcements": any(user.has_perm('dic.' + p) for p in ('manage_dic_announcements', 'publish_dic_announcements')),
+            "edit_announcements": user.has_perm('dic.manage_dic_announcements'),
+            "publish_announcements": user.has_perm('dic.publish_dic_announcements'),
             "timetables": any(user.has_perm('dic.' + p) for p in ('view_timetableentry', 'manage_dic_timetables', 'publish_dic_timetables')),
             "operations": _can(user, "can_view_dic_operations"),
             "check_in": _can(user, "can_check_in_dic_participants"),

@@ -25,9 +25,10 @@ export function ClassAssignmentCard({ participant }) {
   const tutor = participant.registration_basis === 'tutor'
   // No inferred class from registration category, age, academic status or housing.
   const assignment = participant.class_assignment
-  return <section className="cp-card cp-class-card"><span className="cp-kicker">LEARNING TOGETHER</span><h2>{tutor ? 'Tutor registration' : 'Your teaching class'}</h2>
-    <p>{tutor ? 'Camper class allocation does not apply to tutor registrations.' : assignment?.status === 'assigned' ? assignment.name : 'Not yet assigned'}</p>
-    {!tutor && <><p>{assignment?.message || 'Approved class allocation is not available yet.'}</p><small>Registration category: {participant.category || 'Unavailable'}. This is separate from your teaching class.</small></>}</section>
+  const assigned = assignment?.status === 'assigned' && typeof assignment.name === 'string' && assignment.name.trim()
+  return <section className="cp-card cp-class-card"><span className="cp-kicker">LEARNING TOGETHER</span><h2>{tutor ? 'Tutor registration' : 'My Class'}</h2>
+    <p className="cw-class-name">{tutor ? 'Camper class allocation does not apply to tutor registrations.' : assigned ? assignment.name : 'Not yet assigned'}</p>
+    {!tutor && !assigned && <small>Your class will appear here when it is ready.</small>}</section>
 }
 
 export function PortalIntegrations({ participant, onOpenID, busy }) {
@@ -53,5 +54,5 @@ export function PortalContinuation({ orderReference }) {
     } catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
-  return <div className="cp-secure-continuation"><button type="button" className="button" disabled={busy} onClick={proceed}>{busy ? 'Checking secure access…' : 'Continue to Camper Portal'}</button><p>Sign in with the email and password chosen during registration. New accounts must verify email once using the email link. Payment confirmation alone does not sign you in. Older registrations can use First-Time Account Setup.</p>{error && <p role="alert">{error}</p>}</div>
+  return <div className="cp-secure-continuation"><button type="button" className="button" disabled={busy} onClick={proceed}>{busy ? 'Checking secure access…' : 'Continue to Camper Portal'}</button><p>Sign in with the username and password chosen during registration. No email activation is required. Payment confirmation alone does not sign you in. Older registrations can use authorized account recovery.</p>{error && <p role="alert">{error}</p>}</div>
 }

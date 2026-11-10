@@ -6,12 +6,13 @@ import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { visibleOperationsNavigation } from './operationsNavigation.js'
-import { eligibilityLabel, participantCardPath } from './participantIdentity.js'
+import { eligibilityLabel, participantCardPath, staffCardPath } from './participantIdentity.js'
 
-let deliveryServer, DeliveryStatus
+let deliveryServer, DeliveryStatus, IDPresentation
 before(async () => {
   deliveryServer = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
   DeliveryStatus = (await deliveryServer.ssrLoadModule('/src/pages/ParticipantPortal.jsx')).ParticipantDeliveryStatus
+  IDPresentation = (await deliveryServer.ssrLoadModule('/src/components/dic/DigitalIDPresentation.jsx')).default
 })
 after(async () => { await deliveryServer?.close() })
 
@@ -104,7 +105,8 @@ test('ID navigation requires its explicit permission and review messages do not 
 
 test('print template exposes approved ID fields only and suppresses site controls', () => {
   const source = fs.readFileSync(new URL('../pages/ParticipantPortal.jsx', import.meta.url), 'utf8')
-  const card = source.slice(source.indexOf('export function ParticipantIDCard'), source.indexOf('export default'))
+  assert.match(source, /return <DigitalIDPresentation card=\{card\} onClose=\{onClose\}/)
+  const card = fs.readFileSync(new URL('../components/dic/DigitalIDPresentation.jsx', import.meta.url), 'utf8')
   for (const forbidden of ['date_of_birth', 'height_cm', 'weight_kg', 'address', 'phone', 'sessionid', 'access_token', 'qr_code', 'photo']) assert.equal(card.includes(forbidden), false)
   assert.match(card, /participant_number/)
   assert.match(card, /participantCardPath/)
@@ -126,4 +128,28 @@ test('portal ID links remain scoped read-only downloads for validated formats', 
   const open = source.slice(source.indexOf('const openID ='), source.indexOf('if (checking)'))
   assert.doesNotMatch(open, /registration_item_id|id_command/)
   assert.match(open, /participant\.issue\?\.status !== 'current'/)
+})
+
+test('staff card links use staff authorization while participant links retain booking scope', () => {
+  const id = '12345678-abcd-4321-abcd-123456789012'
+  for (const format of ['pvc', 'a6', 'portrait']) {
+    assert.equal(staffCardPath(id, format, true), `/api/v1/dic/ids/cards/${id}/?format=${format}&download=1`)
+    assert.match(participantCardPath(id, format), /\/dic\/participant\/enrollments\//)
+  }
+  assert.throws(() => staffCardPath('../other'))
+  assert.throws(() => staffCardPath(id, 'bulk'))
+})
+
+test('issued ID presentation renders separate protected staff and participant downloads', () => {
+  const card = { id: '12345678-abcd-4321-abcd-123456789012', name: 'Synthetic camper', participant_number: 'SYNTHETIC-ID' }
+  const render = staff => renderToStaticMarkup(createElement(IDPresentation, { card, staff, onClose() {} }))
+  const staff = render(true), participant = render(false)
+  assert.match(staff, /href="(?:https:\/\/api\.dawanaislamicfoundation\.org)?\/api\/v1\/dic\/ids\/cards\//)
+  assert.doesNotMatch(staff, /\/participant\/enrollments\//)
+  assert.match(participant, /href="(?:https:\/\/api\.dawanaislamicfoundation\.org)?\/api\/v1\/dic\/participant\/enrollments\//)
+  assert.doesNotMatch(participant, /\/ids\/cards\//)
+  for (const html of [staff, participant]) {
+    assert.match(html, /format=portrait&amp;download=1/)
+    assert.doesNotMatch(html, /<iframe/)
+  }
 })

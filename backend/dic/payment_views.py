@@ -359,6 +359,8 @@ def _apply_verified_transaction(attempt_id, provider_data):
             # later, outside payment locks; duplicate notifications cannot reset it.
             from .payment_followups import enqueue_housing
             enqueue_housing(order)
+            from .fulfillment import enqueue_verified
+            enqueue_verified(order, attempt)
         return attempt, order
 
 

@@ -12,7 +12,7 @@ from .models import CampEdition, RegistrationOrderItem, WelfareReport, WelfareEv
 from .operations_api import OperationsBaseView, _edition_from_request
 from .operations_exports import spreadsheet_safe
 from .participant_api import PortalView, authorized_grant, scoped_orders
-from .feedback_schema import QUESTIONS, RATINGS, CATEGORIES, STATUSES, PRIVACY_NOTICE, URGENT_NOTICE, questionnaire
+from .feedback_schema import QUESTIONS, RATINGS, CATEGORIES, STATUSES, PRIVACY_NOTICE, URGENT_NOTICE, questionnaire, participant_questionnaire
 from .feedback_services import (require_feedback_staff,require_feedback_storage,portal_item,submit_camper,
     submit_identified,create_welfare,update_welfare,welfare_officers,feedback_summary,camp_today)
 
@@ -39,7 +39,7 @@ class CamperFeedbackOptionsView(PortalView):
         orders = scoped_orders(grant)
         items = RegistrationOrderItem.objects.filter(order_id__in=[row.pk for row in orders]).select_related('participant','order__edition')
         return Response(dict(**spec(),today=str(camp_today()),expires_at=grant.expires_at.isoformat(),items=[dict(id=row.pk,name=row.participant.full_name,edition=row.order.edition_id,
-            questions={kind:questionnaire(kind, tutor=row.order.registration_basis=='tutor') for kind in ('daily','final')},
+            questions={kind:participant_questionnaire(kind, tutor=row.order.registration_basis=='tutor') for kind in ('daily','final')},
             edition_name=row.order.edition.name,start=str(row.order.edition.camp_start_date),end=str(row.order.edition.camp_end_date)) for row in items]))
 
 

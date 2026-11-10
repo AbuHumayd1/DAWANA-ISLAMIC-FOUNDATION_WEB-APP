@@ -192,7 +192,7 @@ body { background:var(--mint); }
 .project-card p, .media-feature p { max-width:700px; font-size:0.875rem; line-height:1.65; }
 .preview-meta { display:flex; flex-wrap:wrap; gap:20px; margin-top:20px; color:var(--heading); font-size:0.875rem; }
 .event-empty { grid-template-columns:64px 1fr auto; min-height:166px; padding:28px 38px; }
-.event-badge { display:flex; flex-direction:column; align-items:center; justify-content:center; width:60px; height:60px; border-radius:14px; background:var(--spruce); color:var(--gold-light); }.event-badge span { font-size:1.375rem; }.event-badge strong { font-size:0.875rem; letter-spacing:.05em; }
+.event-badge { display:flex; flex-direction:column; align-items:center; justify-content:center; width:60px; height:60px; border-radius:14px; background:var(--spruce); color:var(--gold-light); }.event-badge span { font-size:1.375rem; }.event-badge strong { max-width:100%; padding-inline:2px; font-size:0.5625rem; line-height:1.4; letter-spacing:.025em; white-space:nowrap; }
 .event-empty h3 { font-size:1.4375rem; }
 .media-feature { min-height:250px; padding:38px; }
 .involved-section .section-copy { max-width:680px; font-size:0.875rem; line-height:1.7; }

@@ -8,7 +8,6 @@ from django.db.migrations.executor import MigrationExecutor
 from dic.housing_service import permitted, require_automation
 from dic.models import CampEdition
 from dic.recovery import channel_available
-from dic.registration_accounts import verification_url
 
 
 class Command(BaseCommand):
@@ -23,7 +22,6 @@ class Command(BaseCommand):
                 raise ValueError('Full application and background processing must be enabled.')
             if not settings.DIC_PORTAL_ACCOUNTS_ENABLED or not channel_available('email'):
                 raise ValueError('Accounts and verified email recovery configuration are required.')
-            verification_url()
             if settings.DATABASES['default'].get('OPTIONS', {}).get('sslmode') != 'verify-full':
                 raise ValueError('Authenticated PostgreSQL TLS is required.')
             ca = settings.DATABASES['default'].get('OPTIONS', {}).get('sslrootcert')

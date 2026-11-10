@@ -230,8 +230,10 @@ urlpatterns = [
 
 
 from .portal_account_api import (AccountStatusView, AccountActivateView, PasswordLoginView,
-    PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView)
+    PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView, CredentialTransitionView, IssueCredentialTransitionView)
 urlpatterns += [
+    path('participant/auth/credentials/transition/', CredentialTransitionView.as_view(), name='portal-credential-transition'),
+    path('operations/account-recovery/', IssueCredentialTransitionView.as_view(), name='operations-account-recovery'),
     path('participant/auth/email/verify/', EmailVerifyView.as_view(), name='portal-email-verify'),
     path('participant/auth/email/resend/', EmailResendView.as_view(), name='portal-email-resend'),
     path('participant/auth/account/', AccountStatusView.as_view(), name='portal-account'),
@@ -274,9 +276,20 @@ urlpatterns += [
 from .identity_views import card_view, verify_view
 from .timetable_api import ParticipantTimetableView, OperationsTimetableView
 from .launch_api import CampUpdatesView
+from .launch_operations_api import (LaunchOptionsView, OperationsClassesView, OperationsClassDetailView,
+    OperationsAssignmentsView, OperationsAnnouncementsView, OperationsAnnouncementDetailView,
+    OperationsAnnouncementPublicationView, OperationsLaunchHistoryView)
 from .local_diagnostics import local_database_identity
 from .participant_api import PortalCardView
 urlpatterns += [
+    path('operations/camp-management/options/', LaunchOptionsView.as_view(), name='operations-launch-options'),
+    path('operations/classes/', OperationsClassesView.as_view(), name='operations-classes'),
+    path('operations/classes/<int:class_id>/', OperationsClassDetailView.as_view(), name='operations-class-detail'),
+    path('operations/class-assignments/', OperationsAssignmentsView.as_view(), name='operations-class-assignments'),
+    path('operations/announcements/', OperationsAnnouncementsView.as_view(), name='operations-announcements'),
+    path('operations/announcements/<int:announcement_id>/', OperationsAnnouncementDetailView.as_view(), name='operations-announcement-detail'),
+    path('operations/announcements/<int:announcement_id>/publication/', OperationsAnnouncementPublicationView.as_view(), name='operations-announcement-publication'),
+    path('operations/camp-management/<str:domain>/history/', OperationsLaunchHistoryView.as_view(), name='operations-launch-history'),
     path('participant/enrollments/<uuid:enrollment_id>/card/', PortalCardView.as_view(), name='participant-card'),
     path('participant/timetables/', ParticipantTimetableView.as_view(), name='participant-timetables'),
     path('participant/camp-updates/', CampUpdatesView.as_view(), name='participant-camp-updates'),

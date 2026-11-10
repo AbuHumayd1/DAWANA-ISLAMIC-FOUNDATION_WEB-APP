@@ -18,6 +18,9 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG")
+# Independent ID outbox rollout; never enabled by native deployment defaults.
+DIC_AUTO_FULFILLMENT_ENABLED = env.bool('DIC_AUTO_FULFILLMENT_ENABLED', default=False)
+DIC_AUTO_FULFILLMENT_ACTOR_ID = env.int('DIC_AUTO_FULFILLMENT_ACTOR_ID', default=0)
 DIC_ASSISTED_BOOKING_ENABLED = env.bool('DIC_ASSISTED_BOOKING_ENABLED', default=False)
 # Source-only account rollout: enable only after isolated acceptance and schema approval.
 DIC_PORTAL_ACCOUNTS_ENABLED = env.bool('DIC_PORTAL_ACCOUNTS_ENABLED', default=False)
@@ -136,6 +139,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "config.site_context.public_site",
             ],
         },
     },

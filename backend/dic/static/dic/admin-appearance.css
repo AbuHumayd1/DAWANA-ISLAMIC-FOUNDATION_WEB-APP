@@ -106,6 +106,17 @@ td, th { padding: .8rem; }
   overflow-wrap: anywhere;
 }
 /* Retain space for Django's built-in action icons. */
+#header .admin-public-return {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: .5rem 0;
+  font-size: .8125rem;
+  line-height: 1.4;
+  white-space: normal;
+}
 #content .object-tools a.addlink,
 #content .object-tools a.viewsitelink { padding-right: 2rem; }
 @media (max-width: 767px) {

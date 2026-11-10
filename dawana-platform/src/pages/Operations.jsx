@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   downloadOperationsReport,
   getOperationsData,
@@ -11,6 +11,7 @@ import './Operations.css'
 import AppearanceControls from '../components/layout/AppearanceControls'
 import { backendUrl } from '../services/productionContract.js'
 import StaffParticipantIDs from './StaffParticipantIDs'
+import AccountRecovery from '../components/operations/AccountRecovery'
 import Finance from './Finance'
 import ParticipantIDPrinting from './ParticipantIDPrinting'
 import CampsiteFoundation, { PlannedCampsiteModule } from './CampsiteFoundation'
@@ -19,6 +20,8 @@ import HouseScoring from './HouseScoring'
 import FeedbackDashboard, { FeedbackEntry, WelfareDashboard } from './Feedback'
 import Reporting from './Reporting'
 import TimetableOperations from './TimetableOperations'
+import AssistedRegistration from './AssistedRegistration'
+import { ClassesOperations, AnnouncementsOperations } from './CampManagement'
 import { campsiteModules } from '../services/campsiteModules'
 import OperationsNavigation from '../components/operations/OperationsNavigation'
 import { MoreFilters, FilterActions, HelpDetails } from '../components/operations/OperationsControls'
@@ -158,6 +161,8 @@ function Operations() {
         <Route index element={user.can_access_campsite ? <CampsiteFoundation user={user} /> : <EmptyState title="Campsite staff access required" detail="An active staff account with explicit DIC Operations permission is required." />} />
         <Route path="registration-overview" element={<DashboardPage />} />
         <Route path="timetables" element={user.permissions.timetables ? <TimetableOperations /> : <EmptyState title="Timetable permission required" />} />
+        <Route path="classes" element={user.can_access_campsite && user.permissions.classes ? <ClassesOperations /> : <EmptyState title="Class management permission required" />} />
+        <Route path="announcements" element={user.can_access_campsite && user.permissions.announcements ? <AnnouncementsOperations user={user} /> : <EmptyState title="Announcement permission required" />} />
         <Route path="check-in" element={user.can_access_campsite ? <CampCheckIn user={user} /> : <EmptyState title="Campsite staff access required" />} />
         <Route path="scoring" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} /> : <EmptyState title="House Scoring permission required" />} />
         <Route path="feedback" element={user.can_access_campsite && user.permissions.feedback ? <FeedbackDashboard user={user} /> : <EmptyState title="Feedback summary permission required" />} />
@@ -167,8 +172,8 @@ function Operations() {
         <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
         <Route path="registrations" element={<RegistrationListPage />} />
-        <Route path="assisted-registration" element={<Navigate to="/dic/operations/registrations" replace />} />
-        <Route path="registrations/:publicId" element={<RegistrationDetailPage />} />
+        <Route path="assisted-registration" element={user.can_access_campsite ? <AssistedRegistration /> : <EmptyState title="Campsite staff access required" />} />
+        <Route path="registrations/:publicId" element={<RegistrationDetailPage user={user} />} />
         <Route path="participants" element={<ParticipantListPage />} />
         <Route path="id-printing" element={user.permissions.manage_ids ? <ParticipantIDPrinting /> : <EmptyState title="ID management permission required" />} />
         <Route path="participant-ids" element={user.permissions.ids ? <StaffParticipantIDs user={user} /> : <EmptyState title="Participant ID lookup permission required" />} />
@@ -198,12 +203,12 @@ function LoginPage({ onSubmit, error }) {
   }
   return (
     <main className="ops-login-page">
-      <AppearanceControls />
+      <Link className="ops-website-link" to="/">Return to Main Website</Link><AppearanceControls />
       <section className="ops-login-card">
         <BrandLockup />
         <div className="ops-login-heading"><span className="ops-eyebrow">Private workspace</span><h1>DIC Operations</h1><p>Sign in with your Dawana staff account to continue.</p></div>
         <form className="ops-login-form" onSubmit={submit}>
-          <label>Username or email<input autoComplete="username" required value={username} onChange={(event) => setUsername(event.target.value)} /></label>
+          <label>Username<input autoComplete="username" required value={username} onChange={(event) => setUsername(event.target.value)} /></label>
           <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
           {(error || formError) && <p className="ops-form-error" role="alert">{formError || error}</p>}
           <button className="ops-button ops-button-primary" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in securely'}<Icon name="arrow" /></button>
@@ -215,7 +220,7 @@ function LoginPage({ onSubmit, error }) {
 }
 
 function BrandLockup() {
-  return <div className="ops-brand"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCGXJAzZ-UcWviePlSOQS31EaODKnU6pYnNVPZAIb_b-9lqS8LhiVGxnepujEXC4rbBB7dpPXi16s19Sdppz9cRMR-W6-5qoOvKHiyjSLG90SoGGcrEUpx4Z5RaWE6rdOWa_BsxPa57V9ULj-cq7v2VYn_NFMd7eHZVxCDZISlBx1os-S3z_3e7nhljVT48l6trWf8o2hKb0Xdd7Jp-2sNGkPBc-SPgyiJhCh1VyCyCxGmv53SBGIj-DCzsF4BNKzvzA" alt="" /><span><strong>Da&apos;wãnã</strong><small>ISLAMIC FOUNDATION</small></span></div>
+  return <div className="ops-brand"><img src="/dawana-official-logo.png" alt="Dawana Islamic Foundation" /><span><strong>Da&apos;wãnã</strong><small>ISLAMIC FOUNDATION</small></span></div>
 }
 
 function OperationsShell({ user, onLogout }) {
@@ -242,7 +247,7 @@ function OperationsShell({ user, onLogout }) {
         <button className="ops-menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="ops-sidebar" onClick={() => setMenuOpen((open) => !open)}><Icon name="menu" /></button>
         <Link to="/dic/operations" className="ops-top-brand"><BrandLockup /></Link>
         <div className="ops-top-spacer" />
-        <AppearanceControls />
+        <Link className="ops-website-link" to="/">Return to Main Website</Link><AppearanceControls />
         <span className="ops-edition-chip"><i /> DIC Campsite Operations</span>
         {user.can_access_django_admin && <a className="ops-admin-link" href={backendUrl('/admin/')}>Django Admin</a>}
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>
@@ -401,7 +406,7 @@ function Pagination({ page, pages, onChange }) {
   return <div className="ops-pagination"><span>Page {page} of {pages}</span><div><button disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</button><button disabled={page >= pages} onClick={() => onChange(page + 1)}>Next</button></div></div>
 }
 
-function RegistrationDetailPage() {
+function RegistrationDetailPage({ user }) {
   const { publicId } = useParamsSafe()
   const { data, loading, error, retry } = useData(`/registrations/${publicId}/`)
   if (loading) return <><BackLink to="/dic/operations/registrations" label="Registrations" /><LoadingState rows={5} /></>
@@ -412,6 +417,7 @@ function RegistrationDetailPage() {
     <div className="ops-detail-grid"><section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER SUMMARY</span><h2>Registration status</h2></div></div><DetailRow label="Registration status" value={<StatusPill value={data.status} />} /><DetailRow label="Payment status" value={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} /><DetailRow label="Current quoted total" value={`₦${Number(data.quoted_total_ngn).toLocaleString('en-NG')}`} /><DetailRow label="Categories" value={data.categories.join(', ') || '—'} /><DetailRow label="Recovery" value={data.recovery_status} />{data.requires_repricing && <div className="ops-callout"><Icon name="alert" /><span>This unpaid order has an outdated quote. Staff cannot start payment using the old amount; the registrant must accept the updated quote.</span></div>}</section>
       {data.registrant && <section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">PRIMARY REGISTRANT</span><h2>Guardian details</h2></div></div><DetailRow label="Name" value={data.registrant.name || '—'} /><DetailRow label="Email" value={data.registrant.email || '—'} /><DetailRow label="Phone" value={data.registrant.phone || '—'} /></section>}</div>
     <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER CONTENTS</span><h2>Participants</h2></div></div><div className="ops-participant-cards">{data.participants.map((person) => <article className="ops-person-card" key={person.id}><div className="ops-person-avatar">{person.name.slice(0, 1).toUpperCase()}</div><div className="ops-person-main"><Link to={`/dic/operations/participants/${person.id}`}><strong>{person.name}</strong></Link><span>{person.category} · ₦{Number(person.quoted_fee_ngn).toLocaleString('en-NG')}</span>{person.email && <small>{person.email} · {person.phone}</small>}</div><div className="ops-person-tags"><StatusPill value={person.verified_paid ? 'Verified paid' : 'Unpaid'} positive={person.verified_paid} />{person.allocations.map((allocation) => <span className="ops-house-tag" key={`${allocation.edition_year}-${allocation.house}`}>{allocation.house}</span>)}</div></article>)}</div></section>
+    {user?.role === 'System Administrator' && <AccountRecovery key={publicId} orderReference={publicId} />}
     {data.pricing_revisions && <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">PRICE HISTORY</span><h2>Pricing revisions</h2></div></div>{data.pricing_revisions.length ? data.pricing_revisions.map((revision) => <DetailRow key={revision.revision} label={`Revision ${revision.revision} · ${formatDate(revision.created_at)}`} value={`₦${Number(revision.total_ngn).toLocaleString('en-NG')}${revision.accepted_at ? ' · accepted' : ''}`} />) : <EmptyState title="No pricing revisions" />}</section>}
     {data.payment_attempts && <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">FINANCE REVIEW</span><h2>Payment attempts</h2></div></div>{data.payment_attempts.length ? data.payment_attempts.map((attempt) => <DetailRow key={attempt.reference} label={`${attempt.reference} · ${statusLabel(attempt.status)}`} value={attempt.provider_paid_at ? formatDate(attempt.provider_paid_at, { timeStyle: 'short' }) : attempt.reconciliation_reason || 'Provider time unavailable'} />) : <EmptyState title="No payment attempts" />}</section>}
   </>

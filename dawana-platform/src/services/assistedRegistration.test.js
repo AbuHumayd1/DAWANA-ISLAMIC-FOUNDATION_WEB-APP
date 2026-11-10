@@ -36,10 +36,10 @@ test('assisted multi-camper submission keeps one request reference and whitelist
   assert.equal(JSON.stringify(payload).includes('paid'), false)
   assert.deepEqual(assistedBookingPayload(data, 'fixed-request-reference'), payload)
 })
-test('preparation navigation is removed for all staff capabilities', () => {
+test('preparation navigation is scoped to campsite staff; creation remains server-gated', () => {
   const entries = flag => visibleOperationsNavigation({ can_access_campsite: flag, permissions: {} })
   assert.equal(entries(false).some(entry => entry.to.endsWith('/assisted-registration')), false)
-  assert.equal(entries(true).some(entry => entry.to.endsWith('/assisted-registration')), false)
+  assert.equal(entries(true).some(entry => entry.to.endsWith('/assisted-registration')), true)
 })
 
 let server, Form, Guide

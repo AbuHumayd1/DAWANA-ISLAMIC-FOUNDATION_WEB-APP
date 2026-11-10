@@ -125,17 +125,12 @@ class LaunchWorkerTests(SimpleTestCase):
         actor.assert_not_called()
         jobs.assert_not_called()
 
-    def test_invalid_verification_url_prevents_lookup_and_job_claims(self):
-        from django.core.exceptions import ValidationError
-        with patch('dic.recovery.recovery_encryption_configured', return_value=True), \
-                patch('dic.recovery.channel_available', return_value=True), \
-                patch('dic.registration_accounts.verification_url', side_effect=ValidationError('Invalid URL')), \
-                patch('dic.management.commands.run_dic_workers.validate_actor') as actor, \
-                patch('dic.management.commands.run_dic_workers.call_command') as jobs:
-            with self.assertRaisesMessage(CommandError, 'verification URL'):
-                run_cycle()
-        actor.assert_not_called()
-        jobs.assert_not_called()
+    def test_retired_email_activation_url_is_not_a_worker_prerequisite(self):
+        from .management.commands.run_dic_workers import validate_worker_configuration
+        with self.settings(DIC_PORTAL_EMAIL_VERIFY_URL=''), \
+                patch('dic.recovery.recovery_encryption_configured', return_value=True), \
+                patch('dic.recovery.channel_available', return_value=True):
+            validate_worker_configuration()
 
     @override_settings(DIC_AUTOMATION_ACTOR_ID=7)
     def test_worker_checks_all_permissions_before_processing(self):
