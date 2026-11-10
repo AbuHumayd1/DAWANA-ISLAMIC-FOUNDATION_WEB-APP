@@ -16,5 +16,6 @@ forwarded_allow_ips = ''
 secure_scheme_headers = {}
 accesslog = None
 errorlog = '-'
-loglevel = 'warning'
+# Include bind/worker lifecycle events without debug configuration dumps.
+loglevel = 'info'
 capture_output = False
