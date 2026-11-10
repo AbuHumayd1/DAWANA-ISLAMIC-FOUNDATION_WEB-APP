@@ -125,7 +125,7 @@ class FoundationOptions(PublicAPI):
         limits=donation_limits()
         return Response(dict(channels=official_channels(),contact_enabled=bool(getattr(settings,'FOUNDATION_CONTACT_FORM_ENABLED',False)),
             donations_enabled=donation_ready(),currency='NGN',minimum=str(limits[0]) if limits else None,
-            maximum=str(limits[1]) if limits else None,payment_mode='test'))
+            maximum=str(limits[1]) if limits else None,payment_mode=settings.PAYSTACK_MODE))
 
 
 class EnquiryInput(serializers.Serializer):
@@ -165,7 +165,7 @@ def event(row,name):
 
 def donation_payload(row):
     return dict(reference=row.reference,status=row.status,amount_kobo=row.amount_kobo,currency=row.currency,
-        authorization_url=row.authorization_url if row.status in ('pending','initializing') else '',payment_mode='test')
+        authorization_url=row.authorization_url if row.status in ('pending','initializing') else '',payment_mode=row.provider_mode)
 
 
 def valid_checkout(url):

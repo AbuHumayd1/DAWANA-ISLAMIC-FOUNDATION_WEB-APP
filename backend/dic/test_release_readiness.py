@@ -1,5 +1,7 @@
 """Database-free release contracts; never apply migration plans or grants."""
 from copy import deepcopy
+from contextlib import contextmanager
+from pathlib import Path
 from io import StringIO
 from types import SimpleNamespace as NS
 from unittest.mock import patch
@@ -7,7 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory,force_authenticate
 from config.release_security import validate_production
-from config.release_migrations import validate_approval,digest,plan_manifest
+from config.release_migrations import validate_approval,digest,plan_manifest,validate_target
 from .management.commands.setup_dic_staff_roles import Command
 from .operations_api import OperationsParticipantListView,OperationsRegistrationListView,OperationsDashboardView,OperationsReportView
 from dic_finance.services import financial_totals
@@ -91,3 +93,131 @@ class ReleaseReadinessTests(SimpleTestCase):
         self.assertEqual(result['net_verified_collections_kobo'],7500)
         self.assertEqual(result['expenditure_kobo'],500);self.assertEqual(result['approved_unpaid_kobo'],900)
         self.assertEqual(result['net_position_kobo'],7000);self.assertIsNone(result['available_operating_balance_kobo'])
+
+    def migration_options(self):
+        return dict(database_name='release_synthetic', hostname='database.example.test',
+            port='5432', role='release_owner', cluster_id='123456789',
+            approval_file=None, apply_approved_plan=False, manifest_file=None)
+
+    @contextmanager
+    def migration_environment(self, module='config.settings.render'):
+        from .management.commands import release_migrations as release
+        database = dict(ENGINE='django.db.backends.postgresql', NAME='release_synthetic',
+            HOST='database.example.test', PORT='5432', USER='release_owner')
+        with self.settings(SETTINGS_MODULE=module, DATABASES={'default': database}), \
+                patch.object(release, 'connection') as connection, \
+                patch.object(release, 'MigrationExecutor') as factory, \
+                patch.object(release, 'plan_manifest', return_value={'steps': ['pending']}) as manifest:
+            connection.cursor.return_value.__enter__.return_value.fetchone.return_value = (
+                'release_synthetic', 'release_owner', '123456789')
+            executor = factory.return_value
+            executor.loader.detect_conflicts.return_value = {}
+            executor.loader.graph.leaf_nodes.return_value = [('dic', '0039_camper_fulfillment')]
+            executor.migration_plan.return_value = [('synthetic pending plan', False)]
+            yield release.Command(stdout=StringIO()), connection, executor, manifest
+
+    def test_render_release_planning_recognizes_settings_but_never_applies_pending_plan(self):
+        from django.core.management.base import CommandError
+        for module in ('config.settings.render', 'config.settings.production', 'config.settings.staging'):
+            with self.subTest(module=module), self.migration_environment(module) as (command, connection, executor, manifest):
+                with self.assertRaisesMessage(CommandError, 'Pending migrations require approval'):
+                    command.handle(**self.migration_options())
+                connection.cursor.assert_called_once()
+                executor.loader.check_consistent_history.assert_called_once_with(connection)
+                executor.migrate.assert_not_called()
+                self.assertEqual(manifest.call_args.args[3], module)
+                self.assertEqual(manifest.call_args.args[4]['cluster_id'], '123456789')
+
+    def test_release_rejects_wrong_configured_identity_before_connecting(self):
+        from django.core.management.base import CommandError
+        for key, wrong in (('database_name', 'another_database'), ('hostname', 'other.example.test'),
+                ('port', '5433'), ('role', 'other_owner')):
+            with self.subTest(key=key), self.migration_environment() as (command, connection, executor, manifest):
+                options = self.migration_options()
+                options[key] = wrong
+                with self.assertRaises(CommandError):
+                    command.handle(**options)
+                connection.cursor.assert_not_called()
+                executor.migrate.assert_not_called()
+                manifest.assert_not_called()
+
+    def test_release_rejects_wrong_connected_database_role_or_cluster(self):
+        from django.core.management.base import CommandError
+        for actual in (('other_database', 'release_owner', '123456789'),
+                ('release_synthetic', 'other_owner', '123456789'),
+                ('release_synthetic', 'release_owner', '987654321')):
+            with self.subTest(actual=actual), self.migration_environment() as (command, connection, executor, manifest):
+                connection.cursor.return_value.__enter__.return_value.fetchone.return_value = actual
+                with self.assertRaisesMessage(CommandError, 'Connected migration cluster/database/role mismatch'):
+                    command.handle(**self.migration_options())
+                executor.migrate.assert_not_called()
+                manifest.assert_not_called()
+
+    def test_release_rejects_unsupported_settings_and_protected_database_names(self):
+        from django.core.management.base import CommandError
+        for module in ('config.settings.development', 'config.settings.ci', 'config.settings.acceptance', 'unknown'):
+            with self.subTest(module=module), self.migration_environment(module) as (command, connection, executor, manifest):
+                with self.assertRaises(CommandError):
+                    command.handle(**self.migration_options())
+                connection.cursor.assert_not_called()
+                executor.migrate.assert_not_called()
+        for name in ('dawana_dev', 'dic_2026_demo', 'postgres', 'template0', 'template1', ''):
+            with self.subTest(name=name), self.migration_environment() as (command, connection, executor, manifest):
+                options = self.migration_options()
+                options['database_name'] = name
+                with self.assertRaises(CommandError):
+                    command.handle(**options)
+                connection.cursor.assert_not_called()
+                executor.migrate.assert_not_called()
+
+    def test_release_parser_requires_every_explicit_target_identifier(self):
+        from django.core.management.base import CommandError
+        from .management.commands.release_migrations import Command as ReleaseCommand
+        arguments = {'--database-name': 'release_synthetic', '--hostname': 'database.example.test',
+            '--port': '5432', '--role': 'release_owner', '--cluster-id': '123456789'}
+        parser = ReleaseCommand().create_parser('manage.py', 'release_migrations')
+        for missing in arguments:
+            values = [value for key, argument in arguments.items() if key != missing for value in (key, argument)]
+            with self.subTest(missing=missing), self.assertRaises(CommandError):
+                parser.parse_args(values)
+
+    def test_render_release_apply_requires_matching_approval_and_restore_evidence(self):
+        import json
+        from django.core.management.base import CommandError
+        from .management.commands import release_migrations as release
+        for approval in (None, {'manifest': {'steps': ['different']}},
+                {'manifest': {'steps': ['pending']}, 'approved_by': 'Owner'}):
+            with self.subTest(approval=approval), self.migration_environment() as (command, connection, executor, manifest):
+                options = self.migration_options()
+                options['apply_approved_plan'] = True
+                if approval is None:
+                    with self.assertRaisesMessage(CommandError, 'An approved manifest is required'):
+                        command.handle(**options)
+                else:
+                    options['approval_file'] = 'synthetic-approval.json'
+                    with patch.object(release.Path, 'read_text', return_value=json.dumps(approval)):
+                        with self.assertRaisesMessage(CommandError, 'Missing, invalid or mismatched migration approval'):
+                            command.handle(**options)
+                executor.migrate.assert_not_called()
+
+    def test_exact_target_validation_accepts_only_matching_identity(self):
+        config = dict(HOST='database.example.test', PORT='5432', USER='release_owner')
+        expected = dict(database='release_synthetic', host='database.example.test', port='5432',
+            role='release_owner', cluster_id='123456789')
+        actual = dict(database='release_synthetic', role='release_owner', cluster_id='123456789')
+        validate_target(config, expected, actual)
+        for key in expected:
+            changed = {**expected, key: ''}
+            with self.subTest(missing=key), self.assertRaises(RuntimeError):
+                validate_target(config, changed, actual)
+
+    def test_render_migration_wrapper_forwards_identity_without_application_flags(self):
+        source = (Path(__file__).resolve().parents[1] / 'render-migrate.sh').read_text(encoding='utf-8')
+        self.assertIn('config.settings.render)', source)
+        for variable, flag in (('NAME', '--database-name'), ('HOST', '--hostname'),
+                ('PORT', '--port'), ('ROLE', '--role'), ('CLUSTER_ID', '--cluster-id')):
+            self.assertIn('$' + '{RELEASE_DATABASE_' + variable + ':?', source)
+            self.assertIn(flag + ' "$RELEASE_DATABASE_' + variable + '"', source)
+        self.assertNotIn('--apply-approved-plan', source)
+        self.assertNotIn('--approval-file', source)
+        self.assertNotIn('"$@"', source)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   downloadOperationsReport,
   getOperationsData,
@@ -19,6 +19,8 @@ import HouseScoring from './HouseScoring'
 import FeedbackDashboard, { FeedbackEntry, WelfareDashboard } from './Feedback'
 import Reporting from './Reporting'
 import TimetableOperations from './TimetableOperations'
+import AssistedRegistration from './AssistedRegistration'
+import { ClassesOperations, AnnouncementsOperations } from './CampManagement'
 import { campsiteModules } from '../services/campsiteModules'
 import OperationsNavigation from '../components/operations/OperationsNavigation'
 import { MoreFilters, FilterActions, HelpDetails } from '../components/operations/OperationsControls'
@@ -158,6 +160,8 @@ function Operations() {
         <Route index element={user.can_access_campsite ? <CampsiteFoundation user={user} /> : <EmptyState title="Campsite staff access required" detail="An active staff account with explicit DIC Operations permission is required." />} />
         <Route path="registration-overview" element={<DashboardPage />} />
         <Route path="timetables" element={user.permissions.timetables ? <TimetableOperations /> : <EmptyState title="Timetable permission required" />} />
+        <Route path="classes" element={user.can_access_campsite && user.permissions.classes ? <ClassesOperations /> : <EmptyState title="Class management permission required" />} />
+        <Route path="announcements" element={user.can_access_campsite && user.permissions.announcements ? <AnnouncementsOperations user={user} /> : <EmptyState title="Announcement permission required" />} />
         <Route path="check-in" element={user.can_access_campsite ? <CampCheckIn user={user} /> : <EmptyState title="Campsite staff access required" />} />
         <Route path="scoring" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} /> : <EmptyState title="House Scoring permission required" />} />
         <Route path="feedback" element={user.can_access_campsite && user.permissions.feedback ? <FeedbackDashboard user={user} /> : <EmptyState title="Feedback summary permission required" />} />
@@ -167,7 +171,7 @@ function Operations() {
         <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
         <Route path="registrations" element={<RegistrationListPage />} />
-        <Route path="assisted-registration" element={<Navigate to="/dic/operations/registrations" replace />} />
+        <Route path="assisted-registration" element={user.can_access_campsite ? <AssistedRegistration /> : <EmptyState title="Campsite staff access required" />} />
         <Route path="registrations/:publicId" element={<RegistrationDetailPage />} />
         <Route path="participants" element={<ParticipantListPage />} />
         <Route path="id-printing" element={user.permissions.manage_ids ? <ParticipantIDPrinting /> : <EmptyState title="ID management permission required" />} />
@@ -198,7 +202,7 @@ function LoginPage({ onSubmit, error }) {
   }
   return (
     <main className="ops-login-page">
-      <AppearanceControls />
+      <Link className="ops-website-link" to="/">Return to Main Website</Link><AppearanceControls />
       <section className="ops-login-card">
         <BrandLockup />
         <div className="ops-login-heading"><span className="ops-eyebrow">Private workspace</span><h1>DIC Operations</h1><p>Sign in with your Dawana staff account to continue.</p></div>
@@ -215,7 +219,7 @@ function LoginPage({ onSubmit, error }) {
 }
 
 function BrandLockup() {
-  return <div className="ops-brand"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCGXJAzZ-UcWviePlSOQS31EaODKnU6pYnNVPZAIb_b-9lqS8LhiVGxnepujEXC4rbBB7dpPXi16s19Sdppz9cRMR-W6-5qoOvKHiyjSLG90SoGGcrEUpx4Z5RaWE6rdOWa_BsxPa57V9ULj-cq7v2VYn_NFMd7eHZVxCDZISlBx1os-S3z_3e7nhljVT48l6trWf8o2hKb0Xdd7Jp-2sNGkPBc-SPgyiJhCh1VyCyCxGmv53SBGIj-DCzsF4BNKzvzA" alt="" /><span><strong>Da&apos;wãnã</strong><small>ISLAMIC FOUNDATION</small></span></div>
+  return <div className="ops-brand"><img src="/dawana-official-logo.png" alt="Dawana Islamic Foundation" /><span><strong>Da&apos;wãnã</strong><small>ISLAMIC FOUNDATION</small></span></div>
 }
 
 function OperationsShell({ user, onLogout }) {
@@ -242,7 +246,7 @@ function OperationsShell({ user, onLogout }) {
         <button className="ops-menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="ops-sidebar" onClick={() => setMenuOpen((open) => !open)}><Icon name="menu" /></button>
         <Link to="/dic/operations" className="ops-top-brand"><BrandLockup /></Link>
         <div className="ops-top-spacer" />
-        <AppearanceControls />
+        <Link className="ops-website-link" to="/">Return to Main Website</Link><AppearanceControls />
         <span className="ops-edition-chip"><i /> DIC Campsite Operations</span>
         {user.can_access_django_admin && <a className="ops-admin-link" href={backendUrl('/admin/')}>Django Admin</a>}
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>

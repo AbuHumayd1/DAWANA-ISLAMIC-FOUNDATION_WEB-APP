@@ -27,6 +27,7 @@ export function getCheckInPrintUrl(edition, search = '') {
 }
 
 async function request(path, options = {}) {
+  const { notifySessionExpiry = true, ...fetchOptions } = options
   const method = (options.method || 'GET').toUpperCase()
   const headers = new Headers(options.headers || {})
   if (options.body && !headers.has('Content-Type')) {
@@ -38,7 +39,7 @@ async function request(path, options = {}) {
   }
 
   const response = await fetch(`${operationsBase}${path}`, {
-    ...options,
+    ...fetchOptions,
     method,
     headers,
     credentials: 'include',
@@ -49,7 +50,7 @@ async function request(path, options = {}) {
     try { await readApiResponse(response) } catch (failure) { error = failure }
     options.signal?.throwIfAborted()
     const message = error.message
-    if (response.status === 401 || (response.status === 403 && /authentication credentials|CSRF/i.test(message))) {
+    if (notifySessionExpiry && (response.status === 401 || (response.status === 403 && /authentication credentials|CSRF/i.test(message)))) {
       window.dispatchEvent(new Event('operations-session-expired'))
     }
     throw error
@@ -67,13 +68,14 @@ export async function getCsrfToken() {
 }
 
 export async function getOperationsUser() {
-  const response = await request('/auth/me/')
+  const response = await request('/auth/me/', { notifySessionExpiry: false })
   return readApiResponse(response)
 }
 
 export async function signIn(username, password) {
   await getCsrfToken()
   const response = await request('/auth/login/', {
+    notifySessionExpiry: false,
     method: 'POST',
     body: JSON.stringify({ username, password }),
   })
@@ -91,9 +93,9 @@ export async function getOperationsData(path, options = {}) {
   return readApiResponse(response)
 }
 
-export async function postOperationsData(path, body) {
+export async function postOperationsData(path, body, options = {}) {
   await getCsrfToken()
-  const response = await request(path, { method: 'POST', body: JSON.stringify(body) })
+  const response = await request(path, { ...options, method: 'POST', body: JSON.stringify(body) })
   return readApiResponse(response)
 }
 

@@ -9,13 +9,20 @@ from django.core.mail import send_mail
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
-from rest_framework.exceptions import AuthenticationFailed, ValidationError
+from rest_framework.exceptions import APIException, AuthenticationFailed, ValidationError
 from . import portal_accounts as accounts
 from .models import PortalAccount, PortalAccountBooking, DICAdminAuditEvent
-from .recovery import normalize_email
+from .recovery import normalize_email, email_delivery_configured
 from .recovery_views import _contact_digest
 
 SALT = 'dic.registration.email.verify.v1'
+
+
+def require_verification_delivery():
+    if not settings.DEBUG and not email_delivery_configured():
+        error = APIException('Email verification delivery is temporarily unavailable. Please retry later or contact DIC staff.')
+        error.status_code = 503
+        raise error
 
 
 def pending_registration(account):
@@ -42,6 +49,7 @@ def email_token(account):
 
 @sensitive_variables()
 def deliver_verification(account):
+    require_verification_delivery()
     # Never log exceptions or include link tokens in an API response.
     url = verification_url()+'#verify-email='+email_token(account)
     if send_mail('Verify your DIC Camper Portal email',
@@ -53,6 +61,7 @@ def deliver_verification(account):
 
 @sensitive_variables()
 def schedule_verification(account):
+    require_verification_delivery()
     # This row survives process termination after commit and a mail outage.
     PortalAccount.objects.filter(pk=account.pk).update(verification_delivery_at=timezone.now(),
         verification_delivery_attempts=0)

@@ -253,6 +253,8 @@ class PortalEnrollmentsView(PortalView):
                 summary['class_assignment'] = class_assignment(order.registration_basis, item.participant_id, order.edition)
                 from .portal_dashboard import camper_operations_summary
                 summary.update(camper_operations_summary(item.participant_id,order.edition))
+                from .fulfillment import portal_status
+                summary['fulfillment'] = portal_status(order)
                 participants.append(summary)
             results.append({"reference": str(order.public_id), "edition": order.edition.name, "registration_basis": order.registration_basis, "payment_status": order.payment_status, "status": order.status, "participants": participants})
         record("participant_bookings_viewed", grant_id=str(grant.pk),
@@ -285,7 +287,7 @@ def card_data(enrollment):
     edition = enrollment.edition
     allocations = HouseAllocation.objects.filter(participant=enrollment.participant, edition=edition, house__edition=edition, house__status="active", status="allocated").select_related("house")
     house = allocations.first() if allocations.count() == 1 else None
-    return {"name": summary["name"], "participant_number": summary["participant_number"], "category": summary["category"],
+    return {"id": str(enrollment.pk), "name": summary["name"], "participant_number": summary["participant_number"], "category": summary["category"],
             "edition": edition.name, "starts": edition.camp_start_date, "ends": edition.camp_end_date, "venue": edition.venue_name,
             "house": house.house.name if house else None, "version": summary["issue"]["version"],
             "logo_url": settings.DIC_OFFICIAL_LOGO_URL or None, "branding_verified": bool(settings.DIC_OFFICIAL_LOGO_URL)}

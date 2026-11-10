@@ -76,6 +76,8 @@ export default function CampsiteFoundation({ user }) {
               <p className="ops-small-note">Other pages have their own camp filters or default camp selection.</p></>}
         </>}
     <section className="ops-panel"><h2>Quick links</h2><div className="campsite-module-grid">
+      {user.permissions.classes && <Link to={`/dic/operations/classes${data?.edition ? '?edition=' + encodeURIComponent(data.edition.id) : ''}`}><strong>Classes</strong><span>Manage academic classes and camper assignments.</span></Link>}
+      {user.permissions.announcements && <Link to={`/dic/operations/announcements${data?.edition ? '?edition=' + encodeURIComponent(data.edition.id) : ''}`}><strong>Announcements</strong><span>Review drafts, visibility windows and publication.</span></Link>}
         {user.permissions.export_reports && <Link to="/dic/operations/reporting-hub"><strong>Comprehensive reporting</strong><span>Permission-scoped analytics, CSV and printable reports.</span></Link>}
       <Link to="/dic/operations/check-in"><strong>Camp Check-in</strong><span>Find participants and record physical arrival.</span></Link>
       {user.permissions.scores && <Link to="/dic/operations/scoring"><strong>House scoring</strong><span>Combined leaderboard and scoring history.</span></Link>}

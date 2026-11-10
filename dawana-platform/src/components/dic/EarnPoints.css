@@ -1,0 +1,13 @@
+.cp-route .earn-points { padding:20px; border:1px solid #dce2d3; border-radius:20px; background:#fffdf5; min-width:0; }
+.cp-route .earn-points > p { font-size:.875rem; line-height:1.65; }
+.cp-route .earn-points .earn-points-guidance { color:#526458; font-size:.8125rem; }
+.cp-route .earn-points-category { border-top:1px solid #dce2d3; margin-top:14px; }
+.cp-route .earn-points-category summary { cursor:pointer; min-height:44px; padding:12px 0; color:var(--brand-deep); font-weight:600; font-size:.9375rem; }
+.cp-route .earn-points-category ul { margin:0; padding:0; list-style:none; }
+.cp-route .earn-points-category li { display:flex; justify-content:space-between; gap:16px; padding:14px 0; border-top:1px solid #e8ecdf; }
+.cp-route .earn-points-category li > div { min-width:0; }
+.cp-route .earn-points-category h3 { margin:0; font-size:.9375rem; overflow-wrap:anywhere; }
+.cp-route .earn-points-category span,.cp-route .earn-points-category small { display:block; font-size:.8125rem; color:#526458; line-height:1.6; }
+.cp-route .earn-points-category strong { flex:none; font-size:1.125rem; text-align:right; color:var(--brand-deep); }
+.cp-route .earn-points-category summary:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
+@media(max-width:420px) { .cp-route .earn-points { padding:16px; }.cp-route .earn-points-category li { gap:10px; } }

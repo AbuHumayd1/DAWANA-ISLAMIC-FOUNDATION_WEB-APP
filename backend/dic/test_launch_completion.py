@@ -70,6 +70,18 @@ class LaunchCompletionPolicyTests(SimpleTestCase):
         for key,value in [('amount','0'),('amount','1.001'),('access_token','short'),('email','bad')]:
             self.assertFalse(DonationInput(data={**data,key:value}).is_valid())
 
+    def test_donation_mode_labels_follow_configuration_and_stored_transaction(self):
+        from .foundation_api import FoundationOptions, donation_payload
+        for configured, recorded in (('test', 'test'), ('live', 'live'), ('live', 'test')):
+            with self.subTest(configured=configured, recorded=recorded), self.settings(PAYSTACK_MODE=configured), \
+                    patch('dic.foundation_api.donation_ready', return_value=False):
+                options = FoundationOptions().get(NS()).data
+                row = NS(reference='synthetic', status='pending', amount_kobo=100, currency='NGN',
+                    authorization_url='https://checkout.paystack.com/synthetic', provider_mode=recorded)
+                self.assertEqual(options['payment_mode'], configured)
+                self.assertEqual(donation_payload(row)['payment_mode'], recorded)
+                self.assertFalse(options['donations_enabled'])
+
     def test_contact_validation(self):
         data=dict(name='Synthetic Sender',email='sender@example.test',subject='Synthetic enquiry',message='Synthetic enquiry for tests.')
         self.assertTrue(EnquiryInput(data=data).is_valid())

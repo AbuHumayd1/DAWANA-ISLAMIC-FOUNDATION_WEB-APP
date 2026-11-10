@@ -28,10 +28,10 @@ test('callback fragments are hints rather than authenticated profiles', () => {
   assert.match(source, /window\.history\.replaceState/)
 })
 test('password setup remains gated with OTP recovery available and Google hidden', () => {
-  const html = render('PortalCredentialLogin', {})
+  const html = render('PortalCredentialLogin', { recoveryAvailable: true })
   assert.match(html, /fieldset disabled=""/)
   assert.doesNotMatch(html, /Continue with Google|Link Google/)
-  for (const label of ['Email or username', 'Sign In', 'Forgot Password', 'First-Time Account Setup', 'booking verification code']) assert.ok(html.includes(label))
+  for (const label of ['Email or username', 'Sign In', 'Forgot Password', 'First-Time Account Setup', 'secure booking verification']) assert.ok(html.includes(label))
 })
 test('configured credential form defaults to masked password and explicit unchecked persistence', () => {
   const html = render('PortalCredentialLogin', { capabilities: { accounts: { enabled: true }, google: { available: true } } })

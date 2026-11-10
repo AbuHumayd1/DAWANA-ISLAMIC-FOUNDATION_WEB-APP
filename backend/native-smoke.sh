@@ -2,21 +2,28 @@
 # Isolated CI only: synthetic credentials and proxy headers, never production.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [ -e .env ] || [ -e backend/.env ]; then
+  echo 'Synthetic native smoke requires a clean checkout without dotenv files.' >&2
+  exit 1
+fi
 export PUBLIC_HOST=native.example.test
 export FRONTEND_ORIGIN=https://frontend.example.test
 export DJANGO_SETTINGS_MODULE=config.settings.zevcloud
 export DJANGO_SECRET_KEY=ci-only-public-configuration-secret-not-for-production-use-123456
 export DATABASE_URL=postgresql://synthetic:synthetic@127.0.0.1:1/synthetic
 export DB_CONNECT_TIMEOUT=2
-export DIC_AUTOMATION_ACTOR_ID=1
-export DIC_RECOVERY_ENCRYPTION_KEY
-DIC_RECOVERY_ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
-export DEFAULT_FROM_EMAIL=ci@example.test RESEND_API_KEY=synthetic-ci-only
+# Prove web startup does not depend on automation or delivery credentials.
+unset DIC_AUTOMATION_ACTOR_ID DIC_RECOVERY_ENCRYPTION_KEY DEFAULT_FROM_EMAIL RESEND_API_KEY
 export PAYSTACK_MODE=test PAYSTACK_LIVE_ENABLED=false PAYSTACK_SECRET_KEY=''
 export PORT=8080
 python backend/manage.py check --deploy --fail-level ERROR
 # Import/parse the actual worker command without running jobs or touching a DB.
 python backend/manage.py run_dic_workers --help > /dev/null
+if worker_output=$(bash backend/native-start.sh worker 2>&1); then
+  echo 'Worker unexpectedly accepted minimal web configuration.' >&2
+  exit 1
+fi
+printf '%s' "$worker_output" | grep -q 'Explicit application mode and automation actor are required'
 bash backend/native-start.sh web &
 web_pid=$!
 cleanup() {
@@ -47,6 +54,7 @@ done
 [ "$(probe /assets/missing.js)" = 404 ]
 # A working API/CSRF endpoint must not make unavailable DB/worker readiness pass.
 [ "$(probe /api/v1/health/)" = 503 ]
+[ "$(probe /api/v1/health/web/)" = 503 ]
 [ "$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Host: native.example.test' http://127.0.0.1:8080/)" = 400 ]
 # Exercise real cross-origin CSRF bootstrap/preflight without database access.
 headers=$(curl --silent --fail --dump-header - --output /dev/null --max-time 10 \

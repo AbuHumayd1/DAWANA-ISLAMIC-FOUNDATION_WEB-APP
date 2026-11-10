@@ -4,7 +4,7 @@ import { createRequestScope, assertParticipantAccess } from '../services/request
 import { participantRequest, participantDeliveryOptions } from '../services/participantApi'
 import './ParticipantPortal.css'
 import '../components/dic/CamperExperience.css'
-import { participantCardPath } from '../services/participantIdentity'
+import DigitalIDPresentation from '../components/dic/DigitalIDPresentation'
 import CamperExperience from '../components/dic/CamperExperience'
 import CamperBrand from '../components/dic/CamperBrand'
 import { PortalScenery, PortalLoginChoices } from '../components/dic/PortalPhase3'
@@ -13,14 +13,8 @@ import { PortalCredentialLogin, PortalAccountSettings, PortalEmailVerification }
 import { oauthReturn } from '../services/portalAccount'
 import { participantSessionClosed, reopenParticipantSession, notifyParticipantSessionClosed, subscribeParticipantSessionClosed, revokeParticipantSession } from '../services/participantSession'
 
-export function ParticipantIDCard({ card, onClose }) {
-  return <section className="participant-id-view" aria-label="My Digital ID">
-    <h2>My Digital ID</h2><p>{card.name}</p><p className="participant-id-number">{card.participant_number}</p>
-    <div className="portal-id-actions">{['pvc', 'a6'].map(format => <span key={format}>
-      <a className="button" href={participantCardPath(card.id, format)}>View {format === 'pvc' ? 'PVC card' : 'A6 badge'}</a>{' '}
-      <a className="button" href={participantCardPath(card.id, format, true)}>Download {format.toUpperCase()} HTML</a>
-    </span>)}<a className="button" href={participantCardPath(card.id, 'portrait', true)}>Download portrait badge PDF</a></div><button className="button" type="button" onClick={onClose}>Back to participants</button>
-  </section>
+export function ParticipantIDCard({ card, onClose, staff = false }) {
+  return <DigitalIDPresentation card={card} onClose={onClose} staff={staff} />
 }
 
 export function ParticipantDeliveryStatus({ phase, channels, error, onRetry }) {
@@ -248,7 +242,7 @@ export default function ParticipantPortal() {
     {!profile && (logoutFailed || participantSessionClosed()) && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
     {!profile ? <div className="participant-access-panel"><span className="cp-kicker">{challenge ? 'ONE MORE STEP' : 'WELCOME TO YOUR CAMP'}</span><h2>{challenge ? 'Check your inbox' : 'Your camp, connected.'}</h2><p>{challenge ? `Enter the six-digit code sent through ${channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.` : 'Sign in with your registration email and password after email and payment verification.'}</p>
       <PortalEmailVerification token={emailToken} busy={busy} run={action => perform(ticket => action((path, body) => read(ticket, path, body, { notifyExpiry: false })))} />
-      {!challenge && <PortalCredentialLogin capabilities={capabilities} busy={busy || loggingOut || now < retryUntil} onLogin={passwordLogin} onRecover={recoverAccount} onResend={resendEmail} />}
+      {!challenge && <PortalCredentialLogin capabilities={capabilities} recoveryAvailable={deliveryPhase === 'ready' && channels.some(c => c.available)} recoveryLoading={loginOpen && deliveryPhase === 'loading'} onCheckRecovery={!loginOpen && deliveryPhase === 'loading' ? () => recoverAccount('reset') : undefined} busy={busy || loggingOut || now < retryUntil} onLogin={passwordLogin} onRecover={recoverAccount} onResend={resendEmail} />}
       <PortalLoginChoices showGoogle={false} open={loginOpen || Boolean(challenge)} onVerify={() => { if (challenge) { setChallenge(null); setCode(''); setNotice(''); setLoginOpen(false) } else setLoginOpen(value => !value) }} />
       {(loginOpen || challenge) && <form id="cp-booking-verification" onSubmit={challenge ? verify : requestCode}>
         {!challenge ? <><label>Booking reference<input required value={reference} onChange={(e) => setReference(e.target.value)} autoComplete="off" placeholder="Full reference from your registration" /></label><label>Contact channel<select required value={channel} onChange={(e) => setChannel(e.target.value)}><option value="" disabled>Select a configured channel</option>{channels.map((c) => <option key={c.value} value={c.value} disabled={!c.available}>{c.label}{!c.available ? ' — unavailable' : ''}</option>)}</select></label><label>Registered primary contact<input required maxLength={254} type={channel === 'email' ? 'email' : 'tel'} value={contact} onChange={(e) => setContact(e.target.value)} autoComplete={channel === 'email' ? 'email' : 'tel'} /></label></> : <label>Six-digit verification code<input required autoFocus inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(e) => setCode(e.target.value)} /></label>}
@@ -257,8 +251,7 @@ export default function ParticipantPortal() {
       </form>}{challenge && <><p className="cp-code-expiry" role="status">{now < codeExpiresAt ? `Code expires in ${Math.floor((codeExpiresAt - now) / 60000)}:${String(Math.floor((codeExpiresAt - now) / 1000) % 60).padStart(2, '0')}` : 'This code has expired. Request a new code.'}</p><div className="portal-id-actions"><button disabled={busy || now < resendAt || now < retryUntil} onClick={() => requestCode()}>{now < resendAt ? `Resend in ${Math.ceil((resendAt - now) / 1000)}s` : 'Resend code'}</button><button disabled={busy} onClick={() => { setChallenge(null); setCode(''); setNotice('') }}>Change booking details</button></div></>}
       <p className="cp-auth-help"><Link to="/dic/register/recover">Recover your booking reference</Link></p><p>If you created a registration password, sign in after verifying your email link and payment. Older paid registrations can use First-Time Account Setup; do not register or pay again. If an older booking has no reliable primary email, use booking recovery and ask authorized DIC staff to review ownership and contact details.</p><small>Access is scoped to your verified, eligible booking. Contact verification does not establish guardianship or collection authority.</small>
     </div> : <>
-      {!card && <PortalAccountSettings capabilities={capabilities} busy={busy} onVerify={() => recoverAccount('setup')} run={action => perform(ticket => action((path, body) => read(ticket, path, body)))} />}
-      {card ? <ParticipantIDCard card={card} onClose={() => setCard(null)} /> : <CamperExperience orders={orders} selection={selection} onSelect={value => { access.invalidate(); setCard(null); setSelection(value) }} busy={busy} onOpenID={openID} onLogout={logout} onRefreshBookings={() => perform(load)} loggingOut={loggingOut} expiresAt={profile.expires_at} />}
+      {card ? <ParticipantIDCard card={card} onClose={() => setCard(null)} /> : <CamperExperience orders={orders} selection={selection} onSelect={value => { access.invalidate(); setCard(null); setSelection(value) }} busy={busy} onOpenID={openID} onLogout={logout} onRefreshBookings={() => perform(load)} loggingOut={loggingOut} expiresAt={profile.expires_at} accountSettings={<PortalAccountSettings capabilities={capabilities} busy={busy} onVerify={() => recoverAccount('setup')} run={action => perform(ticket => action((path, body) => read(ticket, path, body)))} />} />}
     </>}
   </section>
 }

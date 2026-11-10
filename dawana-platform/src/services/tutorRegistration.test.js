@@ -18,8 +18,9 @@ test('tutor portal has ID and activities but no housing or competition sections'
     const html = render(Content, { tab, participant: { name: 'Tutor', id: 'enrollment', registration_basis: 'tutor',
       eligibility: { eligible: true, code: 'authorized_tutor' }, issue: { status: 'current' } },
     order: { edition: 'Synthetic DIC', reference: 'reference' }, onOpenID() {} })
-    assert.match(html, /Open my Digital ID/)
-    assert.match(html, /Explore approved camp activities/)
+    if (tab === 'home') assert.match(html, /My Digital ID/)
+    if (['profile', 'houses', 'points'].includes(tab)) assert.match(html, /Open my Digital ID/)
+    if (tab === 'camp') assert.match(html, /Explore approved camp activities/)
     assert.doesNotMatch(html, /House assignment|House Arena|My Points|championship|Not yet assigned/)
   }
 })

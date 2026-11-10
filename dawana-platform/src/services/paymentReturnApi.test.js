@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { callbackLookup, paymentReturnFailureKind, preparePaymentReturn, resolvePaymentReturn } from './paymentReturnApi.js'
+import { callbackLookup, paymentReturnFailureKind, preparePaymentReturn, resolvePaymentReturn, paymentReturnApiAllowed, paymentConfirmed } from './paymentReturnApi.js'
 
 test('callback parameters are bounded hints, conflicting references are rejected, and secrets are never accepted as credentials', () => {
   assert.deepEqual(callbackLookup('?reference=DICabc&trxref=DICabc&access_token=untrusted'), { reference: 'DICabc' })
@@ -51,4 +51,28 @@ test('outages, missing grants, authorization and rate limits have separate safe 
   assert.equal(paymentReturnFailureKind({ status: 404 }), 'missing')
   for (const status of [401, 403]) assert.equal(paymentReturnFailureKind({ status }), 'authorization')
   assert.equal(paymentReturnFailureKind({ status: 429 }), 'limited')
+})
+
+test('payment return permits the intended HTTPS sibling API and rejects unrelated cross-site origins', () => {
+  const api = 'https://api.dawanaislamicfoundation.org/api/v1'
+  for (const site of ['https://dawanaislamicfoundation.org', 'https://www.dawanaislamicfoundation.org']) {
+    assert.equal(paymentReturnApiAllowed(api, site + '/dic/register/payment-return'), true)
+  }
+  assert.equal(paymentReturnApiAllowed('/api/v1', 'http://localhost:5173/dic'), true)
+  assert.equal(paymentReturnApiAllowed('https://same.example.test/api/v1', 'https://same.example.test/dic'), true)
+  for (const [base, site] of [
+    [api, 'https://preview.pages.dev'], [api, 'http://dawanaislamicfoundation.org'],
+    ['https://dawana-islamic-foundation-web-app-1.onrender.com/api/v1', 'https://dawanaislamicfoundation.org'],
+    ['http://api.dawanaislamicfoundation.org/api/v1', 'https://dawanaislamicfoundation.org'],
+    ['https://api.dawanaislamicfoundation.org.evil.test/api/v1', 'https://dawanaislamicfoundation.org'],
+    ['https://user@api.dawanaislamicfoundation.org/api/v1', 'https://dawanaislamicfoundation.org'],
+    [api, 'https://dawanaislamicfoundation.org.evil.test'],
+  ]) assert.equal(paymentReturnApiAllowed(base, site), false)
+})
+
+test('paid payment status alone cannot display a confirmed or cancelled registration as active', () => {
+  assert.equal(paymentConfirmed({ payment_status: 'paid', status: 'confirmed' }), true)
+  for (const order of [null, {}, { payment_status: 'paid' },
+    { payment_status: 'paid', status: 'cancelled' }, { payment_status: 'refunded', status: 'confirmed' },
+    { payment_status: 'pending', status: 'confirmed' }]) assert.equal(paymentConfirmed(order), false)
 })

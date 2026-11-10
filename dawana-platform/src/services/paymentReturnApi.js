@@ -3,9 +3,22 @@ import { readApiResponse } from './apiResponse.js'
 
 const base = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
 
+// Keep the existing same-origin deployment and the intended HTTPS sibling-domain
+// deployment. This does not configure DNS or make a hostname operational; the API
+// still enforces exact CORS/CSRF origins, server-side grants and secure Lax cookies.
+export function paymentReturnApiAllowed(apiBase, frontendUrl) {
+  try {
+    const frontend = new URL(frontendUrl), api = new URL(apiBase, frontend)
+    if (api.username || api.password || !['http:', 'https:'].includes(api.protocol)) return false
+    if (api.origin === frontend.origin) return true
+    return ['https://dawanaislamicfoundation.org', 'https://www.dawanaislamicfoundation.org'].includes(frontend.origin)
+      && api.origin === 'https://api.dawanaislamicfoundation.org'
+  } catch { return false }
+}
+
 async function sessionPost(path, body, token) {
-  if (typeof window !== 'undefined' && new URL(base, window.location.href).origin !== window.location.origin) {
-    throw new Error('Secure payment recovery requires the same-origin API proxy.')
+  if (typeof window !== 'undefined' && !paymentReturnApiAllowed(base, window.location.href)) {
+    throw new Error('Secure payment recovery requires the same-origin API or the configured HTTPS DA’WANA API domain. Recover the existing registration; do not pay again.')
   }
   const csrf = await getCsrfToken()
   const headers = { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' }
@@ -42,8 +55,12 @@ export function callbackLookup(search, orderId) {
   return { reference: references[0] }
 }
 
+export function paymentConfirmed(order) {
+  return order?.payment_status === 'paid' && order?.status === 'confirmed'
+}
+
 export function processingMessages(order) {
-  if (order?.payment_status !== 'paid' || order?.status !== 'confirmed') return []
+  if (!paymentConfirmed(order)) return []
   const messages = []
   if (order.processing?.housing === 'pending') messages.push('Your payment is confirmed. House allocation is pending. Do not pay again.')
   if (order.processing?.housing === 'review') messages.push('Your payment is confirmed. House allocation needs assistance from the DIC team. Do not pay again.')

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.core import signing
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, override_settings
-from rest_framework.exceptions import ValidationError, AuthenticationFailed
+from rest_framework.exceptions import APIException, ValidationError, AuthenticationFailed
 from . import registration_accounts as registration
 from . import portal_accounts as accounts
 from .serializers import RegistrationCredentialsSerializer
@@ -13,6 +13,43 @@ from .views import _request_fingerprint
 
 
 class RegistrationAccountPolicyTests(SimpleTestCase):
+    @override_settings(DEBUG=False, DEFAULT_FROM_EMAIL='', RESEND_API_KEY='',
+                       EMAIL_BACKEND='config.https_email.EmailBackend')
+    def test_missing_verification_delivery_returns_503_before_queue_write_or_send(self):
+        with patch.object(registration.PortalAccount.objects, 'filter') as rows, \
+                patch.object(registration, 'send_mail') as send:
+            for operation in (registration.schedule_verification, registration.deliver_verification):
+                with self.assertRaises(APIException) as error:
+                    operation(NS(pk=1))
+                self.assertEqual(error.exception.status_code, 503)
+        rows.assert_not_called()
+        send.assert_not_called()
+        from .portal_account_api import EmailResendView
+        with patch.object(accounts, 'require_accounts'):
+            with self.assertRaises(APIException) as error:
+                EmailResendView().post(NS())
+        self.assertEqual(error.exception.status_code, 503)
+
+    @override_settings(DEBUG=False, DEFAULT_FROM_EMAIL='sender@example.test', RESEND_API_KEY='synthetic-only',
+                       EMAIL_BACKEND='config.https_email.EmailBackend', DIC_RECOVERY_ENCRYPTION_KEY='',
+                       DIC_AUTOMATION_ACTOR_ID=0,
+                       DIC_PORTAL_EMAIL_VERIFY_URL='https://foundation.example.test/dic/participant')
+    def test_signed_verification_delivery_does_not_require_otp_encryption_or_housing_actor(self):
+        account = self.account()
+        account.login_email = account.user.email
+        with patch.object(registration, 'send_mail', return_value=1) as send:
+            registration.deliver_verification(account)
+        send.assert_called_once()
+        self.assertFalse(account.user.is_active)
+
+    @override_settings(DEBUG=False, DEFAULT_FROM_EMAIL='sender@example.test')
+    def test_test_email_backends_cannot_fake_production_verification_delivery(self):
+        for backend in ('console', 'locmem', 'dummy'):
+            with self.subTest(backend=backend), \
+                    override_settings(EMAIL_BACKEND='django.core.mail.backends.' + backend + '.EmailBackend'), \
+                    self.assertRaises(APIException):
+                registration.require_verification_delivery()
+
     def test_password_and_confirmation_are_required_and_strength_checked(self):
         password = 'River-Cedar!Sparrow-84'
         form = RegistrationCredentialsSerializer(data={'password': password, 'password_confirmation': password})

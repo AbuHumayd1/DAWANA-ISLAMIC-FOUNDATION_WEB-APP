@@ -1,10 +1,13 @@
 export const navigation = [
   { label: 'Timetables', to: '/dic/operations/timetables', icon: 'clipboard', permission: 'timetables' },
+  { label: 'Classes', to: '/dic/operations/classes', icon: 'users', permission: 'classes', campsite: true },
+  { label: 'Announcements', to: '/dic/operations/announcements', icon: 'clipboard', permission: 'announcements', campsite: true },
   { label: 'Overview', to: '/dic/operations', icon: 'grid' },
   { label: 'Camp Check-in', to: '/dic/operations/check-in', icon: 'clipboard', campsite: true },
   { label: 'Finance', to: '/dic/operations/finance', icon: 'card', permission: 'finance', campsite: true },
   { label: 'ID Card Printing', to: '/dic/operations/id-printing', icon: 'card', permission: 'manage_ids' },
   { label: 'Participant IDs', to: '/dic/operations/participant-ids', icon: 'users', permission: 'ids' },
+  { label: 'Assisted registration', to: '/dic/operations/assisted-registration', icon: 'clipboard', campsite: true },
   { label: 'Registrations', to: '/dic/operations/registrations', icon: 'clipboard' },
   { label: 'Participants', to: '/dic/operations/participants', icon: 'users' },
   { label: 'Payments', to: '/dic/operations/payments', icon: 'card', permission: 'finance' },
@@ -26,8 +29,8 @@ export function visibleOperationsNavigation(user) {
 
 export const operationsNavigationGroups = [
   { label: 'Camp Overview', paths: ['', 'registration-overview'] },
-  { label: 'Participants & Registration', paths: ['check-in', 'registrations', 'participants', 'participant-ids', 'id-printing', 'houses'] },
-  { label: 'Camp Activities', paths: ['timetables', 'scoring', 'feedback','feedback-submit','welfare'] },
+  { label: 'Participants & Registration', paths: ['check-in', 'assisted-registration', 'registrations', 'participants', 'participant-ids', 'id-printing', 'houses'] },
+  { label: 'Camp Activities', paths: ['classes', 'timetables', 'announcements', 'scoring', 'feedback','feedback-submit','welfare'] },
   { label: 'Finance & Reports', paths: ['payments', 'finance', 'reports', 'reporting-hub'] },
   { label: 'Administration', paths: ['activity'] },
 ]

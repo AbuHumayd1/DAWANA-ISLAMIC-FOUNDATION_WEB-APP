@@ -1,7 +1,8 @@
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from .models import AcademicClass, AcademicAssignment, CampAnnouncement, CampEdition, DICAdminAuditEvent
+from .models import AcademicClass, AcademicAssignment, CampAnnouncement
+from .launch_management import save_academic, save_announcement_draft, publish_announcement
 
 
 def permitted(request, permission):
@@ -19,13 +20,7 @@ class AcademicAdmin(admin.ModelAdmin):
     @transaction.atomic
     def save_model(self, request, obj, form, change):
         if not self.has_change_permission(request,obj): raise PermissionDenied
-        CampEdition.objects.select_for_update().get(pk=obj.edition_id)
-        obj.modified_by=request.user
-        obj.full_clean()
-        super().save_model(request,obj,form,change)
-        DICAdminAuditEvent.objects.create(actor=request.user,action='academic_assignment_saved' if isinstance(obj,AcademicAssignment) else 'academic_class_saved',
-            target_type=type(obj).__name__,target_id=str(obj.pk),details={'edition':obj.edition_id,
-                'class':obj.academic_class_id if isinstance(obj,AcademicAssignment) else obj.pk})
+        save_academic(obj, request.user)
 
 
 @admin.register(AcademicClass)
@@ -62,12 +57,12 @@ class AnnouncementAdmin(admin.ModelAdmin):
         editions=list(queryset.order_by().values_list('edition_id',flat=True).distinct())
         if len(editions)!=1:
             self.message_user(request,'Select one camp edition.',messages.ERROR); return
-        CampEdition.objects.select_for_update().get(pk=editions[0])
-        for obj in queryset.select_for_update():
-            obj.status='published' if publish else 'draft'
-            obj.published_by=request.user if publish else None
-            obj.modified_by=request.user; obj._publication_action=True; obj.save()
-            DICAdminAuditEvent.objects.create(actor=request.user,action='announcement_published' if publish else 'announcement_unpublished',target_type='CampAnnouncement',target_id=str(obj.pk),details={'edition':obj.edition_id})
+        try:
+            with transaction.atomic():
+                for pk in queryset.order_by('pk').values_list('pk', flat=True):
+                    publish_announcement(editions[0], pk, request.user, 'publish' if publish else 'withdraw')
+        except ValidationError as error:
+            self.message_user(request, ' '.join(error.messages), messages.ERROR)
     @admin.action(description='Publish selected announcements')
     def publish(self,request,queryset): self.publication(request,queryset,True)
     @admin.action(description='Unpublish selected announcements')
@@ -75,6 +70,4 @@ class AnnouncementAdmin(admin.ModelAdmin):
     @transaction.atomic
     def save_model(self,request,obj,form,change):
         if not self.has_change_permission(request,obj): raise PermissionDenied
-        CampEdition.objects.select_for_update().get(pk=obj.edition_id)
-        obj.modified_by=request.user; super().save_model(request,obj,form,change)
-        DICAdminAuditEvent.objects.create(actor=request.user,action='announcement_draft_saved',target_type='CampAnnouncement',target_id=str(obj.pk),details={'edition':obj.edition_id})
+        save_announcement_draft(obj, request.user)

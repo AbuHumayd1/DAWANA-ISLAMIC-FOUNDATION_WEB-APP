@@ -34,17 +34,23 @@ function Flyer({ flyer, onRegister, canRegister }) {
 
 export default function DICEditorial({ onRegister, canRegister }) {
   const [data, setData] = useState(null)
+  const [status, setStatus] = useState('loading'), [revision, refresh] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     fetch(`${base}/dic/editorial/`, { credentials: 'omit', cache: 'no-store', signal: controller.signal })
       .then(async response => { if (!response.ok) throw new Error('Unavailable'); return response.json() })
-      .then(result => { if (Array.isArray(result.experiences) && Array.isArray(result.introductions)) setData(result) })
-      .catch(() => {})
+      .then(result => {
+        if (controller.signal.aborted) return
+        if (!Array.isArray(result.experiences) || !Array.isArray(result.introductions)) throw new Error('Unavailable')
+        setData(result); setStatus('ready')
+      })
+      .catch(() => { if (!controller.signal.aborted) setStatus('error') })
     return () => controller.abort()
-  }, [])
-  if (!data && !localPreview) return null
+  }, [revision])
+  if (!data && !localPreview) return <section className="dic-promo-section"><Container><h2>Official camp media</h2><p role="status">{status === 'error' ? 'Official media is temporarily unavailable.' : 'Loading approved camp media…'}</p>{status === 'error' && <button type="button" className="button" onClick={() => { setStatus('loading'); refresh(value => value + 1) }}>Retry media</button>}</Container></section>
   const content = data || { flyer: null, experiences: [], introductions: [] }
   return <>
+    {!localPreview && !content.flyer && !content.experiences.length && !content.introductions.length && <section className="dic-promo-section"><Container><h2>Official camp media</h2><p>Approved flyers and promotional videos will appear here after publication.</p></Container></section>}
     {content.flyer ? <Flyer flyer={content.flyer} onRegister={onRegister} canRegister={canRegister} /> : localPreview && <section className="dic-official-flyer"><Container><div className="dic-flyer-layout"><div className="dic-preview-placeholder dic-preview-flyer"><span aria-hidden="true">✧</span><strong>Flyer coming soon</strong><small>Local preview · awaiting editorial approval</small></div><div><span className="eyebrow">THE OFFICIAL INVITATION</span><h2>Official DIC flyer</h2><p>The approved flyer will appear here, with an option to enlarge it.</p><button className="button" type="button" onClick={onRegister} disabled={!canRegister}>Register for DIC ↗</button></div></div></Container></section>}
     {[[content.experiences.slice(0, 3), 'THROUGH THEIR EYES', "Previous campers’ experiences", 'Approved MP4 stories from participants at previous editions.', 3], [content.introductions.slice(0, 2), 'LOOKING AHEAD', 'Upcoming camp promotional videos', 'Discover what to expect at the upcoming camp through approved introductory MP4 videos.', 2]].map(([items, eyebrow, title, description, limit]) => (items.length > 0 || localPreview) && <section className="dic-promo-section" key={eyebrow}><Container><span className="eyebrow">{eyebrow}</span><h2>{title}</h2><p>{description}</p><div className="dic-promo-grid">{items.length ? items.map(item => <PromoCard key={item.id} item={item} />) : Array.from({ length: limit }, (_, index) => <div className="dic-preview-placeholder" key={index}><span aria-hidden="true">▷</span><strong>Awaiting approved video</strong><small>Local preview · {eyebrow === 'LOOKING AHEAD' ? 'Camp introduction' : 'Camper experience'}</small></div>)}</div></Container></section>)}
     {(content.experiences.length > 0 || content.introductions.length > 0 || localPreview) && <Container><p className="dic-lecture-link">Looking for lectures and foundation recordings? <Link to="/media">Visit our Media page ↗</Link></p></Container>}

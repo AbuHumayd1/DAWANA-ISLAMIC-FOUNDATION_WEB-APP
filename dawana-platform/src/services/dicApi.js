@@ -58,6 +58,9 @@ async function request(path, { method = 'GET', body, accessToken, idempotencyKey
   if (!response.ok) {
     throw new DicApiError(errorMessage(data, `The request could not be completed (HTTP ${response.status}).`), response.status, data)
   }
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    throw new DicApiError('The registration service returned an unreadable response. Recover the existing registration before starting another payment.', response.status, null)
+  }
   return data
 }
 

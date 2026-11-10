@@ -11,6 +11,7 @@ from .operations_api import OperationsBaseView
 from .participant_api import PortalView, authorized_grant, scoped_orders
 from .scoring_api import write_edition
 from .scoring_catalogue import catalogue_options
+from .camper_catalogue import camper_catalogue
 from .scoring_services import require_scoring_staff, scoring_houses, combined_leaderboard
 
 
@@ -95,6 +96,7 @@ def camper_scores(item, page):
     result = dict(ready=ready, standings_ready=ledger_ready, standings=standings,
         message='' if ready else 'Activity scoring is awaiting its approved database setup.',
         total=None, history=[], count=0, page=page, page_size=25, house=None, house_leaderboard=[])
+    result['earn_points'] = camper_catalogue(edition.year, ready)
     if not ready:
         return result
     own = ActivityAward.objects.filter(edition=edition, participant_id=pid, kind='individual')

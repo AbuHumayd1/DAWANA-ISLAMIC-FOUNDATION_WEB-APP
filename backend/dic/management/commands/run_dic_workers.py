@@ -62,6 +62,11 @@ def run_cycle():
         call_command('process_dic_followups', edition=edition_id,
             actor=actor_id,
             database_name=str(settings.DATABASES['default']['NAME']), limit=10, **options)
+        if getattr(settings, 'DIC_AUTO_FULFILLMENT_ENABLED', False):
+            # ID authority failures hold ID jobs; they do not block housing/email.
+            call_command('process_camper_fulfillment', edition=edition_id,
+                database_name=str(settings.DATABASES['default']['NAME']),
+                approve_writes=True, limit=10, **options)
     if getattr(settings, 'DIC_WORKER_HEARTBEAT_CACHE', False):
         from config.worker_health import beat
         beat()

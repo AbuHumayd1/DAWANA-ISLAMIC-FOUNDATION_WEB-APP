@@ -38,12 +38,19 @@ settings.configure(**literals, SECRET_KEY='synthetic-database-free-production-po
     PAYSTACK_CALLBACK_URL='https://portal.example.test/dic/register/payment-return', PAYSTACK_HTTP_TIMEOUT_SECONDS=5,
     DIC_PORTAL_ACCOUNTS_ENABLED=True, DIC_PORTAL_EMAIL_VERIFY_URL='https://portal.example.test/dic/participant',
     DIC_MEMORY_STORAGE='disabled', DIC_FEEDBACK_PRIVACY_KEY='synthetic-policy-tests',
-    TEMPLATES=[dict(BACKEND='django.template.backends.django.DjangoTemplates', APP_DIRS=True)])
+    TEMPLATES=[dict(BACKEND='django.template.backends.django.DjangoTemplates',
+        DIRS=[ROOT / 'backend' / 'dic' / 'templates'], APP_DIRS=True)])
 import django
 django.setup()
 from django.test import SimpleTestCase, TestCase, TransactionTestCase
 
 labels = sys.argv[1:] or [
+    'dic.test_launch_operations.LaunchOperationsPolicyTests',
+    'dic.test_launch_operations.LaunchManagementServiceTests',
+    'dic.test_recovery_sprint.FeedbackVersionPolicyTests',
+    'dic.test_recovery_sprint.FulfillmentPolicyTests',
+    'dic.test_recovery_sprint.RecoveryAuthorizationTests',
+    'dic.test_camper_catalogue.CamperCatalogueTests',
     'config.test_native_deployment.NativeDeploymentTests',
     'config.test_request_security.GatewaySecurityTests',
     'dic.test_remediation.RemediationPolicyTests',

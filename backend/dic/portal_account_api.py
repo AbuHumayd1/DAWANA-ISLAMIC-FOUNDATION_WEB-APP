@@ -199,9 +199,10 @@ class EmailVerifyView(PortalView):
 @method_decorator(sensitive_post_parameters(), name='dispatch')
 class EmailResendView(PortalView):
     def post(self, request):
-        from .registration_accounts import credential_account, schedule_verification
+        from .registration_accounts import credential_account, schedule_verification, require_verification_delivery
         from rest_framework.exceptions import AuthenticationFailed
         accounts.require_accounts()
+        require_verification_delivery()
         data = values(Credentials, request)
         accounts.rate_limit(request, data['identifier'], 'email-resend')
         try:

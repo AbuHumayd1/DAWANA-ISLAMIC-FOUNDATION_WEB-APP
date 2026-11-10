@@ -12,7 +12,7 @@ def settlement_reason(attempt, *, allow_refunded=False, timing_check=None):
         return 'order_not_paid'
     mode = getattr(settings, 'PAYSTACK_MODE', None)
     if (mode not in ('test', 'live') or getattr(attempt, 'provider_mode', None) != mode
-            or (getattr(settings, 'SETTINGS_MODULE', '') in ('config.settings.production', 'config.settings.zevcloud') and mode != 'live')):
+            or (getattr(settings, 'SETTINGS_MODULE', '') in ('config.settings.production', 'config.settings.render', 'config.settings.zevcloud') and mode != 'live')):
         return 'provider_mode_review'
     revision = order.current_price_revision
     expected = int(order.total_amount_ngn * 100)

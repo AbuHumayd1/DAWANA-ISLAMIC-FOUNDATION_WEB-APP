@@ -58,15 +58,16 @@ test('deferred Google is hidden while verification-code access remains available
 })
 test('class card separates registration category from teaching class without fabricating assignment', () => {
   const html = render('ClassAssignmentCard', { participant: { category: 'Age category', class_assignment: { name: 'Unapproved class' } } })
-  assert.match(html, /Your teaching class/); assert.match(html, /Not yet assigned/)
-  assert.match(html, /Registration category: Age category/); assert.doesNotMatch(html, /Unapproved class/)
+  assert.match(html, /My Class/); assert.match(html, /Not yet assigned/)
+  assert.match(html, /Your class will appear here/); assert.doesNotMatch(html, /Unapproved class|Age category/)
 })
 
 test('approved academic assignment is shown and safely escaped', () => {
   const html = render('ClassAssignmentCard', { participant: { category: 'Age category', class_assignment: { status: 'assigned', name: '<b>Approved class</b>', message: 'Assigned by officer' } } })
   assert.match(html, /&lt;b&gt;Approved class&lt;\/b&gt;/)
   assert.doesNotMatch(html, /Not yet assigned/)
-  assert.match(html, /Registration category: Age category/)
+  assert.match(html, /My Class/)
+  assert.doesNotMatch(html, /Assigned by officer|Registration category:/)
 })
 test('tutors retain role separation and never receive class or house-duty assignments', () => {
   const participant = { registration_basis: 'tutor', eligibility: { eligible: true }, issue: null }

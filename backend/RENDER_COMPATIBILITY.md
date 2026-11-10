@@ -43,23 +43,28 @@ build blockers, not a reason to skip media validation.
 
 ## Separately approved schema procedure (not part of build/start)
 
-After verifying the intended database identity and taking an approved backup,
-run these inspection commands from `backend` with Render settings selected:
+Use the guarded release command with explicit Render settings. Set the five
+RELEASE_DATABASE_* identity variables required by render-migrate.sh from an
+independently verified database, hostname, port, migration role and cluster ID.
+The wrapper is inspection-only: pending migrations deliberately produce a
+nonzero exit and cannot apply themselves. Run it only after owner approval for
+production inspection; it must not be a build/start/pre-deploy application hook.
+
+The direct planning command (from backend, placeholders replaced privately) is:
 
 ```sh
-python manage.py check --deploy
-python manage.py showmigrations --plan
-python manage.py migrate --plan
-python manage.py createcachetable dawana_release_cache --dry-run
+python manage.py release_migrations --settings=config.settings.render --database-name <approved-database> --hostname <approved-host> --port <approved-port> --role <approved-role> --cluster-id <verified-cluster-id> --manifest-file <new-plan-file>
 ```
 
-Review the exact migration and cache-table plans. Only after separate approval,
-on the verified target, apply:
-
-```sh
-python manage.py migrate --noinput
-python manage.py createcachetable dawana_release_cache
-```
+The planning command reads the database and writes a new local manifest; it does
+not apply schema. Do not use placeholders literally or bypass target binding if
+pg_control_system() is unavailable. Obtain an approved identity-verification
+alternative before proceeding. Review exact migration hashes, dependencies,
+backup/restore evidence and rollback decision. Only a separately approved
+invocation using --approval-file and --apply-approved-plan can apply that exact
+manifest. Cache-table planning/creation is a separate approval gate; review
+createcachetable dawana_release_cache --dry-run before authorizing creation.
+Do not substitute a raw migrate command for this approval procedure.
 
 The shared database cache is retained for production throttling. The database
 probe tests connectivity only; it does not claim that application migrations or

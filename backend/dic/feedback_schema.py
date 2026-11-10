@@ -27,15 +27,42 @@ RATINGS = [(1,'Very Poor'),(2,'Poor'),(3,'Fair'),(4,'Very Good'),(5,'Excellent')
 CAMP_TIMEZONE = 'Africa/Lagos'
 
 
+DAILY_V3 = {
+    'ratings': {'overall': 'Overall daily experience', 'learning': 'Classes and learning',
+        'meals': 'Food and meals', 'comfort': 'Accommodation and facilities',
+        'activities': 'Activities and programmes', 'welfare': 'Welfare and camp organisation'},
+    'comments': {'suggestions': 'Comments and suggestions (optional)'},
+}
+DAILY_V3_RATINGS = [(1, 'Poor'), (2, 'Fair'), (3, 'Good'), (4, 'Very Good'), (5, 'Excellent')]
+
+
+def current_version(channel):
+    return 3 if channel == 'daily' else 2
+
+
+def rating_scale(version):
+    if version not in (1, 2, 3):
+        raise ValueError('Unknown questionnaire version.')
+    return LEGACY_RATINGS if version == 1 else DAILY_V3_RATINGS if version == 3 else RATINGS
+
+
 def questionnaire(channel, tutor=False, version=2):
-    source = LEGACY_QUESTIONS if version == 1 else QUESTIONS
+    if version not in (1, 2, 3) or (version == 3 and channel != 'daily'):
+        raise ValueError('Unknown questionnaire/channel version.')
+    source = LEGACY_QUESTIONS if version == 1 else {**QUESTIONS, 'daily': DAILY_V3} if version == 3 else QUESTIONS
     result = {**source[channel], 'ratings': dict(source[channel]['ratings'])}
-    if version == 2 and channel in ('daily','final'):
+    if version in (2, 3) and channel in ('daily','final'):
         result['optional_ratings'] = ['comfort']
-    if tutor and version == 2:
+    if tutor and version in (2, 3):
         result['ratings'].pop('comfort', None)
         result['optional_ratings'] = []
     return result
+
+
+def participant_questionnaire(channel, tutor=False):
+    version = current_version(channel)
+    return {**questionnaire(channel, tutor=tutor, version=version),
+        'version': version, 'scale': rating_scale(version)}
 CATEGORIES = {'health':'Health concern','accommodation':'Accommodation problem','safety':'Safety concern',
     'bullying':'Bullying or mistreatment','assistance':'Request for assistance','other':'Other welfare matter'}
 STATUSES = {'new':'Submitted','review':'Under Review','resolved':'Resolved','closed':'Closed'}

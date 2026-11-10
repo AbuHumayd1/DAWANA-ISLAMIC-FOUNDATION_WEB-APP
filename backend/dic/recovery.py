@@ -104,24 +104,29 @@ def phone_match_digits(value):
     return {digits}
 
 
+def email_delivery_configured():
+    """Configuration only: neither sends mail nor assumes provider acceptance."""
+    backend = settings.EMAIL_BACKEND.lower()
+    if not backend or not getattr(settings, 'DEFAULT_FROM_EMAIL', '').strip():
+        return False
+    if backend.endswith(('console.emailbackend', 'locmem.emailbackend', 'dummy.emailbackend')):
+        return False
+    if backend.endswith('smtp.emailbackend') and not settings.EMAIL_HOST:
+        return False
+    if backend == 'config.https_email.emailbackend' and not getattr(settings, 'RESEND_API_KEY', ''):
+        return False
+    return True
+
+
 def channel_available(channel):
     if not getattr(settings, "DIC_RECOVERY_DELIVERY_WORKER_ENABLED", False):
         return False
     if not recovery_encryption_configured():
         return False
     if channel == "email":
-        backend = settings.EMAIL_BACKEND.lower()
         if not getattr(settings, "DIC_EMAIL_RECOVERY_ENABLED", False):
             return False
-        if not getattr(settings, "DEFAULT_FROM_EMAIL", "").strip():
-            return False
-        if backend.endswith(("console.emailbackend", "locmem.emailbackend")):
-            return False
-        if backend.endswith("smtp.emailbackend") and not settings.EMAIL_HOST:
-            return False
-        if backend == 'config.https_email.emailbackend' and not getattr(settings, 'RESEND_API_KEY', ''):
-            return False
-        return True
+        return email_delivery_configured()
     if channel == "sms":
         return bool(getattr(settings, "DIC_SMS_RECOVERY_ADAPTER", ""))
     if channel == "whatsapp":

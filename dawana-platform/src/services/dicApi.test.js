@@ -70,3 +70,20 @@ test('ordinary permission errors do not trigger cookie-based retries', async () 
     assert.equal(count, 1)
   } finally { globalThis.fetch = original }
 })
+
+test('successful but malformed registration responses never become assumed order or payment success', async () => {
+  const original = globalThis.fetch
+  try {
+    for (const body of [null, [], 'paid', true]) {
+      let calls = 0
+      globalThis.fetch = async () => { calls++; return Response.json(body) }
+      await assert.rejects(createRegistrationOrder({ participants: [] }, 'synthetic-same-key'), error => {
+        assert.equal(error.statusCode, 200)
+        assert.match(error.message, /unreadable response/)
+        assert.equal(error.body, null)
+        return true
+      })
+      assert.equal(calls, 1)
+    }
+  } finally { globalThis.fetch = original }
+})

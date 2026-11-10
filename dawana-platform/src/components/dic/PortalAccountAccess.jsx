@@ -7,17 +7,18 @@ export function PasswordField({ value, onChange, autoComplete = 'current-passwor
   return <label>{label}<span className="cp-password-field"><input required={required} minLength={autoComplete === 'new-password' ? 12 : undefined} maxLength={128} type={visible ? 'text' : 'password'} autoComplete={autoComplete} value={value} onChange={event => onChange(event.target.value)} /><button type="button" onClick={() => setVisible(current => !current)} aria-pressed={visible} aria-label={visible ? 'Hide password' : 'Show password'}>{visible ? 'Hide' : 'Show'}</button></span></label>
 }
 
-export function PortalCredentialLogin({ capabilities, busy, onLogin, onRecover, onResend }) {
+export function PortalCredentialLogin({ capabilities, busy, onLogin, onRecover, onResend, recoveryAvailable = false, recoveryLoading = false, onCheckRecovery }) {
   const [identifier, setIdentifier] = useState(''), [password, setPassword] = useState(''), [remember, setRemember] = useState(false)
   const enabled = capabilities?.accounts?.enabled === true
   return <div className="cp-account-login"><form onSubmit={event => { event.preventDefault(); const secret = password; setPassword(''); onLogin({ identifier, password: secret, remember_device: remember }) }}>
     <fieldset disabled={!enabled || busy}><label>Email or username<input required maxLength={254} autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} /></label><PasswordField value={password} onChange={setPassword} />
       <label className="cp-remember-device"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />Keep me signed in on this personal device (up to 8 hours). Leave unchecked on shared devices.</label>
       <button className="button" type="submit">{busy ? 'Signing in…' : 'Sign In'}</button></fieldset>
-  </form>{!enabled && <p role="status">Password accounts await approved setup. Use your booking verification code.</p>}
+  </form>{!enabled && <p role="status">Password accounts await approved setup. Contact authorized DIC staff if secure booking verification is unavailable.</p>}
     <p>Sign in with your verified booking email and password. Existing usernames are also supported.</p>
+    <p>Payment verification and account activation are separate. Confirm email ownership, then sign in when your booking is eligible.</p>
     <button type="button" disabled={busy || !enabled || !identifier || !password} onClick={() => { const secret = password; setPassword(''); onResend({ identifier, password: secret }) }}>Resend email verification link</button>
-    <div className="portal-id-actions"><button type="button" disabled={busy} onClick={() => onRecover('reset')}>Forgot Password</button><button type="button" disabled={busy} onClick={() => onRecover('setup')}>First-Time Account Setup</button></div>
+    {recoveryAvailable ? <div className="portal-id-actions"><button type="button" disabled={busy} onClick={() => onRecover('reset')}>Forgot Password</button><button type="button" disabled={busy} onClick={() => onRecover('setup')}>First-Time Account Setup</button></div> : onCheckRecovery ? <><p>Booking recovery and password reset require a configured secure code channel.</p><button type="button" className="cp-text-button" disabled={busy} onClick={onCheckRecovery}>Check recovery & password reset options</button></> : <p role="status">{recoveryLoading ? 'Checking secure recovery options…' : 'Booking-code recovery and password reset are currently unavailable. Use your original credentials or contact authorized DIC staff. Email activation and its resend action are separate from booking-code recovery.'}</p>}
     <p>Account setup is for older bookings without a registration password. New registrations already create your account; verify your email link, then sign in when your booking is eligible. Authorized complimentary tutors do not need payment.</p>
   </div>
 }

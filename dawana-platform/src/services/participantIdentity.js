@@ -15,7 +15,16 @@ export function eligibilityLabel(code) {
 }
 
 export function participantCardPath(id, format = 'pvc', download = false) {
+  return cardPath(id, format, download, false)
+}
+
+export function staffCardPath(id, format = 'pvc', download = false) {
+  return cardPath(id, format, download, true)
+}
+
+function cardPath(id, format, download, staff) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !['pvc', 'a6', 'portrait'].includes(format)) throw new Error('Invalid participant card selection')
   const base = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
-  return resolveMediaUrl(`${base}/dic/participant/enrollments/${id}/card/?format=${format}${download ? '&download=1' : ''}`)
+  const resource = staff ? `/dic/ids/cards/${id}/` : `/dic/participant/enrollments/${id}/card/`
+  return resolveMediaUrl(`${base}${resource}?format=${format}${download ? '&download=1' : ''}`)
 }

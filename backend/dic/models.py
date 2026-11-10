@@ -1550,3 +1550,5 @@ from .portal_account_models import PortalAccount, PortalAccountBooking, PortalAc
 from .timetable_models import TimetableEntry  # noqa: E402,F401
 from .launch_models import AcademicClass, AcademicAssignment, CampAnnouncement  # noqa: E402,F401
 from .foundation_models import ContactEnquiry, FoundationDonation  # noqa: E402,F401
+
+from .fulfillment_models import CamperFulfillmentJob  # noqa: E402,F401

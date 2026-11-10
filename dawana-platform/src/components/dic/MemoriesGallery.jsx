@@ -64,8 +64,6 @@ export default function MemoriesGallery({ compact = false }) {
     setSelected(visible[(index + direction + visible.length) % visible.length].id)
   }
 
-  if (compact && state !== 'loading' && !photos.length && !localPreview) return null
-
   return <section className="dic-memories" ref={section} aria-labelledby="memories-title"><Container>
     <div className="memories-heading"><div><span className="eyebrow">THE CAMP SCRAPBOOK</span><h2 id="memories-title">Moments worth keeping</h2><p>A window into past camp experiences, shared through approved photographs.</p></div><span className="memories-stamp" aria-hidden="true">Learning.<br />Belonging.<br />Memories.</span></div>
     {state === 'loading' && <p role="status">Opening the camp scrapbook…</p>}

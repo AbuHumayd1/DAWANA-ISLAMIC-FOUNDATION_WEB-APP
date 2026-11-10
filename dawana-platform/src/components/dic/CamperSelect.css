@@ -1,0 +1,16 @@
+.camper-select { position:relative; min-width:0; width:100%; color:var(--brand-deep,#092f23); font-family:var(--font-body); }
+.camper-select .camper-select-label { display:block; margin-bottom:5px; font-size:.75rem; color:#526458; }
+.camper-select .camper-select-trigger { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:44px; padding:10px 13px; border:1px solid #d5decd; border-radius:13px; background:#fffdf5; color:inherit; font:500 .875rem/1.5 var(--font-body); text-align:left; cursor:pointer; }
+.camper-select .camper-select-trigger > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.camper-select .camper-select-trigger svg { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; transition:transform .16s ease; }
+.camper-select .camper-select-trigger[aria-expanded=true] svg { transform:rotate(180deg); }
+.camper-select .camper-select-trigger:hover { border-color:#9eae91; background:#faf8ec; }
+.camper-select .camper-select-trigger:disabled { opacity:.6; cursor:default; }
+.camper-select-list { box-sizing:border-box; z-index:100; padding:5px; list-style:none; overflow:auto; overscroll-behavior:contain; border:1px solid #d5decd; border-radius:14px; background:#fffdf5; color:var(--brand-deep,#092f23); font-family:var(--font-body); box-shadow:0 12px 30px #092f2320; animation:camper-select-enter .14s ease-out; }
+.camper-select-list li { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; padding:10px 12px; border-radius:9px; font-size:.875rem; overflow-wrap:anywhere; cursor:pointer; }
+.camper-select-list li[data-active=true] { background:#edf1e4; outline:2px solid #c9aa61; outline-offset:-2px; }
+.camper-select-list li[aria-selected=true] { color:var(--brand-deep,#092f23); background:#e2eddf; font-weight:600; }
+.camper-select-list:focus-visible { outline:3px solid #b38c3e; outline-offset:3px; }
+.camper-select :is(button,ul):focus-visible { outline:3px solid #b38c3e; outline-offset:3px; }
+@keyframes camper-select-enter { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .camper-select-list { animation:none; }.camper-select .camper-select-trigger svg { transition:none; } }
