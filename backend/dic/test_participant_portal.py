@@ -210,7 +210,9 @@ class ParticipantPortalTests(PortalFixtures, TestCase):
             numbers.append(enrollment.participant_number)
             card = client.get(reverse('dic:participant-id', args=[enrollment.pk]))
             self.assertEqual(card.status_code, 200)
-            self.assertEqual(set(card.json()), {'name','participant_number','category','edition','starts','ends','venue','house','version','logo_url','branding_verified'})
+            self.assertEqual(set(card.json()), {'id','name','participant_number','category','edition','starts','ends','venue','house','version','logo_url','branding_verified'})
+            # DigitalIDPresentation uses this enrollment UUID for protected card URLs.
+            self.assertEqual(card.json()['id'], str(enrollment.pk))
             self.assertFalse(card.json()['branding_verified'])
             self.assertEqual(self.post(client, 'participant-enrollments', {'registration_item_id': item.pk}).status_code, 200)
             self.assertEqual(enrollment.id_issues.count(), 1)

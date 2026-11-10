@@ -109,7 +109,9 @@ class RegistrationPrivacyPolicyTests(SimpleTestCase):
             with self.subTest(field=field), self.assertRaises(ValidationError): payload(**{field: 'synthetic'})
 
 
-@override_settings(DIC_PORTAL_ACCOUNTS_ENABLED=True, DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant')
+# Local delivery is explicit; Django otherwise forces DEBUG=False in tests.
+@override_settings(DEBUG=True, EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+                  DEFAULT_FROM_EMAIL='sender@example.test', DIC_PORTAL_ACCOUNTS_ENABLED=True, DIC_PORTAL_EMAIL_VERIFY_URL='https://example.test/dic/participant')
 class RegistrationPrivacyIntegrationTests(TestCase):
     @classmethod
     def setUpClass(cls):
