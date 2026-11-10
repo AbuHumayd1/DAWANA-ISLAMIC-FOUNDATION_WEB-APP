@@ -201,7 +201,7 @@ class TutorIntegrationTests(TestCase):
             self.assertTrue(binding.account.user.is_active)
             self.assertFalse(binding.account.user.is_staff)
             self.assertEqual(binding.account.username_key, 'synthetic-tutor')
-            csrf = client.get('/api/v1/dic/participant/auth/csrf/').data['csrfToken']
+            csrf = client.get('/api/v1/dic/participant/auth/csrf/').json()['csrfToken']
             signed_in = client.post('/api/v1/dic/participant/auth/password/login/', {
                 'identifier': 'synthetic-tutor', 'password': 'River-Cedar!Sparrow-84'}, format='json', HTTP_X_CSRFTOKEN=csrf)
             self.assertEqual(signed_in.status_code, 200, signed_in.data)
