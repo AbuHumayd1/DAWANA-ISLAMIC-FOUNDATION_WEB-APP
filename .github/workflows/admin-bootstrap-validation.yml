@@ -1,0 +1,91 @@
+{
+  "name": "Admin bootstrap validation (no production access)",
+  "on": {
+    "pull_request": {
+      "branches": [
+        "main"
+      ],
+      "paths": [
+        ".github/workflows/production-admin-bootstrap.yml",
+        ".github/workflows/admin-bootstrap-validation.yml",
+        ".github/PRODUCTION_ADMIN_BOOTSTRAP.md",
+        "backend/config/github_admin_bootstrap.py",
+        "scripts/test_admin_bootstrap.py",
+        "backend/accounts/models.py",
+        "backend/requirements.txt"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "synthetic": {
+      "name": "Admin bootstrap synthetic regressions",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Install reviewed backend requirements",
+          "run": "python -m pip install -r backend/requirements.txt >\"$RUNNER_TEMP/bootstrap-validation-install.log\" 2>&1 || { echo \"Dependency installation failed.\"; exit 1; }\n"
+        },
+        {
+          "name": "Run in-memory Django tests",
+          "run": "python -I -B scripts/test_admin_bootstrap.py\n"
+        }
+      ]
+    },
+    "postgres": {
+      "name": "Admin bootstrap PostgreSQL TLS and concurrency",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 20,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Install reviewed backend requirements",
+          "run": "python -m pip install -r backend/requirements.txt >\"$RUNNER_TEMP/bootstrap-validation-install.log\" 2>&1 || { echo \"Dependency installation failed.\"; exit 1; }\n"
+        },
+        {
+          "name": "Create fresh loopback-only synthetic PG18 cluster with test TLS",
+          "run": "set -euo pipefail\numask 077\nfor name in ${!PG@}; do unset \"$name\"; done\nsudo apt-get update -qq\nsudo apt-get install -y --no-install-recommends ca-certificates curl postgresql-common openssl\nsudo install -d -m 755 /usr/share/postgresql-common/pgdg\nsudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc\nprintf '%s\\n' 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null\nprintf '%s\\n' 'create_main_cluster = false' | sudo tee /etc/postgresql-common/createcluster.conf >/dev/null\nsudo apt-get update -qq\nsudo apt-get install -y --no-install-recommends postgresql-client-18 postgresql-18\nci_root=\"$RUNNER_TEMP/admin-bootstrap-ci\"\nmkdir -m 700 \"$ci_root\"\nprintf '%s\\n' 'synthetic-ci-only' > \"$ci_root/password\"\nopenssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=admin-bootstrap-ci' -addext 'subjectAltName=IP:127.0.0.1' -keyout \"$ci_root/server.key\" -out \"$ci_root/server.crt\" > /dev/null 2>&1\n/usr/lib/postgresql/18/bin/initdb -D \"$ci_root/data\" --username=bootstrap_ci --encoding=UTF8 --locale=C --auth-local=trust --auth-host=scram-sha-256 --pwfile=\"$ci_root/password\" --no-instructions > \"$ci_root/init.log\" 2>&1\n/usr/lib/postgresql/18/bin/pg_ctl -D \"$ci_root/data\" -l \"$ci_root/server.log\" -w -t 60 -o \"-c listen_addresses=127.0.0.1 -c port=55439 -c unix_socket_directories='$ci_root' -c unix_socket_permissions=0700 -c ssl=on -c ssl_cert_file='$ci_root/server.crt' -c ssl_key_file='$ci_root/server.key'\" start > /dev/null\nPGHOST=\"$ci_root\" PGPORT=55439 PGUSER=bootstrap_ci PGDATABASE=postgres /usr/lib/postgresql/18/bin/psql -X -A -t -c 'SELECT system_identifier::text FROM pg_control_system()' > \"$ci_root/cluster-id\"\nrm -f \"$ci_root/password\"\n"
+        },
+        {
+          "name": "Run disposable PostgreSQL regressions and concurrent bootstrap attempts",
+          "env": {
+            "DAWANA_ADMIN_BOOTSTRAP_TEST_POSTGRES": "1"
+          },
+          "run": "python -I -B scripts/test_admin_bootstrap.py\n"
+        },
+        {
+          "name": "Stop synthetic cluster (never upload keys, logs, or database files)",
+          "if": "always()",
+          "run": "if [ -f \"$RUNNER_TEMP/admin-bootstrap-ci/data/postmaster.pid\" ]; then\n  /usr/lib/postgresql/18/bin/pg_ctl -D \"$RUNNER_TEMP/admin-bootstrap-ci/data\" -w -t 60 -m immediate stop >/dev/null\nfi\n"
+        }
+      ]
+    }
+  }
+}
