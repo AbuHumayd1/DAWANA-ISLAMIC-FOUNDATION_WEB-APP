@@ -8,8 +8,10 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 
 
@@ -18,6 +20,39 @@ STAGE = 'manual request validation'
 
 class Stop(Exception):
     pass
+
+
+class ToolFailure(Stop):
+    def __init__(self, tool_name, exit_status, category):
+        super().__init__('PostgreSQL tool failed; operation stopped.')
+        self.diagnostic = dict(tool=tool_name if tool_name in ('pg_dump', 'pg_restore', 'initdb', 'pg_ctl', 'psql', 'native_cluster') else 'unknown',
+                               exit_status=exit_status if type(exit_status) is int else None,
+                               category=category if category in {
+                                   'version_mismatch', 'version_unrecognized', 'tls_trust_store',
+                                   'tls_verification', 'authentication', 'database_permissions', 'snapshot',
+                                   'executable_unavailable', 'timeout', 'connection',
+                                   'filesystem', 'unclassified', 'process_start_failed'} else 'unclassified')
+
+
+def tool_error_category(stderr):
+    # Classify only. Never return stderr, paths, identifiers or exception text.
+    message = stderr.lower()
+    for category, fragments in (
+        ('version_mismatch', ('server version mismatch', 'unsupported version in file header')),
+        ('tls_trust_store', ('root certificate file', 'could not read root certificate', 'could not load root certificate')),
+        ('tls_verification', ('certificate verify failed', 'server certificate', 'ssl error', 'ssl connection')),
+        ('authentication', ('password authentication failed', 'no password supplied', 'no pg_hba.conf entry')),
+        ('database_permissions', ('permission denied for', 'must be owner', 'row-level security')),
+        ('snapshot', ('invalid snapshot identifier', 'could not import the requested snapshot')),
+        ('executable_unavailable', ('executable file not found', 'executable not found', 'command not found')),
+        ('timeout', ('timeout expired', 'connection timed out', 'statement timeout', 'lock timeout')),
+        ('connection', ('could not translate host name', 'could not connect to server', 'connection refused',
+                        'network is unreachable', 'could not connect to database')),
+        ('filesystem', ('no such file or directory', 'permission denied', 'no space left on device')),
+    ):
+        if any(fragment in message for fragment in fragments):
+            return category
+    return 'unclassified'
 
 
 def require(condition, message):
@@ -33,18 +68,90 @@ def signature(value, key):
     return hmac.new(key, json.dumps(value, sort_keys=True).encode(), hashlib.sha256).hexdigest()
 
 
-def process(command, env=None):
-    result = subprocess.run(command, env=env, stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL, timeout=900)
-    require(result.returncode == 0, 'PostgreSQL tool failed; operation stopped.')
+def process(command, env=None, *, tool_name='native_cluster', version=False, stdin=None, cwd=None):
+    # Private, auto-closed temporary stderr; read at most 64 KiB, upload nothing.
+    with tempfile.TemporaryFile() as errors:
+        try:
+            result = subprocess.run(command, env={**(env or {}), 'LC_ALL': 'C'}, stdin=stdin, cwd=cwd,
+                                    stdout=subprocess.PIPE if version else subprocess.DEVNULL,
+                                    stderr=errors, timeout=900)
+        except subprocess.TimeoutExpired:
+            raise ToolFailure(tool_name, None, 'timeout') from None
+        except FileNotFoundError:
+            raise ToolFailure(tool_name, None, 'executable_unavailable') from None
+        except OSError:
+            raise ToolFailure(tool_name, None, 'process_start_failed') from None
+        if result.returncode:
+            errors.seek(0)
+            stderr = errors.read(65536).decode('utf-8', errors='replace')
+            # The isolated helper emits only structured, allowlisted diagnostics.
+            try:
+                detail = json.loads(stderr)
+                if isinstance(detail, dict) and set(detail) == {'tool', 'exit_status', 'category'}:
+                    raise ToolFailure(detail['tool'], detail['exit_status'], detail['category'])
+            except (ValueError, TypeError):
+                pass
+            category = tool_error_category(stderr)
+            raise ToolFailure(tool_name, result.returncode, category)
+        return result.stdout if version else None
 
 
-def tool(command, pg_env):
-    command_line = ['docker', 'exec']
-    for name in pg_env:
-        command_line.extend(['--env', name])
-    process([*command_line, os.environ['RESTORE_CONTAINER'], *command],
-            env={**os.environ, **pg_env})
+def tool(command, pg_env, *, version=False):
+    require(command[0] in ('pg_dump', 'pg_restore'), 'Unexpected PostgreSQL executable.')
+    return process(['/usr/lib/postgresql/18/bin/' + command[0], *command[1:]],
+                   env={'PATH': '/usr/bin:/bin', **pg_env}, tool_name=command[0], version=version)
+
+
+def verify_postgres_clients():
+    expected = '18'
+    for name in ('pg_dump', 'pg_restore'):
+        output = tool([name, '--version'], {}, version=True)
+        match = re.match(rb'^' + name.encode() + rb' \(PostgreSQL\) ([0-9]+)(?:\.[0-9]+)*\b', output)
+        if not match:
+            raise ToolFailure(name, 0, 'version_unrecognized')
+        major = match[1].decode('ascii')
+        if major != expected:
+            raise ToolFailure(name, 0, 'version_mismatch')
+        print(json.dumps({'postgres_tool': name, 'client_major': int(major)}), flush=True)
+
+
+def native_cluster(action, receipt=None, stdin=None):
+    require(action in ('create', 'stop', 'restore', 'fixture', 'fixture-dump', 'fixture-check'),
+            'Unexpected isolated cluster action.')
+    arguments = []
+    if action != 'create':
+        require(isinstance(receipt, dict) and set(receipt) == {'directory', 'cluster_id'}
+                and isinstance(receipt['directory'], str)
+                and re.fullmatch(r'/tmp/dawana-schema-restore-[a-f0-9]{32}', receipt['directory'])
+                and isinstance(receipt['cluster_id'], str) and receipt['cluster_id'].isascii()
+                and receipt['cluster_id'].isdecimal(), 'Invalid isolated cluster receipt.')
+        arguments = [receipt['directory'], receipt['cluster_id']]
+    # Neither sudo nor the database server receives the production environment.
+    return process(['/usr/bin/sudo', '-n', '-u', 'dawana_restore', '/usr/bin/env', '-i',
+                    'PATH=/usr/bin:/bin', 'LC_ALL=C', '/usr/bin/python3', '-I', '-B',
+                    '/opt/dawana-schema-recovery/schema_recovery_native.py',
+                    action, *arguments], env={'PATH': '/usr/bin:/bin'}, stdin=stdin, version=True, cwd='/tmp')
+
+
+def restore_receipt_path():
+    return Path(os.environ['RUNNER_TEMP']) / 'schema-recovery-restore.json'
+
+
+def manage_isolated_cluster(create):
+    path = restore_receipt_path()
+    if create:
+        require(not path.exists(), 'Isolated cluster receipt already exists; reuse refused.')
+        receipt = json.loads(native_cluster('create'))
+        try:
+            with path.open('x', encoding='utf-8') as output:
+                os.chmod(path, 0o600)
+                json.dump(receipt, output)
+        except BaseException:
+            native_cluster('stop', receipt)
+            raise
+    elif path.exists():
+        native_cluster('stop', json.loads(path.read_text()))
+        path.unlink()
 
 
 def crypt_file(source, destination, key, decrypt=False):
@@ -76,28 +183,15 @@ def crypt_file(source, destination, key, decrypt=False):
             output.write(cipher.tag)
 
 
-def restore_backup(archive, roles):
-    """The restore target is fixed to a disposable loopback-only service."""
-    import psycopg
-    from psycopg import sql
-
-    local = dict(host='127.0.0.1', port=5432, dbname='recovery_restore',
-                 user='postgres', password='isolated-restore-only', sslmode='disable')
-    with psycopg.connect(**local, autocommit=True) as connection:
-        require(connection.info.host == '127.0.0.1' and connection.info.dbname == 'recovery_restore',
-                'Isolated restore target mismatch.')
-        for role in roles:
-            if not connection.execute('SELECT 1 FROM pg_roles WHERE rolname=%s', [role]).fetchone():
-                connection.execute(sql.SQL('CREATE ROLE {} NOLOGIN').format(sql.Identifier(role)))
-    process(['docker', 'cp', str(archive), os.environ['RESTORE_CONTAINER'] + ':/tmp/recovery.dump'])
-    # Clean only the fixed disposable database; handles its pre-existing public schema.
-    tool(['pg_restore', '--clean', '--if-exists', '--exit-on-error', '--single-transaction', '--dbname=recovery_restore',
-          '/tmp/recovery.dump'], dict(PGHOST='127.0.0.1', PGPORT='5432', PGUSER='postgres',
-                                     PGPASSWORD='isolated-restore-only', PGSSLMODE='disable'))
-    # An actual restore, preserving ownership and ACLs, must finish successfully.
-    with psycopg.connect(**local) as connection:
-        require(connection.execute('SELECT current_database()').fetchone()[0] == 'recovery_restore',
-                'Restore verification failed.')
+def restore_backup(archive, roles, receipt=None):
+    """Stream only archive/NOLOGIN role names to the isolated OS account."""
+    receipt = receipt if receipt is not None else json.loads(restore_receipt_path().read_text())
+    with tempfile.TemporaryFile() as incoming, archive.open('rb') as source:
+        incoming.write(json.dumps(roles).encode('utf-8') + b'\n')
+        shutil.copyfileobj(source, incoming)
+        incoming.seek(0)
+        result = json.loads(native_cluster('restore', receipt, stdin=incoming))
+    require(result == {'restore_verified': True}, 'Isolated restore verification failed.')
 
 
 def api_run(run_id):
@@ -198,12 +292,13 @@ def verify_initialized(connection):
 
 def run():
     global STAGE
+    os.umask(0o077)
     phase = os.environ['PHASE']
     require(phase in ('PREFLIGHT', 'INITIALIZE') and os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch',
             'Manual dispatch required.')
     require(os.environ.get('GITHUB_RUN_ATTEMPT') == '1', 'Automatic reruns forbidden.')
-    require(os.environ.get('RECOVERY_POSTGRES_MAJOR') in ('17', '18'),
-            'Select a verified supported PostgreSQL major.')
+    require(os.environ.get('RECOVERY_POSTGRES_MAJOR') == '18',
+            'This native recovery requires verified PostgreSQL major 18.')
     key = base64.b64decode(os.environ['RECOVERY_BACKUP_KEY'], validate=True)
     require(len(key) == 32, 'Backup key must decode to 32 bytes.')
     STAGE = 'production settings validation'
@@ -217,6 +312,8 @@ def run():
     evidence_dir.mkdir(parents=True, exist_ok=True)
     archive = work / 'backup.dump'
     encrypted = evidence_dir / 'backup.enc'
+    STAGE = 'PostgreSQL client validation'
+    verify_postgres_clients()
     STAGE = 'read-only identity and cross-schema preflight'
     fresh_gate()  # Closes its read-only connection. No existing application schema may proceed.
     connection.close()
@@ -267,18 +364,16 @@ def run():
             roles = [row[0] for row in cursor.fetchall()]
             cursor.execute('SELECT pg_export_snapshot()')
             snapshot = cursor.fetchone()[0]
-            process(['docker', 'cp', config['OPTIONS']['sslrootcert'],
-                     os.environ['RESTORE_CONTAINER'] + ':/tmp/recovery-ca.pem'])
             pg_env = dict(PGHOST=config['HOST'], PGPORT=str(config['PORT'] or '5432'),
                           PGDATABASE=config['NAME'], PGUSER=config['USER'],
                           PGPASSWORD=config['PASSWORD'], PGSSLMODE='verify-full',
-                          PGSSLROOTCERT='/tmp/recovery-ca.pem',
+                          PGSSLROOTCERT=config['OPTIONS']['sslrootcert'],
                           PGCHANNELBINDING=config['OPTIONS'].get('channel_binding', 'prefer'),
                           PGOPTIONS='-c default_transaction_read_only=on',
                           PGCONNECT_TIMEOUT='5')
+            STAGE = 'read-only full production backup'
             tool(['pg_dump', '--format=custom', '--snapshot=' + snapshot,
-                  '--file=/tmp/recovery.dump'], pg_env)
-        process(['docker', 'cp', os.environ['RESTORE_CONTAINER'] + ':/tmp/recovery.dump', str(archive)])
+                  '--file=' + str(archive)], pg_env)
         os.chmod(archive, 0o600)
         STAGE = 'isolated backup restore test'
         restore_backup(archive, roles)
@@ -338,13 +433,22 @@ def run():
 
 if __name__ == '__main__':
     try:
-        run()
+        if sys.argv[1:] == ['--create-isolated-cluster']:
+            manage_isolated_cluster(create=True)
+        elif sys.argv[1:] == ['--stop-isolated-cluster']:
+            manage_isolated_cluster(create=False)
+        else:
+            require(not sys.argv[1:], 'Unexpected recovery arguments.')
+            run()
     except Exception as exc:
         cause = exc
         while cause.__cause__ is not None:
             cause = cause.__cause__
         state = getattr(cause, 'sqlstate', None) or getattr(cause, 'pgcode', None)
         state = state if isinstance(state, str) and re.fullmatch('[0-9A-Z]{5}', state) else None
-        print(json.dumps({'recovery': 'STOP', 'stage': STAGE, 'reason': str(exc) if isinstance(exc, Stop)
-                          else 'Operation failed; no automatic retry.', 'sqlstate': state}), flush=True)
+        report = {'recovery': 'STOP', 'stage': STAGE, 'reason': str(exc) if isinstance(exc, Stop)
+                  else 'Operation failed; no automatic retry.', 'sqlstate': state}
+        if isinstance(exc, ToolFailure):
+            report.update(exc.diagnostic)
+        print(json.dumps(report), flush=True)
         sys.exit(1)

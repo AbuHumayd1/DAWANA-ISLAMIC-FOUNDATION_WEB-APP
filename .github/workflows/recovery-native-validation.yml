@@ -1,0 +1,65 @@
+{
+  "name": "Native recovery validation (synthetic only)",
+  "on": {
+    "pull_request": {
+      "branches": [
+        "main"
+      ],
+      "paths": [
+        ".github/workflows/production-schema-recovery.yml",
+        ".github/workflows/recovery-native-validation.yml",
+        ".github/PRODUCTION_SCHEMA_RECOVERY.md",
+        "backend/config/github_schema_recovery.py",
+        "backend/config/schema_recovery_native.py",
+        "backend/config/schema_recovery_preflight.py",
+        "scripts/test_schema_recovery_tools.py",
+        "scripts/test_schema_recovery_native.py",
+        "backend/requirements.txt"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "concurrency": {
+    "group": "recovery-validation-${{ github.event.pull_request.number }}",
+    "cancel-in-progress": true
+  },
+  "jobs": {
+    "recovery-validation": {
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 25,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Install native PostgreSQL 18 and isolated restore account",
+          "run": "set -euo pipefail\n. /etc/os-release\ntest \"$VERSION_ID\" = '24.04'\nsudo apt-get update -qq\nsudo apt-get install -y --no-install-recommends ca-certificates curl postgresql-common\nsudo install -d -m 755 /usr/share/postgresql-common/pgdg\nsudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc\nprintf '%s\\n' 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null\n# Do not create or reuse a package-managed default cluster.\nprintf '%s\\n' 'create_main_cluster = false' | sudo tee /etc/postgresql-common/createcluster.conf >/dev/null\nsudo apt-get update -qq\nsudo apt-get install -y --no-install-recommends postgresql-client-18 postgresql-18\nif id dawana_restore >/dev/null 2>&1; then\n  echo 'Dedicated restore account unexpectedly exists; reuse refused.'\n  exit 1\nfi\nsudo useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin dawana_restore\n# Root-owned helpers are readable, but cannot be edited by the restore account.\nsudo install -d -m 755 /opt/dawana-schema-recovery\nsudo install -m 644 backend/config/github_schema_recovery.py backend/config/schema_recovery_native.py /opt/dawana-schema-recovery/\n"
+        },
+        {
+          "name": "Install synthetic encryption dependency",
+          "run": "python -m pip install 'cryptography>=44.0,<47'\n"
+        },
+        {
+          "name": "Synthetic subprocess and workflow safety regressions",
+          "run": "python -I -B scripts/test_schema_recovery_tools.py\n"
+        },
+        {
+          "name": "Native PG18 synthetic backup, encrypted restore, identity and ACL verification",
+          "run": "python -I -B scripts/test_schema_recovery_native.py\n"
+        }
+      ],
+      "name": "Native PostgreSQL 18 recovery tests"
+    }
+  }
+}
