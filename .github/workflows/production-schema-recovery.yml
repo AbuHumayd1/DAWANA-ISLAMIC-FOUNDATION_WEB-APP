@@ -1,0 +1,140 @@
+{
+  "name": "Production schema recovery",
+  "on": {
+    "workflow_dispatch": {
+      "inputs": {
+        "phase": {
+          "description": "Manually selected operation",
+          "type": "choice",
+          "options": [
+            "PREFLIGHT",
+            "INITIALIZE"
+          ],
+          "required": true,
+          "default": "PREFLIGHT"
+        },
+        "preflight_run": {
+          "description": "INITIALIZE only - successful PREFLIGHT run ID",
+          "type": "string"
+        },
+        "approved_plan_sha256": {
+          "description": "INITIALIZE only - reviewed plan_sha256",
+          "type": "string"
+        },
+        "approved_backup_sha256": {
+          "description": "INITIALIZE only - reviewed encrypted backup SHA-256",
+          "type": "string"
+        },
+        "approval": {
+          "description": "INITIALIZE only - type INITIALIZE dawana_db",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "contents": "read",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "dawana-production-schema-recovery",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "recovery": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 45,
+      "environment": "${{ inputs.phase == 'INITIALIZE' && 'production-initialize' || 'production-preflight' }}",
+      "services": {
+        "restore": {
+          "image": "postgres:${{ vars.RECOVERY_POSTGRES_MAJOR || '18' }}",
+          "env": {
+            "POSTGRES_PASSWORD": "isolated-restore-only",
+            "POSTGRES_DB": "recovery_restore"
+          },
+          "ports": [
+            "127.0.0.1:5432:5432"
+          ],
+          "options": "--health-cmd \"pg_isready -U postgres -d recovery_restore\" --health-interval 5s --health-timeout 5s --health-retries 12"
+        }
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Validate manual request before accessing production secrets",
+          "env": {
+            "PHASE": "${{ inputs.phase }}",
+            "PREFLIGHT_RUN": "${{ inputs.preflight_run }}",
+            "PLAN_HASH": "${{ inputs.approved_plan_sha256 }}",
+            "BACKUP_HASH": "${{ inputs.approved_backup_sha256 }}",
+            "APPROVAL": "${{ inputs.approval }}"
+          },
+          "run": "python - <<'PY'\nimport os, re\nif os.environ['PHASE'] == 'INITIALIZE':\n    assert os.environ['APPROVAL'] == 'INITIALIZE dawana_db', 'Explicit approval missing'\n    assert re.fullmatch(r'[1-9][0-9]*', os.environ['PREFLIGHT_RUN']), 'Run ID missing'\n    for key in ('PLAN_HASH', 'BACKUP_HASH'):\n        assert re.fullmatch(r'[0-9a-f]{64}', os.environ[key]), 'Approval hash missing'\nassert os.environ['GITHUB_RUN_ATTEMPT'] == '1', 'Reruns are forbidden; create a reviewed dispatch'\nPY\n"
+        },
+        {
+          "name": "Install reviewed Django dependencies",
+          "run": "python -m pip install -r backend/requirements.txt >\"$RUNNER_TEMP/recovery-install.log\" 2>&1 || {\n  echo \"Dependency installation failed; no production operation attempted.\"\n  exit 1\n}\n"
+        },
+        {
+          "name": "Download approved preflight evidence",
+          "if": "inputs.phase == 'INITIALIZE'",
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "production-schema-preflight",
+            "path": "${{ runner.temp }}/schema-recovery/evidence",
+            "run-id": "${{ inputs.preflight_run }}",
+            "github-token": "${{ github.token }}"
+          }
+        },
+        {
+          "name": "Run selected recovery phase",
+          "working-directory": "backend",
+          "env": {
+            "PHASE": "${{ inputs.phase }}",
+            "PREFLIGHT_RUN": "${{ inputs.preflight_run }}",
+            "PLAN_HASH": "${{ inputs.approved_plan_sha256 }}",
+            "BACKUP_HASH": "${{ inputs.approved_backup_sha256 }}",
+            "APPROVAL": "${{ inputs.approval }}",
+            "RECOVERY_DJANGO_ENV": "${{ secrets.RECOVERY_DJANGO_ENV }}",
+            "RECOVERY_BACKUP_KEY": "${{ secrets.RECOVERY_BACKUP_KEY }}",
+            "RECOVERY_EXPECTED_HOST": "${{ secrets.RECOVERY_EXPECTED_HOST }}",
+            "RECOVERY_EXPECTED_SCHEMA": "${{ secrets.RECOVERY_EXPECTED_SCHEMA }}",
+            "RECOVERY_EXPECTED_CLUSTER_ID": "${{ secrets.RECOVERY_EXPECTED_CLUSTER_ID }}",
+            "RECOVERY_POSTGRES_MAJOR": "${{ vars.RECOVERY_POSTGRES_MAJOR || '18' }}",
+            "RESTORE_CONTAINER": "${{ job.services.restore.id }}",
+            "GH_TOKEN": "${{ github.token }}",
+            "PYTHONUNBUFFERED": "1"
+          },
+          "run": "umask 077\npython -B config/github_schema_recovery.py 2>/dev/null\n"
+        },
+        {
+          "name": "Retain encrypted backup and verified manifest",
+          "if": "success() && inputs.phase == 'PREFLIGHT'",
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "production-schema-preflight",
+            "path": "${{ runner.temp }}/schema-recovery/evidence/backup.enc\n${{ runner.temp }}/schema-recovery/evidence/evidence.json\n${{ runner.temp }}/schema-recovery/evidence/manifest.json\n${{ runner.temp }}/schema-recovery/evidence/cache.sql",
+            "if-no-files-found": "error",
+            "retention-days": 7
+          }
+        },
+        {
+          "name": "Remove plaintext files and local backup copies",
+          "if": "always()",
+          "run": "rm -f \"$RUNNER_TEMP/schema-recovery/backup.dump\"\ndocker exec \"${{ job.services.restore.id }}\" rm -f /tmp/recovery.dump /tmp/recovery-ca.pem || true\n"
+        }
+      ]
+    }
+  }
+}
