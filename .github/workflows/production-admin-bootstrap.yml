@@ -1,0 +1,88 @@
+{
+  "name": "Production Django Admin Bootstrap",
+  "on": {
+    "workflow_dispatch": {
+      "inputs": {
+        "approval": {
+          "description": "Enter CREATE INITIAL SUPERUSER; never enter credentials here",
+          "type": "string",
+          "required": true
+        }
+      }
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "concurrency": {
+    "group": "dawana-production-schema-recovery",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "validation": {
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Install reviewed backend dependencies",
+          "run": "python -m pip install -r backend/requirements.txt >\"$RUNNER_TEMP/bootstrap-install.log\" 2>&1 || { echo \"Dependency installation failed.\"; exit 1; }\n"
+        },
+        {
+          "name": "Synthetic in-memory admin bootstrap regressions (no production secrets)",
+          "run": "python -I -B scripts/test_admin_bootstrap.py\n"
+        }
+      ]
+    },
+    "bootstrap": {
+      "needs": "validation",
+      "if": "github.ref == 'refs/heads/main'",
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 15,
+      "environment": "production-initialize",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "persist-credentials": false
+          }
+        },
+        {
+          "uses": "actions/setup-python@v5",
+          "with": {
+            "python-version": "3.12"
+          }
+        },
+        {
+          "name": "Install reviewed backend dependencies",
+          "run": "python -m pip install -r backend/requirements.txt >\"$RUNNER_TEMP/bootstrap-install.log\" 2>&1 || { echo \"Dependency installation failed.\"; exit 1; }\n"
+        },
+        {
+          "name": "Create initial admin after protected environment approval",
+          "working-directory": "backend",
+          "env": {
+            "BOOTSTRAP_APPROVAL": "${{ inputs.approval }}",
+            "RECOVERY_DJANGO_ENV": "${{ secrets.RECOVERY_DJANGO_ENV }}",
+            "RECOVERY_EXPECTED_HOST": "${{ secrets.RECOVERY_EXPECTED_HOST }}",
+            "RECOVERY_EXPECTED_SCHEMA": "${{ secrets.RECOVERY_EXPECTED_SCHEMA }}",
+            "RECOVERY_EXPECTED_CLUSTER_ID": "${{ secrets.RECOVERY_EXPECTED_CLUSTER_ID }}",
+            "DJANGO_BOOTSTRAP_ADMIN_USERNAME": "${{ secrets.DJANGO_BOOTSTRAP_ADMIN_USERNAME }}",
+            "DJANGO_BOOTSTRAP_ADMIN_PASSWORD": "${{ secrets.DJANGO_BOOTSTRAP_ADMIN_PASSWORD }}"
+          },
+          "run": "python -I -B config/github_admin_bootstrap.py 2>/dev/null\n"
+        }
+      ]
+    }
+  }
+}
