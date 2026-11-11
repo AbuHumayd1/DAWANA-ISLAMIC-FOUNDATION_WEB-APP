@@ -42,22 +42,9 @@
   },
   "jobs": {
     "recovery": {
-      "runs-on": "ubuntu-latest",
+      "runs-on": "ubuntu-24.04",
       "timeout-minutes": 45,
       "environment": "${{ inputs.phase == 'INITIALIZE' && 'production-initialize' || 'production-preflight' }}",
-      "services": {
-        "restore": {
-          "image": "postgres:${{ vars.RECOVERY_POSTGRES_MAJOR || '18' }}",
-          "env": {
-            "POSTGRES_PASSWORD": "isolated-restore-only",
-            "POSTGRES_DB": "recovery_restore"
-          },
-          "ports": [
-            "127.0.0.1:5432:5432"
-          ],
-          "options": "--health-cmd \"pg_isready -U postgres -d recovery_restore\" --health-interval 5s --health-timeout 5s --health-retries 12"
-        }
-      },
       "steps": [
         {
           "uses": "actions/checkout@v4",
@@ -70,6 +57,14 @@
           "with": {
             "python-version": "3.12"
           }
+        },
+        {
+          "name": "Install native PostgreSQL 18 and isolated restore account",
+          "run": "set -euo pipefail\n. /etc/os-release\ntest \"$VERSION_ID\" = '24.04'\nsudo apt-get update -qq\nsudo apt-get install -y --no-install-recommends ca-certificates curl postgresql-common\nsudo install -d -m 755 /usr/share/postgresql-common/pgdg\nsudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc\nprintf '%s\\n' 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null\n# Do not create or reuse a package-managed default cluster.\nprintf '%s\\n' 'create_main_cluster = false' | sudo tee /etc/postgresql-common/createcluster.conf >/dev/null\nsudo apt-get update -qq\nsudo apt-get install -y --no-install-recommends postgresql-client-18 postgresql-18\nif id dawana_restore >/dev/null 2>&1; then\n  echo 'Dedicated restore account unexpectedly exists; reuse refused.'\n  exit 1\nfi\nsudo useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin dawana_restore\n# Root-owned helpers are readable, but cannot be edited by the restore account.\nsudo install -d -m 755 /opt/dawana-schema-recovery\nsudo install -m 644 backend/config/github_schema_recovery.py backend/config/schema_recovery_native.py /opt/dawana-schema-recovery/\n"
+        },
+        {
+          "name": "Test recovery tool diagnostics without production access",
+          "run": "python -I -B scripts/test_schema_recovery_tools.py\n"
         },
         {
           "name": "Validate manual request before accessing production secrets",
@@ -85,6 +80,14 @@
         {
           "name": "Install reviewed Django dependencies",
           "run": "python -m pip install -r backend/requirements.txt >\"$RUNNER_TEMP/recovery-install.log\" 2>&1 || {\n  echo \"Dependency installation failed; no production operation attempted.\"\n  exit 1\n}\n"
+        },
+        {
+          "name": "Test native backup and isolated restore using synthetic data only",
+          "run": "python -I -B scripts/test_schema_recovery_native.py\n"
+        },
+        {
+          "name": "Create fresh private restore cluster without production credentials",
+          "run": "umask 077\npython -I -B backend/config/github_schema_recovery.py --create-isolated-cluster\n"
         },
         {
           "name": "Download approved preflight evidence",
@@ -112,7 +115,6 @@
             "RECOVERY_EXPECTED_SCHEMA": "${{ secrets.RECOVERY_EXPECTED_SCHEMA }}",
             "RECOVERY_EXPECTED_CLUSTER_ID": "${{ secrets.RECOVERY_EXPECTED_CLUSTER_ID }}",
             "RECOVERY_POSTGRES_MAJOR": "${{ vars.RECOVERY_POSTGRES_MAJOR || '18' }}",
-            "RESTORE_CONTAINER": "${{ job.services.restore.id }}",
             "GH_TOKEN": "${{ github.token }}",
             "PYTHONUNBUFFERED": "1"
           },
@@ -130,9 +132,9 @@
           }
         },
         {
-          "name": "Remove plaintext files and local backup copies",
+          "name": "Stop isolated cluster and remove plaintext files",
           "if": "always()",
-          "run": "rm -f \"$RUNNER_TEMP/schema-recovery/backup.dump\"\ndocker exec \"${{ job.services.restore.id }}\" rm -f /tmp/recovery.dump /tmp/recovery-ca.pem || true\n"
+          "run": "set +e\npython -I -B backend/config/github_schema_recovery.py --stop-isolated-cluster\ncluster_status=$?\nrm -f \"$RUNNER_TEMP/schema-recovery/backup.dump\"\nexit \"$cluster_status\"\n"
         }
       ]
     }

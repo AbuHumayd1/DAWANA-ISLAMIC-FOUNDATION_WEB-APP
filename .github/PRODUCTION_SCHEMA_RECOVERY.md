@@ -4,7 +4,8 @@ Preparation only. No production access has been attempted.
 
 ## Configure before the first run
 
-1. Review and publish only the workflow and its two Python helpers from the exact
+1. Review and publish the workflow, recovery/preflight/native Python helpers,
+   synthetic/integration tests and this runbook from the exact
    approved source revision. The workflow must exist on the default branch for
    workflow_dispatch. Use a reviewed publication process that avoids unintended
    Render auto-deployment (Render supports a [skip render] commit message).
@@ -15,10 +16,12 @@ Preparation only. No production access has been attempted.
    owner review for production-initialize, disable approval bypass where available,
    and confirm these controls are supported for the repository's visibility/plan.
    Do not rely on GitHub silently creating an unprotected environment.
-3. Set repository variable RECOVERY_POSTGRES_MAJOR to the verified database server
-   major, currently supported by this workflow as 17 or 18. Both environments must
-   use that same value. A mismatch stops preflight. The isolated service and
-   PostgreSQL CLI use this major. No production version is assumed verified.
+3. Verify production is PostgreSQL 18 and set repository variable
+   RECOVERY_POSTGRES_MAJOR to 18. This workflow installs PostgreSQL 18 client and
+   server packages explicitly on ubuntu-24.04 using the signed official PGDG Apt
+   repository. It calls /usr/lib/postgresql/18/bin executables, verifies client
+   versions and checks the connected production server major. A mismatch stops
+   recovery; a variable/default is not independent proof of the server version.
 4. Add these secrets to BOTH environments with identical values:
    * RECOVERY_DJANGO_ENV: a JSON object of the approved Render Django environment,
      including DATABASE_URL with the external endpoint, DJANGO_SECRET_KEY,
@@ -36,8 +39,58 @@ Preparation only. No production access has been attempted.
    stop and arrange approved runner egress access before running this workflow.
 6. Confirm the role can read pg_control_system(), dump all database objects/data,
    and create the reviewed schema objects. No privilege changes are performed.
-   Extensions in a dump must be available in the vanilla postgres restore image;
+   Extensions in a dump must be available in the native PostgreSQL 18 installation;
    missing extensions or ownership/ACL problems stop the restore test.
+
+## Native isolated restoration and tests
+
+The separate recovery-native-validation.yml workflow runs on pull requests to
+main scoped to recovery files and their requirements. It has contents:read only,
+no production environment, no secret references and no recovery dispatch. It runs
+both suites against synthetic data only, with the same native package/account
+setup as the manual workflow. A passing PR check is not production authorization.
+
+Docker is not used by this recovery workflow. No hosting configuration changes.
+Before any production-secret-bearing step, the job runs the stdlib-only synthetic
+subprocess regressions and a real production-free PG18 integration test. The latter
+creates two fresh private clusters, backs up synthetic rows/ownership/ACLs, encrypts
+and decrypts the archive, refuses tampered ciphertext, a wrong cluster identity
+and an invalid archive,
+restores the real archive twice and checks rows, ownership and privileges. Both
+test clusters are stopped and removed, including on failure. A failed test stops
+the job before it receives production database credentials.
+
+The job creates a dedicated unprivileged, non-login OS account, dawana_restore,
+with no home or sudo privileges. Root-owned helper copies in
+/opt/dawana-schema-recovery cannot be edited by that account. Each cluster uses a
+new /tmp/dawana-schema-restore-<random> directory (0700), a private Unix socket
+(0700), peer authentication, rejected host authentication and NO TCP listener.
+There is no connection to a package-managed/default local cluster.
+
+The runner and sudo/helper subprocess environments are separated. The restore
+server receives no production environment, URLs, tokens, passwords or encryption
+key. Only the dump and source role names (recreated as NOLOGIN) are streamed to the
+helper. Before any restore/role write the helper verifies the private directory,
+receipt, actual cluster system ID, data directory, socket, database, role and PG18
+version. Restores preserve ownership and ACLs and use --clean --if-exists
+--exit-on-error --single-transaction only against that verified disposable target.
+
+Production pg_dump runs directly as the runner, with explicit connection settings,
+verify-full, the readable runner CA bundle and default_transaction_read_only=on.
+An exported read-only snapshot remains open for the dump. The dump is private;
+only the encrypted archive is uploaded. Raw subprocess stderr and server logs
+are never printed or uploaded; failures report allowlisted tool/category/status.
+The always-run cleanup stops/removes the receipt-bound cluster and deletes the
+runner plaintext archive. Cleanup failure fails the job. Runner destruction is
+the final containment boundary for an interrupted/killed job.
+
+Local/CI test commands (integration requires the ephemeral Linux Actions runner,
+dedicated account and installed root-owned helpers; no production credentials):
+
+```sh
+python -I -B scripts/test_schema_recovery_tools.py
+python -I -B scripts/test_schema_recovery_native.py
+```
 
 ## Phase 1 - PREFLIGHT
 
