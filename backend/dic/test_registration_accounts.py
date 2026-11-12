@@ -23,18 +23,20 @@ class RegistrationAccountPolicyTests(SimpleTestCase):
 
     def test_username_normalization_and_reserved_names(self):
         self.assertEqual(accounts.normalize_username('  Camper.A-12  '), 'camper.a-12')
-        for value in ('ab', 'a'*41, 'a@b.test', 'a/b', 'camper name', 'ADMIN', 'DIF', 'staff', 'dic_secret', 'école'):
+        self.assertEqual(accounts.normalize_username(' Camper Name '), 'camper name')
+        self.assertEqual(accounts.normalize_username('a'), 'a')
+        for value in ('a'*41, 'a@b.test', 'a/b', 'ADMIN', 'DIF', 'staff', 'dic_secret', 'école', 'admin login', 'staff help'):
             with self.subTest(value=value), self.assertRaises(ValidationError):
                 accounts.normalize_username(value)
 
-    def test_username_password_and_confirmation_are_required_and_strength_checked(self):
+    def test_nonempty_password_and_confirmation_are_required(self):
         password = 'River-Cedar!Sparrow-84'
         valid = {'username': ' Camper-84 ', 'password': password, 'password_confirmation': password}
         form = RegistrationCredentialsSerializer(data=valid)
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.validated_data, {'username': 'camper-84', 'password': password})
+        self.assertEqual(form.validated_data, {'username': 'camper-84', 'password': password, 'mode': 'auto'})
         self.assertEqual(form.data, {})
-        for change in ({'username': ''}, {'password_confirmation': 'different'}, {'password': '123456789012', 'password_confirmation': '123456789012'}):
+        for change in ({'username': ''}, {'password_confirmation': 'different'}, {'password': '', 'password_confirmation': ''}):
             with self.subTest(change=change):
                 self.assertFalse(RegistrationCredentialsSerializer(data={**valid, **change}).is_valid())
         for missing in valid:

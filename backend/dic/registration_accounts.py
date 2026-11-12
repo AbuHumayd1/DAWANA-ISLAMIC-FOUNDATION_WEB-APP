@@ -40,11 +40,19 @@ def bind_registration(order, credentials):
     email = normalize_email(order.primary_registrant.email)
     digest = _contact_digest('email', email)
     account = PortalAccount.objects.select_for_update().select_related('user').filter(username_key__iexact=username).first()
+    mode = credentials.get('mode', 'auto')
     if account:
+        # A retried create request may bind only its already-owned order.
+        if mode == 'create' and not PortalAccountBooking.objects.filter(account=account, order=order, revoked_at__isnull=True).exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'username': 'Choose another username, or use your existing account.'})
         account = accounts.password_account(username, credentials['password'])
         if account.contact_channel not in ('email', 'username') or not secrets.compare_digest(account.contact_digest, digest):
             raise AuthenticationFailed(accounts.INVALID)
     else:
+        if mode == 'existing':
+            # Equalize hash work and never turn a failed sign-in into signup.
+            accounts.password_account(username, credentials['password'])
         # Contact details are not a verified identity or an account lookup key.
         # A distinct channel prevents username activation from implying email proof.
         user = get_user_model()(username=username, email=email, is_active=True, is_staff=False, is_superuser=False)

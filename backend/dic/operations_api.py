@@ -102,6 +102,15 @@ def _base_orders(edition):
 
 
 def _apply_order_filters(queryset, params, user, export_limit=None):
+    from .order_lifecycle import archive_query
+    view = params.get('archive', 'active')
+    if view not in ('active', 'expired', 'all'):
+        raise ValidationError({'archive': 'Choose active, expired or all.'})
+    archived = archive_query()
+    if view == 'active':
+        queryset = queryset.exclude(archived)
+    elif view == 'expired':
+        queryset = queryset.filter(archived)
     for parameter, field in (
         ("status", "status"),
         ("payment_status", "payment_status"),
@@ -177,6 +186,7 @@ def _verified_payment(order):
 
 
 def _order_data(order, user, include_detail=False):
+    from .order_lifecycle import metadata
     from .tutor_registration import authorization_state
     has_contacts = _can(user, "can_view_dic_contact_information")
     successful = _verified_order_queryset(
@@ -217,6 +227,7 @@ def _order_data(order, user, include_detail=False):
 
     has_finance = _can(user, "can_view_dic_finance")
     data = {
+        'lifecycle': metadata(order),
         "id": str(order.public_id),
         "edition": {"id": order.edition_id, "name": order.edition.name, "year": order.edition.year},
         "status": order.status,
@@ -260,6 +271,7 @@ def _order_data(order, user, include_detail=False):
         data["payment_attempts"] = [
             {
                 "reference": attempt.reference,
+                "resolution_count": attempt.resolutions.count(),
                 "status": attempt.status,
                 "expected_amount_ngn": str(Decimal(attempt.amount_kobo) / 100),
                 "provider_amount_ngn": (
@@ -510,6 +522,7 @@ def _user_data(user):
             user.is_staff and (user.is_superuser or user.has_module_perms("dic"))
         ),
         "permissions": {
+            "manage_order_lifecycle": bool(user.is_active and user.is_staff and _can(user, 'manage_dic_order_lifecycle') and _can(user, 'can_view_dic_finance')),
             "classes": user.has_perm('dic.manage_dic_classes'),
             "announcements": any(user.has_perm('dic.' + p) for p in ('manage_dic_announcements', 'publish_dic_announcements')),
             "edit_announcements": user.has_perm('dic.manage_dic_announcements'),
@@ -625,6 +638,8 @@ class OperationsDashboardView(OperationsBaseView):
             raise ValidationError({"days": "Choose 7, 14 or 30 days."})
         edition = _edition_from_request(request)
         orders = _base_orders(edition)
+        from .order_lifecycle import archive_query
+        orders = orders.exclude(archive_query())
         items = RegistrationOrderItem.objects.filter(order__edition=edition)
         verified_orders = _verified_order_queryset(orders)
         unpaid_orders = orders.filter(
@@ -810,7 +825,7 @@ class OperationsRegistrationDetailView(OperationsBaseView):
         edition = _edition_from_request(request)
         order = _apply_order_filters(
             _base_orders(edition).filter(public_id=public_id),
-            request.query_params,
+            {**request.query_params.dict(), 'archive': request.query_params.get('archive', 'all')},
             request.user,
         ).first()
         if order is None:
@@ -919,6 +934,7 @@ class OperationsPaymentListView(OperationsBaseView):
         def serialize(attempt):
             return {
                 "reference": attempt.reference,
+                "resolution_count": attempt.resolutions.count(),
                 "order_reference": str(attempt.order.public_id),
                 "status": attempt.status,
                 "verified_paid": _verified_payment(attempt.order),

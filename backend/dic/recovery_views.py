@@ -276,7 +276,10 @@ def _resend_challenge(challenge_id, channel, contact, request):
 
 
 def _order_recovery_summary(order):
+    from .order_lifecycle import metadata
     return {
+        'lifecycle': metadata(order),
+        'payment_attempts': list(order.payment_attempts.order_by('-created_at').values('reference', 'status')[:20]),
         "order_id": str(order.public_id),
         "edition_name": order.edition.name,
         "status": order.status,
@@ -548,6 +551,8 @@ class RecoveryRestoreOrderView(APIView):
             ):
                 raise NotFound(GENERIC_FAILURE_MESSAGE)
             access_token = secrets.token_urlsafe(32)
+            # Restoration supplies read/verification access only. Payment and
+            # repricing endpoints independently enforce the original deadline.
             order.access_token_digest = digest_value(access_token)
             order.access_token_expires_at = order_access_token_expiry()
             order.save(

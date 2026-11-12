@@ -4,7 +4,7 @@ import './PortalPhase3.css'
 
 export function PasswordField({ value, onChange, autoComplete = 'current-password', label = 'Password', required = true }) {
   const [visible, setVisible] = useState(false)
-  return <label>{label}<span className="cp-password-field"><input required={required} minLength={autoComplete === 'new-password' ? 12 : undefined} maxLength={128} type={visible ? 'text' : 'password'} autoComplete={autoComplete} value={value} onChange={event => onChange(event.target.value)} /><button type="button" onClick={() => setVisible(current => !current)} aria-pressed={visible} aria-label={visible ? 'Hide password' : 'Show password'}>{visible ? 'Hide' : 'Show'}</button></span></label>
+  return <label>{label}<span className="cp-password-field"><input aria-label={label} required={required} maxLength={128} type={visible ? 'text' : 'password'} autoComplete={autoComplete} value={value} onChange={event => onChange(event.target.value)} /><button type="button" onClick={() => setVisible(current => !current)} aria-pressed={visible} aria-label={visible ? 'Hide password' : 'Show password'}>{visible ? 'Hide' : 'Show'}</button></span></label>
 }
 
 export function PortalCredentialLogin({ capabilities, busy, onLogin, onRecover, onTransition, recoveryAvailable = false, recoveryLoading = false, onCheckRecovery }) {
@@ -30,7 +30,7 @@ export function PortalCredentialRecovery({ busy, onSubmit }) {
     <p>Ask an authorized system administrator to review your booking ownership. They can privately give you a one-use recovery code valid for 15 minutes. Staff will never ask for your new password. This cannot recover staff or administrator credentials.</p>
     <form onSubmit={event => { event.preventDefault(); const body = { token, username, password, password_confirmation: confirmation }; setToken(''); setPassword(''); setConfirmation(''); onSubmit(body) }}><fieldset disabled={busy}>
       <label>Administrator-issued recovery code<input required minLength={43} maxLength={43} type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} /></label>
-      <label>Choose your username<input required minLength={3} maxLength={40} pattern="[A-Za-z0-9][A-Za-z0-9_.\x2d]{2,39}" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} /></label>
+      <label>Choose your username<input required maxLength={40} autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} /></label>
       <PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password" />
       <PasswordField value={confirmation} onChange={setConfirmation} autoComplete="new-password" label="Confirm password" />
       <button type="submit" className="button">Update credentials</button></fieldset></form>
@@ -54,11 +54,11 @@ export function PortalAccountSettings({ capabilities, run, onVerify, busy }) {
     {status && !status.fresh_otp && <><p>Verify your booking contact again to set up, reset or link a sign-in method.</p><button type="button" className="button" onClick={onVerify}>Verify booking contact</button></>}
     {status?.fresh_otp && <>
       {!status.account ? <><form onSubmit={event => { event.preventDefault(); submit('/auth/account/activate/', { username, email, password, password_confirmation: passwordConfirmation }) }}><fieldset disabled={busy}>
-        <label>Choose a username<input required minLength={3} maxLength={40} pattern="[A-Za-z0-9][A-Za-z0-9_.\x2d]{2,39}" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} /></label>
+        <label>Choose a username<input required maxLength={40} autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} /></label>
         <label>Verified booking email<input required type="email" maxLength={254} autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} /></label><small>Use the primary booking email you just verified by email OTP. A paid registration is required, except for an authorized complimentary tutor.</small>
-        <PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (12–128 characters)" /><PasswordField value={passwordConfirmation} onChange={setPasswordConfirmation} autoComplete="new-password" label="Confirm password" /><button type="submit" className="button">Create sign-in account</button></fieldset></form>
+        <PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (up to 128 characters)" /><PasswordField value={passwordConfirmation} onChange={setPasswordConfirmation} autoComplete="new-password" label="Confirm password" /><button type="submit" className="button">Create sign-in account</button></fieldset></form>
         <p>Already have an account and verified another booking with the same primary contact?</p><form onSubmit={event => { event.preventDefault(); submit('/auth/account/link-booking/', { identifier, password: linkPassword }) }}><fieldset disabled={busy}><label>Existing account email or username<input required maxLength={254} value={identifier} autoComplete="username" onChange={event => setIdentifier(event.target.value)} /></label><PasswordField value={linkPassword} onChange={setLinkPassword} /><button className="button">Link this verified booking</button></fieldset></form></>
-        : <><p>Account: {status.account.username}</p><form onSubmit={event => { event.preventDefault(); submit('/auth/password/reset/', { password }) }}><fieldset disabled={busy}><PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (12–128 characters)" /><button className="button">Set or reset password</button></fieldset></form><p>Changing your password signs out other account sessions.</p>
+        : <><p>Account: {status.account.username}</p><form onSubmit={event => { event.preventDefault(); submit('/auth/password/reset/', { password }) }}><fieldset disabled={busy}><PasswordField value={password} onChange={setPassword} autoComplete="new-password" label="New password (up to 128 characters)" /><button className="button">Set or reset password</button></fieldset></form><p>Changing your password signs out other account sessions.</p>
         </>}
     </>}
   </section>

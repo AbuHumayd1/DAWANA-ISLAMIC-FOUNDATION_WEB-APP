@@ -33,12 +33,12 @@ class CheckoutValidationTests(SimpleTestCase):
         provider.assert_not_called()
         return response.data
 
-    def test_numeric_password_returns_nested_account_error_before_order_or_payment_creation(self):
+    def test_empty_password_returns_nested_account_error_before_order_or_payment_creation(self):
         payload = self.payload()
-        payload['portal_account'].update(password='123456789012', password_confirmation='123456789012')
+        payload['portal_account'].update(password='', password_confirmation='')
         errors = self.rejected(payload)
         self.assertIn('portal_account', errors)
-        self.assertIn('entirely numeric', str(errors['portal_account']))
+        self.assertIn('blank', str(errors['portal_account']))
         self.assertNotIn('123456789012', str(errors))
 
     def test_invalid_second_participant_email_retains_index_without_echoing_contact(self):

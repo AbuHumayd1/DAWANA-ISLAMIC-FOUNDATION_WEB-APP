@@ -5,8 +5,6 @@ from datetime import timedelta
 from types import SimpleNamespace
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as PasswordError
 from django.db import transaction, IntegrityError, connection
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
@@ -25,9 +23,11 @@ def normalize_username(value):
     if not isinstance(value, str):
         raise ValidationError('Choose a valid username.')
     value = value.strip().lower()
-    if (not re.fullmatch(r'[a-z0-9][a-z0-9_.-]{2,39}', value)
-            or value in RESERVED_USERNAMES or value.startswith(('dic_', 'admin.', 'staff.'))):
-        raise ValidationError('Choose 3–40 letters, digits, dots, hyphens or underscores, starting with a letter or digit. This name may be reserved.')
+    if (not re.fullmatch(r'[a-z0-9][a-z0-9_. -]{0,39}', value)
+            or '  ' in value
+            or value in RESERVED_USERNAMES or value.startswith(('dic_', 'admin.', 'staff.'))
+            or re.match(r'^(admin(?:istrator)?|staff|dawana|operations)[ ._-]', value)):
+        raise ValidationError('Use up to 40 letters, numbers, spaces, dots, hyphens or underscores. Start with a letter or number; official names are reserved.')
     return value
 
 
@@ -116,12 +116,9 @@ def owned_account(grant, orders, allow_pending=False):
 
 
 def password_policy(password, user):
-    if not isinstance(password, str) or not 12 <= len(password) <= 128:
-        raise ValidationError('Use a password between 12 and 128 characters.')
-    try:
-        validate_password(password, user=user)
-    except PasswordError as error:
-        raise ValidationError(error.messages)
+    # Owner-approved participant policy. Staff validators remain unchanged.
+    if not isinstance(password, str) or not password or len(password) > 128:
+        raise ValidationError('Enter a nonempty password of at most 128 characters.')
 
 
 @sensitive_variables()

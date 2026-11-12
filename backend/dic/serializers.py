@@ -224,23 +224,24 @@ class ParticipantInputSerializer(StrictSerializer):
 
 
 class RegistrationCredentialsSerializer(StrictSerializer):
-    username = serializers.CharField(min_length=3, max_length=40, write_only=True)
+    username = serializers.CharField(max_length=40, write_only=True)
+    mode = serializers.ChoiceField(choices=('create', 'existing', 'auto'), default='auto', write_only=True)
 
     def validate_username(self, value):
         from .portal_accounts import normalize_username
         return normalize_username(value)
 
-    password = serializers.CharField(min_length=12, max_length=128, trim_whitespace=False, write_only=True)
-    password_confirmation = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+    password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+    password_confirmation = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True, required=False)
 
     def validate(self, data):
         import secrets
-        if not secrets.compare_digest(data['password'].encode(), data['password_confirmation'].encode()):
+        if data['mode'] != 'existing' and not secrets.compare_digest(data['password'].encode(), data.get('password_confirmation', '').encode()):
             raise serializers.ValidationError({'password_confirmation': 'Passwords must match.'})
         from django.contrib.auth import get_user_model
         from .portal_accounts import password_policy
         password_policy(data['password'], get_user_model()(username=data['username']))
-        data.pop('password_confirmation')
+        data.pop('password_confirmation', None)
         return data
 
 
@@ -309,6 +310,7 @@ class RegistrationOrderItemReadSerializer(serializers.ModelSerializer):
 
 
 class RegistrationOrderReadSerializer(serializers.ModelSerializer):
+    lifecycle = serializers.SerializerMethodField()
     order_id = serializers.UUIDField(source="public_id", read_only=True)
     edition_name = serializers.CharField(source="edition.name", read_only=True)
     primary_registrant = PrimaryRegistrantReadSerializer(read_only=True)
@@ -330,9 +332,14 @@ class RegistrationOrderReadSerializer(serializers.ModelSerializer):
             "total_amount_ngn",
             "created_at",
             "submitted_at",
+            "lifecycle",
             "primary_registrant",
             "items",
         )
+
+    def get_lifecycle(self, order):
+        from .order_lifecycle import metadata
+        return metadata(order)
 
     def get_items(self, order):
         current_price_items = {}

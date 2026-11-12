@@ -130,8 +130,10 @@ class PortalAccountPolicyTests(SimpleTestCase):
 
     def test_password_strength_and_django_hashing(self):
         user = get_user_model()(username='guardian')
-        for password in ('', '123456789012', 'short'):
+        for password in ('', 'x' * 129):
             with self.subTest(password=password), self.assertRaises(ValidationError): accounts.password_policy(password, user)
+        for password in ('a', 'password', '123456789012', 'short', ' ', 'a b!', '  leading trailing  '):
+            accounts.password_policy(password, user)
         password = 'River-Cedar!Sparrow-84'
         accounts.password_policy(password, user); user.set_password(password)
         self.assertNotEqual(user.password, password); self.assertTrue(user.check_password(password)); self.assertFalse(user.check_password('wrong'))

@@ -320,3 +320,9 @@ class PaystackClient:
         ):
             raise PaystackAPIError("Payment provider could not verify the transaction.")
         return response["data"]
+
+    def verify_refund(self, refund_id):
+        response = self._request('GET', f"/refund/{quote(str(refund_id), safe='')}")
+        if response.get('status') is not True or not isinstance(response.get('data'), dict):
+            raise PaystackAPIError('Payment provider could not verify the refund.')
+        return response['data']
