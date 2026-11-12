@@ -1,3 +1,5 @@
+import { normalizeParticipantUsername, participantPassword } from './participantCredentials.js'
+
 export function primaryRegistrantPayload(contact) {
   const full_name = String(contact?.fullName || '').trim()
   const email = String(contact?.email || '').trim().toLowerCase()
@@ -7,11 +9,10 @@ export function primaryRegistrantPayload(contact) {
 }
 
 export function registrationCredentialsPayload(credentials) {
-  const username = String(credentials?.username || '').trim().toLowerCase()
-  if (!/^[a-z0-9][a-z0-9_.-]{2,39}$/.test(username)) throw new Error('Choose a username of 3–40 letters, digits, dots, hyphens or underscores.')
-  const password = credentials?.password || ''
+  const username = normalizeParticipantUsername(credentials?.username)
+  const password = participantPassword(credentials?.password)
   const confirmation = credentials?.password_confirmation || ''
-  if (password.length < 12 || password.length > 128) throw new Error('Use a password between 12 and 128 characters.')
-  if (password !== confirmation) throw new Error('Passwords must match.')
-  return { username, password, password_confirmation: confirmation }
+  if (credentials?.mode !== 'existing' && password !== confirmation) throw new Error('Passwords must match.')
+  return { username, password, ...(credentials?.mode ? { mode: credentials.mode } : {}),
+    ...(credentials?.mode === 'existing' ? {} : { password_confirmation: confirmation }) }
 }

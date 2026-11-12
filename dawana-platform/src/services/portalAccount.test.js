@@ -42,7 +42,7 @@ test('configured credential form defaults to masked password and explicit unchec
 })
 test('new passwords use password-manager hints, bounded length and accessible toggle', () => {
   const html = render('PasswordField', { value: '', onChange() {}, autoComplete: 'new-password' })
-  assert.match(html, /minLength="12"/); assert.match(html, /maxLength="128"/)
+  assert.doesNotMatch(html, /minLength=/); assert.match(html, /maxLength="128"/)
   assert.match(html, /autoComplete="new-password"/); assert.match(html, /aria-pressed="false"/)
 })
 test('account UI never persists credentials in browser storage or router state', () => {

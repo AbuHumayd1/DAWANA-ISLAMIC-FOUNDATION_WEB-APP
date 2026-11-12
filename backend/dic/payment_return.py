@@ -56,7 +56,9 @@ def _authorize(digest, order_id):
 
 def _summary(order):
     from .payment_followups import status as followup_status
+    from .order_lifecycle import metadata
     return {
+        'lifecycle': metadata(order),
         "order_id": str(order.public_id), "edition_name": order.edition.name,
         "payment_status": order.payment_status, "status": order.status,
         "total_amount_ngn": str(order.total_amount_ngn), "currency": "NGN",

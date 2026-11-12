@@ -231,7 +231,10 @@ urlpatterns = [
 
 from .portal_account_api import (AccountStatusView, AccountActivateView, PasswordLoginView,
     PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView, CredentialTransitionView, IssueCredentialTransitionView)
+from .phase_a_api import AccountOrderRecoveryView, PaymentResolutionView
 urlpatterns += [
+    path('participant/auth/orders/recover/', AccountOrderRecoveryView.as_view(), name='portal-order-recovery'),
+    path('operations/payments/<str:reference>/resolve/', PaymentResolutionView.as_view(), name='payment-resolution'),
     path('participant/auth/credentials/transition/', CredentialTransitionView.as_view(), name='portal-credential-transition'),
     path('operations/account-recovery/', IssueCredentialTransitionView.as_view(), name='operations-account-recovery'),
     path('participant/auth/email/verify/', EmailVerifyView.as_view(), name='portal-email-verify'),

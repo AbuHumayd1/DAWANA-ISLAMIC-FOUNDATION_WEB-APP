@@ -74,12 +74,15 @@ def _order_for_access(request, public_id):
 
 def _attempt_response(attempt, order, *, replayed=False):
     from .payment_followups import status as followup_status
+    from .order_lifecycle import metadata
     response = Response(
         {
             "order_id": str(order.public_id),
             "payment_reference": attempt.reference,
             "attempt_status": attempt.status,
             "payment_status": order.payment_status,
+            "lifecycle": metadata(order),
+            "reconciliation_reason": attempt.failure_code if attempt.status in ('reconcile', 'amount_mismatch') else '',
             "processing": followup_status(order),
             "amount_kobo": attempt.amount_kobo,
             "currency": attempt.currency,
@@ -297,9 +300,14 @@ def _apply_verified_transaction(attempt_id, provider_data):
                     and paid_at < revision.early_bird_cutoff_at
                 )
                 superseded = attempt.status == PaymentAttempt.Status.SUPERSEDED
-                if paid_at is None:
+                from .order_lifecycle import activation, deadline
+                expiry_enabled = activation()
+                if paid_at is None or (expiry_enabled and (paid_at < order.created_at or paid_at > timezone.now())):
                     attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
                     attempt.failure_code = "provider_paid_at_missing_or_invalid"
+                elif expiry_enabled and paid_at >= deadline(order):
+                    attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
+                    attempt.failure_code = 'order_expired'
                 elif not valid_at_payment or (superseded and not early_cutoff_payment):
                     attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
                     attempt.failure_code = (
@@ -401,6 +409,8 @@ class PaymentInitializeView(APIView):
         order = _order_for_access(request, public_id)
         with transaction.atomic():
             order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
+            from .order_lifecycle import require_payable
+            require_payable(order)
             if order.registration_basis != 'paid':
                 raise ValidationError('Complimentary tutor registration requires no payment.')
             if order.status == RegistrationOrder.Status.CANCELLED:
@@ -595,6 +605,8 @@ class OrderRepricingAcceptView(APIView):
 
         with transaction.atomic():
             order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
+            from .order_lifecycle import require_payable
+            require_payable(order)
             if (
                 order.status == RegistrationOrder.Status.CANCELLED
                 or order.payment_status

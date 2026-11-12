@@ -1,0 +1,9 @@
+.phase-a-account-recovery { margin-bottom: 1.5rem; min-width: 0; }
+.phase-a-account-recovery fieldset { border: 0; padding: 0; margin: 1rem 0; min-width: 0; display: grid; gap: 1rem; }
+.phase-a-account-recovery label { display: grid; gap: .4rem; font-weight: 600; }
+.phase-a-account-recovery input { min-width: 0; width: 100%; padding: .75rem; border: 1px solid var(--border, #b8ccc2); border-radius: .5rem; background: var(--surface, #fff); color: inherit; }
+.phase-a-account-recovery .cp-password-field { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.phase-a-account-recovery .cp-password-field input { flex: 1; }
+.phase-a-account-recovery .cp-password-field button { flex: 0 0 auto; padding: .5rem; }
+.phase-a-account-recovery article { margin-block: 1rem; overflow-wrap: anywhere; }
+.dic-recovery-order { min-width: 0; overflow-wrap: anywhere; }
