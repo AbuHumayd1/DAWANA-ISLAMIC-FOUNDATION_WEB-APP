@@ -12,15 +12,46 @@ export class DicApiError extends Error {
 }
 
 function errorMessage(body, fallback) {
-  if (!body || typeof body !== 'object') return fallback
-  const detail = body.detail
-  if (typeof detail === 'string') return detail
-  if (detail && typeof detail === 'object' && typeof detail.detail === 'string') return detail.detail
-  const messages = Object.entries(body)
-    .flatMap(([field, value]) => {
-      const values = Array.isArray(value) ? value : [value]
-      return values.filter((message) => typeof message === 'string').map((message) => `${field}: ${message}`)
-    })
+  // DRF nests serializer errors by field and participant index. Only display
+  // recognized validation fields, never serialize the response or submitted form.
+  const labels = {
+    primary_registrant: 'Booking contact', portal_account: 'Account',
+    full_name: 'Name', phone: 'Phone', email: 'Email', address: 'Address',
+    username: 'Username', password: 'Password', password_confirmation: 'Password confirmation',
+    category_id: 'Category', date_of_birth: 'Date of birth', age_declaration: 'Age declaration',
+    sex: 'Sex', height_cm: 'Height', weight_kg: 'Weight', academic_status: 'Academic status',
+    occupation: 'Occupation', marital_status: 'Marital status', guardian_relationships: 'Guardian declaration',
+    child_index: 'Child', guardian_index: 'Guardian', confirmed: 'Confirmation', pricing: 'Pricing',
+  }
+  const messages = []
+  function visit(value, label = '', depth = 0) {
+    if (depth > 6 || messages.length >= 8) return
+    if (typeof value === 'string') {
+      // Invalid-choice messages can echo the supplied value. Do not echo it.
+      const text = value.replace(/"[^"\r\n]*" is not a valid choice\./g, 'The selected value is not a valid choice.')
+        .replace(/\p{Cc}/gu, ' ').trim().slice(0, 300)
+      if (text) messages.push(label ? `${label}: ${text}` : text)
+    } else if (Array.isArray(value)) {
+      value.slice(0, 8).forEach(item => visit(item, label, depth + 1))
+    } else if (value && typeof value === 'object') {
+      for (const [field, child] of Object.entries(value)) {
+        if (['participants', 'guardian_relationships'].includes(field) && child && typeof child === 'object') {
+          // DRF versions return either a positional list or a sparse index map.
+          for (const [index, item] of Object.entries(child)) {
+            if (messages.length >= 8) break
+            const group = field === 'participants' ? 'Participant' : 'Guardian declaration'
+            if (/^\d{1,5}$/.test(index)) visit(item, `${group} ${Number(index) + 1}`, depth + 1)
+            else if (index === 'non_field_errors') visit(item, group, depth + 1)
+          }
+        } else if (field === 'detail' || field === 'non_field_errors') {
+          visit(child, label, depth + 1)
+        } else if (Object.hasOwn(labels, field)) {
+          visit(child, [label, labels[field]].filter(Boolean).join(' — '), depth + 1)
+        }
+      }
+    }
+  }
+  if (body && typeof body === 'object') visit(body)
   return messages.length ? messages.join(' ') : fallback
 }
 

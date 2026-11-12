@@ -37,6 +37,37 @@ test('expired sessions notify the protected application and preserve the HTTP er
   }
 })
 
+test('login stops when CSRF bootstrap fails or returns no token', async () => {
+  const original = globalThis.fetch
+  try {
+    for (const response of [Response.json({ detail: 'Forbidden' }, { status: 403 }), Response.json({})]) {
+      const calls = []
+      globalThis.fetch = async (url, options) => { calls.push({ url, options }); return response }
+      await assert.rejects(signIn('synthetic', 'unused'))
+      assert.equal(calls.length, 1)
+      assert.ok(calls[0].url.endsWith('/auth/csrf/'))
+      assert.equal(calls[0].options.credentials, 'include')
+      assert.equal(calls[0].options.cache, 'no-store')
+    }
+  } finally { globalThis.fetch = original }
+})
+
+test('CSRF login rejection preserves 403 without retrying credentials', async () => {
+  const original = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options })
+    return url.endsWith('/csrf/') ? Response.json({ csrfToken: 'synthetic-token' })
+      : new Response('CSRF verification failed', { status: 403, headers: { 'Content-Type': 'text/html' } })
+  }
+  try {
+    await assert.rejects(signIn('synthetic', 'unused'), (error) => error.status === 403)
+    assert.equal(calls.length, 2)
+    assert.equal(calls[1].options.headers.get('X-CSRFToken'), 'synthetic-token')
+    assert.ok(calls.every(({ options }) => options.credentials === 'include'))
+  } finally { globalThis.fetch = original }
+})
+
 test('permission denial remains visible without expiring a valid session', async () => {
   const originalFetch = globalThis.fetch
   const originalWindow = globalThis.window

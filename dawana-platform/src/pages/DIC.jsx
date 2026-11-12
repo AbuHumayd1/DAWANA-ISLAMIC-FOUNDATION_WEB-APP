@@ -13,7 +13,7 @@ import DICEditorial from '../components/dic/DICEditorial'
 import DICInfoPanel from '../components/dic/DICCampInfo'
 import CampShowcase from '../components/dic/CampShowcase'
 import CamperBrand from '../components/dic/CamperBrand'
-import { preparePaymentReturn, paystackCheckoutUrl } from '../services/paymentReturnApi'
+import { preparePaymentReturn, paystackCheckoutUrl, paymentReturnSetupMessage } from '../services/paymentReturnApi'
 import { occupations, maritalOptions, participantChoiceLabel } from '../components/dic/participantOptions'
 import Field, { RegistrationSelect } from '../components/dic/RegistrationField'
 import { AgeDisclosureFields, OptionalMeasurements } from '../components/dic/RegistrationPrivacyFields'
@@ -618,8 +618,8 @@ function RegularDIC() {
         : { kind: 'info', text: 'Your secure return session is ready. Verify the existing attempt before starting another payment.' })
       const checkout = paystackCheckoutUrl(retained.authorizationUrl)
       if (checkout && retained.paymentStatus !== 'paid') window.location.assign(checkout)
-    } catch {
-      setPaymentNotice({ kind: 'error', text: 'Your payment attempt is preserved, but secure return setup could not complete. Retry secure return setup before opening checkout. No additional payment attempt will be created by this retry.' })
+    } catch (returnError) {
+      setPaymentNotice({ kind: 'error', text: paymentReturnSetupMessage(returnError) })
     }
   }
 
