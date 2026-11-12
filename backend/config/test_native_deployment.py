@@ -239,11 +239,35 @@ class NativeAuthenticationTests(TestCase):
         self.assertTrue(login.cookies['sessionid']['httponly'])
         self.assertEqual(login.cookies['sessionid']['samesite'], 'Lax')
         self.assertEqual(login.cookies['sessionid']['domain'], '')
+        self.assertNotEqual(login.cookies['csrftoken'].value, csrf.cookies['csrftoken'].value)
+        stale = self.browser.post('/api/v1/dic/operations/auth/logout/', {},
+            content_type='application/json', HTTP_X_CSRFTOKEN=csrf.json()['csrfToken'])
+        self.assertEqual(stale.status_code, 403)
         self.assertEqual(self.browser.get('/api/v1/dic/operations/auth/me/').status_code, 200)
         token = self.browser.get('/api/v1/dic/operations/auth/csrf/').json()['csrfToken']
         self.assertEqual(self.browser.post('/api/v1/dic/operations/auth/logout/', {},
             content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 204)
         self.assertIn(self.browser.get('/api/v1/dic/operations/auth/me/').status_code, (401, 403))
+
+    def test_json_csrf_token_without_cookie_cannot_log_in(self):
+        token = self.browser.get('/api/v1/dic/operations/auth/csrf/').json()['csrfToken']
+        self.browser.cookies.clear()
+        response = self.browser.post('/api/v1/dic/operations/auth/login/',
+            {'username': 'native-operator', 'password': 'synthetic-native-password'},
+            content_type='application/json', HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn('sessionid', response.cookies)
+
+    def test_valid_csrf_does_not_grant_operations_permission(self):
+        from django.contrib.auth import get_user_model
+        get_user_model().objects.create_user(
+            username='staff-without-operations', password='synthetic-native-password', is_staff=True)
+        token = self.browser.get('/api/v1/dic/operations/auth/csrf/').json()['csrfToken']
+        response = self.browser.post('/api/v1/dic/operations/auth/login/',
+            {'username': 'staff-without-operations', 'password': 'synthetic-native-password'},
+            content_type='application/json', HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn('sessionid', response.cookies)
 
     def test_csrf_and_cors_refuse_foreign_origin_and_missing_token(self):
         endpoint = '/api/v1/dic/operations/auth/login/'

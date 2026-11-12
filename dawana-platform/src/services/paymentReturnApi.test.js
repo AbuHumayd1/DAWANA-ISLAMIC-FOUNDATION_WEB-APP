@@ -1,6 +1,45 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { callbackLookup, paymentReturnFailureKind, preparePaymentReturn, resolvePaymentReturn, paymentReturnApiAllowed, paymentConfirmed } from './paymentReturnApi.js'
+import { callbackLookup, paymentReturnFailureKind, preparePaymentReturn, resolvePaymentReturn, paymentReturnApiAllowed, paymentConfirmed, paymentReturnSetupMessage } from './paymentReturnApi.js'
+
+test('failed secure return setup retries only the existing order grant with fresh CSRF', async () => {
+  const original = globalThis.fetch
+  const calls = []
+  let tokens = 0, grants = 0
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options })
+    if (url.endsWith('/csrf/')) return Response.json({ csrfToken: `csrf-${++tokens}` })
+    return ++grants === 1 ? Response.json({ detail: 'Payment return CSRF validation failed.' }, { status: 403 }) : Response.json({ ready: true })
+  }
+  try {
+    await assert.rejects(preparePaymentReturn('preserved-order', 'private-token'), error => {
+      assert.match(paymentReturnSetupMessage(error), /CSRF validation was refused/)
+      return error.status === 403
+    })
+    assert.deepEqual(await preparePaymentReturn('preserved-order', 'private-token'), { ready: true })
+    assert.equal(calls.length, 4)
+    assert.equal(calls[1].url, calls[3].url)
+    assert.equal(calls[1].options.headers['X-CSRFToken'], 'csrf-1')
+    assert.equal(calls[3].options.headers['X-CSRFToken'], 'csrf-2')
+    assert.ok(calls.every(({ options }) => options.credentials === 'include'))
+    assert.ok(calls.every(({ url }) => !url.endsWith('/initialize/') && !url.endsWith('/orders/')))
+  } finally { globalThis.fetch = original }
+})
+
+test('secure return diagnostics distinguish hosting and validation failures without exposing server data', () => {
+  for (const [error, expected] of [
+    [{ code: 'payment_return_origin' }, /same-site API configuration/],
+    [{ status: 403 }, /CSRF validation was refused/], [{ status: 404 }, /unavailable or expired/],
+    [{ status: 400 }, /server-side return session configuration/], [{ status: 429 }, /rate limited/],
+    [{ status: 503 }, /service could not complete/],
+  ]) {
+    const message = paymentReturnSetupMessage({ ...error, message: 'private-token', body: { password: 'private-password' } })
+    assert.match(message, expected)
+    assert.match(message, /payment attempt is preserved/)
+    assert.match(message, /No additional payment attempt/)
+    assert.doesNotMatch(message, /private-/)
+  }
+})
 
 test('callback parameters are bounded hints, conflicting references are rejected, and secrets are never accepted as credentials', () => {
   assert.deepEqual(callbackLookup('?reference=DICabc&trxref=DICabc&access_token=untrusted'), { reference: 'DICabc' })

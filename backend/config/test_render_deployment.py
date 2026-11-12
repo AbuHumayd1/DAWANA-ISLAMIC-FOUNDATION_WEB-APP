@@ -53,7 +53,13 @@ class RenderDeploymentTests(SimpleTestCase):
                 assert s.DIC_BACKGROUND_WORKER_ENABLED is False
                 assert not s.DEFAULT_FROM_EMAIL and not s.RESEND_API_KEY
                 assert s.DEBUG is False and s.SECURE_SSL_REDIRECT is True
+                expected_hosts = [os.environ['PUBLIC_HOST'], *filter(None, os.environ.get('PUBLIC_HOST_ALIASES', '').split(','))]
+                assert s.ALLOWED_HOSTS == list(dict.fromkeys(expected_hosts))
+                assert s.CORS_ALLOWED_ORIGINS == [os.environ['FRONTEND_ORIGIN']]
+                assert s.CSRF_TRUSTED_ORIGINS == [os.environ['FRONTEND_ORIGIN']]
                 assert s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE
+                assert s.SESSION_COOKIE_DOMAIN is None and s.CSRF_COOKIE_DOMAIN is None
+                assert s.SESSION_COOKIE_SAMESITE == s.CSRF_COOKIE_SAMESITE == 'Lax'
                 assert s.DATABASES['default']['OPTIONS']['sslmode'] == 'verify-full'
                 assert s.DATABASES['default']['OPTIONS']['sslrootcert']
                 assert s.PAYSTACK_LIVE_ENABLED is False
@@ -64,11 +70,15 @@ class RenderDeploymentTests(SimpleTestCase):
                 assert 'config.request_security.AdminLoginThrottleMiddleware' in s.MIDDLEWARE
                 assert 'config.request_security.TrustedGatewayMiddleware' not in s.MIDDLEWARE
                 from django.test import Client
-                client = Client(HTTP_HOST='backend.example.test', HTTP_X_FORWARDED_PROTO='https')
+                client = Client(HTTP_HOST=os.environ['PUBLIC_HOST'], HTTP_X_FORWARDED_PROTO='https')
                 assert client.get('/api/v1/health/web/').status_code == 200
                 assert client.get('/api/v1/health/').status_code == 503
                 assert client.get('/api/v1/dic/operations/auth/me/').status_code in (401, 403)
                 assert client.get('/api/v1/health/web/', HTTP_X_FORWARDED_PROTO='http').status_code == 301
+                with patch('health.views.connection'):
+                    for host in expected_hosts:
+                        assert client.get('/api/v1/health/', HTTP_HOST=host).status_code == 200
+                assert client.get('/api/v1/health/web/', HTTP_HOST='untrusted.example.test').status_code == 400
             print('PASS: Render web starts independently with production security.')
         ''')
         # The fixture is only used to inspect settings. No TLS connection is made.
@@ -83,6 +93,14 @@ class RenderDeploymentTests(SimpleTestCase):
         result = self.settings_process()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('PASS: Render web starts independently', result.stdout)
+
+    def test_render_settings_accept_explicit_custom_api_and_existing_render_host(self):
+        result = self.settings_process({
+            'PUBLIC_HOST': 'dawana-islamic-foundation-web-app-1.onrender.com',
+            'PUBLIC_HOST_ALIASES': 'api.dawanaislamicfoundation.org',
+            'FRONTEND_ORIGIN': 'https://dawanaislamicfoundation.org',
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_render_rejects_weaker_tls_internal_endpoint_and_weak_secret(self):
         for extra in (

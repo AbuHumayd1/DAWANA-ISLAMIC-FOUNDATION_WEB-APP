@@ -18,7 +18,9 @@ export function paymentReturnApiAllowed(apiBase, frontendUrl) {
 
 async function sessionPost(path, body, token) {
   if (typeof window !== 'undefined' && !paymentReturnApiAllowed(base, window.location.href)) {
-    throw new Error('Secure payment recovery requires the same-origin API or the configured HTTPS DA’WANA API domain. Recover the existing registration; do not pay again.')
+    const error = new Error('Secure payment recovery requires the same-origin API or the configured HTTPS DA’WANA API domain. Recover the existing registration; do not pay again.')
+    error.code = 'payment_return_origin'
+    throw error
   }
   const csrf = await getCsrfToken()
   const headers = { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' }
@@ -27,6 +29,24 @@ async function sessionPost(path, body, token) {
     method: 'POST', credentials: 'include', cache: 'no-store', headers, body: JSON.stringify(body),
   })
   return readApiResponse(response)
+}
+
+export function paymentReturnSetupMessage(error) {
+  // Fixed guidance only: never display raw response bodies, URLs or credentials.
+  let reason = 'The secure return service could not complete setup. Keep this tab open and retry.'
+  if (error?.code === 'payment_return_origin') {
+    reason = 'This checkout requires the approved same-site API configuration. Contact DIC support to restore this existing registration.'
+  } else if (error?.status === 403) {
+    reason = 'Secure return authorization or CSRF validation was refused. Keep this tab open; check browser cookie access and the approved site origin before retrying.'
+  } else if ([401, 404].includes(error?.status)) {
+    reason = 'Secure order access is unavailable or expired. Restore this existing registration before continuing.'
+  } else if (error?.status === 400) {
+    reason = 'The server rejected secure return setup. Contact DIC support to check the server-side return session configuration.'
+  } else if (error?.status === 429) {
+    reason = 'Secure return setup is temporarily rate limited. Wait before retrying.'
+  }
+  return 'Your payment attempt is preserved, but secure return setup could not complete. '
+    + reason + ' No additional payment attempt will be created by this retry.'
 }
 
 export function preparePaymentReturn(orderId, token) {

@@ -45,6 +45,10 @@ django.setup()
 from django.test import SimpleTestCase, TestCase, TransactionTestCase
 
 labels = sys.argv[1:] or [
+    'config.test_render_deployment.RenderDeploymentTests',
+    'config.test_public_hosts.PublicHostTests',
+    'dic.test_checkout_validation.CheckoutValidationTests',
+    'config.test_operations_security.OperationsSecurityTests',
     'dic.test_launch_operations.LaunchOperationsPolicyTests',
     'dic.test_launch_operations.LaunchManagementServiceTests',
     'dic.test_recovery_sprint.FeedbackVersionPolicyTests',

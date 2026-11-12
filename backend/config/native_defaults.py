@@ -7,6 +7,11 @@ def configure(env):
     host = env.get('PUBLIC_HOST', '')
     if not re.fullmatch(r'[a-z0-9]+(?:[.-][a-z0-9]+)*', host) or '.' not in host:
         raise ValueError('Set PUBLIC_HOST to one exact public hostname without scheme or path.')
+    aliases = env.get('PUBLIC_HOST_ALIASES', '')
+    hosts = [host, *(aliases.split(',') if aliases else [])]
+    if any(not re.fullmatch(r'[a-z0-9]+(?:[.-][a-z0-9]+)*', item) or '.' not in item
+           for item in hosts):
+        raise ValueError('PUBLIC_HOST_ALIASES must contain exact comma-separated hostnames without schemes, ports, paths or wildcards.')
     frontend = env.get('FRONTEND_ORIGIN', '')
     try:
         origin = urlsplit(frontend)
@@ -22,7 +27,7 @@ def configure(env):
         raise ValueError('Set FRONTEND_ORIGIN to one exact HTTPS origin without path or trailing slash.')
     # Derived for this standalone API, never widen credentialed access via stale
     # container-era DJANGO_* host/origin overrides.
-    env['DJANGO_ALLOWED_HOSTS'] = host
+    env['DJANGO_ALLOWED_HOSTS'] = ','.join(dict.fromkeys(hosts))
     env['DJANGO_CSRF_TRUSTED_ORIGINS'] = frontend
     env['DJANGO_CORS_ALLOWED_ORIGINS'] = frontend
     env['DJANGO_DEPLOYMENT_TARGET'] = 'managed'

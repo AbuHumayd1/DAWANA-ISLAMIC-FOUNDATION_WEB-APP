@@ -43,6 +43,46 @@ class PaymentReturnTests(APITestCase):
     def status(self, payload=None, client=None, csrf=None):
         return (client or self.client).post(reverse("dic:payment-return-status"), payload or {}, format="json", HTTP_X_CSRFTOKEN=csrf or self.csrf)
 
+    @patch('dic.payment_views.PaystackClient')
+    def test_preprimary_4000_attempt_survives_missing_csrf_cookie_and_grant_only_retries(self, provider):
+        from copy import deepcopy
+        from datetime import date
+        from decimal import Decimal
+        self.category.fee_ngn = Decimal('5000')
+        self.category.early_bird_fee_ngn = Decimal('4000')
+        self.category.payment_kind = 'pre_primary'
+        self.category.save(update_fields=['fee_ngn', 'early_bird_fee_ngn', 'payment_kind'])
+        self.edition.early_bird_cutoff_at = timezone.now() + timedelta(hours=12)
+        self.edition.save(update_fields=['early_bird_cutoff_at'])
+        payload = deepcopy(self.order_payload)
+        payload['participants'][0].update(date_of_birth=date(timezone.localdate().year - 3, 1, 1).isoformat(),
+            academic_status='Not Currently in School')
+        created = self.client.post(reverse('dic:order-create'), payload, format='json',
+            HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertEqual(Decimal(created.data['total_amount_ngn']), Decimal('4000'))
+        self.order_id, self.access_token = created.data['order_id'], created.data['access_token']
+        provider.return_value.initialize_transaction.side_effect = lambda **values: {
+            'reference': values['reference'], 'authorization_url': 'https://checkout.paystack.com/test-only'}
+        initialized = self.client.post(reverse('dic:payment-initialize', args=[self.order_id]), {},
+            format='json', HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        self.assertEqual(initialized.status_code, 200, initialized.data)
+        self.assertEqual(initialized.data['amount_kobo'], 400000)
+        reference = initialized.data['payment_reference']
+        del self.client.cookies['csrftoken']
+        self.assertEqual(self.prepare().status_code, 403)
+        self.csrf = self.client.get('/api/v1/dic/operations/auth/csrf/').json()['csrfToken']
+        self.assertEqual(self.prepare().status_code, 200)
+        self.assertEqual(self.prepare().status_code, 200)
+        self.assertEqual(PaymentReturnGrant.objects.filter(order__public_id=self.order_id).count(), 1)
+        self.assertEqual(PaymentAttempt.objects.count(), 1)
+        attempt = PaymentAttempt.objects.get(reference=reference)
+        self.assertEqual(attempt.status, PaymentAttempt.Status.PENDING)
+        self.assertEqual(attempt.amount_kobo, 400000)
+        self.assertTrue(Session.objects.filter(session_key=self.client.cookies[settings.SESSION_COOKIE_NAME].value).exists())
+        provider.return_value.initialize_transaction.assert_called_once()
+        provider.return_value.verify_transaction.assert_not_called()
+
     @patch("dic.payment_return.PaystackClient")
     def test_verified_success_survives_duplicate_callbacks_and_reload_without_bearer_or_draft(self, factory):
         attempt = self.create_pending_attempt()

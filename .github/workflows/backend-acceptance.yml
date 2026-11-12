@@ -11,6 +11,29 @@ permissions:
   contents: read
 
 jobs:
+  operations-frontend:
+    name: Full frontend production validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend regression dependencies
+        working-directory: dawana-platform
+        run: npm ci --include=dev
+      - name: Run complete frontend suite, lint and production build (no services or secrets)
+        working-directory: dawana-platform
+        env:
+          VITE_API_BASE_URL: https://api.dawanaislamicfoundation.org/api/v1
+        run: |
+          npm test
+          npm run lint
+          npm run build
+
   policy:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
