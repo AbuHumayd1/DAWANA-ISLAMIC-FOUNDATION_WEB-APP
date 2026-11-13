@@ -58,7 +58,7 @@ test('account settings are absent until approved rollout is enabled', () => {
 test('username login and reviewed recovery never require email activation', () => {
   const html = render('PortalCredentialLogin', { capabilities: { accounts: { enabled: true } } })
   assert.match(html, /Username/)
-  assert.match(html, /No email activation is required/)
+  assert.doesNotMatch(html, /No email activation is required/)
   assert.match(html, /Recover username access without email/)
   assert.doesNotMatch(html, /Resend email verification|Confirm email ownership/)
   const recovery = render('PortalCredentialRecovery', { busy: false, onSubmit() {} })

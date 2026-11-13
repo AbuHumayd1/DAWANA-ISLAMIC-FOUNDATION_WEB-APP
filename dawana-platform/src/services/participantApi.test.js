@@ -9,6 +9,22 @@ import { visibleOperationsNavigation } from './operationsNavigation.js'
 import { eligibilityLabel, participantCardPath, staffCardPath } from './participantIdentity.js'
 
 let deliveryServer, DeliveryStatus, IDPresentation
+
+test('hung startup requests time out, clear shared work and permit a successful retry', async () => {
+  const originalFetch = globalThis.fetch, originalTimeout = AbortSignal.timeout
+  AbortSignal.timeout = () => originalTimeout(5)
+  globalThis.fetch = (_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+  })
+  const keepAlive = setTimeout(() => {}, 1000)
+  try {
+    await assert.rejects(participantRequest('/auth/me/', undefined, { notifyExpiry: false }), /taking too long/)
+    globalThis.fetch = async () => Response.json({ authenticated: true })
+    assert.equal((await participantRequest('/auth/me/', undefined, { notifyExpiry: false })).authenticated, true)
+  } finally {
+    clearTimeout(keepAlive); globalThis.fetch = originalFetch; AbortSignal.timeout = originalTimeout
+  }
+})
 before(async () => {
   deliveryServer = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
   DeliveryStatus = (await deliveryServer.ssrLoadModule('/src/pages/ParticipantPortal.jsx')).ParticipantDeliveryStatus

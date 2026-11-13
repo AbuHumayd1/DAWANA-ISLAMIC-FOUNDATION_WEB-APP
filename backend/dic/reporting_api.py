@@ -24,7 +24,10 @@ def export_rows(data):
         rows.append(dict(section='Details',**row))
         for key in row:
             if key not in columns: columns.append(key)
-    return columns,[[row.get(key,'') if row.get(key,'') is not None else 'Unavailable / privacy threshold' for key in columns] for row in rows]
+    values = [[row.get(key,'') if row.get(key,'') is not None else 'Unavailable / privacy threshold' for key in columns] for row in rows]
+    # Keep stable field keys inside the API; exported headings are for readers.
+    headings = {'label': 'Description', 'value': 'Total', 'unit': 'Unit', 'id': 'Reference'}
+    return [headings.get(key, key.replace('_', ' ').capitalize()) for key in columns], values
 
 
 class ReportingView(OperationsBaseView):

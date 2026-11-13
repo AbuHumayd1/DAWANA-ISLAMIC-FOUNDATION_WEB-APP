@@ -11,6 +11,19 @@ before(async () => {
   Fields = (await server.ssrLoadModule('/src/components/dic/PrimaryRegistrantFields.jsx')).default
 })
 after(async () => { await server?.close() })
+
+test('main registration collects exactly one booking email and no participant email', () => {
+  const html = renderToStaticMarkup(createElement(Fields, { contactOnly: true, onChange() {},
+    contact: { fullName: 'Booking owner', email: 'owner@example.test' },
+  }))
+  assert.equal((html.match(/type="email"/g) || []).length, 1)
+  assert.match(html, /owner@example.test/)
+  assert.doesNotMatch(html, /name="email"/)
+  const source = fs.readFileSync(new URL('../pages/DIC.jsx', import.meta.url), 'utf8')
+  assert.match(source, /PrimaryRegistrantFields contactOnly contact=\{bookingContact\}/)
+  assert.match(source, /PrimaryRegistrantFields readOnly participants=/)
+  assert.doesNotMatch(source, /Field label="Email" name="email"|email: participant.email/)
+})
 test('booking contact is explicit and normalized without borrowing a child identity', () => {
   assert.deepEqual(primaryRegistrantPayload({ fullName: ' Guardian ', email: ' Guardian@Example.test ', phone: '' }), { full_name: 'Guardian', email: 'guardian@example.test', phone: '' })
   for (const value of [undefined, {}, { fullName: 'Guardian' }, { email: 'guardian@example.test' }, { fullName: 'Guardian', email: 'invalid' }]) assert.throws(() => primaryRegistrantPayload(value))
@@ -18,7 +31,7 @@ test('booking contact is explicit and normalized without borrowing a child ident
 test('registration shows explicit contact and keeps existing submitted contact locked', () => {
   const html = renderToStaticMarkup(createElement(Fields, { contact: {}, onChange() {}, locked: true }))
   assert.match(html, /fieldset disabled=""/); assert.match(html, /Booking email/); assert.match(html, /type="email"/)
-  assert.match(html, /no email activation is required/); assert.doesNotMatch(html, /type="password"/)
+  assert.match(html, /Booking contact/); assert.doesNotMatch(html, /type="password"/)
 })
 test('pre-payment password and confirmation are required but separate from persisted contact', () => {
   const password = 'River-Cedar!Sparrow-84'

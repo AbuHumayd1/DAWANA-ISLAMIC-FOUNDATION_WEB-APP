@@ -15,7 +15,7 @@ export default function GuardianFields({ participants = [], reference, contact, 
     guardianRelationships: [...declarations.filter(row => row.childId !== childId),
       ...(guardianId ? [{ childId, guardianId, confirmed }] : [])] })
   return <fieldset disabled={locked}><legend>Dependent children and guardians</legend>
-    <p>Children aged 0–5 share an eligible female guardian’s house. Select the adult in this booking who accepts responsibility. Her name and email must match the booking contact, and her email must be verified. Missing or ambiguous relationships require assistance; payment remains confirmed.</p>
+    <p>Children aged 0–5 share an eligible female guardian’s house. Select the responsible adult in this booking. DIC staff review the accommodation relationship separately.</p>
     {children.map(child => {
       const row = declarations.find(item => item.childId === child.id)
       return <div key={child.id}>
