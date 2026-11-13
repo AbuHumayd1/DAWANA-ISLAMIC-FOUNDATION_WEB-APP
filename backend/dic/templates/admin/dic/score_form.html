@@ -1,0 +1,5 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Corrections remain in the points history. Approved catalogue competitions use the existing activity scoring workflow.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<input type="submit" value="Confirm points" /></form>
+{% endblock %}

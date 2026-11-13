@@ -184,7 +184,7 @@ class ParticipantInputSerializer(StrictSerializer):
     full_name = serializers.CharField(max_length=200)
     address = serializers.CharField()
     phone = serializers.CharField(max_length=32)
-    email = serializers.EmailField()
+    email = serializers.EmailField(required=False, allow_blank=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True, default=None)
     age_declaration = serializers.ChoiceField(choices=['exact', 'minor', 'adult'], required=False, default='exact')
     sex = serializers.ChoiceField(choices=Participant.Sex.choices)
@@ -259,6 +259,8 @@ class RegistrationOrderCreateSerializer(StrictSerializer):
 
     def validate(self, attrs):
         participants = attrs['participants']
+        from .registration_age import validate_guardian_contact
+        validate_guardian_contact(participants, attrs['primary_registrant'])
         seen = set()
         for relation in attrs['guardian_relationships']:
             child, guardian = relation['child_index'], relation['guardian_index']

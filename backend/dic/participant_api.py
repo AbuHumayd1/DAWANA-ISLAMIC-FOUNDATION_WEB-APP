@@ -94,8 +94,12 @@ def authorized_grant(request, lock=False):
     from .portal_accounts import account_session
     account_session(grant)
     # All participant readers share this boundary, including OTP-only grants.
-    if not scoped_orders(grant):
+    orders = scoped_orders(grant)
+    if not orders:
         raise PermissionDenied('No currently eligible registration is available. Use booking recovery or contact DIC staff.')
+    # Read views reuse this authorization result only within the current request.
+    # No entitlements are cached across requests or after a mutation.
+    grant.authorized_orders = orders
     return grant
 
 
@@ -218,7 +222,7 @@ class PortalVerifyView(PortalView):
 class PortalMeView(PortalView):
     def get(self, request):
         grant = authorized_grant(request)
-        return Response({"authenticated": True, "expires_at": grant.expires_at.isoformat(), "booking_count": len(scoped_orders(grant))})
+        return Response({"authenticated": True, "expires_at": grant.expires_at.isoformat(), "booking_count": len(grant.authorized_orders)})
 
 
 class PortalLogoutView(PortalView):
@@ -242,7 +246,7 @@ class PortalEnrollmentsView(PortalView):
     def get(self, request):
         grant = authorized_grant(request)
         results = []
-        for order in scoped_orders(grant):
+        for order in grant.authorized_orders:
             participants = []
             for item in order.items.select_related("participant"):
                 enrollment = CampEnrollment.objects.filter(participant=item.participant, edition=order.edition, source_item__order=order).select_related("participant", "source_item__order", "edition").first()

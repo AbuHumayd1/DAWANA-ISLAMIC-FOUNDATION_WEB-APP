@@ -42,6 +42,17 @@ export async function participantRequest(path, body, { signal, notifyExpiry = tr
 }
 
 async function sendParticipantRequest(path, body, { signal, notifyExpiry }) {
+  const timeout = AbortSignal.timeout(20000)
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout
+  try {
+    return await sendBoundedRequest(path, body, { signal: requestSignal, notifyExpiry })
+  } catch (error) {
+    if (timeout.aborted && !signal?.aborted) throw new Error('The participant service is taking too long. Please retry.')
+    throw error
+  }
+}
+
+async function sendBoundedRequest(path, body, { signal, notifyExpiry }) {
   const headers = new Headers({ Accept: 'application/json' })
   if (body !== undefined) {
     const csrf = await fetch(`${base}/auth/csrf/`, { credentials: 'include', cache: 'no-store', signal })

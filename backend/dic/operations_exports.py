@@ -22,22 +22,22 @@ def spreadsheet_safe(value):
 def registration_export_rows(queryset, include_contacts=False):
     from .tutor_registration import authorization_state
     headers = [
-        "order_reference",
-        "edition",
-        "submitted_at",
-        "order_status",
-        "payment_status",
-        "verified_payment",
-        "total_amount_ngn",
-        "participant_count",
-        "categories",
-        "houses",
-        "repricing_status",
-        "registration_basis",
-        "tutor_authorization_status",
+        "Booking reference",
+        "Camp",
+        "Registered on (Lagos)",
+        "Booking status",
+        "Payment status",
+        "Payment verification",
+        "Amount (NGN)",
+        "Participants",
+        "Categories",
+        "Houses",
+        "Fee review",
+        "Registration type",
+        "Tutor approval",
     ]
     if include_contacts:
-        headers.extend(("participant_names", "participant_emails", "participant_phones"))
+        headers.extend(("Participant names", "Participant emails", "Participant phones"))
 
     rows = []
     if hasattr(queryset, "select_related"):
@@ -85,9 +85,9 @@ def registration_export_rows(queryset, include_contacts=False):
         row = [
             str(order.public_id),
             order.edition.name,
-            order.created_at.isoformat(),
-            order.status,
-            order.payment_status,
+            timezone.localtime(order.created_at).strftime('%d %b %Y %H:%M'),
+            order.get_status_display(),
+            order.get_payment_status_display(),
             "not required (complimentary tutor)" if order.registration_basis == 'tutor' else "verified" if verified else "not verified",
             order.total_amount_ngn,
             len(participants),

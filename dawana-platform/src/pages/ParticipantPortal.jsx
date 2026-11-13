@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { createRequestScope, assertParticipantAccess } from '../services/requestScope'
 import { participantRequest, participantDeliveryOptions } from '../services/participantApi'
+import { participantOrders, participantExpiry } from '../services/participantPayload'
 import './ParticipantPortal.css'
 import '../components/dic/CamperExperience.css'
 import DigitalIDPresentation from '../components/dic/DigitalIDPresentation'
 import CamperExperience from '../components/dic/CamperExperience'
 import CamperBrand from '../components/dic/CamperBrand'
-import { PortalScenery, PortalLoginChoices } from '../components/dic/PortalPhase3'
+import { PortalLoginChoices } from '../components/dic/PortalPhase3'
 import { sessionPersistenceLabel } from '../services/portalPhase3'
 import { PortalCredentialLogin, PortalAccountSettings } from '../components/dic/PortalAccountAccess'
 import { oauthReturn } from '../services/portalAccount'
@@ -58,7 +59,7 @@ export default function ParticipantPortal() {
   const [now, setNow] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState(() => location.hash.startsWith('#verify-email=') ? 'Email activation has been retired. Use your username or ask authorized DIC staff to review legacy account access.' : location.hash === '#signin=failed' ? 'Sign-in could not be completed. Use your username and password, or recover access through your verified booking contact.' : participantSessionClosed() ? 'Participant access was closed on this browser. Sign in again, or retry sign-out if it was not confirmed.' : '')
+  const [notice, setNotice] = useState(() => location.hash.startsWith('#verify-email=') ? 'Recover your existing booking or contact DIC support to complete account verification.' : location.hash === '#signin=failed' ? 'Use your username and password, or recover your booking.' : participantSessionClosed() ? 'Sign in again to continue.' : '')
   const [card, setCard] = useState(null)
   const [selection,setSelection] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
@@ -97,15 +98,15 @@ export default function ParticipantPortal() {
   const load = async (ticket) => {
     const data = await read(ticket, '/enrollments/')
     assertAccess(ticket)
-    setOrders(data.orders)
+    setOrders(participantOrders(data))
   }
   useEffect(() => {
     const controller = new AbortController()
     participantRequest('/auth/capabilities/', undefined, { signal: controller.signal, notifyExpiry: false })
       .then(data => { if (!controller.signal.aborted) setCapabilities(data) })
-      .catch(() => { /* OTP and existing sessions remain usable without optional capabilities. */ })
+      .catch(() => { if (!controller.signal.aborted) setError('Could not load sign-in options. Please retry.') })
     return () => controller.abort()
-  }, [])
+  }, [sessionAttempt])
   useEffect(() => {
     if (!loginOpen && !challenge) return undefined
     const options = new AbortController()
@@ -136,11 +137,12 @@ export default function ParticipantPortal() {
     // protected requests still publish expiry and clear all sensitive UI state.
     if (!participantSessionClosed() || oauthReturned) read(ticket, '/auth/me/', undefined, { notifyExpiry: false }).then(async (result) => {
       assertAccess(ticket)
-      deadline.current = Date.parse(result.expires_at)
+      deadline.current = participantExpiry(result)
       const data = await read(ticket, '/enrollments/')
       assertAccess(ticket)
       if (oauthReturned) reopenParticipantSession()
-      setProfile(result); setOrders(data.orders)
+      const orders = participantOrders(data)
+      setProfile(result); setOrders(orders)
     }).catch((e) => { if (access.current(ticket) && e.status !== 403 && e.status !== 401) {
       if (e.status === 429) setRetryUntil(current => Math.max(current, e.retryAt || Date.now() + 60000))
       else setError(e.message)
@@ -185,8 +187,8 @@ export default function ParticipantPortal() {
     return perform(async (ticket) => {
       const result = await read(ticket, '/auth/verify/', { challenge_id: challenge, code, remember_device: rememberDevice })
       assertAccess(ticket)
+      deadline.current = participantExpiry(result)
       reopenParticipantSession(); setLogoutFailed(false)
-      deadline.current = Date.parse(result.expires_at)
       assertAccess(ticket)
       setCode(''); setChallenge(null); setContact(''); setReference(''); setNotice(''); setProfile(result)
       await load(ticket)
@@ -228,7 +230,7 @@ export default function ParticipantPortal() {
   }
   const passwordLogin = credentials => perform(async ticket => {
     const result = await read(ticket, '/auth/password/login/', credentials, { notifyExpiry: false })
-    reopenParticipantSession(); setLogoutFailed(false); deadline.current = Date.parse(result.expires_at)
+    deadline.current = participantExpiry(result); reopenParticipantSession(); setLogoutFailed(false)
     setProfile(result); setNotice(''); await load(ticket)
   })
   const transitionCredentials = credentials => perform(async ticket => {
@@ -238,10 +240,10 @@ export default function ParticipantPortal() {
 
   if (checking) return <section className="participant-portal container" aria-busy="true"><p role="status">Checking secure participant access…</p></section>
   return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`}>
-    {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><span className="cp-kicker">YOUR CAMP COMPANION</span><h1>A meaningful journey<br />starts with you.</h1><p>Faith. Friendship. Lasting contribution.</p><PortalScenery /></div>}
+    {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><h1>Participant sign in</h1></div>}
     {!profile && (loginOpen || challenge || error || retryUntil) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <p className="participant-notice" role="status">{notice}</p>}
     {!profile && (logoutFailed || participantSessionClosed()) && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
-    {!profile ? <div className="participant-access-panel"><span className="cp-kicker">{challenge ? 'ONE MORE STEP' : 'WELCOME TO YOUR CAMP'}</span><h2>{challenge ? 'Check your inbox' : 'Your camp, connected.'}</h2><p>{challenge ? `Enter the six-digit code sent through ${channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.` : 'Sign in with your registration username and password when your booking is eligible.'}</p>
+    {!profile ? <div className="participant-access-panel">{challenge && <><h2>Check your inbox</h2><p>Enter the six-digit code sent through {channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.</p></>}
       {!challenge && <PortalCredentialLogin capabilities={capabilities} recoveryAvailable={deliveryPhase === 'ready' && channels.some(c => c.available)} recoveryLoading={loginOpen && deliveryPhase === 'loading'} onCheckRecovery={!loginOpen && deliveryPhase === 'loading' ? () => recoverAccount('reset') : undefined} busy={busy || loggingOut || now < retryUntil} onLogin={passwordLogin} onRecover={recoverAccount} onTransition={transitionCredentials} />}
       <PortalLoginChoices showGoogle={false} open={loginOpen || Boolean(challenge)} onVerify={() => { if (challenge) { setChallenge(null); setCode(''); setNotice(''); setLoginOpen(false) } else setLoginOpen(value => !value) }} />
       {(loginOpen || challenge) && <form id="cp-booking-verification" onSubmit={challenge ? verify : requestCode}>
@@ -249,7 +251,7 @@ export default function ParticipantPortal() {
         <button className="button" disabled={busy || loggingOut || now < retryUntil || deliveryPhase !== 'ready' || !channels.some((c) => c.available)}>{busy ? 'Please wait…' : challenge ? 'Verify secure access' : 'Send verification code'}</button>
         {challenge && <label className="cp-remember-device"><input type="checkbox" checked={rememberDevice} disabled={!capabilities?.session?.remember_seconds} onChange={event => setRememberDevice(event.target.checked)} />Keep me signed in on this personal device (up to {sessionPersistenceLabel(capabilities?.session?.remember_seconds || 1800)}). Do not use on shared devices.</label>}
       </form>}{challenge && <><p className="cp-code-expiry" role="status">{now < codeExpiresAt ? `Code expires in ${Math.floor((codeExpiresAt - now) / 60000)}:${String(Math.floor((codeExpiresAt - now) / 1000) % 60).padStart(2, '0')}` : 'This code has expired. Request a new code.'}</p><div className="portal-id-actions"><button disabled={busy || now < resendAt || now < retryUntil} onClick={() => requestCode()}>{now < resendAt ? `Resend in ${Math.ceil((resendAt - now) / 1000)}s` : 'Resend code'}</button><button disabled={busy} onClick={() => { setChallenge(null); setCode(''); setNotice('') }}>Change booking details</button></div></>}
-      <p className="cp-auth-help"><Link to="/dic/register/recover">Recover your booking reference</Link></p><p>Sign in with your registration username and password when your booking is eligible. No email activation is required. Older paid registrations can use First-Time Account Setup; do not register or pay again. If an older booking has no reliable primary email, use booking recovery and ask authorized DIC staff to review ownership and contact details.</p><small>Access is scoped to your verified, eligible booking. Contact verification does not establish guardianship or collection authority.</small>
+      <p className="cp-auth-help"><Link to="/dic/register/recover">Recover your booking</Link></p>
     </div> : <>
       {card ? <ParticipantIDCard card={card} onClose={() => setCard(null)} /> : <CamperExperience orders={orders} selection={selection} onSelect={value => { access.invalidate(); setCard(null); setSelection(value) }} busy={busy} onOpenID={openID} onLogout={logout} onRefreshBookings={() => perform(load)} loggingOut={loggingOut} expiresAt={profile.expires_at} accountSettings={<PortalAccountSettings capabilities={capabilities} busy={busy} onVerify={() => recoverAccount('setup')} run={action => perform(ticket => action((path, body) => read(ticket, path, body)))} />} />}
     </>}

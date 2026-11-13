@@ -79,7 +79,9 @@ class ApprovedFeesTests(TestCase):
             ('undergraduate', 16, Participant.AcademicStatus.TERTIARY, False),
             ('undergraduate', 17, Participant.AcademicStatus.TERTIARY, True),
             ('undergraduate', 24, Participant.AcademicStatus.TERTIARY, True),
-            ('undergraduate', 25, Participant.AcademicStatus.TERTIARY, False),
+            ('undergraduate', 25, Participant.AcademicStatus.TERTIARY, True),
+            ('undergraduate', 30, Participant.AcademicStatus.TERTIARY, True),
+            ('undergraduate', 31, Participant.AcademicStatus.TERTIARY, False),
             ('undergraduate', 20, Participant.AcademicStatus.GRADUATE, False),
             ('undergraduate', 20, None, False),
             ('graduate_adult', 16, Participant.AcademicStatus.GRADUATE, True),
@@ -88,7 +90,8 @@ class ApprovedFeesTests(TestCase):
             ('graduate_adult', 18, None, True),
             ('graduate_adult', 24, None, True),
             ('graduate_adult', 24, Participant.AcademicStatus.TERTIARY, False),
-            ('graduate_adult', 25, Participant.AcademicStatus.TERTIARY, True),
+            ('graduate_adult', 25, Participant.AcademicStatus.TERTIARY, False),
+            ('graduate_adult', 31, Participant.AcademicStatus.TERTIARY, True),
         ]
         for kind, age, status, expected in cases:
             with self.subTest(kind=kind, age=age, status=status):
@@ -196,5 +199,5 @@ class ApprovedFeesTests(TestCase):
     def test_registration_rejects_ineligible_undergraduate(self):
         from rest_framework.exceptions import ValidationError
         with self.assertRaises(ValidationError):
-            self.order([self.person('undergraduate', 25, Participant.AcademicStatus.TERTIARY)])
+            self.order([self.person('undergraduate', 31, Participant.AcademicStatus.TERTIARY)])
         self.assertFalse(RegistrationOrder.objects.exists())

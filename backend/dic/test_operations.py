@@ -343,8 +343,8 @@ class DICOperationsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
         rows = list(csv.reader(io.StringIO(response.content.decode("utf-8-sig"))))
-        self.assertEqual(rows[0][0], "order_reference")
-        self.assertNotIn("participant_names", rows[0])
+        self.assertEqual(rows[0][0], "Booking reference")
+        self.assertNotIn("Participant names", rows[0])
         self.assertNotIn("=HYPERLINK", response.content.decode("utf-8"))
         audit = DICAdminAuditEvent.objects.get(action="registration_export")
         self.assertEqual(audit.actor, staff)
@@ -362,8 +362,8 @@ class DICOperationsTests(TestCase):
             },
         )
         rows = list(csv.reader(io.StringIO(response.content.decode("utf-8"))))
-        self.assertIn("participant_names", rows[0])
-        participant_names = rows[1][rows[0].index("participant_names")]
+        self.assertIn("Participant names", rows[0])
+        participant_names = rows[1][rows[0].index("Participant names")]
         self.assertTrue(participant_names.startswith("'=HYPERLINK"))
         self.assertTrue(
             DICAdminAuditEvent.objects.filter(

@@ -84,6 +84,19 @@ class PhaseATests(APITestCase):
         payload['portal_account'].update({'mode': 'existing', **credentials})
         return self.client.post(reverse('dic:order-create'), payload, format='json', HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
 
+    def test_single_booking_email_fills_only_new_participant_records(self):
+        payload = deepcopy(self.order_payload)
+        payload['portal_account']['mode'] = 'existing'
+        for person in payload['participants']:
+            person.pop('email', None)
+        original = list(self.order.items.values_list('participant__email', flat=True))
+        response = self.client.post(reverse('dic:order-create'), payload, format='json', HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+        self.assertEqual(response.status_code, 201, response.data)
+        created = RegistrationOrder.objects.get(public_id=response.data['order_id'])
+        self.assertEqual(list(created.items.values_list('participant__email', flat=True)),
+            [payload['primary_registrant']['email']] * len(payload['participants']))
+        self.assertEqual(list(self.order.items.values_list('participant__email', flat=True)), original)
+
     def late(self):
         self.age()
         actor = self.activate()
@@ -107,7 +120,9 @@ class PhaseATests(APITestCase):
         payload['portal_account']['mode'] = 'existing'
         payload['primary_registrant']['email'] = 'someone-else@example.test'
         response = self.client.post(reverse('dic:order-create'), payload, format='json', HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('original booking email', str(response.data))
+        self.assertEqual(RegistrationOrder.objects.count(), 3)
 
     def test_create_mode_collision_reserved_and_staff_username_never_convert(self):
         for name in ('synthetic-registrant', 'admin', 'staff login', 'privileged'):

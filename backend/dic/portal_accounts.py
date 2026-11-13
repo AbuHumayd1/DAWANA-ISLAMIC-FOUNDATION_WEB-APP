@@ -14,7 +14,7 @@ from .models import (PortalAccount, PortalAccountBooking, PortalAccountSession, 
 from .security import digest_value
 from .portal_phase3 import session_seconds
 
-INVALID = 'Sign-in could not be completed. Check your details or use verified booking recovery.'
+INVALID = 'Use your existing account username and password. If you cannot sign in, recover your booking or contact DIC support to verify account access.'
 RESERVED_USERNAMES = {'admin', 'administrator', 'staff', 'supervisor', 'superuser', 'root',
     'support', 'system', 'dic', 'dif', 'dawana', 'api', 'tutor', 'operations'}
 
@@ -161,6 +161,10 @@ def password_account(identifier, password):
         get_user_model()().set_password(password)  # Same password-hash cost; no account enumeration shortcut.
         raise AuthenticationFailed(INVALID)
     checked = account.user.check_password(password)
+    if checked and not account.user.is_active:
+        from .registration_accounts import pending_registration
+        if pending_registration(account):
+            raise AuthenticationFailed('This account still needs verification. Recover your existing booking or contact DIC support to complete verification; do not create another booking or pay again.')
     if not checked or not usable(account): raise AuthenticationFailed(INVALID)
     return account
 

@@ -15,11 +15,8 @@ export function PortalCredentialLogin({ capabilities, busy, onLogin, onRecover, 
       <label className="cp-remember-device"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />Keep me signed in on this personal device (up to 8 hours). Leave unchecked on shared devices.</label>
       <button className="button" type="submit">{busy ? 'Signing in…' : 'Sign In'}</button></fieldset>
   </form>{!enabled && <p role="status">Password accounts await approved setup. Contact authorized DIC staff if secure booking verification is unavailable.</p>}
-    <p>Sign in with your username and password. Existing activated accounts keep their credentials.</p>
-    <p>Ordinary registrations require verified payment. Authorized complimentary tutors do not. No email activation is required.</p>
     <PortalCredentialRecovery busy={busy || !enabled} onSubmit={onTransition} />
     {recoveryAvailable ? <div className="portal-id-actions"><button type="button" disabled={busy} onClick={() => onRecover('reset')}>Forgot Password</button><button type="button" disabled={busy} onClick={() => onRecover('setup')}>First-Time Account Setup</button></div> : onCheckRecovery ? <><p>Booking recovery and password reset require a configured secure code channel.</p><button type="button" className="cp-text-button" disabled={busy} onClick={onCheckRecovery}>Check recovery & password reset options</button></> : <p role="status">{recoveryLoading ? 'Checking secure recovery options…' : 'Booking-code recovery and password reset are currently unavailable. Use your original credentials or contact authorized DIC staff. An administrator can authorize recovery without email.'}</p>}
-    <p>Account setup is for older bookings without a registration password. New registrations already create your username account; sign in when your booking is eligible. Authorized complimentary tutors do not need payment.</p>
   </div>
 }
 

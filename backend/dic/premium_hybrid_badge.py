@@ -153,7 +153,7 @@ def _render_hybrid_pdf(cards, *, placements=None):
     width,height,gap = geometry()
     output = io.BytesIO()
     pdf = canvas.Canvas(output,pagesize=A4,pageCompression=1)
-    pdf.setTitle('DIC 2026 - Final Premium Hybrid')
+    pdf.setTitle('DIC 2026 - Participant ID')
     for index,card in enumerate(cards):
         if index and index%4 == 0:
             pdf.showPage()

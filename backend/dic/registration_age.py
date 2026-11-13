@@ -1,5 +1,21 @@
 """Exact ages and explicit adult assertions; never substitute a birth date."""
 from django.core.exceptions import ValidationError
+from datetime import date
+
+
+def validate_guardian_contact(participants, contact):
+    """The existing booking contact is the declared guardian for under-16s.
+
+    This does not create housing guardianship or account ownership evidence.
+    Existing contacts are never rewritten by this input-only validation.
+    """
+    from rest_framework.exceptions import ValidationError as InputError
+    reference = date(2026, 12, 23)
+    if any(person.get('date_of_birth') and exact_age(person['date_of_birth'], reference) < 16
+           for person in participants):
+        phone = contact.get('phone', '').strip()
+        if not 7 <= sum(char.isdigit() for char in phone) <= 15:
+            raise InputError({'primary_registrant': {'phone': 'Enter a valid parent or guardian phone number for participants below 16.'}})
 
 
 def exact_age(birth, reference):
@@ -42,11 +58,11 @@ def category_age_allowed(data, category, reference):
         undergraduate = status == Participant.AcademicStatus.TERTIARY
         age = exact_age(birth, reference) if birth else None
         if kind == 'graduate_adult':
-            return graduate or (age is not None and age >= 25) or (
+            return graduate or (age is not None and age > 30) or (
                 not undergraduate and (age is None or age >= 17)
             )
         if kind == 'undergraduate':
-            return undergraduate and age is not None and 17 <= age <= 24
+            return undergraduate and age is not None and 17 <= age <= 30
         # Younger graduates retain the agreed graduate payment classification.
         if graduate or age is None:
             return False

@@ -48,7 +48,8 @@ def bind_registration(order, credentials):
             raise ValidationError({'username': 'Choose another username, or use your existing account.'})
         account = accounts.password_account(username, credentials['password'])
         if account.contact_channel not in ('email', 'username') or not secrets.compare_digest(account.contact_digest, digest):
-            raise AuthenticationFailed(accounts.INVALID)
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'primary_registrant': {'email': 'Use the original booking email for this participant account. To change it, recover your existing booking or contact DIC support.'}})
     else:
         if mode == 'existing':
             # Equalize hash work and never turn a failed sign-in into signup.

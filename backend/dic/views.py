@@ -186,7 +186,9 @@ def _create_order(*, key_digest, fingerprint, payload):
         from .tutor_registration import models_duplicate
         for data in participant_data:
             if Participant.objects.filter(registration_items__order__edition=edition,
-                    registration_items__order__registration_basis='tutor').filter(models_duplicate(data)).exists():
+                    registration_items__order__registration_basis='tutor').filter(models_duplicate({
+                        **data, 'email': data.get('email') or payload['primary_registrant']['email'],
+                    })).exists():
                 raise ValidationError('Possible existing tutor registration; authorized identity review is required.')
         category_ids = {item["category_id"] for item in participant_data}
         categories = {
@@ -241,6 +243,10 @@ def _create_order(*, key_digest, fingerprint, payload):
             participant_fields = {
                 key: value for key, value in data.items() if key != "category_id"
             }
+            # New records reuse the booking contact; historical participant
+            # emails and explicitly supplied legacy values remain untouched.
+            if not participant_fields.get('email'):
+                participant_fields['email'] = registrant.email
             if participant_fields.get('date_of_birth') is None:
                 participant_fields['adult_declared_on'] = today
             participant = Participant.objects.create(**participant_fields)

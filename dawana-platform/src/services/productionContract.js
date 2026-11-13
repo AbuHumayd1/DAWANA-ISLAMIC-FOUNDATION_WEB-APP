@@ -1,3 +1,5 @@
+import { validateGuardianContact } from './guardianContact.js'
+
 export function productionApiBase(value) {
   if (value === '/api/v1') return value // Local/archived same-origin builds.
   try {
@@ -26,6 +28,7 @@ export function privateDraft(flow) {
 
 export function registrationSubmission(flow, credentials, contactPayload, participantPayload, credentialsPayload) {
   if (!flow.participants.length) throw new Error('Use verified booking recovery after refreshing this page. Do not create or pay for another registration.')
+  validateGuardianContact(flow.participants, flow.primaryRegistrant)
   const guardians = (flow.primaryRegistrant?.guardianRelationships || [])
     .filter(row => flow.participants.some(person => person.id === row.childId)).map(row => {
     const child_index = flow.participants.findIndex(person => person.id === row.childId)

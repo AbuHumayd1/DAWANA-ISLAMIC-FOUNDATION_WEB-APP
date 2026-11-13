@@ -128,7 +128,7 @@ class ReportingPolicyTests(SimpleTestCase):
 
     def test_csv_and_print_projection_preserves_unknowns_and_formula_safety(self):
         columns,rows=export_rows(dict(metrics=[reports.metric('Unknown',None)],series={'Suppressed':[dict(label='Group',value=None)]},rows=[dict(label='=formula',value=1)]))
-        self.assertIn('Unavailable / privacy threshold',str(rows));self.assertEqual(columns[:2],['section','label'])
+        self.assertIn('Unavailable / privacy threshold',str(rows));self.assertEqual(columns[:2],['Section','Description'])
         self.assertTrue(spreadsheet_safe(rows[-1][1]).startswith("'"))
 
     def test_feedback_versions_averages_and_suppression_are_preserved(self):
