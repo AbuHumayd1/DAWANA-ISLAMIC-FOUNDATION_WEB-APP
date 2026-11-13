@@ -342,8 +342,8 @@ class TutorIntegrationTests(TestCase):
         order = self.register()
         self.assertFalse(_order_needs_repricing(order))
         headers, rows = registration_export_rows([order])
-        self.assertEqual(rows[0][headers.index('total_amount_ngn')], 0)
-        self.assertEqual(rows[0][headers.index('verified_payment')], 'not required (complimentary tutor)')
+        self.assertEqual(rows[0][headers.index('Amount (NGN)')], 0)
+        self.assertEqual(rows[0][headers.index('Payment verification')], 'not required (complimentary tutor)')
 
     def test_verification_attempts_commit_and_code_is_single_use(self):
         from .recovery_views import _code_digest

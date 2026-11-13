@@ -34,10 +34,29 @@ class AssistedPreparationTests(SimpleTestCase):
 
     def test_all_current_camper_fields_including_dob_remain_required(self):
         for key in self.payload()['registration']['participants'][0]:
-            if key in ('height_cm', 'weight_kg'):
-                continue  # Optional measurements now use the shared public schema.
+            if key in ('height_cm', 'weight_kg', 'email'):
+                continue  # Optional measurements and email use the shared public schema.
             payload = self.payload(); del payload['registration']['participants'][0][key]
             with self.subTest(key=key), self.assertRaises(ValidationError): validate_preparation(payload)
+
+    def test_participant_email_optional_and_booking_email_required_for_public_registration(self):
+        from .serializers import PrimaryRegistrantInputSerializer
+        for email in (None, ''):
+            payload = self.payload()
+            if email is None:
+                del payload['registration']['participants'][0]['email']
+            else:
+                payload['registration']['participants'][0]['email'] = email
+            self.assertTrue(validate_preparation(payload)['fields_valid'])
+        contact = self.payload()['registration']['primary_registrant']
+        self.assertTrue(PrimaryRegistrantInputSerializer(data=contact).is_valid())
+        for email in (None, ''):
+            missing = {key: value for key, value in contact.items() if key != 'email'}
+            if email is not None:
+                missing['email'] = email
+            form = PrimaryRegistrantInputSerializer(data=missing)
+            self.assertFalse(form.is_valid())
+            self.assertIn('email', form.errors)
 
     def test_future_dob_still_rejected(self):
         payload = self.payload(); payload['registration']['participants'][0]['date_of_birth'] = '2999-01-01'

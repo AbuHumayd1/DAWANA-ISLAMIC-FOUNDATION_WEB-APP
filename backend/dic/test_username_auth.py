@@ -275,7 +275,10 @@ class UsernameConcurrencyTests(APITransactionTestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [pool.submit(self.worker, lambda data=data: register(data)) for data in payloads]
             statuses = sorted(f.result(timeout=20) for f in futures)
-        self.assertEqual(statuses, [201, 403])
+        self.assertEqual(statuses[0], 201)
+        # A lookup after the winning commit returns validation (400); a
+        # uniqueness collision before it becomes visible returns refusal (403).
+        self.assertIn(statuses[1], (400, 403))
         self.assertEqual(PortalAccount.objects.filter(username_key='race-owner').count(), 1)
         self.assertEqual(RegistrationOrder.objects.count(), 2)  # Includes setup's original order.
 
