@@ -74,7 +74,7 @@ test('initial signed-out probe rejects access without showing an expired-session
     await assert.rejects(participantRequest('/enrollments/'), error => error.status === 403)
     assert.deepEqual(events, ['participant-session-expired'])
     const page = fs.readFileSync(new URL('../pages/ParticipantPortal.jsx', import.meta.url), 'utf8')
-    assert.match(page, /read\(ticket, '\/auth\/me\/', undefined, \{ notifyExpiry: false \}\)/)
+    assert.match(page, /read\(ticket, '\/enrollments\/', undefined, \{ notifyExpiry: false \}\)/)
   } finally { globalThis.fetch = original; globalThis.window = previousWindow }
 })
 

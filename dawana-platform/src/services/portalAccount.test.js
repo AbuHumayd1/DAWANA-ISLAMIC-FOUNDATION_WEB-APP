@@ -24,7 +24,7 @@ test('callback fragments are hints rather than authenticated profiles', () => {
   assert.equal(oauthReturn('#signin=failed'), true)
   for (const value of ['#paid=true', '#token=secret', '?signin=complete', null]) assert.equal(oauthReturn(value), false)
   const source = fs.readFileSync(new URL('../pages/ParticipantPortal.jsx', import.meta.url), 'utf8')
-  assert.match(source, /oauthReturned\) read\(ticket, '\/auth\/me\/'/)
+  assert.match(source, /oauthReturned\) read\(ticket, '\/enrollments\/'/)
   assert.match(source, /window\.history\.replaceState/)
 })
 test('password setup remains gated with OTP recovery available and Google hidden', () => {

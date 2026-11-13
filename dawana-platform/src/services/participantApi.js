@@ -29,7 +29,7 @@ export async function participantRequest(path, body, { signal, notifyExpiry = tr
   }
   // Share only non-mutating startup requests. No authenticated records or
   // credentials are cached. Consumer cancellation cannot cancel another mount.
-  const shared = body === undefined && (path === '/auth/options/' || (path === '/auth/me/' && !notifyExpiry))
+  const shared = body === undefined && (path === '/auth/options/' || (['/auth/me/', '/enrollments/'].includes(path) && !notifyExpiry))
   if (shared && inFlight.has(path)) return consume(inFlight.get(path), signal)
   const promise = sendParticipantRequest(path, body, { signal: shared ? undefined : signal, notifyExpiry }).catch(error => {
     if (error.status === 429) cooldowns.set(scope, Math.max(cooldowns.get(scope) || 0, error.retryAt || Date.now() + 60000))

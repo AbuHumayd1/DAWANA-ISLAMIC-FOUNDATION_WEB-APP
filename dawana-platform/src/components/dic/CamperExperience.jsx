@@ -72,7 +72,7 @@ export default function CamperExperience({ orders, selection, onSelect, busy, on
     previousView.current = tab
   }, [tab, selected?.key])
   const navigate = (view, type) => setParams(view === 'home' ? {} : { view, ...(type === 'food' ? { type } : {}) })
-  if (!selected) return <div className="cp-card"><h1>No authorised campers</h1><p>Verify the booking that contains your camper.</p><button onClick={onLogout}>Secure logout</button></div>
+  if (!selected) return <div className="cp-experience cp-empty-state"><CamperBrand /><section className="cp-card"><h1>No campers linked yet</h1><p>Recover your booking to check access, or contact DIC support if your registration needs review.</p><div className="portal-id-actions"><Link className="button" to="/dic/register/recover">Recover booking</Link><button className="button" disabled={loggingOut} onClick={onLogout}>Sign out</button></div></section></div>
   const { participant, order } = selected
   const tutor = participant.registration_basis === 'tutor'
   const navigation = destinations.filter(([key]) => !tutor || key !== 'arena')
@@ -83,7 +83,7 @@ export default function CamperExperience({ orders, selection, onSelect, busy, on
     <nav className="cp-navigation" aria-label="Camper navigation" style={{ gridTemplateColumns: `repeat(${navigation.length}, minmax(0, 1fr))` }}>{navigation.map(([key, label]) => <button key={key} aria-current={activeDestination(tab) === key ? 'page' : undefined} onClick={() => navigate(key)}><PortalIcon name={key} /><span>{label}</span></button>)}</nav>
     <div className="cp-main">
       <div id="cp-view" ref={contentRef} tabIndex={-1} className="cp-view" aria-label={`${activeDestination(tab)} content`}>{tutor ? content({}) : <CamperScores key={selected.key} item={participant.registration_item_id} destination={tab}>{content}</CamperScores>}</div>
-      {tab === 'me' && <details className="cw-account-drawer"><summary><PortalIcon name="profile" /><span>Account & security<small>Sign-in settings, registration refresh & secure logout</small></span><span aria-hidden="true">+</span></summary><div className="cp-security-settings">{accountSettings}</div><section className="cp-session-controls"><h2>Secure booking access</h2><p>Session expires {new Date(expiresAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. This session covers your verified booking.</p><button disabled={busy} onClick={onRefreshBookings}>Refresh registrations</button><button disabled={loggingOut} onClick={onLogout}>Secure logout</button></section></details>}
+      {tab === 'me' && <details className="cw-account-drawer"><summary><PortalIcon name="profile" /><span>Account Settings<small>Contact verification and session</small></span><span aria-hidden="true">+</span></summary><div className="cp-security-settings">{accountSettings}</div><section className="cp-session-controls"><h2>Your session</h2><p>Session expires {new Date(expiresAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}. This session covers your verified booking.</p><button disabled={busy} onClick={onRefreshBookings}>Refresh registrations</button><button disabled={loggingOut} onClick={onLogout}>Sign out</button></section></details>}
       <footer className="cp-footer">A journey of faith, friendship & meaningful contribution.<br /><Link to="/dic">Back to DIC</Link></footer>
     </div>
   </div>

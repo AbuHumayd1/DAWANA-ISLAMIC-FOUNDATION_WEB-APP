@@ -129,19 +129,18 @@ export default function ParticipantPortal() {
     }
     const closed = () => {
       access.invalidate(); clearSensitive(); setError(''); setLoggingOut(false)
-      setNotice('Participant access was closed in another tab. Verify again to continue.')
+      setNotice('Signed out.'); setLogoutFailed(false)
     }
     const unsubscribe = subscribeParticipantSessionClosed(closed)
     window.addEventListener('participant-session-expired', expire)
     // A missing/expired cookie on arrival is a normal signed-out state. Later
     // protected requests still publish expiry and clear all sensitive UI state.
-    if (!participantSessionClosed() || oauthReturned) read(ticket, '/auth/me/', undefined, { notifyExpiry: false }).then(async (result) => {
+    if (!participantSessionClosed() || oauthReturned) read(ticket, '/enrollments/', undefined, { notifyExpiry: false }).then((result) => {
       assertAccess(ticket)
       deadline.current = participantExpiry(result)
-      const data = await read(ticket, '/enrollments/')
       assertAccess(ticket)
       if (oauthReturned) reopenParticipantSession()
-      const orders = participantOrders(data)
+      const orders = participantOrders(result)
       setProfile(result); setOrders(orders)
     }).catch((e) => { if (access.current(ticket) && e.status !== 403 && e.status !== 401) {
       if (e.status === 429) setRetryUntil(current => Math.max(current, e.retryAt || Date.now() + 60000))
@@ -201,7 +200,7 @@ export default function ParticipantPortal() {
     return revokeParticipantSession({
       clear: () => { access.invalidate(); clearSensitive(); logoutTicket=access.begin(); setError(''); setNotice(''); setLogoutFailed(false); setLoggingOut(true); notifyParticipantSessionClosed() },
       revoke: () => participantRequest('/auth/logout/', {}, {signal:logoutTicket.signal}),
-      success: () => { if(access.current(logoutTicket)) { setNotice('Server sign-out confirmed. Participant information has been cleared.'); setLogoutFailed(false) } },
+      success: () => { if(access.current(logoutTicket)) { setNotice('Signed out.'); setLogoutFailed(false) } },
       failure: () => { if(access.current(logoutTicket)) { setNotice('Participant information has been cleared, but server sign-out could not be confirmed. Retry sign-out. On a shared device, close all participant tabs and the browser when finished.'); setLogoutFailed(true) } },
     }).finally(() => { logoutPending.current = false; if(access.current(logoutTicket))setLoggingOut(false) })
   }
@@ -238,11 +237,11 @@ export default function ParticipantPortal() {
     setNotice(result.detail)
   })
 
-  if (checking) return <section className="participant-portal container" aria-busy="true"><p role="status">Checking secure participant access…</p></section>
+  if (checking) return <section className="participant-portal cp-access-loading" aria-busy="true"><CamperBrand /><div className="cp-loading-indicator" aria-hidden="true" /><h1>Opening your Camper Portal</h1><p role="status">Loading your registrations…</p></section>
   return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`}>
     {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><h1>Participant sign in</h1></div>}
-    {!profile && (loginOpen || challenge || error || retryUntil) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <p className="participant-notice" role="status">{notice}</p>}
-    {!profile && (logoutFailed || participantSessionClosed()) && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
+    {!profile && (loginOpen || challenge || Boolean(error) || retryUntil > 0) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <p className="participant-notice" role="status">{notice}</p>}
+    {!profile && logoutFailed && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
     {!profile ? <div className="participant-access-panel">{challenge && <><h2>Check your inbox</h2><p>Enter the six-digit code sent through {channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.</p></>}
       {!challenge && <PortalCredentialLogin capabilities={capabilities} recoveryAvailable={deliveryPhase === 'ready' && channels.some(c => c.available)} recoveryLoading={loginOpen && deliveryPhase === 'loading'} onCheckRecovery={!loginOpen && deliveryPhase === 'loading' ? () => recoverAccount('reset') : undefined} busy={busy || loggingOut || now < retryUntil} onLogin={passwordLogin} onRecover={recoverAccount} onTransition={transitionCredentials} />}
       <PortalLoginChoices showGoogle={false} open={loginOpen || Boolean(challenge)} onVerify={() => { if (challenge) { setChallenge(null); setCode(''); setNotice(''); setLoginOpen(false) } else setLoginOpen(value => !value) }} />

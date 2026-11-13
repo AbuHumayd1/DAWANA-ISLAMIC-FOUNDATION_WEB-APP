@@ -1,0 +1,11 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h2>{{ object.public_id }}</h2>
+<p>Cancel an unpaid booking with no payment attempts, issued IDs or check-ins. Nothing is deleted. Restoration keeps old access credentials revoked and requires booking recovery.</p>
+<form method="post">{% csrf_token %}
+<p><label>Action <select name="action"><option value="cancel">Cancel and hide from active lists</option><option value="restore">Restore reviewed cancellation</option></select></label></p>
+<p><label>Reason <textarea name="reason" required maxlength="1000"></textarea></label></p>
+<p><label><input type="checkbox" name="confirm" value="yes" required> I confirm this action for this booking.</label></p>
+<input type="submit" value="Confirm booking action">
+</form>
+{% endblock %}

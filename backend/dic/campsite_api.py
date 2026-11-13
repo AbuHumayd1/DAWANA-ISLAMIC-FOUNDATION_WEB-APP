@@ -16,7 +16,7 @@ def require_campsite_staff(user):
 
 def campsite_metrics(edition):
     """Use the existing ID eligibility definition without preparing or issuing IDs."""
-    items = RegistrationOrderItem.objects.filter(order__edition=edition).select_related(
+    items = RegistrationOrderItem.objects.filter(order__edition=edition).exclude(order__status='cancelled').select_related(
         'participant', 'order', 'category').order_by('participant_id', 'pk')
     enrollments = {row.participant_id: row for row in CampEnrollment.objects.filter(
         edition=edition).select_related('participant', 'edition', 'source_item')}
@@ -59,7 +59,7 @@ class CampsiteOverviewView(OperationsBaseView):
             edition=dict(id=edition.pk, name=edition.name, year=edition.year) if edition else None,
             editions=editions, metrics=campsite_metrics(edition) if edition else None,
             definitions=dict(
-                registered_participants='Distinct participants with registration items in this edition, including cancelled registrations.',
+                registered_participants='Distinct participants with active registration items in this edition; cancelled bookings are excluded.',
                 eligible_participants='Existing ID eligibility: confirmed registration, trusted payment evidence and no unresolved source or identity restriction.',
                 awaiting_payment_verification='Non-cancelled participants failing the registration/payment state check. Other evidence problems appear under attention.',
                 assigned_participants='Registered participants with an active allocation record in this edition; this is not a housing-policy certification.',

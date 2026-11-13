@@ -90,7 +90,7 @@ test('existing ID issuance and eligibility gates stay on dashboard integration p
 test('camper switching uses current server booking snapshot and clears old ID before selection', () => {
   const source = fs.readFileSync(new URL('../pages/ParticipantPortal.jsx', import.meta.url), 'utf8')
   assert.match(source, /access\.invalidate\(\); setCard\(null\); setSelection\(value\)/)
-  assert.match(source, /\/auth\/me\//); assert.match(source, /remember_device: rememberDevice/)
+  assert.match(source, /\/enrollments\//); assert.match(source, /remember_device: rememberDevice/)
 })
 test('decorations retain semantic hiding, focus states and normal document scrolling', () => {
   assert.match(render('PortalScenery', {}), /aria-hidden="true"/)

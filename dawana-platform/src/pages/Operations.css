@@ -86,7 +86,29 @@
 .ops-logout, .ops-menu-toggle { display:inline-flex; align-items:center; justify-content:center; gap:7px; border:0; background:transparent; cursor:pointer; }
 .ops-logout { padding:7px 0 7px 14px; color:var(--heading) !important; font-size:0.875rem; }
 .ops-logout svg { width:16px; height:16px; }
-.ops-menu-toggle { display:none; }
+.ops-menu-toggle { display:inline-flex; min-width:44px; min-height:44px; padding:8px; }
+.ops-menu-toggle svg { width:22px; height:22px; }
+.ops-body.navigation-collapsed { grid-template-columns:minmax(0,1fr); }
+.ops-sidebar[hidden] { display:none; }
+.ops-topbar { flex-wrap:wrap; height:auto; padding-block:12px; gap:12px; }
+.ops-top-brand,.ops-profile { min-width:0; }
+.ops-profile-copy { overflow-wrap:anywhere; }
+.ops-main { width:100%; }
+@media (max-width:1200px) { .ops-top-spacer,.ops-edition-chip { display:none; }.ops-top-brand { flex:1 1 210px; }.ops-profile { margin-left:auto; } }
+.ops-id-printing .ops-primary-filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:16px; }
+.ops-id-printing .ops-filter { min-width:0; width:auto; }
+.ops-id-printing .ops-filter select { width:100%; min-height:44px; }
+.ops-id-printing .ops-print-actions { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
+.ops-id-printing .ops-table { white-space:normal; min-width:0; }
+.ops-id-printing .ops-table :is(th,td) { overflow-wrap:anywhere; }
+@media (max-width:600px) {
+  .ops-id-printing .ops-print-actions > button { width:100%; }
+  .ops-id-printing .ops-table thead { display:none; }
+  .ops-id-printing .ops-table :is(tbody,tr,td) { display:block; width:100%; }
+  .ops-id-printing .ops-table tr { padding:12px; margin-bottom:12px; border:1px solid var(--ops-line); border-radius:10px; }
+  .ops-id-printing .ops-table td { padding:6px 0; border:0; }
+  .ops-id-printing .ops-table td::before { content:attr(data-label) ': '; font-weight:600; }
+}
 
 .ops-body { display:grid; grid-template-columns:260px minmax(0, 1fr); align-items:start; }
 .ops-sidebar { position:sticky; top:72px; display:flex; min-height:calc(100vh - 72px); flex-direction:column; padding:30px 17px 20px; border-right:1px solid var(--ops-line); background:var(--panel); }

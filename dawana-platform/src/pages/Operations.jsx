@@ -204,7 +204,7 @@ function LoginPage({ onSubmit, error }) {
   }
   return (
     <main className="ops-login-page">
-      <Link className="ops-website-link" to="/">Return to Main Website</Link><AppearanceControls />
+      <Link className="ops-website-link" to="/">Main website</Link><AppearanceControls />
       <section className="ops-login-card">
         <BrandLockup />
         <div className="ops-login-heading"><span className="ops-eyebrow">Private workspace</span><h1>DIC Operations</h1><p>Sign in with your Dawana staff account to continue.</p></div>
@@ -225,7 +225,7 @@ function BrandLockup() {
 }
 
 function OperationsShell({ user, onLogout }) {
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(() => window.matchMedia('(min-width: 901px)').matches)
   const location = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -248,15 +248,15 @@ function OperationsShell({ user, onLogout }) {
         <button className="ops-menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="ops-sidebar" onClick={() => setMenuOpen((open) => !open)}><Icon name="menu" /></button>
         <Link to="/dic/operations" className="ops-top-brand"><BrandLockup /></Link>
         <div className="ops-top-spacer" />
-        <Link className="ops-website-link" to="/">Return to Main Website</Link><AppearanceControls />
+        <Link className="ops-website-link" to="/">Main website</Link><AppearanceControls />
         <span className="ops-edition-chip"><i /> DIC Campsite Operations</span>
-        {user.can_access_django_admin && <a className="ops-admin-link" href={backendUrl('/admin/')}>Django Admin</a>}
+        {user.can_access_django_admin && <a className="ops-admin-link" href={backendUrl('/admin/')}>Administration</a>}
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>
         <button className="ops-logout" onClick={onLogout} aria-label="Sign out"><Icon name="logout" /><span>Sign out</span></button>
       </header>
-      <div className="ops-body">
-        <aside id="ops-sidebar" className={`ops-sidebar ${menuOpen ? 'is-open' : ''}`}>
-          <OperationsNavigation user={user} onSelect={() => setMenuOpen(false)} renderIcon={name => <Icon name={name} />} />
+      <div className={`ops-body ${menuOpen ? '' : 'navigation-collapsed'}`}>
+        <aside id="ops-sidebar" hidden={!menuOpen} className={`ops-sidebar ${menuOpen ? 'is-open' : ''}`}>
+          <OperationsNavigation user={user} onSelect={() => { if (window.matchMedia('(max-width: 900px)').matches) setMenuOpen(false) }} renderIcon={name => <Icon name={name} />} />
           <div className="ops-sidebar-footer"><span className="ops-live-dot" />Private staff portal<span>Only authorized staff can access this workspace.</span></div>
         </aside>
         <main className="ops-main"><Outlet /></main>

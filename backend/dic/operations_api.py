@@ -108,7 +108,7 @@ def _apply_order_filters(queryset, params, user, export_limit=None):
         raise ValidationError({'archive': 'Choose active, expired or all.'})
     archived = archive_query()
     if view == 'active':
-        queryset = queryset.exclude(archived)
+        queryset = queryset.exclude(archived).exclude(status='cancelled')
     elif view == 'expired':
         queryset = queryset.filter(archived)
     for parameter, field in (
@@ -639,8 +639,8 @@ class OperationsDashboardView(OperationsBaseView):
         edition = _edition_from_request(request)
         orders = _base_orders(edition)
         from .order_lifecycle import archive_query
-        orders = orders.exclude(archive_query())
-        items = RegistrationOrderItem.objects.filter(order__edition=edition)
+        orders = orders.exclude(archive_query()).exclude(status='cancelled')
+        items = RegistrationOrderItem.objects.filter(order__in=orders)
         verified_orders = _verified_order_queryset(orders)
         unpaid_orders = orders.filter(
             payment_status__in=(
