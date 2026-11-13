@@ -79,7 +79,7 @@ test('current security boundary, private drafts and safe payment callbacks survi
   assert.doesNotMatch(source('../components/dic/DigitalIDPresentation.jsx'), /<iframe|fetch\(|issue.*POST/)
   const ops = source('../pages/Operations.jsx')
   assert.match(ops, /user.can_access_campsite \? <AssistedRegistration/)
-  assert.match(ops, /Return to Main Website/)
+  assert.match(ops, /<Link className="ops-website-link" to="\/">Main website<\/Link>/)
 })
 
 test('all public pages render with preserved route components without backend effects', async () => {

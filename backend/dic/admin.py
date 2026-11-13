@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.html import format_html
 from . import tutor_admin  # Explicit permission only; grants no default groups.
 
 from .allocation import (
@@ -1055,6 +1056,36 @@ class ParticipantAdmin(admin.ModelAdmin):
 @admin.register(RegistrationOrder)
 class RegistrationOrderAdmin(admin.ModelAdmin):
     change_list_template = "admin/dic/registrationorder/change_list.html"
+    def get_urls(self):
+        return [path('<int:pk>/review-cleanup/', self.admin_site.admin_view(self.review_cleanup),
+            name='dic_registration_cleanup')] + super().get_urls()
+
+    @admin.display(description='Registration management')
+    def cleanup_link(self, obj):
+        return format_html('<a href="{}">Review cancellation or restoration</a>',
+            reverse('admin:dic_registration_cleanup', args=[obj.pk]))
+
+    def review_cleanup(self, request, pk):
+        from .registration_cleanup import review_registration
+        from rest_framework.exceptions import APIException
+        if not (request.user.has_perm('dic.change_registrationorder')
+                and request.user.has_perm('dic.can_manage_registration_access')):
+            raise PermissionDenied
+        obj = get_object_or_404(RegistrationOrder, pk=pk)
+        if request.method == 'POST':
+            try:
+                if request.POST.get('confirm') != 'yes':
+                    raise ValidationError('Confirm the individual booking action.')
+                review_registration(obj.pk, request.user, request.POST.get('action'), request.POST.get('reason', ''))
+            except (APIException, ValidationError) as exc:
+                self.message_user(request, str(exc), messages.ERROR)
+            else:
+                self.message_user(request, 'Booking updated. History retained; restored bookings require verified recovery.', messages.SUCCESS)
+                return HttpResponseRedirect(reverse('admin:dic_registrationorder_change', args=[obj.pk]))
+        return TemplateResponse(request, 'admin/dic/registration_cleanup.html', {
+            **self.admin_site.each_context(request), 'opts': self.model._meta,
+            'title': 'Review registration', 'object': obj,
+        })
     list_display = (
         "public_id",
         "edition",
@@ -1083,6 +1114,7 @@ class RegistrationOrderAdmin(admin.ModelAdmin):
     fields = (
         "public_id",
         "primary_registrant",
+        "cleanup_link",
         "edition",
         "status",
         "payment_status",
@@ -1131,6 +1163,7 @@ class RegistrationOrderAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return tuple(field.name for field in self.model._meta.fields) + (
+            "cleanup_link",
             "total_amount",
             "repricing_status",
             "recovery_status",

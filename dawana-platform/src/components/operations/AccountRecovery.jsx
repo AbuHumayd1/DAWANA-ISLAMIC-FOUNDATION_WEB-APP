@@ -17,7 +17,7 @@ export default function AccountRecovery({ orderReference }) {
     finally { setBusy(false) }
   }
   return <details className="ops-panel"><summary>Authorize participant credential recovery</summary>
-    <p>System administrators only. First verify the primary registrant’s ownership through the approved private review process. Record its reference; an email address or payment reference alone is insufficient. Never request or choose the registrant’s password. Privileged accounts use Django Admin’s existing controlled credential workflow.</p>
+    <p>System administrators only. First verify the primary registrant’s ownership through the approved private review process. Record its reference; an email address or payment reference alone is insufficient. Never request or choose the registrant’s password. Privileged accounts use Administration’s existing controlled credential workflow.</p>
     {error && <p role="alert">{error}</p>}
     <form onSubmit={issue}><fieldset disabled={busy}><label>Ownership review reference<input required minLength={10} maxLength={240} value={review} onChange={event => setReview(event.target.value)} /></label>
       <PasswordField value={password} onChange={setPassword} label="Your administrator password" />

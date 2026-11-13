@@ -266,7 +266,7 @@ class PortalEnrollmentsView(PortalView):
             results.append({"reference": str(order.public_id), "edition": order.edition.name, "registration_basis": order.registration_basis, "payment_status": order.payment_status, "status": order.status, "participants": participants})
         record("participant_bookings_viewed", grant_id=str(grant.pk),
                order_count=len(results), participant_count=sum(len(row["participants"]) for row in results))
-        return Response({"orders": results})
+        return Response({"orders": results, "authenticated": True, "expires_at": grant.expires_at.isoformat()})
 
     def post(self, request):
         grant = authorized_grant(request)
@@ -312,7 +312,6 @@ class PortalIDView(PortalView):
 def authorized_portal_card(request, enrollment_id):
     """Reuse verified booking scope; a housing guardian link never expands it."""
     from .models import GuardianRelationship
-    from .housing_policy import age_on
     from django.core.exceptions import ValidationError as PolicyError
     grant, enrollment = scoped_enrollment(request, enrollment_id)
     orders = scoped_orders(grant)
@@ -322,15 +321,18 @@ def authorized_portal_card(request, enrollment_id):
             raise PermissionDenied('Tutor authorization is unavailable.')
         return enrollment
     try:
-        from .registration_age import asserted_adult
+        from .registration_age import asserted_adult, exact_age
         from .housing_policy import age_reference
-        reference = age_reference(enrollment.edition)
+        from datetime import date
+        # Document viewing uses the approved camp reference date, even when
+        # housing has not been configured. It never allocates or approves a child.
+        reference = date(2026, 12, 23) if getattr(enrollment.edition, 'year', None) == 2026 else age_reference(enrollment.edition)
         # A stored adult assertion can exclude the <=5 display/access branch
         # only at an applicable reference date. It grants no guardianship or
         # release authority and does not authorize age-sensitive housing.
-        dependent = False if reference and asserted_adult(enrollment.participant, reference) else age_on(enrollment.participant, enrollment.edition) <= 5
+        dependent = False if reference and asserted_adult(enrollment.participant, reference) else exact_age(enrollment.participant.date_of_birth, reference) <= 5
     except PolicyError:
-        raise ValidationError('Age/guardian details require authorized staff review.')
+        raise ValidationError('Your date of birth or adult declaration needs review. Ask DIC support to review your participant record in the Participant Directory.')
     if dependent:
         relation = GuardianRelationship.objects.filter(edition=enrollment.edition,
             child=enrollment.participant, status='approved', approved_at__isnull=False,

@@ -87,19 +87,20 @@ class CampsiteFoundationTests(SimpleTestCase):
              patch('dic.campsite_api.HouseAllocation.objects') as housing, \
              patch('dic.campsite_api.DigitalIDIssue.objects') as issues, \
              patch('dic.campsite_api.eligibility',side_effect=outcome) as eligibility_check:
-            items.filter.return_value.select_related.return_value.order_by.return_value = rows+[rows[0]]
+            items.filter.return_value.exclude.return_value.select_related.return_value.order_by.return_value = rows[:4]+[rows[0]]
             enrollment_model.objects.filter.return_value.select_related.return_value = enrollments
             enrollment_model.return_value = SimpleNamespace(participant_id=2)
             housing.filter.return_value.values_list.return_value = [1,99]
             issues.filter.return_value.exclude.return_value.values.return_value.distinct.return_value.count.return_value = 1
             result = campsite_metrics(edition)
             items.filter.assert_called_once_with(order__edition=edition)
+            items.filter.return_value.exclude.assert_called_once_with(order__status='cancelled')
             enrollment_model.objects.filter.assert_called_once_with(edition=edition)
             housing.filter.assert_called_once_with(edition=edition,status='allocated')
             self.assertEqual(issues.filter.call_args.kwargs['enrollment__edition'],edition)
             self.assertEqual(issues.filter.call_args.kwargs['enrollment__participant_id__in'],{1,2})
-            self.assertEqual(eligibility_check.call_count,5)
+            self.assertEqual(eligibility_check.call_count,4)
             enrollment_model.assert_called_once_with(participant=rows[1].participant,edition=edition,source_item=rows[1])
-        self.assertEqual(result,dict(registered_participants=5,eligible_participants=2,
+        self.assertEqual(result,dict(registered_participants=4,eligible_participants=2,
             awaiting_payment_verification=1,assigned_participants=1,awaiting_house_assignment=1,
-            active_ids=1,requiring_attention=2,complimentary_tutors=0,attendance=None))
+            active_ids=1,requiring_attention=1,complimentary_tutors=0,attendance=None))

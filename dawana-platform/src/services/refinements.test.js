@@ -25,9 +25,28 @@ test('ID layout uses existing authorized format routes without exposing QR secre
   const html=render(ID,{card:{id,name:'Synthetic camper',participant_number:'TEST'},onClose(){}})
   for(const format of ['pvc','a6','portrait'])assert.ok(html.includes(`format=${format}`))
   assert.equal((html.match(/download=1/g)||[]).length,3)
-  assert.match(html,/Open secure PVC card preview/)
+  const staff = render(ID, { card: { id, name: 'Synthetic camper', participant_number: 'TEST' }, staff: true, onClose() {} })
+  for (const [markup, pathname] of [
+    [html, `/api/v1/dic/participant/enrollments/${id}/card/`],
+    [staff, `/api/v1/dic/ids/cards/${id}/`],
+  ]) {
+    const preview = markup.match(/<a\b([^>]+)>Preview PVC Card<\/a>/)
+    assert.ok(preview, 'Accessible PVC preview link must be present')
+    const href = preview[1].match(/\bhref="([^"]+)"/)
+    assert.ok(href, 'Preview must navigate to its protected document')
+    // Local builds use relative URLs; production uses the configured HTTPS API.
+    const url = new URL(href[1].replaceAll('&amp;', '&'), 'https://api.dawanaislamicfoundation.org')
+    assert.equal(url.origin, 'https://api.dawanaislamicfoundation.org')
+    assert.equal(url.pathname, pathname)
+    assert.deepEqual([...url.searchParams], [['format', 'pvc']])
+    assert.equal(url.hash, '')
+    assert.equal(url.username, ''); assert.equal(url.password, '')
+    assert.match(preview[1], /referrerPolicy="no-referrer"/i)
+  }
+  assert.doesNotMatch(html, /\/dic\/ids\/cards\//)
+  assert.doesNotMatch(staff, /\/dic\/participant\/enrollments\//)
   assert.doesNotMatch(html,/<iframe|<object|<embed/)
-  assert.match(html,/Open \/ print/)
+  assert.match(html,/Open &amp; print/)
   assert.doesNotMatch(html,/verification_secret|verification_digest|token=|data:image/)
   const security=fs.readFileSync(new URL('../../../backend/dic/identity_views.py',import.meta.url),'utf8')
   assert.match(security,/X-Frame-Options'\] = 'DENY'/)
