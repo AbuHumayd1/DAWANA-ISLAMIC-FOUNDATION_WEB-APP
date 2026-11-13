@@ -71,6 +71,6 @@ test('operations entry stays isolated from public layout with staff route guard 
   assert.match(css, /\.ops-sidebar\.is-open\s*{\s*display:flex/)
   const publicChrome = fs.readFileSync(new URL('../components/layout/SiteChrome.jsx', import.meta.url), 'utf8')
   // The approved footer entry is public; the Operations workspace remains guarded.
-  assert.match(publicChrome, /to="\/dic\/operations">Staff Login<\/Link>/)
+  assert.match(publicChrome, /to="\/dic\/operations">Team access<\/Link>/)
   assert.doesNotMatch(publicChrome.slice(0, publicChrome.indexOf('export function Footer')), /to="\/dic\/operations"/)
 })

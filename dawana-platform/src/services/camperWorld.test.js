@@ -65,7 +65,7 @@ test('timetable has distinct activity/meal buttons with secondary controls in a 
 test('Me preserves booking, class, ID and secure actions while security/session details start collapsed', () => {
   const html = render(experience.default,{orders:[order],expiresAt:'2026-12-23T12:00:00Z',accountSettings:createElement('p',null,'Existing settings')},'/dic/participant?view=me')
   assert.match(html, /<details class="cw-account-drawer"><summary/)
-  for (const text of ['Existing settings','Refresh registrations','Secure logout','Session expires']) assert.ok(html.includes(text))
+  for (const text of ['Existing settings','Account Settings','Refresh registrations','Sign out','Session expires']) assert.ok(html.includes(text), text)
   const profile = render(experience.ExperienceContent,{tab:'me',participant:p,order})
   for(const text of ['Example Camper','Approved class','confirmed','paid','Not checked in','PRIVATE-REFERENCE','Awaiting active ID']) assert.ok(profile.includes(text),text)
   assert.doesNotMatch(html, /<details class="cw-account-drawer" open/)

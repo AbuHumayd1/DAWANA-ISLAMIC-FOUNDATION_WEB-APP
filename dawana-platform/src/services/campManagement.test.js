@@ -118,7 +118,7 @@ test('direct URL guards are independent of sidebar visibility and public return 
   assert.match(source, /path="classes" element=\{user\.can_access_campsite && user\.permissions\.classes \? <ClassesOperations/)
   assert.match(source, /path="announcements" element=\{user\.can_access_campsite && user\.permissions\.announcements \? <AnnouncementsOperations/)
   for (const route of ['timetables', 'check-in', 'registrations', 'assisted-registration', 'participant-ids', 'finance', 'welfare', 'feedback']) assert.ok(source.includes(`path="${route}"`))
-  assert.match(source, /Return to Main Website/)
+  assert.match(source, /<Link className="ops-website-link" to="\/">Main website<\/Link>/)
   const overview = read('../pages/CampsiteFoundation.jsx')
   assert.match(overview, /user\.permissions\.classes && <Link to=\{`\/dic\/operations\/classes/)
   assert.match(overview, /user\.permissions\.announcements && <Link to=\{`\/dic\/operations\/announcements/)
