@@ -1,0 +1,49 @@
+name: Phase A one-time migration build guards
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r backend/requirements-test-ids.txt -c backend/constraints-staging.txt
+      - run: python -I -B scripts/test_phase_a_migration_build.py
+      - name: Validate shell and intentional failure with a synthetic Python stub
+        shell: bash
+        run: |
+          bash -n backend/phase-a-migration-build.sh
+          stub=$(mktemp -d)
+          printf '#!/bin/sh\nexit 0\n' > "$stub/python"
+          chmod +x "$stub/python"
+          if PATH="$stub:$PATH" bash backend/phase-a-migration-build.sh; then
+            echo 'ERROR: migration build allowed promotion'; exit 1
+          fi
+          printf '#!/bin/sh\nexit 1\n' > "$stub/python"
+          if PATH="$stub:$PATH" bash backend/phase-a-migration-build.sh; then
+            echo 'ERROR: failed migration allowed promotion'; exit 1
+          fi
+      - name: Inspect real graph without database access
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.phase_a_test
+        run: |
+          python -B - <<'PY'
+          import django
+          django.setup()
+          from django.db.migrations.loader import MigrationLoader
+          from config.phase_a_migration_build import TARGET
+          loader = MigrationLoader(None)
+          assert not loader.detect_conflicts()
+          assert TARGET in loader.graph.leaf_nodes('dic')
+          assert ('dic', '0040_username_credential_transition') in loader.graph.forwards_plan(TARGET)
+          print('PASS: real Phase A graph; no database connection.')
+          PY
