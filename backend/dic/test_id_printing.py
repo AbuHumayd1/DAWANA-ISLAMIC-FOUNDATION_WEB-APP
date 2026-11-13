@@ -287,13 +287,14 @@ class PrintingTests(PortalFixtures, TestCase):
             house.save(update_fields=['badge_colour'])
             self.assertEqual(house_details(self.enrollment), (house.name, None))
 
+    @override_settings(ALLOWED_HOSTS=['testserver', 'api.dawanaislamicfoundation.org'])
     def test_rendered_qr_decodes_to_existing_secure_verification_url(self):
+        import base64
+        import hashlib
         import cv2
         import fitz
         import numpy as np
         from .premium_hybrid_badge import QR
-        self.issue()
-        context = card_context(RequestFactory().get('/'), self.enrollment)
         width, height, gap = geometry()
         qr_x, qr_top, qr_size = QR
         # Scan the QR as printed, including its existing four-module quiet zone.
@@ -301,25 +302,44 @@ class PrintingTests(PortalFixtures, TestCase):
         # 33 mm symbol unnecessarily small relative to the input. Decode pixels
         # rasterized from the actual PDF, never a regenerated/extracted source QR.
         # Five cards cover every slot and the partially filled following page.
-        with fitz.open(stream=render_pdf([context] * 5), filetype='pdf') as document:
-            for index in range(5):
-                slot = index % 4
-                left = (A4[0] - 2 * width - gap) / 2 + slot % 2 * (width + gap)
-                top = (A4[1] - 2 * height - gap) / 2 + slot // 2 * (height + gap)
-                bounds = fitz.Rect(left + qr_x * mm, top + qr_top * mm,
-                    left + (qr_x + qr_size) * mm, top + (qr_top + qr_size) * mm)
-                for scale in (4, 6):
-                    with self.subTest(page=index // 4, slot=slot, scale=scale,
-                                      opencv=cv2.__version__, pymupdf=fitz.VersionBind):
-                        pixmap = document[index // 4].get_pixmap(matrix=fitz.Matrix(scale, scale),
-                            clip=bounds, colorspace=fitz.csGRAY, alpha=False)
-                        self.assertEqual(pixmap.n, 1)
-                        pixels = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(pixmap.height, pixmap.width)
-                        # Cropping must retain white margins around the symbol.
-                        for edge in (pixels[0, :], pixels[-1, :], pixels[:, 0], pixels[:, -1]):
-                            self.assertTrue(np.all(edge == 255))
-                        decoded, _, _ = cv2.QRCodeDetector().detectAndDecode(pixels)
-                        self.assertEqual(decoded, context['verification_url'])
+        # Random credentials gave each database job a different QR pattern.
+        # Keep real issuance/encryption but use deterministic synthetic entropy
+        # here, including a pattern that exposes OpenCV's tight-crop detector bug.
+        for host, secure, seed in [('testserver', False, 8), ('testserver', False, 0),
+                ('api.dawanaislamicfoundation.org', True, 7), ('api.dawanaislamicfoundation.org', True, 23)]:
+            token = base64.urlsafe_b64encode(hashlib.sha256(f'synthetic-qr-{seed}'.encode()).digest()).decode().rstrip('=')
+            with patch('dic.identity_tokens.secrets.token_urlsafe', return_value=token):
+                issue = command(self.enrollment, 'reissue' if self.enrollment.id_issues.exists() else 'issue',
+                    self.id_manager, 'Deterministic synthetic QR scan fixture')
+            context = card_context(RequestFactory().get('/', secure=secure, HTTP_HOST=host), self.enrollment)
+            self.assertEqual(read_token(issue), token)
+            self.assertTrue(context['verification_url'].endswith('#' + token))
+            verified = self.client.post(reverse('dic:verify-id'), {'token': token}, content_type='application/json')
+            self.assertEqual(verified.status_code, 200)
+            self.assertEqual(verified.json()['participant_number'], self.enrollment.participant_number)
+            with fitz.open(stream=render_pdf([context] * 5), filetype='pdf') as document:
+                for index in range(5):
+                    slot = index % 4
+                    left = (A4[0] - 2 * width - gap) / 2 + slot % 2 * (width + gap)
+                    top = (A4[1] - 2 * height - gap) / 2 + slot // 2 * (height + gap)
+                    bounds = fitz.Rect(left + qr_x * mm, top + qr_top * mm,
+                        left + (qr_x + qr_size) * mm, top + (qr_top + qr_size) * mm)
+                    for scale in (4, 6):
+                        with self.subTest(host=host, seed=seed, page=index // 4, slot=slot, scale=scale,
+                                          opencv=cv2.__version__, pymupdf=fitz.VersionBind):
+                            pixmap = document[index // 4].get_pixmap(matrix=fitz.Matrix(scale, scale),
+                                clip=bounds, colorspace=fitz.csGRAY, alpha=False)
+                            self.assertEqual(pixmap.n, 1)
+                            pixels = np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(pixmap.height, pixmap.width)
+                            # Assert the PDF's own quiet zone before adding the
+                            # white capture background needed by OpenCV. No QR
+                            # modules are redrawn, resized, extracted or replaced.
+                            for edge in (pixels[0, :], pixels[-1, :], pixels[:, 0], pixels[:, -1]):
+                                self.assertTrue(np.all(edge == 255))
+                            capture = cv2.copyMakeBorder(pixels, 32, 32, 32, 32,
+                                cv2.BORDER_CONSTANT, value=255)
+                            decoded, _, _ = cv2.QRCodeDetector().detectAndDecode(capture)
+                            self.assertEqual(decoded, context['verification_url'])
 
     def test_individual_portrait_and_portal_scope(self):
         self.issue()
