@@ -28,8 +28,14 @@ test('tutor portal has ID and activities but no housing or competition sections'
 test('tutor uses the existing participant form without a selectable category or minor mode', () => {
   const html = render(Form, { tutor: true, initial: { fullName: 'Tutor', email: 'tutor@example.test', ageChoice: 'adult_private' },
     categories: [], options: {}, onBack() {}, onSave() {} })
-  assert.match(html, /Height \(optional\)/)
-  assert.match(html, /Weight \(optional\)/)
+  assert.match(html, /Measurements/)
+  assert.ok(html.includes('Optional \u2014 leave blank if unknown.'))
+  for (const [name, label] of [['height', 'Height'], ['weight', 'Weight']]) {
+    assert.ok(html.includes(`<label for="${name}">${label}</label>`))
+    const input = html.match(new RegExp(`<input(?=[^>]*\\bname="${name}")[^>]*>`))
+    assert.ok(input, `${label} input is present`)
+    assert.doesNotMatch(input[0], /\brequired(?:\s|=|>)/)
+  }
   assert.match(html, /Complete complimentary registration/)
   assert.doesNotMatch(html, /value="minor"|name="categoryId"|Continue to summary/)
 })
