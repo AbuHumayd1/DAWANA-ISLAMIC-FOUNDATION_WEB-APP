@@ -24,6 +24,7 @@ from .operations_api import (
     OperationsParticipantListView,
     OperationsPaymentListView,
     OperationsRegistrationDetailView,
+    OperationsRegistrationDeleteView,
     OperationsRegistrationListView,
     OperationsReportView,
     operations_csrf,
@@ -59,6 +60,7 @@ from .participant_api import (
 )
 
 urlpatterns = [
+    path('operations/registrations/<uuid:public_id>/delete/', OperationsRegistrationDeleteView.as_view(), name='operations-registration-delete'),
     path('operations/reporting/', ReportingView.as_view(), name='operations-reporting'),
     path('tutor-registration/challenges/', TutorChallengeView.as_view(), name='tutor-challenge'),
     path('tutor-registration/verify/', TutorVerifyView.as_view(), name='tutor-verify'),
@@ -231,8 +233,9 @@ urlpatterns = [
 
 from .portal_account_api import (AccountStatusView, AccountActivateView, PasswordLoginView,
     PasswordResetView, AccountLinkBookingView, GoogleStartView, GoogleCallbackView, GoogleUnlinkView, EmailVerifyView, EmailResendView, CredentialTransitionView, IssueCredentialTransitionView)
-from .phase_a_api import AccountOrderRecoveryView, PaymentResolutionView
+from .phase_a_api import AccountOrderRecoveryView, PaymentResolutionView, FreshRegistrationCheckView
 urlpatterns += [
+    path('orders/<uuid:public_id>/restart-check/', FreshRegistrationCheckView.as_view(), name='registration-restart-check'),
     path('participant/auth/orders/recover/', AccountOrderRecoveryView.as_view(), name='portal-order-recovery'),
     path('operations/payments/<str:reference>/resolve/', PaymentResolutionView.as_view(), name='payment-resolution'),
     path('participant/auth/credentials/transition/', CredentialTransitionView.as_view(), name='portal-credential-transition'),

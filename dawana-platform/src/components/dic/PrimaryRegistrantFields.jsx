@@ -18,8 +18,8 @@ export default function PrimaryRegistrantFields({ contact, onChange, locked, cre
       <label className="dic-field"><span>Username</span><input required maxLength={40} autoComplete="username" value={credentials.username || ''} onChange={event => onCredentials({ ...credentials, mode: credentials.mode || 'create', username: event.target.value })} /></label>
       <PasswordField value={credentials.password} onChange={password => onCredentials({ ...credentials, mode: credentials.mode || 'create', password })} autoComplete={credentials.mode === 'existing' ? 'current-password' : 'new-password'} label={credentials.mode === 'existing' ? 'Existing password' : 'Choose password'} />
       {credentials.mode !== 'existing' && <PasswordField value={credentials.password_confirmation} onChange={password_confirmation => onCredentials({ ...credentials, password_confirmation })} autoComplete="new-password" label="Confirm password" />}
-      {credentials.mode === 'existing' && <small>Enter the original account username and password. <a href="/dic/register/recover">Recover a booking</a> if needed.</small>}
+      {credentials.mode === 'existing' && <small>Enter the original account username and password. <a href="/dic/participant">Account password help</a> if needed.</small>}
     </fieldset>}
-    {locked && !contact?.email && <p>This older checkout has no saved primary email in this browser. Continue an existing payment only through its saved checkout or <a href="/dic/register/recover">recover the booking</a>. Ask authorized DIC staff to review missing contact details; do not create another registration or pay again.</p>}
+    {locked && !contact?.email && <p>This older checkout has no saved primary email in this browser. Continue an existing payment only through its saved checkout or <a href="/dic/participant">get account help</a>. Ask authorized DIC staff to review missing contact details; do not create another registration or pay again.</p>}
   </div>
 }

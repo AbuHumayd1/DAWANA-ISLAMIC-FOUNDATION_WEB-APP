@@ -1,23 +1,12 @@
 """Username credentials and explicit booking ownership; never payment entitlement."""
-import secrets
 from django.contrib.auth import get_user_model
 from django.db import transaction, IntegrityError
 from django.views.decorators.debug import sensitive_variables
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.exceptions import APIException
 from . import portal_accounts as accounts
 from .models import PortalAccount, PortalAccountBooking, DICAdminAuditEvent
 from .recovery import normalize_email
 from .recovery_views import _contact_digest
-
-
-class RegistrationAccountConflict(APIException):
-    status_code = 409
-    default_code = 'account_conflict'
-
-    def __init__(self):
-        super().__init__({'detail': 'Account creation could not be completed. Use an existing participant account or recover your original booking before continuing.',
-            'code': 'account_conflict'})
 
 
 def pending_registration(account):
@@ -48,18 +37,15 @@ def bind_registration(order, credentials):
     accounts.require_accounts()
     username = accounts.normalize_username(credentials['username'])
     email = normalize_email(order.primary_registrant.email)
-    digest = _contact_digest('email', email)
+    digest = _contact_digest('identity', username)
     account = PortalAccount.objects.select_for_update().select_related('user').filter(username_key__iexact=username).first()
     mode = credentials.get('mode', 'auto')
     if account:
         # A retried create request may bind only its already-owned order.
         if mode == 'create' and not PortalAccountBooking.objects.filter(account=account, order=order, revoked_at__isnull=True).exists():
             from rest_framework.exceptions import ValidationError
-            raise ValidationError({'username': 'This username is already registered. Select “Use an existing participant account” and enter its password, or recover your booking.'})
+            raise ValidationError({'username': 'This username is already registered. Sign in using its password or choose a different username for a new account.'})
         account = accounts.password_account(username, credentials['password'])
-        if account.contact_channel not in ('email', 'username') or not secrets.compare_digest(account.contact_digest, digest):
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError({'primary_registrant': {'email': 'Use the original booking email for this participant account. To change it, recover your existing booking or contact DIC support.'}})
     else:
         if mode == 'existing':
             # Equalize hash work and never turn a failed sign-in into signup.
@@ -75,14 +61,10 @@ def bind_registration(order, credentials):
             with transaction.atomic():
                 user.save()
                 account = PortalAccount.objects.create(user=user, username_key=username, login_email=None,
-                    contact_channel='username', contact_digest=digest)
+                    contact_channel='identity', contact_digest=digest)
                 accounts.audit(account, 'registered')
         except IntegrityError:
-            # A booking contact may own only one username account. Do not turn
-            # that creation conflict into a bad-password error or attach an
-            # unauthenticated new username to the existing owner's account.
-            if PortalAccount.objects.filter(contact_channel='username', contact_digest=digest).exists():
-                raise RegistrationAccountConflict() from None
+            # Username uniqueness is still enforced by the database.
             raise AuthenticationFailed(accounts.INVALID) from None
     binding, created = PortalAccountBooking.objects.get_or_create(order=order, defaults={'account': account})
     if binding.account_id != account.pk or binding.revoked_at:

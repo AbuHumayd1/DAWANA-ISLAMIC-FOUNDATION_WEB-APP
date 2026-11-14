@@ -11,6 +11,7 @@ from . import tests as fixtures
 from .models import GuardianRelationship, PortalAccountBooking, HousingJob
 from .payment_views import _apply_verified_transaction
 from .registration_guardians import approve_declared_guardians
+from .recovery_views import _contact_digest
 
 
 @override_settings(PAYSTACK_MODE='test', PAYSTACK_SECRET_KEY='sk_test_unit_mock')
@@ -55,6 +56,13 @@ class ExplicitGuardianTests(APITestCase):
             reason='A guardian relationship awaits approval; hold the entire group.')
         approve_declared_guardians(self.edition.pk, actor)
         relation.refresh_from_db()
+        self.assertEqual(relation.status, 'pending')  # Metadata is not verified email proof.
+        # Complete the independently verified legacy-email fixture. A receipt
+        # address or username identity digest alone must never approve a guardian.
+        account.contact_digest = _contact_digest('email', account.login_email)
+        account.save(update_fields=['contact_digest'])
+        approve_declared_guardians(self.edition.pk, actor)
+        relation.refresh_from_db()
         self.assertEqual(relation.status, 'approved')
         self.assertEqual(relation.approved_by_id, actor.pk)
         self.assertEqual(HousingJob.objects.filter(edition=self.edition, state='pending').count(), 2)
@@ -66,7 +74,8 @@ class ExplicitGuardianTests(APITestCase):
         account = PortalAccountBooking.objects.get(order=self.order).account
         account.contact_channel = 'email'
         account.login_email = self.order.primary_registrant.email
-        account.save(update_fields=['contact_channel', 'login_email'])
+        account.contact_digest = _contact_digest('email', account.login_email)
+        account.save(update_fields=['contact_channel', 'login_email', 'contact_digest'])
         account.user.is_active = True
         account.user.save(update_fields=['is_active'])
         relation.guardian.full_name = 'Different adult'
@@ -77,3 +86,19 @@ class ExplicitGuardianTests(APITestCase):
         self.assertEqual(relation.status, 'pending')
         self.order.refresh_from_db()
         self.assertEqual(self.order.payment_status, 'paid')
+
+    def test_shared_verified_receipt_email_without_explicit_declaration_never_approves(self):
+        relation = self.register_family()
+        attempt = self.create_pending_attempt('undeclared-family-payment')
+        _apply_verified_transaction(attempt.pk, self.provider_result(attempt.reference))
+        account = PortalAccountBooking.objects.get(order=self.order).account
+        account.contact_channel = 'email'
+        account.login_email = self.order.primary_registrant.email
+        account.contact_digest = _contact_digest('email', account.login_email)
+        account.save(update_fields=['contact_channel', 'login_email', 'contact_digest'])
+        GuardianRelationship.objects.filter(pk=relation.pk).update(registration_declared=False)
+        actor = get_user_model().objects.create_user(username='guardian-automation', is_staff=True, is_superuser=True)
+        approve_declared_guardians(self.edition.pk, actor)
+        relation.refresh_from_db()
+        self.assertEqual(relation.status, 'pending')
+        self.assertIsNone(relation.approved_by_id)

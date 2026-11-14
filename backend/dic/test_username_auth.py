@@ -84,17 +84,17 @@ class UsernameAuthenticationTests(APITestCase):
             PortalAccount.objects.create(user=other, username_key='SYNTHETIC-REGISTRANT',
                 contact_channel='username', contact_digest='different-contact')
 
-    def test_username_contact_snapshot_is_rechecked_without_becoming_email_proof(self):
+    def test_username_identity_key_never_implies_receipt_email_proof(self):
         from .participant_api import primary_contact_matches
         account = self.account()
-        self.assertTrue(primary_contact_matches(self.order, account.contact_channel, account.contact_digest))
+        self.assertFalse(primary_contact_matches(self.order, account.contact_channel, account.contact_digest))
         self.order.primary_registrant.email = 'changed@example.test'
         self.assertFalse(primary_contact_matches(self.order, account.contact_channel, account.contact_digest))
 
     def test_new_username_activation_is_not_email_proof(self):
         account = self.account()
         self.assertTrue(account.user.is_active)
-        self.assertEqual(account.contact_channel, 'username')
+        self.assertEqual(account.contact_channel, 'identity')
         self.assertIsNone(account.login_email)
         self.assertFalse(DICAdminAuditEvent.objects.filter(target_type='PortalAccount', target_id=str(account.pk),
             action='portal_account_email_verified').exists())
@@ -106,7 +106,7 @@ class UsernameAuthenticationTests(APITestCase):
         with patch.object(accounts, 'fresh_otp', return_value=(proof, [self.order])):
             recovered = accounts.reset_password(object(), NEW_PASSWORD)
         self.assertEqual(recovered.pk, account.pk)
-        self.assertEqual(recovered.contact_channel, 'username')
+        self.assertEqual(recovered.contact_channel, 'identity')
         self.assertIsNone(recovered.login_email)
         self.assertTrue(recovered.user.check_password(NEW_PASSWORD))
         self.assertEqual(recovered.credential_version, 2)
@@ -265,7 +265,7 @@ class UsernameConcurrencyTests(APITransactionTestCase):
         payloads = []
         for index, username in enumerate(('Race-Owner', 'race-owner')):
             data = deepcopy(self.order_payload)
-            data['portal_account']['username'] = username
+            data['portal_account'].update(username=username, mode='create')
             data['primary_registrant']['email'] = f'race-{index}@example.test'
             data['participants'][0]['full_name'] = f'Concurrent participant {index}'
             payloads.append(data)

@@ -1,5 +1,6 @@
 """Credentials authenticate Django users; explicit bindings authorize bookings."""
 import re
+from django.db.models import Q
 import secrets
 from datetime import timedelta
 from types import SimpleNamespace
@@ -103,9 +104,14 @@ def proof_channels(channel):
 
 def owned_account(grant, orders, allow_pending=False):
     ids = PortalAccountBooking.objects.filter(order__in=orders, revoked_at__isnull=True).values('account_id')
-    account = PortalAccount.objects.select_for_update().select_related('user').filter(pk__in=ids,
-        contact_channel__in=proof_channels(grant.channel), contact_digest=grant.contact_digest,
-        ).first()
+    # Verified recovery remains limited to explicitly scoped booking bindings.
+    candidates = PortalAccount.objects.select_for_update().select_related('user').filter(pk__in=ids).filter(
+        Q(contact_channel__in=proof_channels(grant.channel), contact_digest=grant.contact_digest)
+        | Q(contact_channel='identity'))
+    candidates = list(candidates[:2])
+    if len(candidates) != 1:
+        raise PermissionDenied(INVALID)
+    account = candidates[0]
     pending = False
     if allow_pending and account and grant.channel == 'email' and not account.user.is_active:
         from .registration_accounts import pending_registration
@@ -170,11 +176,10 @@ def password_account(identifier, password):
 
 
 def linked_orders(account):
-    from .participant_api import primary_contact_matches
     bindings = PortalAccountBooking.objects.filter(account=account, revoked_at__isnull=True,
         order__access_token_revoked_at__isnull=True).select_related('order__primary_registrant')
-    return [binding.order for binding in bindings if primary_contact_matches(binding.order,
-        account.contact_channel, account.contact_digest) and booking_eligible(binding.order)]
+    # Credentials and explicit bindings establish ownership; receipt addresses do not.
+    return [binding.order for binding in bindings if booking_eligible(binding.order)]
 
 
 @transaction.atomic
@@ -237,7 +242,7 @@ def link_booking(request, identifier, password):
     account = PortalAccount.objects.select_for_update().select_related('user').get(pk=account.pk)
     if not usable(account) or account.credential_version != authenticated_version:
         raise AuthenticationFailed(INVALID)
-    if account.contact_channel not in proof_channels(grant.channel) or not secrets.compare_digest(account.contact_digest, grant.contact_digest):
+    if account.contact_channel != 'identity' and (account.contact_channel not in proof_channels(grant.channel) or not secrets.compare_digest(account.contact_digest, grant.contact_digest)):
         raise PermissionDenied(INVALID)
     try:
         with transaction.atomic():

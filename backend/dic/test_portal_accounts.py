@@ -189,12 +189,18 @@ class PortalAccountPolicyTests(SimpleTestCase):
             query.return_value.exists.return_value = False
             with self.assertRaises(PermissionDenied): accounts.fresh_otp(NS())
 
-    def test_changed_contact_and_ineligible_bookings_do_not_return_via_password(self):
+    def test_explicit_bindings_and_eligibility_control_access_not_receipt_email(self):
+        account = NS(contact_channel='email', contact_digest='verified')
         bindings = [NS(order=NS(pk=i)) for i in range(3)]
-        with patch.object(accounts.PortalAccountBooking.objects, 'filter') as query, patch('dic.participant_api.primary_contact_matches', side_effect=[True, False, True]), patch.object(accounts, 'booking_eligible', side_effect=[True, False]):
+        with patch.object(accounts.PortalAccountBooking.objects, 'filter') as query, patch(
+                'dic.participant_api.primary_contact_matches') as contact, patch.object(
+                accounts, 'booking_eligible', side_effect=[True, False, True]):
             query.return_value.select_related.return_value = bindings
-            result = accounts.linked_orders(NS(contact_channel='email', contact_digest='verified'))
-        self.assertEqual([order.pk for order in result], [0])
+            result = accounts.linked_orders(account)
+            self.assertIs(query.call_args.kwargs['account'], account)
+            self.assertTrue(query.call_args.kwargs['revoked_at__isnull'])
+            contact.assert_not_called()
+        self.assertEqual([order.pk for order in result], [0, 2])
 
     def test_reset_credential_version_and_revoked_google_link_invalidate_sessions(self):
         user = NS(is_active=True, is_staff=False, is_superuser=False)

@@ -116,26 +116,17 @@ class PortalPhase3PolicyTests(SimpleTestCase):
             response = PortalIDView.as_view()(APIRequestFactory().get('/'), enrollment_id=uuid4())
         self.assertEqual(response.status_code, 403); card.assert_not_called()
 
-    def test_approved_housing_guardian_link_never_expands_verified_booking_scope(self):
-        from datetime import date
+    def test_authorized_child_view_uses_eligibility_without_a_second_guardian_gate(self):
         from .participant_api import authorized_portal_card
-        child = NS(participant=NS(date_of_birth=date(2023, 1, 1)), edition=NS(),
-            source_item=NS(order=NS(registration_basis='paid')))
-        relation = NS(guardian=NS(date_of_birth=date(1990, 1, 1), sex='Female'), clean=MagicMock())
-        for same_booking in (False, True):
-            with self.subTest(same_booking=same_booking), patch('dic.participant_api.scoped_enrollment', return_value=(NS(), child)), patch(
-                    'dic.participant_api.scoped_orders', return_value=[NS(pk=7)]), patch(
-                    'dic.housing_policy.age_reference', return_value=date(2026, 12, 23)), patch(
-                    'dic.housing_policy.age_on', return_value=3), patch('dic.models.GuardianRelationship.objects') as relationships, patch(
-                    'dic.participant_api.CampEnrollment.objects') as enrollments, patch(
-                    'dic.participant_api.eligibility', return_value={'eligible': True}):
-                relationships.filter.return_value.select_related.return_value.first.return_value = relation
-                enrollments.filter.return_value.select_related.return_value.first.return_value = NS(source_item=NS(order=NS(registration_basis='paid'))) if same_booking else None
-                if same_booking: self.assertIs(authorized_portal_card(NS(), uuid4()), child)
-                else:
-                    with self.assertRaises(PermissionDenied): authorized_portal_card(NS(), uuid4())
-                self.assertEqual(enrollments.filter.call_args.kwargs['source_item__order_id__in'], [7])
-                self.assertEqual(relationships.filter.call_args.kwargs['status'], 'approved')
+        child = NS()
+        with patch('dic.participant_api.scoped_enrollment', return_value=(NS(), child)), patch(
+                'dic.participant_api.eligibility', return_value={'eligible': True}), patch(
+                'dic.models.GuardianRelationship.objects') as relationships:
+            self.assertIs(authorized_portal_card(NS(), uuid4()), child)
+            relationships.filter.assert_not_called()
+        with patch('dic.participant_api.scoped_enrollment', return_value=(NS(), child)), patch(
+                'dic.participant_api.eligibility', return_value={'eligible': False}):
+            with self.assertRaises(PermissionDenied): authorized_portal_card(NS(), uuid4())
 
     def test_foreign_child_is_denied_before_guardian_details_are_queried(self):
         from .participant_api import authorized_portal_card

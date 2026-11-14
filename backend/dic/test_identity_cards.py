@@ -537,14 +537,14 @@ class IdentityCardTests(PortalFixtures, TestCase):
         browser, _ = self.portal_client()
         self.assertContains(browser.get(self.portal_card_url() + '?format=a6'), self.enrollment.participant_number)
         review_guardian(relation.pk, self.id_manager, 'revoked', 'Synthetic withdrawal.')
-        self.assertEqual(browser.get(self.portal_card_url()).status_code, 403)
+        self.assertEqual(browser.get(self.portal_card_url()).status_code, 200)
 
-    def test_portal_booking_contact_alone_does_not_establish_dependent_guardianship(self):
+    def test_portal_authorized_scope_allows_issued_dependent_without_housing_approval(self):
         self.enrollment.participant.date_of_birth = date(2022, 1, 1)
         self.enrollment.participant.save()
         self.issue()
         browser, _ = self.portal_client()
-        self.assertEqual(browser.get(self.portal_card_url()).status_code, 403)
+        self.assertEqual(browser.get(self.portal_card_url()).status_code, 200)
 
     def test_portal_download_does_not_expand_to_cross_booking_guardian_links(self):
         self.issue()

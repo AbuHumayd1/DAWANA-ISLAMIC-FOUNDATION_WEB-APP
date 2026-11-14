@@ -45,3 +45,65 @@ def review_registration(order_id, actor, action, reason):
     DICAdminAuditEvent.objects.create(actor=actor, action='registration_cleanup_' + action,
         target_type='RegistrationOrder', target_id=str(order.pk), details={'reason': reason.strip()[:1000]})
     return order
+
+
+def disposable_permission(actor):
+    return (actor.is_authenticated and actor.is_active and actor.is_staff
+        and actor.has_perm('dic.delete_registrationorder')
+        and actor.has_perm('dic.can_manage_registration_access'))
+
+
+def disposal_blocker(order):
+    """Conservative allowlist: any payment attempt or operational evidence blocks."""
+    from .models import HouseAllocation
+    if order.registration_basis != 'paid' or order.payment_status not in ('pending', 'failed') or order.status == 'confirmed':
+        return 'Only genuinely unpaid ordinary registrations can be deleted.'
+    if order.payment_attempts.exists():
+        return 'Payment attempts must be retained for reconciliation, including failed attempts.'
+    participants = order.items.values_list('participant_id', flat=True)
+    if (CampCheckIn.objects.filter(edition=order.edition, participant_id__in=participants).exists()
+            or HouseAllocation.objects.filter(edition=order.edition, participant_id__in=participants).exists()):
+        return 'Check-in or accommodation records protect this registration.'
+    enrollments = CampEnrollment.objects.filter(source_item__order=order)
+    for enrollment in enrollments:
+        for relation in enrollment._meta.related_objects:
+            if relation.related_model.objects.filter(**{relation.field.name: enrollment}).exists():
+                return 'An issued ID or other participant activity protects this registration.'
+    allowed = {'RegistrationOrderItem', 'RegistrationOrderPriceRevision', 'PortalAccountBooking', 'OrderExpiry'}
+    for relation in order._meta.related_objects:
+        if relation.related_model.__name__ not in allowed and relation.related_model.objects.filter(**{relation.field.name: order}).exists():
+            return 'Existing access, recovery or financial evidence must be retained.'
+    return ''
+
+
+@transaction.atomic
+def delete_disposable_registration(public_id, actor, confirmation, reason):
+    from .models import RegistrationOrderPriceItem, RegistrationOrderPriceRevision, PortalAccountBooking
+    from .order_lifecycle_models import OrderExpiry
+    if not disposable_permission(actor):
+        raise PermissionDenied('Registration deletion and management permissions are required.')
+    order = RegistrationOrder.objects.select_for_update().get(public_id=public_id)
+    if confirmation != str(order.public_id) or not isinstance(reason, str) or not reason.strip():
+        raise ValidationError('Confirm the exact registration reference and give a test-record deletion reason.')
+    # Settlement and initialization lock this same order before creating evidence.
+    list(CampEnrollment.objects.select_for_update().filter(source_item__order=order))
+    blocker = disposal_blocker(order)
+    if blocker:
+        raise ValidationError(blocker)
+    reference, target, total = str(order.public_id), str(order.pk), str(order.total_amount_ngn)
+    DICAdminAuditEvent.objects.create(actor=actor, action='registration_test_deleted',
+        target_type='RegistrationOrder', target_id=target,
+        details={'reference': reference, 'reason': reason.strip()[:1000], 'quoted_total_ngn': total,
+                 'payment_attempts': 0, 'payment_status': order.payment_status})
+    # Only explicitly approved disposable children. Accounts, participants, contacts
+    # and existing audit events remain; Django PROTECT guards every other relation.
+    CampEnrollment.objects.filter(source_item__order=order).delete()
+    PortalAccountBooking.objects.filter(order=order).delete()
+    OrderExpiry.objects.filter(order=order).delete()
+    RegistrationOrderPriceItem.objects.filter(revision__order=order).delete()
+    order.current_price_revision = None
+    order.save(update_fields=['current_price_revision'])
+    RegistrationOrderPriceRevision.objects.filter(order=order).delete()
+    order.items.all().delete()
+    order.delete()
+    return reference
