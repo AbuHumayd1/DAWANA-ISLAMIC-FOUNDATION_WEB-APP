@@ -56,6 +56,9 @@ def _resolve(actor, reference, request_id, decision, reason, provider_refund_id=
     with transaction.atomic():
         order = RegistrationOrder.objects.select_for_update().get(pk=attempt.order_id)
         attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt.pk)
+        from .registration_cleanup import is_deleted
+        if is_deleted(order):
+            raise ValidationError('This registration is in Trash. Financial evidence requires separate review; it cannot be reinstated here.')
         existing = PaymentResolution.objects.select_related('attempt').filter(request_id=request_id).first()
         if existing:
             return replay(existing, actor, reference, request_id, decision, reason, provider_refund_id)

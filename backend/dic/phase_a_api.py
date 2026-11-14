@@ -36,7 +36,8 @@ class AccountOrderRecoveryView(PortalView):
                 current = PortalAccountBooking.objects.filter(pk=binding.pk, account=locked, revoked_at__isnull=True).exists()
                 if not accounts.usable(locked) or locked.credential_version != version:
                     raise ValidationError(accounts.INVALID)
-                if not current or order.status == 'cancelled' or order.access_token_revoked_at:
+                from .registration_cleanup import is_deleted
+                if not current or is_deleted(order) or order.status == 'cancelled' or order.access_token_revoked_at:
                     continue
                 # Paid bookings use the ordinary protected dashboard, not checkout recovery.
                 if order.payment_status not in ('pending', 'failed'):
@@ -94,6 +95,9 @@ class FreshRegistrationCheckView(PortalView):
             if (not accounts.usable(account) or account.credential_version != version or not order
                     or not PortalAccountBooking.objects.filter(account=account, order=order, revoked_at__isnull=True).exists()):
                 raise PermissionDenied('The registration could not be authorized for this account.')
+            from .registration_cleanup import is_deleted
+            if is_deleted(order):
+                raise NotFound('Registration not found.')
             if (order.registration_basis != 'paid' or order.payment_status not in ('pending', 'failed')
                     or order.status == 'confirmed' or order.payment_attempts.exists()):
                 raise ValidationError('This registration may have payment evidence. Check its payment status or contact DIC support; do not pay again.')

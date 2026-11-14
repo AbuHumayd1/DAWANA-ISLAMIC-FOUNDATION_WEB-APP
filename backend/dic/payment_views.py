@@ -168,6 +168,8 @@ def _apply_verified_transaction(attempt_id, provider_data):
         ):
             return attempt, order
 
+        from .registration_cleanup import is_deleted
+        deleted = is_deleted(order)
         provider_status = _safe_provider_status(provider_data.get("status"))
         attempt.provider_status = provider_status
         attempt.verified_at = timezone.now()
@@ -273,6 +275,9 @@ def _apply_verified_transaction(attempt_id, provider_data):
                     if order.payment_status != RegistrationOrder.PaymentStatus.PAID:
                         order.payment_status = RegistrationOrder.PaymentStatus.PENDING
                         order.save(update_fields=("payment_status",))
+            elif deleted:
+                attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
+                attempt.failure_code = 'deleted_registration_payment'
             elif (
                 order.status == RegistrationOrder.Status.CANCELLED
                 or order.payment_status == RegistrationOrder.PaymentStatus.REFUNDED
@@ -349,6 +354,15 @@ def _apply_verified_transaction(attempt_id, provider_data):
                 failure_code="another_attempt_requires_review",
                 updated_at=timezone.now(),
             )
+        if deleted:
+            from .models import DICAdminAuditEvent
+            DICAdminAuditEvent.objects.create(action='deleted_registration_payment_observed',
+                target_type='RegistrationOrder', target_id=str(order.pk),
+                details={'reference': str(order.public_id), 'transaction_reference': attempt.reference,
+                    'provider_status': attempt.provider_status, 'verification_failure': attempt.failure_code,
+                    'outcome': 'reconciliation_required'})
+            attempt.status = PaymentAttempt.Status.RECONCILIATION_REQUIRED
+            attempt.failure_code = 'deleted_registration_payment'
         attempt.save(
             update_fields=(
                 "provider_status",
@@ -405,8 +419,23 @@ class PaymentInitializeView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "dic_payment_initiate"
 
+    def handle_exception(self, exc):
+        response = super().handle_exception(exc)
+        order_id = getattr(self, '_authorized_order_id', None)
+        if order_id and isinstance(response.data, dict):
+            from django.db import DatabaseError
+            try:
+                with transaction.atomic():
+                    order = RegistrationOrder.objects.select_for_update().get(pk=order_id)
+                    if order.payment_status in ('pending', 'failed') and not order.payment_attempts.exists():
+                        response.data['payment_not_initiated'] = True
+            except (DatabaseError, RegistrationOrder.DoesNotExist):
+                pass  # Uncertainty never becomes permission to discard payment state.
+        return response
+
     def post(self, request, public_id):
         order = _order_for_access(request, public_id)
+        self._authorized_order_id = order.pk
         with transaction.atomic():
             order = RegistrationOrder.objects.select_for_update().get(pk=order.pk)
             from .order_lifecycle import require_payable
@@ -429,6 +458,7 @@ class PaymentInitializeView(APIView):
                 return Response(
                     {
                         "repricing_required": True,
+                        "payment_not_initiated": not order.payment_attempts.exists(),
                         "detail": (
                             "The quoted price is no longer current. Review and accept "
                             "the updated amount before starting payment."
@@ -489,6 +519,7 @@ class PaymentInitializeView(APIView):
             except PaystackConfigurationError:
                 return Response(
                     {
+                        'payment_not_initiated': not order.payment_attempts.exists(),
                         "detail": (
                             "Paystack credentials are not configured correctly."
                         )

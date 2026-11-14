@@ -148,7 +148,8 @@ def _create_order(*, key_digest, fingerprint, payload):
         if existing:
             if not hmac.compare_digest(existing.request_fingerprint, fingerprint):
                 raise IdempotencyConflict()
-            if existing.access_token_revoked_at is not None:
+            from .registration_cleanup import is_deleted
+            if is_deleted(existing) or existing.access_token_revoked_at is not None:
                 raise IdempotencyConflict("Order access has been revoked.")
             if payload.get('portal_account'):
                 from .registration_accounts import bind_registration
@@ -336,7 +337,8 @@ class RegistrationOrderCreateView(APIView):
                 raise
             if not hmac.compare_digest(existing.request_fingerprint, fingerprint):
                 raise IdempotencyConflict()
-            if existing.access_token_revoked_at is not None:
+            from .registration_cleanup import is_deleted
+            if is_deleted(existing) or existing.access_token_revoked_at is not None:
                 raise IdempotencyConflict("Order access has been revoked.")
             if serializer.validated_data.get('portal_account'):
                 from .registration_accounts import bind_registration

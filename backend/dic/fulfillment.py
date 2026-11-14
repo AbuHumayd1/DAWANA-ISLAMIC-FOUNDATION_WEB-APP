@@ -118,6 +118,9 @@ def _issue_item(item, actor):
 def _complete(job, actor, items, member_ids):
     order = RegistrationOrder.objects.get(pk=job.order_id)
     from .settlement_evidence import order_has_verified_settlement
+    from .registration_cleanup import is_deleted
+    if is_deleted(order):
+        raise FulfillmentHold('registration_deleted')
     if (order.registration_basis != 'paid' or order.status != 'confirmed'
             or order.payment_status != 'paid' or not order_has_verified_settlement(order)):
         raise FulfillmentHold('registration_not_verified_paid')

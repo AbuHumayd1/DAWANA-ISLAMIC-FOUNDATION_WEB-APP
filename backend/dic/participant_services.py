@@ -24,7 +24,8 @@ def require_id_manager(actor):
 
 def eligibility(enrollment):
     item = RegistrationOrderItem.objects.select_related("order", "category").get(pk=enrollment.source_item_id)
-    items = list(RegistrationOrderItem.objects.filter(participant_id=enrollment.participant_id, order__edition_id=enrollment.edition_id).select_related("order"))
+    from .registration_cleanup import deleted_orders
+    items = list(RegistrationOrderItem.objects.filter(participant_id=enrollment.participant_id, order__edition_id=enrollment.edition_id).exclude(order_id__in=deleted_orders().values('pk')).select_related("order"))
     if item.participant_id != enrollment.participant_id or item.order.edition_id != enrollment.edition_id or item.category.edition_id != enrollment.edition_id:
         return {"eligible": False, "code": "invalid_source"}
     if len(items) > 1 and enrollment.source_review_fingerprint != source_fingerprint(items):
@@ -32,6 +33,9 @@ def eligibility(enrollment):
     if enrollment.restriction_reason:
         return {"eligible": False, "code": "restricted_review_required"}
     order = RegistrationOrder.objects.select_related("current_price_revision").get(pk=item.order_id)
+    from .registration_cleanup import is_deleted
+    if is_deleted(order):
+        return {'eligible': False, 'code': 'registration_deleted'}
     if order.status == RegistrationOrder.Status.CANCELLED:
         return {'eligible': False, 'code': 'registration_cancelled'}
     if order.registration_basis == 'tutor':
@@ -80,6 +84,9 @@ def record(action, enrollment=None, actor=None, **details):
 @transaction.atomic
 def ensure_enrollment(item_id):
     item = RegistrationOrderItem.objects.select_related("order", "category").get(pk=item_id)
+    from .registration_cleanup import is_deleted
+    if is_deleted(item.order):
+        raise ValidationError('This registration is in Trash.')
     if item.category.edition_id != item.order.edition_id:
         raise ValidationError("Registration category and edition require staff review.")
     # All issuance/source resolution uses the same participant lock. Enrollment

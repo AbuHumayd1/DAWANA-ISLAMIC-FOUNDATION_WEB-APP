@@ -71,6 +71,9 @@ class PaymentEntitlementModeTests(SimpleTestCase):
     """Exercise real entitlement/booking policy with in-memory provider evidence."""
 
     def setUp(self):
+        # This fixture models a non-deleted order; the durable Trash gate is
+        # exercised with real database records in test_reversible_deletion.
+        self.enterContext(patch('dic.registration_cleanup.is_deleted', return_value=False))
         from datetime import timedelta
         from decimal import Decimal
         from types import SimpleNamespace as NS
@@ -101,7 +104,7 @@ class PaymentEntitlementModeTests(SimpleTestCase):
         self.attempts = [self.attempt]
         self.item_manager = self.enterContext(patch.object(service.RegistrationOrderItem, 'objects'))
         self.item_manager.select_related.return_value.get.return_value = self.item
-        self.item_manager.filter.return_value.select_related.return_value = [self.item]
+        self.item_manager.filter.return_value.exclude.return_value.select_related.return_value = [self.item]
         self.enterContext(patch.object(service.RegistrationOrder, 'objects')).select_related.return_value.get.return_value = self.order
         self.payment_manager = self.enterContext(patch.object(service.PaymentAttempt, 'objects'))
         self.payment_manager.filter.side_effect = lambda **criteria: EvidenceRows([

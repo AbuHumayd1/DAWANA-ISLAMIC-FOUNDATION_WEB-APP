@@ -41,7 +41,8 @@ def _session_digest(request, create=False):
 
 def _active_grants(digest):
     now = timezone.now()
-    return PaymentReturnGrant.objects.select_related("order", "order__edition").filter(
+    from .registration_cleanup import deleted_orders
+    return PaymentReturnGrant.objects.exclude(order_id__in=deleted_orders().values('pk')).select_related("order", "order__edition").filter(
         session_digest=digest, revoked_at__isnull=True, expires_at__gt=now,
         order__access_token_revoked_at__isnull=True, order__access_token_expires_at__gt=now,
     )
@@ -59,6 +60,7 @@ def _summary(order):
     from .order_lifecycle import metadata
     return {
         'lifecycle': metadata(order),
+        'payment_requested': order.payment_attempts.exists(),
         "order_id": str(order.public_id), "edition_name": order.edition.name,
         "payment_status": order.payment_status, "status": order.status,
         "total_amount_ngn": str(order.total_amount_ngn), "currency": "NGN",

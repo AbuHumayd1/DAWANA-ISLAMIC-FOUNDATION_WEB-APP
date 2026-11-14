@@ -25,6 +25,9 @@ from .operations_api import (
     OperationsPaymentListView,
     OperationsRegistrationDetailView,
     OperationsRegistrationDeleteView,
+    OperationsRegistrationRestoreView,
+    OperationsRegistrationArchiveView,
+    OperationsRegistrationRecheckView,
     OperationsRegistrationListView,
     OperationsReportView,
     operations_csrf,
@@ -60,6 +63,9 @@ from .participant_api import (
 )
 
 urlpatterns = [
+    path('operations/registrations/<uuid:public_id>/restore-deleted/', OperationsRegistrationRestoreView.as_view(), name='operations-registration-restore-deleted'),
+    path('operations/registrations/<uuid:public_id>/archive-test/', OperationsRegistrationArchiveView.as_view(), name='operations-registration-archive-test'),
+    path('operations/registrations/<uuid:public_id>/recheck-payment/', OperationsRegistrationRecheckView.as_view(), name='operations-registration-recheck-payment'),
     path('operations/registrations/<uuid:public_id>/delete/', OperationsRegistrationDeleteView.as_view(), name='operations-registration-delete'),
     path('operations/reporting/', ReportingView.as_view(), name='operations-reporting'),
     path('tutor-registration/challenges/', TutorChallengeView.as_view(), name='tutor-challenge'),

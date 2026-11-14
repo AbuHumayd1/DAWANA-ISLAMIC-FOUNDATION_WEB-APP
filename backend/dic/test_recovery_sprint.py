@@ -114,7 +114,8 @@ class FulfillmentPolicyTests(SimpleTestCase):
         order = SimpleNamespace(registration_basis='paid', status='confirmed', payment_status='paid')
         job = SimpleNamespace(order_id=1)
         items = [SimpleNamespace(pk=1), SimpleNamespace(pk=2)]
-        with patch.object(fulfillment.RegistrationOrder.objects, 'get', return_value=order), \
+        with patch('dic.registration_cleanup.is_deleted', return_value=False), \
+             patch.object(fulfillment.RegistrationOrder.objects, 'get', return_value=order), \
              patch('dic.settlement_evidence.order_has_verified_settlement', return_value=True), \
              patch.object(fulfillment.transaction, 'atomic'), \
              patch.object(fulfillment, '_issue_item', side_effect=[None, fulfillment.FulfillmentHold('existing_id_requires_review')]) as issue, \

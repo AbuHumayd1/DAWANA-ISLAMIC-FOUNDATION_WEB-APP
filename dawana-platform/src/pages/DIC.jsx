@@ -1,4 +1,5 @@
 import './DICMobileRefinement.css'
+import { paymentProtectionRequired, retainedRegistrationDraft } from '../services/registrationDraft'
 import { privateDraft, registrationSubmission } from '../services/productionContract'
 import { PortalContinuation } from '../components/dic/PortalPhase3'
 import { registrationExpired, resumablePaymentReference } from '../services/orderLifecycle'
@@ -6,7 +7,7 @@ import PrimaryRegistrantFields from '../components/dic/PrimaryRegistrantFields'
 import { primaryRegistrantPayload, registrationCredentialsPayload } from '../services/bookingContact'
 import TutorRegistration from '../components/dic/TutorRegistration'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import CategorySelection from '../components/dic/CategorySelection'
 import { categoryFee, estimateRegistrationTotal } from '../services/registrationPricing'
@@ -15,14 +16,13 @@ import DICEditorial from '../components/dic/DICEditorial'
 import DICInfoPanel from '../components/dic/DICCampInfo'
 import CampShowcase from '../components/dic/CampShowcase'
 import CamperBrand from '../components/dic/CamperBrand'
-import { preparePaymentReturn, paystackCheckoutUrl, paymentReturnSetupMessage } from '../services/paymentReturnApi'
+import { resolvePaymentReturn, preparePaymentReturn, paystackCheckoutUrl, paymentReturnSetupMessage } from '../services/paymentReturnApi'
 import { occupations, maritalOptions, participantBackground } from '../components/dic/participantOptions'
 import Field from '../components/dic/RegistrationField'
 import { AgeDisclosureFields, OptionalMeasurements } from '../components/dic/RegistrationPrivacyFields'
 import { ageOnDate, privacyPayload, privacySummary } from '../services/registrationPrivacy'
 import {
   createRegistrationOrder,
-  authorizeFreshRegistration,
   acceptOrderPricing,
   getRegistrationOptions,
   getRegistrationOrder,
@@ -62,6 +62,7 @@ function newUuidV4() {
 
 function emptyFlow() {
   return {
+    draftVersion: 2, paymentRequested: false,
     primaryRegistrant: { fullName: '', email: '', phone: '' },
     participants: [],
     idempotencyKey: newUuidV4(),
@@ -79,6 +80,10 @@ function loadFlow() {
     const saved = sessionStorage.getItem(SESSION_KEY)
     if (!saved) return { flow: emptyFlow(), storageAvailable: true, expired: false }
     const parsed = JSON.parse(saved)
+    if (!retainedRegistrationDraft(parsed)) {
+      sessionStorage.removeItem(SESSION_KEY)
+      return { flow: emptyFlow(), storageAvailable: true, expired: false }
+    }
     const valid = parsed
       && Array.isArray(parsed.participants)
       && typeof parsed.idempotencyKey === 'string'
@@ -236,7 +241,7 @@ function CheckoutSummary({ flow, categories, options }) {
   return <div className="checkout-summary"><h2>Registration summary</h2><p>{options?.name || 'Darul Islam Camp'} · {formatDate(options?.camp_start_date)} – {formatDate(options?.camp_end_date)} · {options?.venue || 'Venue to be announced'}</p>{flow.participants.map((participant, index) => { const category = categories.find((item) => String(item.id) === String(participant.categoryId)); const item = items[index]; const fee = item?.fee_ngn ?? categoryFee(category); return <div className="checkout-row" key={participant.id}><span>{participant.fullName}<small>{participantBackground(participant)}</small><small>{item?.category_name || category?.name || 'Category unavailable'}{item?.price_type ? ` · ${item.price_type === 'early_bird' ? 'Early-bird price' : 'Regular price'}` : ''}</small></span><strong>{fee === undefined || fee === null ? 'Not available' : formatNgn(fee)}</strong></div>})}<div className="checkout-row checkout-total"><span>{flow.orderSummary ? 'Total' : 'Current estimated total'}</span><strong>{total === null ? 'Pricing incomplete' : formatNgn(total)}</strong></div>{total === null && <p role="status">Pricing is incomplete for one or more participants. Review the selected categories before submitting.</p>}{options?.early_bird_cutoff_at_lagos && <small>Early-bird fee is secured only by payment completed before {formatLagosDateTime(options.early_bird_cutoff_at_lagos)} (Africa/Lagos).</small>}</div>
 }
 
-function Checkout({ flow, categories, options, accessToken, busy, error, paymentNotice, repricingOffer, onAcceptRepricing, onBack, onCreateOrder, onResume, onInitialize, onRetryGrant, onVerify, onCheckoutClosed, onPrimaryContact, registrationCredentials, onCredentials }) {
+function Checkout({ onFresh, flow, categories, options, accessToken, busy, error, paymentNotice, repricingOffer, onAcceptRepricing, onBack, onCreateOrder, onResume, onInitialize, onRetryGrant, onVerify, onCheckoutClosed, onPrimaryContact, registrationCredentials, onCredentials }) {
   const [expiryClock, setExpiryClock] = useState(() => Date.now())
   useEffect(() => { const timer = setInterval(() => setExpiryClock(Date.now()), 1000); return () => clearInterval(timer) }, [])
   const orderExpired = registrationExpired(flow.orderSummary?.lifecycle, expiryClock)
@@ -244,31 +249,12 @@ function Checkout({ flow, categories, options, accessToken, busy, error, payment
   const needsOrder = !flow.orderId
   const canVerify = Boolean(accessToken && flow.paymentReference)
   const retryingOrder = needsOrder && flow.submissionUncertain
-  return <section className="dic-summary"><Container><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · REGISTRATION</span><h1>Checkout</h1><p>Review your grouped registration.</p></div></div><RegistrationProgress current="checkout" /><div className="checkout-box"><PrimaryRegistrantFields readOnly participants={flow.participants} housingReference={options?.housing_age_reference_date} contact={flow.primaryRegistrant} onChange={onPrimaryContact} credentials={registrationCredentials} onCredentials={onCredentials} credentialsLocked={Boolean(accessToken || busy)} locked={Boolean(flow.orderId || busy || flow.submissionUncertain)} /><CheckoutSummary flow={flow} categories={categories} options={options} /><FlowMessage kind="error">{error}</FlowMessage><FlowMessage kind={paymentNotice?.kind || 'info'}>{paymentNotice?.text}</FlowMessage>{repricingOffer && <div className="payment-placeholder" role="alert"><strong>Updated amount requires your approval</strong><p>Your early-bird quote expired before payment was completed. The registration and participant details are preserved. An earlier Paystack authorization may still be active; do not use its old checkout link. A payment will be accepted only if Paystack confirms its amount and completion time.</p>{repricingOffer.items.map((item, index) => <p key={`${item.category_name}-${index}`}>{item.category_name} — {item.price_type === 'early_bird' ? 'Early bird' : 'Regular'}: {formatNgn(item.fee_ngn)}</p>)}<p><strong>Revised total: {formatNgn(repricingOffer.total_amount_ngn)}</strong></p><button className="button" type="button" onClick={onAcceptRepricing} disabled={busy}>{busy ? 'Updating secure quote…' : 'Accept revised amount and continue'}</button></div>}{requiresRecovery && <div className="payment-placeholder"><strong>Secure checkout needs to be restored</strong><p>Recover this booking to continue. Existing payments will be checked before another checkout is offered.</p></div>}{flow.orderId && accessToken && <div className="payment-placeholder"><strong>{flow.paymentStatus === 'paid' ? 'Payment verified' : 'Paystack checkout'}</strong><p>{flow.paymentStatus === 'paid' ? 'The registration service has confirmed this payment.' : 'Checkout opens in a separate tab so this page can securely verify your payment when you return. A redirect alone never confirms payment.'}</p>{flow.paymentReference && <span>Payment reference: {flow.paymentReference}</span>}{flow.authorizationUrl && flow.returnReady && !repricingOffer && !orderExpired && <><a className="button button-outline dic-checkout-link" href={flow.authorizationUrl} target="_blank" rel="noopener noreferrer">Open Paystack checkout in a new tab ↗</a><button className="text-link dic-checkout-closed" type="button" onClick={onCheckoutClosed}>I cancelled or closed checkout</button></>}</div>}<div className="dic-form-actions"><button className="text-link" type="button" onClick={onBack} disabled={busy}>← Back to summary</button>{needsOrder ? <button className="button" type="button" onClick={onCreateOrder} disabled={busy || estimateRegistrationTotal(flow.participants, categories) === null}>{busy ? 'Submitting secure order…' : retryingOrder ? 'Retry order submission safely →' : 'Pay Now'}</button> : requiresRecovery ? <button className="button" type="button" onClick={onResume} disabled={busy}>{busy ? 'Restoring secure session…' : 'Restore secure checkout →'}</button> : flow.paymentStatus === 'paid' ? <button className="button" type="button" disabled>Payment confirmed</button> : orderExpired ? <><p role="status">This registration expired after 24 hours. Do not pay again. Staff can reconcile an existing payment.</p>{canVerify && <button className="button" type="button" onClick={onVerify} disabled={busy}>Verify existing payment</button>}</> : repricingOffer ? null : flow.authorizationUrl && !flow.returnReady ? <button className="button" type="button" onClick={onRetryGrant} disabled={busy}>{busy ? 'Securing return session?' : 'Retry secure return setup'}</button> : canVerify ? <div className="dic-payment-actions">{!orderExpired && flow.paymentStatus === 'failed' && <button className="button button-outline" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Starting…' : 'Try payment again'}</button>}<button className="button" type="button" onClick={onVerify} disabled={busy}>{busy ? 'Verifying with Paystack…' : 'I have returned — verify payment'}</button></div> : <button className="button" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Connecting to Paystack…' : 'Prepare Paystack checkout →'}</button>}</div></div></Container></section>
+  return <section className="dic-summary"><Container><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · REGISTRATION</span><h1>Checkout</h1><p>Review your grouped registration.</p></div></div><RegistrationProgress current="checkout" /><div className="checkout-box"><PrimaryRegistrantFields readOnly participants={flow.participants} housingReference={options?.housing_age_reference_date} contact={flow.primaryRegistrant} onChange={onPrimaryContact} credentials={registrationCredentials} onCredentials={onCredentials} credentialsLocked={Boolean(accessToken || busy)} locked={Boolean(flow.orderId || busy || flow.submissionUncertain)} /><CheckoutSummary flow={flow} categories={categories} options={options} />{flow.orderId && !paymentProtectionRequired(flow) && <button className="button button-outline" type="button" disabled={busy} onClick={onFresh}>Start new registration</button>}<FlowMessage kind="error">{error}</FlowMessage><FlowMessage kind={paymentNotice?.kind || 'info'}>{paymentNotice?.text}</FlowMessage>{repricingOffer && <div className="payment-placeholder" role="alert"><strong>Updated amount requires your approval</strong><p>Your early-bird quote expired before payment was completed. The registration and participant details are preserved. An earlier Paystack authorization may still be active; do not use its old checkout link. A payment will be accepted only if Paystack confirms its amount and completion time.</p>{repricingOffer.items.map((item, index) => <p key={`${item.category_name}-${index}`}>{item.category_name} — {item.price_type === 'early_bird' ? 'Early bird' : 'Regular'}: {formatNgn(item.fee_ngn)}</p>)}<p><strong>Revised total: {formatNgn(repricingOffer.total_amount_ngn)}</strong></p><button className="button" type="button" onClick={onAcceptRepricing} disabled={busy}>{busy ? 'Updating secure quote…' : 'Accept revised amount and continue'}</button></div>}{requiresRecovery && <div className="payment-placeholder"><strong>Secure checkout needs to be restored</strong><p>Recover this booking to continue. Existing payments will be checked before another checkout is offered.</p></div>}{flow.orderId && accessToken && <div className="payment-placeholder"><strong>{flow.paymentStatus === 'paid' ? 'Payment verified' : 'Paystack checkout'}</strong><p>{flow.paymentStatus === 'paid' ? 'The registration service has confirmed this payment.' : 'Checkout opens in a separate tab so this page can securely verify your payment when you return. A redirect alone never confirms payment.'}</p>{flow.paymentReference && <span>Payment reference: {flow.paymentReference}</span>}{flow.authorizationUrl && flow.returnReady && !repricingOffer && !orderExpired && <><a className="button button-outline dic-checkout-link" href={flow.authorizationUrl} target="_blank" rel="noopener noreferrer">Open Paystack checkout in a new tab ↗</a><button className="text-link dic-checkout-closed" type="button" onClick={onCheckoutClosed}>I cancelled or closed checkout</button></>}</div>}<div className="dic-form-actions"><button className="text-link" type="button" onClick={onBack} disabled={busy}>← Back to summary</button>{needsOrder ? <button className="button" type="button" onClick={onCreateOrder} disabled={busy || estimateRegistrationTotal(flow.participants, categories) === null}>{busy ? 'Submitting secure order…' : retryingOrder ? 'Retry order submission safely →' : 'Pay Now'}</button> : requiresRecovery ? <button className="button" type="button" onClick={onResume} disabled={busy}>{busy ? 'Restoring secure session…' : 'Restore secure checkout →'}</button> : flow.paymentStatus === 'paid' ? <button className="button" type="button" disabled>Payment confirmed</button> : orderExpired ? <><p role="status">This registration expired after 24 hours. Do not pay again. Staff can reconcile an existing payment.</p>{canVerify && <button className="button" type="button" onClick={onVerify} disabled={busy}>Verify existing payment</button>}</> : repricingOffer ? null : flow.authorizationUrl && !flow.returnReady ? <button className="button" type="button" onClick={onRetryGrant} disabled={busy}>{busy ? 'Securing return session?' : 'Retry secure return setup'}</button> : canVerify ? <div className="dic-payment-actions">{!orderExpired && flow.paymentStatus === 'failed' && <button className="button button-outline" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Starting…' : 'Try payment again'}</button>}<button className="button" type="button" onClick={onVerify} disabled={busy}>{busy ? 'Verifying with Paystack…' : 'I have returned — verify payment'}</button></div> : <button className="button" type="button" onClick={onInitialize} disabled={busy}>{busy ? 'Connecting to Paystack…' : 'Prepare Paystack checkout →'}</button>}</div></div></Container></section>
 }
 
 function Confirmation({ flow, onReset }) {
   const paid = flow.paymentStatus === 'paid'
   return <section className="dic-summary"><Container><RegistrationProgress current="confirmation" /><div className="confirmation-box"><span className="confirmation-icon" aria-hidden="true">{paid ? '✓' : '!'}</span><span className="eyebrow">{paid ? 'PAYMENT VERIFIED' : 'PAYMENT NOT VERIFIED'}</span><h1>{paid ? 'DIC registration confirmed' : 'Registration awaiting payment verification'}</h1><p>{paid ? `Your ${flow.participants.length === 1 ? 'participant registration has' : `${flow.participants.length} participant registrations have`} been confirmed by the registration service.` : 'A successful redirect is not proof of payment. Return to checkout and verify the payment with the registration service before treating this registration as complete.'}</p>{paid && <ul className="dic-confirmation-participants">{flow.participants.map((participant) => <li key={participant.id}><strong>{participant.fullName}</strong><span>{participantBackground(participant)}</span></li>)}</ul>}{flow.orderId && <strong>Order reference: {flow.orderId}</strong>}{paid && <button className="button" type="button" onClick={onReset}>Return to DIC</button>}</div></Container></section>
-}
-
-function FreshRegistrationCheck({ orderId, onReady }) {
-  const [identifier, setIdentifier] = useState('')
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const check = async event => {
-    event.preventDefault(); if (busy) return
-    setBusy(true); setError('')
-    const secret = password; setPassword('')
-    try {
-      const result = await authorizeFreshRegistration(orderId, { identifier, password: secret })
-      if (result.safe_to_restart === true) onReady()
-      else setError('Payment status could not be confirmed. Do not start another payment.')
-    } catch (failure) { setError(failure.message || 'Payment status could not be checked.') }
-    finally { setBusy(false) }
-  }
-  return <form onSubmit={check}><p>To start fresh, sign in to authorize closing this unused registration. This is available only if no payment attempt was started; the earlier record remains on file.</p><label className="dic-field">Account username<input required autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} /></label><label className="dic-field">Account password<input required type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} /></label><button className="button" disabled={busy}>Check and start fresh</button>{error && <p role="alert">{error}</p>}</form>
 }
 
 function getStep(pathname) {
@@ -330,6 +316,21 @@ function RegularDIC() {
       .catch((loadError) => { if (active) rejectOptions(loadError) })
     return () => { active = false }
   }, [receiveOptions, rejectOptions])
+
+  useEffect(() => {
+    if (!flow.orderId || flow.participants.length || !paymentProtectionRequired(flow)) return undefined
+    let active = true
+    // Existing cookie authority may prove a legacy order never reached payment.
+    // An unauthorized/missing/uncertain response never clears a financial hint.
+    resolvePaymentReturn({ order_id: flow.orderId }).then(result => {
+      const order = result?.order
+      if (active && order?.order_id === flow.orderId && order.payment_requested === false
+          && ['pending', 'failed'].includes(order.payment_status)) {
+        clearSavedFlow(); setFlow(emptyFlow()); setError(''); navigate('/dic/register', { replace: true })
+      }
+    }).catch(() => { /* The protected status link remains available. */ })
+    return () => { active = false }
+  }, [flow.orderId, flow.participants.length, flow.paymentRequested, navigate])
 
   const retryOptions = () => {
     setOptionsState('loading')
@@ -404,10 +405,17 @@ function RegularDIC() {
   }
 
   const initializeForOrder = async (orderId, token, orderSummary = flow.orderSummary) => {
+    const paymentFlow = { ...flow, orderId, orderSummary, draftVersion: 2, paymentRequested: true, expiresAt: Date.now() + DRAFT_LIFETIME_MS }
+    // Persist the request boundary before any provider initialization can start.
+    if (!saveFlow(paymentFlow)) {
+      setPaymentNotice({ kind: 'error', text: 'This browser could not save payment progress. Enable site storage before starting payment.' })
+      return
+    }
+    persistFlow(paymentFlow)
     try {
       const attempt = await initializePayment(orderId, token)
       const nextFlow = {
-        ...flow,
+        ...paymentFlow,
         orderId,
         orderSummary,
         paymentReference: attempt.payment_reference,
@@ -417,9 +425,12 @@ function RegularDIC() {
       }
       await establishReturnGrant(nextFlow, token)
     } catch (paymentError) {
+      const notStarted = paymentError.body?.payment_not_initiated === true
+      if (notStarted) persistFlow({ ...paymentFlow, paymentRequested: false })
       if (paymentError.body?.repricing_required && paymentError.body?.quote) {
         const nextFlow = {
-          ...flow,
+          ...paymentFlow,
+          paymentRequested: !notStarted,
           orderId,
           orderSummary,
           authorizationUrl: null,
@@ -436,14 +447,14 @@ function RegularDIC() {
       }
       const reference = paymentReferenceFromError(paymentError)
       if (reference) {
-        const nextFlow = { ...flow, orderId, orderSummary, paymentReference: reference, authorizationUrl: null, submissionUncertain: false }
+        const nextFlow = { ...paymentFlow, orderId, orderSummary, paymentReference: reference, authorizationUrl: null, submissionUncertain: false }
         persistFlow(nextFlow)
       }
       setError('')
       setPaymentNotice({
         kind: 'error',
         text: paymentError.statusCode === 503
-          ? 'Online payment is not available right now. Your order is recorded, but payment has not been made.'
+          ? notStarted ? 'Payment was not started. Try again or start a new registration.' : 'Payment status is uncertain. Check the existing payment before trying again.'
           : reference
             ? 'The payment attempt needs verification before it can be retried. Use the verification button below.'
             : getErrorMessage(paymentError, 'A payment attempt could not be started. Your order has not been marked paid.'),
@@ -639,19 +650,19 @@ function RegularDIC() {
   const participantFormAllowed = optionsState === 'ready'
     && options?.registration_is_open
     && options.categories?.length
-    && !flow.orderId && !flow.submissionUncertain
+    && !paymentProtectionRequired(flow)
   const currentStep = step === 'confirmation' && flow.paymentStatus !== 'paid' ? 'checkout' : step
 
-  const paymentUncertain = Boolean(flow.orderId || flow.submissionUncertain)
+  const paymentUncertain = paymentProtectionRequired(flow)
   const freshRegistration = () => {
     if (paymentUncertain) return
     setFlow(emptyFlow()); setError(''); setEditing(null); clearSavedFlow(); go('form')
   }
-  const interruption = <section className="dic-summary"><Container><div className="confirmation-box"><h1>{paymentUncertain ? 'Check your existing payment' : 'Start a new registration'}</h1><p>{paymentUncertain ? 'An existing order may have a payment in progress. Check its secure payment status or contact DIC support before starting another payment. Your order has been preserved.' : 'If you left before submitting an order or starting payment, you can begin the normal registration again.'}</p>{paymentUncertain ? <><Link className="button" to={flow.orderId ? `/dic/register/confirmation/${flow.orderId}` : '/dic/register/payment-return'}>Check existing payment status</Link><Link className="button button-outline" to="/dic/participant">Account sign in and password help</Link>{flow.orderId && <FreshRegistrationCheck orderId={flow.orderId} onReady={() => { clearSavedFlow(); setFlow(emptyFlow()); setError(''); setEditing(null); go('form') }} />}</> : <button className="button" type="button" onClick={freshRegistration}>Start new registration</button>}</div></Container></section>
-  if (step === 'recovery') return interruption
+  const interruption = <section className="dic-summary"><Container><div className="confirmation-box"><h1>{paymentUncertain ? 'Check your existing payment' : 'Start a new registration'}</h1><p>{paymentUncertain ? 'An existing order may have a payment in progress. Check its secure payment status or contact DIC support before starting another payment. Your order has been preserved.' : 'If you left before submitting an order or starting payment, you can begin the normal registration again.'}</p>{paymentUncertain ? <><Link className="button" to={flow.orderId ? `/dic/register/confirmation/${flow.orderId}` : '/dic/register/payment-return'}>Check existing payment status</Link><Link className="button button-outline" to="/dic/participant">Account sign in and password help</Link></> : <button className="button" type="button" onClick={freshRegistration}>Start new registration</button>}</div></Container></section>
+  if (step === 'recovery') return paymentUncertain ? interruption : <Navigate to="/dic/register" replace />
   if (paymentUncertain && ['landing', 'form'].includes(step)) return interruption
   if (step === 'landing') {
-    return <DICLanding options={options} optionsState={optionsState} onRegister={() => participantFormAllowed && add()} onRetry={retryOptions} />
+    return <DICLanding options={options} optionsState={optionsState} onRegister={() => { if (participantFormAllowed) { clearSavedFlow(); setFlow(emptyFlow()); setEditing(null); go('form') } }} onRetry={retryOptions} />
   }
   if (step === 'form') {
     if (optionsState === 'loading') return <section className="dic-flow"><Container><FlowMessage>Loading current registration categories…</FlowMessage></Container></section>
@@ -663,8 +674,8 @@ function RegularDIC() {
     return <RegistrationSummary flow={flow} categories={options?.categories || []} options={options} onAdd={add} onEdit={edit} onRemove={(index) => updateParticipants(flow.participants.filter((_, itemIndex) => itemIndex !== index), true)} onCheckout={() => go('checkout')} />
   }
   if (step === 'checkout' || step === 'confirmation' && currentStep === 'checkout') {
-    if (!flow.participants.length) return interruption
-    return <Checkout flow={flow} categories={options?.categories || []} options={options} accessToken={accessToken} busy={busy} error={error} paymentNotice={paymentNotice} repricingOffer={repricingOffer} onAcceptRepricing={acceptRepricing} onBack={() => go('summary')} onCreateOrder={createOrder} onResume={resumeCheckout} onInitialize={startAnotherPayment} onRetryGrant={retryReturnGrant} onVerify={verifyCurrentPayment} onCheckoutClosed={reportCheckoutClosed} onPrimaryContact={primaryRegistrant => persistFlow({ ...flow, primaryRegistrant })} registrationCredentials={registrationCredentials} onCredentials={setRegistrationCredentials} />
+    if (!flow.participants.length) return paymentUncertain ? interruption : <Navigate to="/dic/register" replace />
+    return <Checkout onFresh={freshRegistration} flow={flow} categories={options?.categories || []} options={options} accessToken={accessToken} busy={busy} error={error} paymentNotice={paymentNotice} repricingOffer={repricingOffer} onAcceptRepricing={acceptRepricing} onBack={() => go('summary')} onCreateOrder={createOrder} onResume={resumeCheckout} onInitialize={startAnotherPayment} onRetryGrant={retryReturnGrant} onVerify={verifyCurrentPayment} onCheckoutClosed={reportCheckoutClosed} onPrimaryContact={primaryRegistrant => persistFlow({ ...flow, primaryRegistrant })} registrationCredentials={registrationCredentials} onCredentials={setRegistrationCredentials} />
   }
   return <><Confirmation flow={flow} onReset={reset} />{flow.orderId && <div className="container" style={{ paddingBottom: '2rem', textAlign: 'center' }}><div className="cp-portal-handoff-brand"><CamperBrand /></div><PortalContinuation orderReference={flow.orderId} /><p>Sign in with your chosen username and password when your booking is eligible. No email activation is required. Ordinary paid participants receive access after payment is verified; authorized complimentary tutors may receive access without payment. Contact-code recovery remains available for existing bookings.</p></div>}</>
 }

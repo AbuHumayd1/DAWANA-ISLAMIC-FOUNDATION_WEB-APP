@@ -85,7 +85,7 @@ def _edition_from_request(request):
     return active or editions.order_by("-year").first()
 
 
-def _base_orders(edition):
+def _base_orders(edition, include_deleted=False):
     queryset = RegistrationOrder.objects.select_related(
         "edition",
         "primary_registrant",
@@ -98,17 +98,28 @@ def _base_orders(edition):
         "price_revisions__items",
         "recovery_challenges__grants",
     )
+    if not include_deleted:
+        from .registration_cleanup import deleted_orders
+        queryset = queryset.exclude(pk__in=deleted_orders().values('pk'))
     return queryset.filter(edition=edition) if edition else queryset.none()
 
 
 def _apply_order_filters(queryset, params, user, export_limit=None):
     from .order_lifecycle import archive_query
     view = params.get('archive', 'active')
-    if view not in ('active', 'expired', 'all'):
-        raise ValidationError({'archive': 'Choose active, expired or all.'})
+    if view not in ('active', 'expired', 'all', 'trash'):
+        raise ValidationError({'archive': 'Choose active, expired, all or trash.'})
+    from .registration_cleanup import deleted_orders, disposable_permission
+    if view == 'trash':
+        if not disposable_permission(user):
+            raise PermissionDenied('Trash access requires registration management and deletion permissions.')
+        queryset = queryset.filter(pk__in=deleted_orders().values('pk'))
+    else:
+        queryset = queryset.exclude(pk__in=deleted_orders().values('pk'))
     archived = archive_query()
     if view == 'active':
-        queryset = queryset.exclude(archived).exclude(status='cancelled')
+        from .registration_cleanup import archived_test_orders
+        queryset = queryset.exclude(archived).exclude(status='cancelled').exclude(pk__in=archived_test_orders().values('pk'))
     elif view == 'expired':
         queryset = queryset.filter(archived)
     for parameter, field in (
@@ -250,11 +261,22 @@ def _order_data(order, user, include_detail=False):
             "email": order.primary_registrant.email,
             "phone": order.primary_registrant.phone,
         }
-    if include_detail:
-        from .registration_cleanup import disposable_permission, disposal_blocker
-        if disposable_permission(user):
-            reason = disposal_blocker(order)
-            data['deletion'] = {'eligible': not bool(reason), 'reason': reason}
+    from .registration_cleanup import disposable_permission, disposal_blocker, is_deleted, deletion_event
+    if disposable_permission(user):
+        deleted = is_deleted(order)
+        reason = disposal_blocker(order)
+        event = deletion_event(order) if deleted else None
+        data['record_state'] = 'deleted' if deleted else 'normal'
+        data['deleted_at'] = event.created_at.isoformat() if event else None
+        data['deletion'] = {'eligible': not deleted and not bool(reason), 'reason': 'Already in Trash.' if deleted else reason, 'reversible': True}
+        data['restore'] = {'eligible': deleted and not bool(reason), 'reason': reason if deleted else 'Not in Trash.'}
+        from .registration_cleanup import archive_blocker, archived_test_orders, payment_cleanup_state
+        data['test_cleanup'] = {'payment_state': payment_cleanup_state(order),
+            'archived': archived_test_orders().filter(pk=order.pk).exists(),
+            'can_archive': not bool(archive_blocker(order)), 'archive_reason': archive_blocker(order),
+            'can_recheck': user.has_perm('dic.can_view_dic_finance')}
+        if not deleted and data['test_cleanup']['archived']:
+            data['record_state'] = 'archived'
     if include_detail and user.has_perm('dic.change_registrationorder') and user.has_perm('dic.can_manage_registration_access'):
         from django.urls import reverse
         data['management_url'] = reverse('admin:dic_registration_cleanup', args=[order.pk])
@@ -336,6 +358,8 @@ def _participant_queryset(edition):
         "registration_items__category",
         "house_allocations__house",
     )
+    from .registration_cleanup import deleted_orders
+    queryset = queryset.filter(registration_items__order__in=RegistrationOrder.objects.exclude(pk__in=deleted_orders().values('pk')))
     if edition:
         queryset = queryset.filter(registration_items__order__edition=edition)
     return queryset.distinct()
@@ -386,7 +410,8 @@ def _apply_participant_filters(queryset, params, user, edition=None):
 
 def _participant_data(participant, user, edition=None):
     from .tutor_registration import authorization_state
-    item_query = participant.registration_items.select_related(
+    from .registration_cleanup import deleted_orders
+    item_query = participant.registration_items.exclude(order_id__in=deleted_orders().values('pk')).select_related(
         "order",
         "category",
         "order__edition",
@@ -530,6 +555,7 @@ def _user_data(user):
             user.is_staff and (user.is_superuser or user.has_module_perms("dic"))
         ),
         "permissions": {
+            "registration_cleanup": bool(user.is_active and user.is_staff and user.has_perm('dic.delete_registrationorder') and user.has_perm('dic.can_manage_registration_access')),
             "manage_order_lifecycle": bool(user.is_active and user.is_staff and _can(user, 'manage_dic_order_lifecycle') and _can(user, 'can_view_dic_finance')),
             "classes": user.has_perm('dic.manage_dic_classes'),
             "announcements": any(user.has_perm('dic.' + p) for p in ('manage_dic_announcements', 'publish_dic_announcements')),
@@ -819,7 +845,7 @@ class OperationsRegistrationListView(OperationsBaseView):
     def get(self, request):
         edition = _edition_from_request(request)
         orders = _apply_order_filters(
-            _base_orders(edition),
+            _base_orders(edition, include_deleted=request.query_params.get('archive') == 'trash'),
             request.query_params,
             request.user,
         )
@@ -831,6 +857,12 @@ class OperationsRegistrationListView(OperationsBaseView):
 class OperationsRegistrationDetailView(OperationsBaseView):
     def get(self, request, public_id):
         edition = _edition_from_request(request)
+        from .registration_cleanup import disposable_permission, is_deleted
+        candidate = _base_orders(edition, include_deleted=True).filter(public_id=public_id).first()
+        if candidate and is_deleted(candidate):
+            if not disposable_permission(request.user):
+                raise PermissionDenied('Trash access requires registration management permissions.')
+            return Response(_order_data(candidate, request.user, include_detail=True))
         order = _apply_order_filters(
             _base_orders(edition).filter(public_id=public_id),
             {**request.query_params.dict(), 'archive': request.query_params.get('archive', 'all')},
@@ -853,7 +885,43 @@ class OperationsRegistrationDeleteView(OperationsBaseView):
             return Response({'detail': 'Registration not found or already removed.'}, status=404)
         except (ProtectedError, IntegrityError):
             raise ValidationError('Protected records changed or still depend on this registration. Nothing was deleted.')
-        return Response({'deleted': True, 'reference': reference})
+        return Response({'deleted': True, 'reversible': True, 'reference': reference})
+
+
+class OperationsRegistrationRestoreView(OperationsBaseView):
+    def post(self, request, public_id):
+        from .registration_cleanup import restore_deleted_registration
+        try:
+            reference = restore_deleted_registration(public_id, request.user, request.data.get('confirmation'), request.data.get('reason', ''))
+        except RegistrationOrder.DoesNotExist:
+            return Response({'detail': 'Registration not found.'}, status=404)
+        return Response({'restored': True, 'reference': reference})
+
+
+class OperationsRegistrationArchiveView(OperationsBaseView):
+    def post(self, request, public_id):
+        from .registration_cleanup import archive_test_registration
+        try:
+            reference = archive_test_registration(public_id, request.user, request.data.get('confirmation'), request.data.get('reason', ''))
+        except RegistrationOrder.DoesNotExist:
+            return Response({'detail': 'Registration not found.'}, status=404)
+        return Response({'archived': True, 'reference': reference})
+
+
+class OperationsRegistrationRecheckView(OperationsBaseView):
+    def post(self, request, public_id):
+        from .registration_cleanup import disposable_permission
+        from .payment_views import _verify_attempt
+        from .payments import PaystackClient
+        if not disposable_permission(request.user) or not request.user.has_perm('dic.can_view_dic_finance'):
+            raise PermissionDenied('Finance and registration management permissions are required.')
+        order = RegistrationOrder.objects.filter(public_id=public_id).first()
+        if order is None:
+            return Response({'detail': 'Registration not found.'}, status=404)
+        provider = PaystackClient()
+        for attempt in order.payment_attempts.exclude(status__in=('successful', 'duplicate_success')).order_by('-created_at')[:10]:
+            _verify_attempt(attempt, provider)
+        return Response({'checked': True})
 
 
 class OperationsParticipantListView(OperationsBaseView):
