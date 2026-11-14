@@ -149,7 +149,7 @@ test('portal ID links remain scoped read-only downloads for validated formats', 
 test('staff card links use staff authorization while participant links retain booking scope', () => {
   const id = '12345678-abcd-4321-abcd-123456789012'
   for (const format of ['pvc', 'a6', 'portrait']) {
-    assert.equal(staffCardPath(id, format, true), `/api/v1/dic/ids/cards/${id}/?format=${format}&download=1`)
+    assert.equal(staffCardPath(id, format, true), `/api/v1/dic/ids/cards/${id}/?format=${format}&download=1&return_to=operations`)
     assert.match(participantCardPath(id, format), /\/dic\/participant\/enrollments\//)
   }
   assert.throws(() => staffCardPath('../other'))

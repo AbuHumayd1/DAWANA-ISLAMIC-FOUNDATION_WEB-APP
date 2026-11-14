@@ -38,7 +38,7 @@ test('ID layout uses existing authorized format routes without exposing QR secre
     const url = new URL(href[1].replaceAll('&amp;', '&'), 'https://api.dawanaislamicfoundation.org')
     assert.equal(url.origin, 'https://api.dawanaislamicfoundation.org')
     assert.equal(url.pathname, pathname)
-    assert.deepEqual([...url.searchParams], [['format', 'pvc']])
+    assert.deepEqual([...url.searchParams], [['format', 'pvc'], ...(markup === staff ? [['return_to', 'operations']] : [])])
     assert.equal(url.hash, '')
     assert.equal(url.username, ''); assert.equal(url.password, '')
     assert.match(preview[1], /referrerPolicy="no-referrer"/i)

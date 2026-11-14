@@ -250,6 +250,9 @@ def _order_data(order, user, include_detail=False):
             "email": order.primary_registrant.email,
             "phone": order.primary_registrant.phone,
         }
+    if include_detail and user.has_perm('dic.change_registrationorder') and user.has_perm('dic.can_manage_registration_access'):
+        from django.urls import reverse
+        data['management_url'] = reverse('admin:dic_registration_cleanup', args=[order.pk])
     if has_finance and include_detail:
         data["pricing_revisions"] = [
             {

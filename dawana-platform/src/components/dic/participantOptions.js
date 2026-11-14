@@ -4,3 +4,9 @@ export const maritalOptions = ['Single', 'Married', 'Divorcee', 'Widow / Widower
 export function participantChoiceLabel(value) {
   return value === notApplicable.value ? notApplicable.label : value
 }
+
+export function participantBackground(participant) {
+  return [['Occupation', participant.occupation], ['Marital status', participant.maritalStatus]]
+    .filter(([, value]) => value && value !== notApplicable.value)
+    .map(([label, value]) => `${label}: ${participantChoiceLabel(value)}`).join(' · ')
+}

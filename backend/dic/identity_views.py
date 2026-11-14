@@ -5,6 +5,7 @@ from django.db import connection
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
+from django.urls import reverse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 from rest_framework.exceptions import ValidationError
@@ -64,9 +65,20 @@ def _render_authorized_cards(request, enrollments, download=False, batch=False, 
     nonce = secrets.token_urlsafe(18)
     batch = batch or len(cards) > 1
     per_page = 2 if card_format == 'a6' and printer == 'standard' else PRINT_FORMATS[card_format]['per_page']
+    from config.site_context import public_site
+    frontend = public_site(request)['public_site_url'].rstrip('/')
+    return_url, return_label = reverse('admin:dic_campenrollment_changelist'), 'Return to Participant Directory'
+    if portal:
+        return_url, return_label = frontend + '/dic/participant?view=digital-id', 'Return to My Digital ID'
+        if len(cards) == 1:
+            return_url += '&camper=' + str(cards[0]['enrollment'].pk)
+    elif request.GET.get('return_to') == 'operations' and len(cards) == 1:
+        return_url = frontend + '/dic/operations/participant-ids?enrollment=' + str(cards[0]['enrollment'].pk)
+        return_label = 'Return to participant in Operations'
     response = TemplateResponse(request, 'dic/identity_cards.html', dict(cards=cards, pages=card_pages(cards, per_page),
         batch=batch, portal=portal, card_format=card_format, format_info=PRINT_FORMATS[card_format], printer=printer,
         logo=official_logo_data(), errors=errors, nonce=nonce,
+        return_url=return_url, return_label=return_label,
         demo=connection.settings_dict['NAME'].startswith('dawana_ids_demo_')))
     if download:
         response['Content-Disposition'] = 'attachment; filename="dawana-id-cards.html"'

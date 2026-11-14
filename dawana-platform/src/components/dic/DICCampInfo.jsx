@@ -13,9 +13,8 @@ export default function DICCampInfo({ options, optionsState, onRegister, onRetry
   const status = optionsState === 'loading' ? 'Loading camp details…' : optionsState === 'error' ? 'Camp details are temporarily unavailable.' : canRegister ? 'Registration is open' : 'Registration is not currently open'
   const dates = options?.camp_start_date && options?.camp_end_date ? `${campDate(options.camp_start_date)} – ${campDate(options.camp_end_date)}` : 'To be announced'
   return <aside className="dic-camp-brief" aria-label="Camp and registration details">
-    <div className="dic-brief-heading"><span className="eyebrow">YOUR NEXT CAMP EXPERIENCE</span><span className={`dic-brief-status${canRegister ? ' is-open' : ''}`}>{canRegister ? 'Registration open' : 'Stay informed'}</span></div>
+    <div className="dic-brief-heading"><span className="eyebrow">CAMP DETAILS</span><span className={`dic-brief-status${canRegister ? ' is-open' : ''}`}>{canRegister ? 'Registration open' : 'Stay informed'}</span></div>
     <h2>{options?.name || 'Plan your DIC experience'}</h2>
-    {typeof options?.general_information?.theme === 'string' && <p className="dic-brief-theme">Theme: {options.general_information.theme}</p>}
     <dl className="dic-brief-facts">
       <div><dt>Camp dates</dt><dd>{dates}</dd></div>
       <div><dt>Venue</dt><dd>{options?.venue || 'To be announced'}</dd></div>
