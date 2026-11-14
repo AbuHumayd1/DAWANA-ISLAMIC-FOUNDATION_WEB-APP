@@ -250,6 +250,11 @@ def _order_data(order, user, include_detail=False):
             "email": order.primary_registrant.email,
             "phone": order.primary_registrant.phone,
         }
+    if include_detail:
+        from .registration_cleanup import disposable_permission, disposal_blocker
+        if disposable_permission(user):
+            reason = disposal_blocker(order)
+            data['deletion'] = {'eligible': not bool(reason), 'reason': reason}
     if include_detail and user.has_perm('dic.change_registrationorder') and user.has_perm('dic.can_manage_registration_access'):
         from django.urls import reverse
         data['management_url'] = reverse('admin:dic_registration_cleanup', args=[order.pk])
@@ -834,6 +839,21 @@ class OperationsRegistrationDetailView(OperationsBaseView):
         if order is None:
             return Response({"detail": "Registration not found."}, status=404)
         return Response(_order_data(order, request.user, include_detail=True))
+
+
+class OperationsRegistrationDeleteView(OperationsBaseView):
+    def post(self, request, public_id):
+        from django.db import IntegrityError
+        from django.db.models.deletion import ProtectedError
+        from .registration_cleanup import delete_disposable_registration
+        try:
+            reference = delete_disposable_registration(public_id, request.user,
+                request.data.get('confirmation'), request.data.get('reason', ''))
+        except RegistrationOrder.DoesNotExist:
+            return Response({'detail': 'Registration not found or already removed.'}, status=404)
+        except (ProtectedError, IntegrityError):
+            raise ValidationError('Protected records changed or still depend on this registration. Nothing was deleted.')
+        return Response({'deleted': True, 'reference': reference})
 
 
 class OperationsParticipantListView(OperationsBaseView):

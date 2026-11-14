@@ -38,6 +38,9 @@ INVALID = "The code could not be verified. Check the details or request a new co
 
 
 def primary_contact_matches(order, channel, contact_hash):
+    if channel == 'identity':
+        # An account identity key is never receipt/phone ownership proof.
+        return False
     raw = order.primary_registrant.email if channel in ("email", "username") else order.primary_registrant.phone
     try:
         normalized = normalize_email(raw) if channel in ("email", "username") else normalize_phone(raw)
@@ -112,7 +115,8 @@ def scoped_orders(grant):
     mapping = account_session(grant)
     allowed = {o.pk for o in linked_orders(mapping.account)} if mapping else None
     return [order for order in orders if (allowed is None or order.pk in allowed)
-        and primary_contact_matches(order, grant.channel, grant.contact_digest)
+        and ((mapping is not None)
+            or primary_contact_matches(order, grant.channel, grant.contact_digest))
         and (mapping is not None or booking_eligible(order))
         and (order.registration_basis != 'tutor' or order.items.filter(
             enrollments__tutorregistrationauthorization__revoked_at__isnull=True,
@@ -310,49 +314,10 @@ class PortalIDView(PortalView):
 
 
 def authorized_portal_card(request, enrollment_id):
-    """Reuse verified booking scope; a housing guardian link never expands it."""
-    from .models import GuardianRelationship
-    from django.core.exceptions import ValidationError as PolicyError
-    grant, enrollment = scoped_enrollment(request, enrollment_id)
-    orders = scoped_orders(grant)
-    order_ids = [order.pk for order in orders]
-    if enrollment.source_item.order.registration_basis == 'tutor':
-        if not eligibility(enrollment)['eligible']:
-            raise PermissionDenied('Tutor authorization is unavailable.')
-        return enrollment
-    try:
-        from .registration_age import asserted_adult, exact_age
-        from .housing_policy import age_reference
-        from datetime import date
-        # Document viewing uses the approved camp reference date, even when
-        # housing has not been configured. It never allocates or approves a child.
-        reference = date(2026, 12, 23) if getattr(enrollment.edition, 'year', None) == 2026 else age_reference(enrollment.edition)
-        # A stored adult assertion can exclude the <=5 display/access branch
-        # only at an applicable reference date. It grants no guardianship or
-        # release authority and does not authorize age-sensitive housing.
-        dependent = False if reference and asserted_adult(enrollment.participant, reference) else exact_age(enrollment.participant.date_of_birth, reference) <= 5
-    except PolicyError:
-        raise ValidationError('Your date of birth or adult declaration needs review. Ask DIC support to review your participant record in the Participant Directory.')
-    if dependent:
-        relation = GuardianRelationship.objects.filter(edition=enrollment.edition,
-            child=enrollment.participant, status='approved', approved_at__isnull=False,
-            approved_by__isnull=False).select_related('guardian').first()
-        if not relation:
-            raise PermissionDenied('Approved guardian access is required for this dependent ID.')
-        guardian = CampEnrollment.objects.filter(participant=relation.guardian, edition=enrollment.edition,
-            source_item__order_id__in=order_ids).select_related('source_item__order', 'edition').first()
-        if not guardian or not eligibility(guardian)['eligible']:
-            raise PermissionDenied('The approved guardian must have eligible access within this verified booking.')
-        # Housing clean() also needs configured accommodation and may reject
-        # missing house setup. Document viewing checks only the approved identity
-        # relationship and the guardian's current, scoped eligibility.
-        try:
-            guardian_age = 18 if asserted_adult(relation.guardian, reference) else exact_age(relation.guardian.date_of_birth, reference)
-        except PolicyError:
-            raise PermissionDenied('The approved guardian’s date of birth or adult declaration needs staff review.')
-        if (relation.guardian.sex.lower() != 'female' or guardian_age < 6
-                or guardian.source_item.order.registration_basis == 'tutor'):
-            raise PermissionDenied('The approved guardian’s identity or registration needs staff review.')
+    """Existing account/booking scope authorizes viewing, regardless of age."""
+    _, enrollment = scoped_enrollment(request, enrollment_id)
+    if not eligibility(enrollment)['eligible']:
+        raise PermissionDenied('This participant is not eligible for Digital ID access.')
     return enrollment
 
 

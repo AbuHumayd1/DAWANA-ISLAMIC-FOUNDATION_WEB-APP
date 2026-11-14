@@ -318,7 +318,7 @@ class RegistrationOrderCreateView(APIView):
         serializer = RegistrationOrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         from .portal_accounts import rate_limit
-        rate_limit(request, serializer.validated_data['primary_registrant']['email'], 'registration-account')
+        rate_limit(request, serializer.validated_data['portal_account']['username'], 'registration-account')
 
         key_digest = _idempotency_digest(request)
         fingerprint = _request_fingerprint(serializer.validated_data)

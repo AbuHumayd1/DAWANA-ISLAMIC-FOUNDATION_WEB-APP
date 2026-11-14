@@ -120,9 +120,9 @@ class PhaseATests(APITestCase):
         payload['portal_account']['mode'] = 'existing'
         payload['primary_registrant']['email'] = 'someone-else@example.test'
         response = self.client.post(reverse('dic:order-create'), payload, format='json', HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('original booking email', str(response.data))
-        self.assertEqual(RegistrationOrder.objects.count(), 3)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(RegistrationOrder.objects.count(), 4)
+        self.assertEqual(PortalAccountBooking.objects.values('account_id').distinct().count(), 1)
 
     def test_create_mode_collision_reserved_and_staff_username_never_convert(self):
         for name in ('synthetic-registrant', 'admin', 'staff login', 'privileged'):

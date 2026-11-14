@@ -5,7 +5,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
-from .participant_api import PortalView, primary_contact_matches
+from .participant_api import PortalView
 from .portal_account_api import Credentials, values
 from .operations_api import OperationsBaseView
 from .models import PortalAccount, PortalAccountBooking, RegistrationOrder, PaymentAttempt
@@ -36,8 +36,7 @@ class AccountOrderRecoveryView(PortalView):
                 current = PortalAccountBooking.objects.filter(pk=binding.pk, account=locked, revoked_at__isnull=True).exists()
                 if not accounts.usable(locked) or locked.credential_version != version:
                     raise ValidationError(accounts.INVALID)
-                if (not current or order.status == 'cancelled' or order.access_token_revoked_at
-                        or not primary_contact_matches(order, locked.contact_channel, locked.contact_digest)):
+                if not current or order.status == 'cancelled' or order.access_token_revoked_at:
                     continue
                 # Paid bookings use the ordinary protected dashboard, not checkout recovery.
                 if order.payment_status not in ('pending', 'failed'):
@@ -76,3 +75,33 @@ class PaymentResolutionView(OperationsBaseView):
         row = resolve(request.user, reference, **data)
         return Response({'decision': row.decision, 'request_id': row.request_id,
             'detail': 'Refund arranged; provider confirmation is still required.' if row.decision == 'refund_requested' else 'Decision recorded.'})
+
+
+@method_decorator(sensitive_post_parameters('password'), name='dispatch')
+class FreshRegistrationCheckView(PortalView):
+    """Explicit owner-authorized restart only before any provider attempt exists."""
+    def post(self, request, public_id):
+        from rest_framework.exceptions import PermissionDenied
+        from django.utils import timezone
+        accounts.require_accounts()
+        data = values(Credentials, request)
+        accounts.rate_limit(request, data['identifier'], 'restart-check')
+        account = accounts.password_account(data['identifier'], data['password'])
+        version = account.credential_version
+        with transaction.atomic():
+            order = RegistrationOrder.objects.select_for_update().filter(public_id=public_id).first()
+            account = PortalAccount.objects.select_for_update().select_related('user').get(pk=account.pk)
+            if (not accounts.usable(account) or account.credential_version != version or not order
+                    or not PortalAccountBooking.objects.filter(account=account, order=order, revoked_at__isnull=True).exists()):
+                raise PermissionDenied('The registration could not be authorized for this account.')
+            if (order.registration_basis != 'paid' or order.payment_status not in ('pending', 'failed')
+                    or order.status == 'confirmed' or order.payment_attempts.exists()):
+                raise ValidationError('This registration may have payment evidence. Check its payment status or contact DIC support; do not pay again.')
+            from .registration_cleanup import disposal_blocker
+            if disposal_blocker(order):
+                raise ValidationError('Protected registration records require DIC staff review before starting fresh.')
+            order.status = 'cancelled'
+            order.access_token_revoked_at = timezone.now()
+            order.save(update_fields=['status', 'access_token_revoked_at'])
+            accounts.audit(account, 'unpaid_restart_authorized', order=str(order.public_id))
+        return Response({'safe_to_restart': True})

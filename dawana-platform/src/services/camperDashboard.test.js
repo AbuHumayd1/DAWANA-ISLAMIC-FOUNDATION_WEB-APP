@@ -33,5 +33,5 @@ test('dashboard retains booking summary and existing links with scoped points lo
   assert.match(markup,/Camp points/)
   assert.doesNotMatch(markup,/welfare|operations\//i)
   const portal=fs.readFileSync(new URL('../pages/ParticipantPortal.jsx',import.meta.url),'utf8')
-  assert.match(portal,/href|to="\/dic\/register\/recover"/)
+  assert.match(portal, /to="\/">Back to DAWANA Website<\/Link>/)
 })

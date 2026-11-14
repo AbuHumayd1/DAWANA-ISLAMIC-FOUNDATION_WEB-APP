@@ -174,3 +174,8 @@ export function restoreRecoveredOrder(orderId, recoveryGrant) {
     accessToken: recoveryGrant,
   })
 }
+
+
+export function authorizeFreshRegistration(orderId, credentials) {
+  return request(`/dic/orders/${encodeURIComponent(orderId)}/restart-check/`, { method: 'POST', body: credentials })
+}

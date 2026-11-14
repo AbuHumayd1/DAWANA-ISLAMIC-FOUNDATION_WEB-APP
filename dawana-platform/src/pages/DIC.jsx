@@ -2,7 +2,6 @@ import './DICMobileRefinement.css'
 import { privateDraft, registrationSubmission } from '../services/productionContract'
 import { PortalContinuation } from '../components/dic/PortalPhase3'
 import { registrationExpired, resumablePaymentReference } from '../services/orderLifecycle'
-import AccountCheckoutRecovery from '../components/dic/AccountCheckoutRecovery'
 import PrimaryRegistrantFields from '../components/dic/PrimaryRegistrantFields'
 import { primaryRegistrantPayload, registrationCredentialsPayload } from '../services/bookingContact'
 import TutorRegistration from '../components/dic/TutorRegistration'
@@ -18,22 +17,17 @@ import CampShowcase from '../components/dic/CampShowcase'
 import CamperBrand from '../components/dic/CamperBrand'
 import { preparePaymentReturn, paystackCheckoutUrl, paymentReturnSetupMessage } from '../services/paymentReturnApi'
 import { occupations, maritalOptions, participantBackground } from '../components/dic/participantOptions'
-import Field, { RegistrationSelect } from '../components/dic/RegistrationField'
+import Field from '../components/dic/RegistrationField'
 import { AgeDisclosureFields, OptionalMeasurements } from '../components/dic/RegistrationPrivacyFields'
 import { ageOnDate, privacyPayload, privacySummary } from '../services/registrationPrivacy'
 import {
   createRegistrationOrder,
+  authorizeFreshRegistration,
   acceptOrderPricing,
   getRegistrationOptions,
   getRegistrationOrder,
-  getRecoveryChannels,
-  getRecoveryOrders,
   initializePayment,
-  requestRecoveryCode,
-  resendRecoveryCode,
-  restoreRecoveredOrder,
   verifyPayment,
-  verifyRecoveryCode,
 } from '../services/dicApi'
 
 const SESSION_KEY = 'dawana.dic.registration.v1'
@@ -91,6 +85,11 @@ function loadFlow() {
       && typeof parsed.expiresAt === 'number'
       && parsed.expiresAt > Date.now()
     if (!valid) {
+      // Retain non-identifying order/uncertainty hints beyond draft expiry.
+      // A local timeout must never erase evidence of a potentially active payment.
+      if (parsed && (parsed.orderId || parsed.submissionUncertain)) {
+        return { flow: { ...emptyFlow(), ...privateDraft(parsed) }, storageAvailable: true, expired: true }
+      }
       sessionStorage.removeItem(SESSION_KEY)
       return { flow: emptyFlow(), storageAvailable: true, expired: true }
     }
@@ -253,256 +252,23 @@ function Confirmation({ flow, onReset }) {
   return <section className="dic-summary"><Container><RegistrationProgress current="confirmation" /><div className="confirmation-box"><span className="confirmation-icon" aria-hidden="true">{paid ? '✓' : '!'}</span><span className="eyebrow">{paid ? 'PAYMENT VERIFIED' : 'PAYMENT NOT VERIFIED'}</span><h1>{paid ? 'DIC registration confirmed' : 'Registration awaiting payment verification'}</h1><p>{paid ? `Your ${flow.participants.length === 1 ? 'participant registration has' : `${flow.participants.length} participant registrations have`} been confirmed by the registration service.` : 'A successful redirect is not proof of payment. Return to checkout and verify the payment with the registration service before treating this registration as complete.'}</p>{paid && <ul className="dic-confirmation-participants">{flow.participants.map((participant) => <li key={participant.id}><strong>{participant.fullName}</strong><span>{participantBackground(participant)}</span></li>)}</ul>}{flow.orderId && <strong>Order reference: {flow.orderId}</strong>}{paid && <button className="button" type="button" onClick={onReset}>Return to DIC</button>}</div></Container></section>
 }
 
-function RecoveryPage() {
-  const [channels, setChannels] = useState(null)
-  const [channel, setChannel] = useState('email')
-  const [contact, setContact] = useState('')
-  const [code, setCode] = useState('')
-  const [challengeId, setChallengeId] = useState(null)
-  const [recoveryGrant, setRecoveryGrant] = useState(null)
-  const [orders, setOrders] = useState([])
-  const [selectedOrder, setSelectedOrder] = useState(null)
-  const [restoredOrder, setRestoredOrder] = useState(null)
-  const [paymentAttempt, setPaymentAttempt] = useState(null)
-  const [repricingOffer, setRepricingOffer] = useState(null)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+function FreshRegistrationCheck({ orderId, onReady }) {
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [resendSeconds, setResendSeconds] = useState(0)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-    getRecoveryChannels()
-      .then((result) => { if (active) setChannels(result) })
-      .catch((loadError) => { if (active) setError(getErrorMessage(loadError, 'Recovery information is unavailable.')) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    if (resendSeconds <= 0) return undefined
-    const timer = window.setTimeout(() => setResendSeconds((seconds) => Math.max(0, seconds - 1)), 1000)
-    return () => window.clearTimeout(timer)
-  }, [resendSeconds])
-
-  const selectedChannel = channels?.channels.find((item) => item.id === channel)
-  const recoveryError = (requestError) => {
-    if (requestError.statusCode === 429) return 'Please wait before requesting another code or trying again.'
-    if (requestError.statusCode === 503) return 'This recovery channel is not available right now.'
-    return getErrorMessage(requestError, 'The recovery request could not be completed. Please try again.')
-  }
-
-  const startRecovery = async (event) => {
-    event.preventDefault()
-    if (busy || !selectedChannel?.available) return
-    setBusy(true)
-    setError('')
-    setMessage('')
-    setPaymentAttempt(null)
+  const [error, setError] = useState('')
+  const check = async event => {
+    event.preventDefault(); if (busy) return
+    setBusy(true); setError('')
+    const secret = password; setPassword('')
     try {
-      const result = await requestRecoveryCode(channel, contact)
-      setChallengeId(result.challenge_id)
-      setResendSeconds(result.resend_after)
-      setMessage(result.message)
-      setCode('')
-    } catch (requestError) {
-      setError(recoveryError(requestError))
-    } finally {
-      setBusy(false)
-    }
+      const result = await authorizeFreshRegistration(orderId, { identifier, password: secret })
+      if (result.safe_to_restart === true) onReady()
+      else setError('Payment status could not be confirmed. Do not start another payment.')
+    } catch (failure) { setError(failure.message || 'Payment status could not be checked.') }
+    finally { setBusy(false) }
   }
-
-  const verifyCode = async (event) => {
-    event.preventDefault()
-    if (busy || !challengeId) return
-    setBusy(true)
-    setError('')
-    try {
-      const verification = await verifyRecoveryCode(challengeId, code)
-      const result = await getRecoveryOrders(verification.recovery_grant)
-      setRecoveryGrant(verification.recovery_grant)
-      setOrders(result.orders)
-      setCode('')
-      setMessage(result.orders.length
-        ? 'Choose the registration you want to recover.'
-        : 'No recoverable registrations were found for the verified contact.')
-    } catch (requestError) {
-      setError(requestError.statusCode === 429
-        ? 'Too many attempts. Request a new code later.'
-        : 'That code could not be verified. Check it and try again, or request a new code.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const resendCode = async () => {
-    if (busy || resendSeconds > 0 || !challengeId) return
-    setBusy(true)
-    setError('')
-    try {
-      const result = await resendRecoveryCode(challengeId, channel, contact)
-      setResendSeconds(result.resend_after)
-      setMessage(result.message)
-      setCode('')
-    } catch (requestError) {
-      setError(recoveryError(requestError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const restoreOrder = async (order) => {
-    if (busy || !recoveryGrant) return
-    setBusy(true)
-    setError('')
-    setPaymentAttempt(null)
-    setRepricingOffer(null)
-    try {
-      const result = await restoreRecoveredOrder(order.order_id, recoveryGrant)
-      setSelectedOrder(order)
-      const reference = resumablePaymentReference(result.order)
-      setPaymentAttempt(reference ? { payment_reference: reference } : null)
-      let returnReady = false
-      try {
-        await preparePaymentReturn(result.order.order_id, result.access_token)
-        returnReady = true
-        setMessage('')
-      } catch {
-        setMessage('Your registration was recovered securely, but this browser could not establish a persistent return session. Keep this page open or use verified recovery again later.')
-      }
-      setRestoredOrder({ ...result.order, accessToken: result.access_token, returnReady })
-    } catch (requestError) {
-      setError(requestError.statusCode === 404
-        ? 'This recovery session expired or the order is no longer available. Start recovery again.'
-        : recoveryError(requestError))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const preparePayment = async () => {
-    if (busy || !restoredOrder || restoredOrder.payment_status === 'paid' || restoredOrder.lifecycle?.expired) return
-    setBusy(true)
-    setError('')
-    setMessage('')
-    setPaymentAttempt(null)
-    try {
-      await preparePaymentReturn(restoredOrder.order_id, restoredOrder.accessToken)
-      const result = await initializePayment(
-        restoredOrder.order_id,
-        restoredOrder.accessToken,
-      )
-      setPaymentAttempt(result)
-      setMessage(result.authorization_url
-        ? 'Checkout is ready. Complete payment, return here, and verify it with the registration service.'
-        : 'No checkout link was returned. Payment has not been confirmed.')
-    } catch (requestError) {
-      if (requestError.body?.repricing_required && requestError.body?.quote) {
-        setRepricingOffer(requestError.body)
-        setMessage('The saved early-bird quote expired. Review and accept the updated amount before paying.')
-      } else {
-        setError(requestError.statusCode === 503
-          ? 'Online payment is not configured right now. Your registration remains safely recorded as unpaid.'
-          : recoveryError(requestError))
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const acceptRecoveredRepricing = async () => {
-    if (busy || !restoredOrder || !repricingOffer) return
-    setBusy(true)
-    setError('')
-    setMessage('')
-    try {
-      const accepted = await acceptOrderPricing(
-        restoredOrder.order_id,
-        repricingOffer.quote,
-        restoredOrder.accessToken,
-      )
-      if (accepted.repricing_required) {
-        setRepricingOffer(accepted)
-        setMessage('The current amount changed again. Review the latest quote before accepting.')
-        return
-      }
-      const updatedOrder = {
-        ...restoredOrder,
-        total_amount_ngn: accepted.total_amount_ngn,
-        items: repricingOffer.items.map((item) => ({
-          category_name: item.category_name,
-          fee_ngn: item.fee_ngn,
-          price_type: item.price_type,
-        })),
-      }
-      setRestoredOrder(updatedOrder)
-      setRepricingOffer(null)
-      await preparePaymentReturn(updatedOrder.order_id, updatedOrder.accessToken)
-      const attempt = await initializePayment(
-        updatedOrder.order_id,
-        updatedOrder.accessToken,
-      )
-      setPaymentAttempt(attempt)
-      setMessage(attempt.authorization_url
-        ? 'The revised amount was accepted and the new checkout is ready.'
-        : 'The revised amount was accepted, but no checkout link is available. Payment is not confirmed.')
-    } catch (requestError) {
-      if (requestError.body?.repricing_required && requestError.body?.quote) {
-        setRepricingOffer(requestError.body)
-        setMessage('The current amount changed again. Review the latest quote before accepting.')
-      } else {
-        setError(recoveryError(requestError))
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const verifyRecoveredPayment = async () => {
-    if (busy || !restoredOrder || !paymentAttempt?.payment_reference) return
-    setBusy(true)
-    setError('')
-    setMessage('')
-    try {
-      const result = await verifyPayment(
-        restoredOrder.order_id,
-        paymentAttempt.payment_reference,
-        restoredOrder.accessToken,
-      )
-      setRestoredOrder((current) => ({
-        ...current,
-        payment_status: result.payment_status,
-        status: result.payment_status === 'paid' ? 'confirmed' : current.status,
-      }))
-      setMessage(result.payment_status === 'paid'
-        ? 'Payment was verified by the registration service.'
-        : ['reconcile', 'amount_mismatch'].includes(result.attempt_status)
-          ? 'The provider reports a charge that needs administrator reconciliation. The registration is not confirmed; do not retry payment until it has been reviewed.'
-        : 'Payment has not been verified as successful. Your registration remains unconfirmed.')
-    } catch (requestError) {
-      setError(requestError.statusCode === 404
-        ? 'This order or payment attempt is no longer available. Recover the order again to continue.'
-        : 'Payment status could not be verified. No successful registration is assumed.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const restart = () => {
-    setChallengeId(null)
-    setRecoveryGrant(null)
-    setOrders([])
-    setSelectedOrder(null)
-    setRestoredOrder(null)
-    setPaymentAttempt(null)
-    setRepricingOffer(null)
-    setCode('')
-    setError('')
-    setMessage('')
-  }
-
-  return <section className="dic-flow dic-recovery-page"><Container><p className="dic-breadcrumb"><Link to="/dic">DIC</Link> &nbsp;›&nbsp; Registration recovery</p><div className="dic-flow-hero"><div><span className="eyebrow">DARUL ISLAM CAMP · SECURE ACCESS</span><h1>Recover your registration</h1><p>Verify a contact method already associated with your registration to retrieve its current status.</p></div><aside className="dic-flow-note">Recovery does not create a new registration or confirm a payment.</aside></div><div className="dic-recovery-card">{!restoredOrder && <AccountCheckoutRecovery onRecovered={order => { setRestoredOrder(order); const reference = resumablePaymentReference(order); setPaymentAttempt(reference ? { payment_reference: reference } : null); setSelectedOrder(order); setChannels(current => current || { channels: [] }); setLoading(false); setError(''); setRepricingOffer(null) }} />}<FlowMessage kind="error">{error}</FlowMessage><FlowMessage>{message}</FlowMessage>{loading ? <p role="status">Loading available recovery methods…</p> : !channels ? <p>Recovery information could not be loaded. Please try again later.</p> : restoredOrder ? <div className="dic-recovery-order"><span className="eyebrow">{restoredOrder.payment_status === 'paid' ? 'PAYMENT VERIFIED' : 'REGISTRATION RECOVERED'}</span>{restoredOrder.returnReady && <Link to={`/dic/register/confirmation/${restoredOrder.order_id}`}>Open secure registration status</Link>}<h2>{restoredOrder.payment_status === 'paid' ? 'Registration confirmed' : 'Registration status'}</h2><p><strong>Order reference:</strong> {restoredOrder.order_id}</p><p><strong>Camp:</strong> {restoredOrder.edition_name}</p><p><strong>Participants:</strong> {restoredOrder.participant_count}</p><p><strong>Total:</strong> {formatNgn(restoredOrder.total_amount_ngn)}</p><p><strong>Payment:</strong> {restoredOrder.payment_status}</p>{restoredOrder.items.map((item, index) => <p key={`${item.category_name}-${index}`}>{item.category_name} — {formatNgn(item.fee_ngn)}{item.price_type ? ` · ${item.price_type === 'early_bird' ? 'Early bird' : 'Regular'}` : ''}</p>)}{repricingOffer && <div className="payment-placeholder" role="alert"><strong>Updated amount needs your approval</strong><p>The saved early-bird quote expired. Your registration remains saved. Do not reuse an earlier payment authorization; provider-confirmed completion time and amount will be checked.</p>{repricingOffer.items.map((item, index) => <p key={`${item.category_name}-${index}`}>{item.category_name} — {item.price_type === 'early_bird' ? 'Early bird' : 'Regular'}: {formatNgn(item.fee_ngn)}</p>)}<p><strong>Revised total: {formatNgn(repricingOffer.total_amount_ngn)}</strong></p><button className="button" type="button" onClick={acceptRecoveredRepricing} disabled={busy}>{busy ? 'Updating secure quote…' : 'Accept revised amount and continue'}</button></div>}{restoredOrder.lifecycle?.expired && <p role="status">This unpaid registration expired after 24 hours. Do not start another payment. Staff can reconcile an existing payment.</p>}{restoredOrder.payment_status === 'refunded' && <p role="status">This registration was refunded and cannot be paid again through this checkout.</p>}{!registrationExpired(restoredOrder.lifecycle) && !['paid', 'refunded'].includes(restoredOrder.payment_status) && !repricingOffer && <><button className="button" type="button" onClick={preparePayment} disabled={busy}>{busy ? 'Preparing secure checkout…' : 'Continue to payment →'}</button>{paymentAttempt?.authorization_url && <a className="button button-outline dic-checkout-link" href={paymentAttempt.authorization_url} target="_blank" rel="noopener noreferrer">Open secure payment checkout ↗</a>}</>}{paymentAttempt?.payment_reference && <button className="button button-outline" type="button" onClick={verifyRecoveredPayment} disabled={busy}>{busy ? 'Verifying payment…' : 'Verify payment status'}</button>}<button className="text-link" type="button" onClick={() => { setRestoredOrder(null); setPaymentAttempt(null); setRepricingOffer(null); setSelectedOrder(null) }}>Choose another registration</button></div> : selectedOrder ? <div className="dic-recovery-order"><h2>Registration selected</h2><p>{selectedOrder.edition_name} · {selectedOrder.participant_count} {selectedOrder.participant_count === 1 ? 'participant' : 'participants'}</p><p>{formatNgn(selectedOrder.total_amount_ngn)} · Payment {selectedOrder.payment_status}</p><button className="button" type="button" onClick={() => restoreOrder(selectedOrder)} disabled={busy}>{busy ? 'Restoring secure access…' : 'Restore this registration →'}</button><button className="text-link" type="button" onClick={() => setSelectedOrder(null)}>Choose another registration</button></div> : orders.length ? <div className="dic-recovery-orders"><h2>Your registrations</h2>{orders.map((order) => <article key={order.order_id}><div><strong>{order.edition_name}</strong><span>{order.participant_count} {order.participant_count === 1 ? 'participant' : 'participants'} · {formatNgn(order.total_amount_ngn)}</span><small>Payment {order.payment_status}</small></div><button className="button button-outline" type="button" onClick={() => setSelectedOrder(order)}>Select</button></article>)}</div> : challengeId ? <form className="dic-recovery-form" onSubmit={verifyCode}><h2>Enter your verification code</h2><p>Enter the six-digit code if one was sent. Codes expire after 10 minutes. Do not share a code with anyone.</p><label className="dic-field" htmlFor="recovery-code"><span>Verification code</span><input id="recovery-code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required /></label><div className="dic-form-actions"><button className="button" type="submit" disabled={busy || code.length !== 6}>{busy ? 'Verifying…' : 'Verify code'}</button><button className="text-link" type="button" disabled={busy || resendSeconds > 0} onClick={resendCode}>{resendSeconds > 0 ? `Resend available in ${resendSeconds}s` : 'Resend code'}</button><button className="text-link" type="button" onClick={restart}>Start over</button></div></form> : <><form className="dic-recovery-form" onSubmit={startRecovery}><h2>Verify your contact</h2><p>Use an email address or phone number already included in the registration.</p><RegistrationSelect id="recovery-channel" label="Verification method" value={channel} onChange={(event) => setChannel(event.target.value)} options={channels.channels.map((item) => ({ value: item.id, label: `${item.label}${item.available ? '' : ' - unavailable'}`, disabled: !item.available }))} />{selectedChannel?.available && <label className="dic-field" htmlFor="recovery-contact"><span>{channel === 'email' ? 'Email address' : 'Phone number'}</span><input id="recovery-contact" name="contact" type={channel === 'email' ? 'email' : 'tel'} autoComplete={channel === 'email' ? 'email' : 'tel'} inputMode={channel === 'email' ? undefined : 'tel'} value={contact} onChange={(event) => setContact(event.target.value)} required /></label>}<button className="button" type="submit" disabled={busy || !selectedChannel?.available}>{busy ? 'Sending request…' : 'Send verification code'}</button>{!channels.channels.some((item) => item.available) && <FlowMessage kind="error">Automated recovery is not configured yet. Contact the DIC registration team for assistance.</FlowMessage>}</form>{channels.whatsapp_support_url && <p className="dic-recovery-support">Need help? <a href={channels.whatsapp_support_url} target="_blank" rel="noopener noreferrer">Contact DIC support on WhatsApp</a>. A conversation does not verify registration ownership.</p>}</>}</div><p className="dic-recovery-back"><Link to="/dic">← Return to DIC</Link></p></Container></section>
+  return <form onSubmit={check}><p>To start fresh, sign in to authorize closing this unused registration. This is available only if no payment attempt was started; the earlier record remains on file.</p><label className="dic-field">Account username<input required autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} /></label><label className="dic-field">Account password<input required type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} /></label><button className="button" disabled={busy}>Check and start fresh</button>{error && <p role="alert">{error}</p>}</form>
 }
 
 function getStep(pathname) {
@@ -526,7 +292,7 @@ function RegularDIC() {
   const [optionsError, setOptionsError] = useState('')
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(loadedFlow.expired ? 'Your temporary draft expired. If an order was already created, recover that registration before entering another.' : '')
+  const [error, setError] = useState(loadedFlow.expired && (loadedFlow.flow.orderId || loadedFlow.flow.submissionUncertain) ? 'An earlier order may still need a payment-status check.' : '')
   // Credentials never enter flow, sessionStorage, router state or payment data.
   const [registrationCredentials, setRegistrationCredentials] = useState({ username: '', password: '', password_confirmation: '' })
   const [paymentNotice, setPaymentNotice] = useState(
@@ -873,10 +639,17 @@ function RegularDIC() {
   const participantFormAllowed = optionsState === 'ready'
     && options?.registration_is_open
     && options.categories?.length
-    && !flow.orderId
+    && !flow.orderId && !flow.submissionUncertain
   const currentStep = step === 'confirmation' && flow.paymentStatus !== 'paid' ? 'checkout' : step
 
-  if (step === 'recovery') return <RecoveryPage />
+  const paymentUncertain = Boolean(flow.orderId || flow.submissionUncertain)
+  const freshRegistration = () => {
+    if (paymentUncertain) return
+    setFlow(emptyFlow()); setError(''); setEditing(null); clearSavedFlow(); go('form')
+  }
+  const interruption = <section className="dic-summary"><Container><div className="confirmation-box"><h1>{paymentUncertain ? 'Check your existing payment' : 'Start a new registration'}</h1><p>{paymentUncertain ? 'An existing order may have a payment in progress. Check its secure payment status or contact DIC support before starting another payment. Your order has been preserved.' : 'If you left before submitting an order or starting payment, you can begin the normal registration again.'}</p>{paymentUncertain ? <><Link className="button" to={flow.orderId ? `/dic/register/confirmation/${flow.orderId}` : '/dic/register/payment-return'}>Check existing payment status</Link><Link className="button button-outline" to="/dic/participant">Account sign in and password help</Link>{flow.orderId && <FreshRegistrationCheck orderId={flow.orderId} onReady={() => { clearSavedFlow(); setFlow(emptyFlow()); setError(''); setEditing(null); go('form') }} />}</> : <button className="button" type="button" onClick={freshRegistration}>Start new registration</button>}</div></Container></section>
+  if (step === 'recovery') return interruption
+  if (paymentUncertain && ['landing', 'form'].includes(step)) return interruption
   if (step === 'landing') {
     return <DICLanding options={options} optionsState={optionsState} onRegister={() => participantFormAllowed && add()} onRetry={retryOptions} />
   }
@@ -890,7 +663,7 @@ function RegularDIC() {
     return <RegistrationSummary flow={flow} categories={options?.categories || []} options={options} onAdd={add} onEdit={edit} onRemove={(index) => updateParticipants(flow.participants.filter((_, itemIndex) => itemIndex !== index), true)} onCheckout={() => go('checkout')} />
   }
   if (step === 'checkout' || step === 'confirmation' && currentStep === 'checkout') {
-    if (!flow.participants.length) return <section className="dic-summary"><Container><div className="confirmation-box"><h1>Recover existing registration</h1><p>{error || 'This tab has no registration draft. Recover the existing registration securely; do not register or pay again.'}</p><Link className="button" to="/dic/register/payment-return">Open secure registration status</Link><Link className="dic-recovery-link" to="/dic/register/recover">Verify your contact to recover registration</Link></div></Container></section>
+    if (!flow.participants.length) return interruption
     return <Checkout flow={flow} categories={options?.categories || []} options={options} accessToken={accessToken} busy={busy} error={error} paymentNotice={paymentNotice} repricingOffer={repricingOffer} onAcceptRepricing={acceptRepricing} onBack={() => go('summary')} onCreateOrder={createOrder} onResume={resumeCheckout} onInitialize={startAnotherPayment} onRetryGrant={retryReturnGrant} onVerify={verifyCurrentPayment} onCheckoutClosed={reportCheckoutClosed} onPrimaryContact={primaryRegistrant => persistFlow({ ...flow, primaryRegistrant })} registrationCredentials={registrationCredentials} onCredentials={setRegistrationCredentials} />
   }
   return <><Confirmation flow={flow} onReset={reset} />{flow.orderId && <div className="container" style={{ paddingBottom: '2rem', textAlign: 'center' }}><div className="cp-portal-handoff-brand"><CamperBrand /></div><PortalContinuation orderReference={flow.orderId} /><p>Sign in with your chosen username and password when your booking is eligible. No email activation is required. Ordinary paid participants receive access after payment is verified; authorized complimentary tutors may receive access without payment. Contact-code recovery remains available for existing bookings.</p></div>}</>

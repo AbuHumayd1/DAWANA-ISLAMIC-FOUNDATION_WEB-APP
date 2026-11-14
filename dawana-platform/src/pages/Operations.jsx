@@ -3,6 +3,7 @@ import { Link, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams 
 import {
   downloadOperationsReport,
   getOperationsData,
+  postOperationsData,
   getOperationsUser,
   signIn,
   signOut,
@@ -408,14 +409,36 @@ function Pagination({ page, pages, onChange }) {
   return <div className="ops-pagination"><span>Page {page} of {pages}</span><div><button disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</button><button disabled={page >= pages} onClick={() => onChange(page + 1)}>Next</button></div></div>
 }
 
+function RegistrationDeletion({ registration, onDeleted }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [deleted, setDeleted] = useState(false)
+  const remove = async event => {
+    event.preventDefault()
+    if (busy || !window.confirm(`Permanently delete unpaid test registration ${registration.id}? This cannot be undone.`)) return
+    setBusy(true); setMessage('')
+    try {
+      await postOperationsData(`/registrations/${registration.id}/delete/`, { confirmation: registration.id, reason })
+      onDeleted(); setDeleted(true); setMessage(`Registration ${registration.id} was permanently deleted.`)
+    } catch (error) { setMessage(error.message || 'Deletion could not be completed. Refresh and review eligibility.') }
+    finally { setBusy(false) }
+  }
+  if (deleted) return <section className="ops-panel"><p role="status">{message}</p><Link className="ops-button" to="/dic/operations/registrations">Return to refreshed registrations</Link></section>
+  return <section className="ops-panel"><h2>Delete unpaid test registration</h2>{registration.deletion.eligible ? <form onSubmit={remove}><p>Permanent deletion removes only this disposable registration. Accounts, participant records and audit history remain.</p><label>Reason for deleting this test registration<textarea required maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label><button className="ops-button" type="submit" disabled={busy}>{busy ? 'Deleting...' : 'Delete registration'}</button></form> : <p>{registration.deletion.reason}</p>}{message && <p role="alert">{message}</p>}</section>
+}
+
 function RegistrationDetailPage({ user }) {
+  const [deleted, setDeleted] = useState(false)
   const { publicId } = useParamsSafe()
   const { data, loading, error, retry } = useData(`/registrations/${publicId}/`)
+  if (deleted) return <section className="ops-panel"><p role="status">Registration {publicId} was permanently deleted.</p><Link className="ops-button" to="/dic/operations/registrations">Return to refreshed registrations</Link></section>
   if (loading) return <><BackLink to="/dic/operations/registrations" label="Registrations" /><LoadingState rows={5} /></>
   if (error) return <><BackLink to="/dic/operations/registrations" label="Registrations" /><ErrorState error={error} onRetry={retry} /></>
   return <>
     <BackLink to="/dic/operations/registrations" label="Registrations" />
-    {data.management_url && <section className="ops-panel"><h2>Manage this registration</h2><p>Cancel an eligible unpaid booking to remove it from active lists, or restore a reviewed cancellation. Each action requires confirmation. Payment attempts, issued IDs and check-ins remain protected.</p><a className="ops-button ops-button-secondary" href={backendUrl(data.management_url)}>Review cancellation or restoration</a><Link className="ops-button ops-button-secondary" to="/dic/operations/registrations?archive=all&amp;status=cancelled">View cancelled registrations</Link>{user.role === 'System Administrator' && <p><a href={backendUrl('/admin/accounts/user/')}>Review unused accounts in Administration</a>. Account removal is separate and remains subject to protected-record checks.</p>}<p className="ops-small-note">Cancellation retains history. Permanent deletion is blocked where linked records must be preserved.</p></section>}
+    {data.deletion && <RegistrationDeletion key={data.id} registration={data} onDeleted={() => setDeleted(true)} />}
+    {data.management_url && <section className="ops-panel"><h2>Manage this registration</h2><p>Cancel an eligible unpaid booking to remove it from active lists, or restore a reviewed cancellation. Each action requires confirmation. Payment attempts, issued IDs and check-ins remain protected.</p><a className="ops-button ops-button-secondary" href={backendUrl(data.management_url)}>Review cancellation or restoration</a><Link className="ops-button ops-button-secondary" to="/dic/operations/registrations?archive=all&amp;status=cancelled">View cancelled registrations</Link>{user.role === 'System Administrator' && <p><a href={backendUrl('/admin/accounts/user/')}>Review unused accounts in Administration</a>. Account removal is separate and remains subject to protected-record checks.</p>}<p className="ops-small-note">Cancellation retains history. Use the separate Delete action only for eligible unpaid test registrations.</p></section>}
     <PageHeading eyebrow="Registration details" title={data.id} description={`Submitted ${formatDate(data.submitted_at)} · ${data.participant_count} individual participant${data.participant_count === 1 ? '' : 's'}`} action={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} />
     <div className="ops-detail-grid"><section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER SUMMARY</span><h2>Registration status</h2></div></div><DetailRow label="Registration status" value={<StatusPill value={data.lifecycle?.expired ? 'Expired' : data.status} />} /><DetailRow label="Payment status" value={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} /><DetailRow label="Current quoted total" value={`₦${Number(data.quoted_total_ngn).toLocaleString('en-NG')}`} /><DetailRow label="Categories" value={data.categories.join(', ') || '—'} /><DetailRow label="Recovery" value={data.recovery_status} />{data.requires_repricing && <div className="ops-callout"><Icon name="alert" /><span>This unpaid order has an outdated quote. Staff cannot start payment using the old amount; the registrant must accept the updated quote.</span></div>}</section>
       {data.registrant && <section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">PRIMARY REGISTRANT</span><h2>Guardian details</h2></div></div><DetailRow label="Name" value={data.registrant.name || '—'} /><DetailRow label="Email" value={data.registrant.email || '—'} /><DetailRow label="Phone" value={data.registrant.phone || '—'} /></section>}</div>

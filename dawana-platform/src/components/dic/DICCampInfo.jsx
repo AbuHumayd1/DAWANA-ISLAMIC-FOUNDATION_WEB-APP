@@ -27,7 +27,7 @@ export default function DICCampInfo({ options, optionsState, onRegister, onRetry
       {options?.venue_directions_url && <a href={options.venue_directions_url} target="_blank" rel="noopener noreferrer">Get directions ↗</a>}
     </div>
     <p className="dic-brief-note" role="status">{status}</p>
-    <Link className="dic-recovery-link" to="/dic/register/payment-return">Already registered? Check your status</Link>
+    <Link className="dic-recovery-link" to="/dic/register/payment-return">Check an existing payment</Link>
     <Link className="dic-recovery-link" to="/dic/participant">Participant / guardian sign in</Link>
   </aside>
 }

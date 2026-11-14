@@ -1,0 +1,21 @@
+/* Foundation mandate cards only; DIC and other page layouts remain independent. */
+#what-we-do .area-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; }
+#what-we-do .area-card { min-width:0; padding:clamp(1.25rem,3vw,2rem); }
+#what-we-do .area-card h3 { font-size:clamp(1.25rem,2.2vw,1.65rem); line-height:1.3; overflow-wrap:normal; text-wrap:balance; }
+#what-we-do .area-card p { font-size:1rem; line-height:1.65; }
+@media(max-width:1000px) { #what-we-do .area-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) {
+  #what-we-do { padding-block:2.5rem; }
+  #what-we-do .container { width:calc(100% - 32px); }
+  #what-we-do .area-grid { grid-template-columns:minmax(0,1fr); gap:1rem; }
+  #what-we-do .area-card { min-height:0; padding:1.25rem; }
+  #what-we-do .area-icon { margin-block:1rem; }
+  #what-we-do .section-heading { margin-bottom:1.5rem; }
+}
+
+@media(max-width:600px) {
+  body:has(#what-we-do) .navbar[data-compact="true"] { overflow:clip; }
+  body:has(#what-we-do) .nav-inner { width:calc(100% - 32px); gap:8px; }
+  body:has(#what-we-do) .brand { min-width:0; }
+  body:has(#what-we-do) .brand-lockup small { font-size:.625rem; }
+}
