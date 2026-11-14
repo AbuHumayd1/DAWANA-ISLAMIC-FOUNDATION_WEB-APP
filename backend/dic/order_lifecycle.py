@@ -33,6 +33,9 @@ def metadata(order):
 
 
 def require_payable(order):
+    from .registration_cleanup import is_deleted
+    if is_deleted(order):
+        raise ValidationError('This registration is deleted. Only an authorized administrator can restore it.')
     if expired(order):
         raise ValidationError({'expired': True, 'detail': 'This registration expired after 24 hours. Do not pay again. Contact staff if payment was made.'})
 

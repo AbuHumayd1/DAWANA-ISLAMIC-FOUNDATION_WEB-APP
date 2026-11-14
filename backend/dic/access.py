@@ -7,6 +7,9 @@ from .security import digest_value
 
 
 def require_order_access(request, order):
+    from .registration_cleanup import is_deleted
+    if is_deleted(order):
+        raise NotFound('Registration access is unavailable.')
     if (
         order.access_token_revoked_at is not None
         or order.access_token_expires_at <= timezone.now()

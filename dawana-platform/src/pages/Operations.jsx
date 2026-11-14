@@ -173,7 +173,7 @@ function Operations() {
         <Route path="finance" element={user.can_access_campsite && user.permissions.finance ? <Finance /> : <EmptyState title="Finance staff permission required" />} />
         <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
-        <Route path="registrations" element={<RegistrationListPage />} />
+        <Route path="registrations" element={<RegistrationListPage user={user} />} />
         <Route path="assisted-registration" element={user.can_access_campsite ? <AssistedRegistration /> : <EmptyState title="Campsite staff access required" />} />
         <Route path="registrations/:publicId" element={<RegistrationDetailPage user={user} />} />
         <Route path="participants" element={<ParticipantListPage />} />
@@ -276,6 +276,7 @@ function MetricCard({ title, value, note, icon, to, tone = '' }) {
 }
 
 function DashboardPage() {
+  const [activity, setActivity] = useState('')
   const [period, setPeriod] = useState('14')
   const { data, loading, error, retry } = useData(`/dashboard/?days=${period}`)
   if (loading) return <><PageHeading eyebrow="DIC 2026" title="Operations overview" description="A live view of registrations, payments and camp readiness." /><LoadingState rows={7} /></>
@@ -287,6 +288,7 @@ function DashboardPage() {
     <>
       <PageHeading eyebrow={edition?.name || 'DIC Operations'} title="Operations overview" description="A clear picture of registrations, payment verification and camp readiness." action={<span className={`ops-registration-state state-${edition?.registration_status || 'draft'}`}><i /> Registration {statusLabel(edition?.registration_status || 'not configured')}</span>} />
       {edition && <div className="ops-edition-banner"><span className="ops-banner-mark"><Icon name="home" /></span><div><strong>{edition.name}</strong><span>{formatDate(edition.camp_start_date)} – {formatDate(edition.camp_end_date)} <b>·</b> {edition.venue}</span></div><span className="ops-edition-status">Registration {statusLabel(edition.registration_status)}</span></div>}
+      {activity && <p role="status">{activity}</p>}
       <section className="ops-metric-grid" aria-label="Registration metrics">
         <MetricCard title="Registration orders" value={metrics.orders} note="Parent or guardian checkouts" icon="clipboard" to="/dic/operations/registrations" />
         <MetricCard title="Individual participants" value={metrics.participants} note="Participants across all orders" icon="users" tone="gold" to="/dic/operations/participants" />
@@ -305,7 +307,7 @@ function DashboardPage() {
         <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">CAMP READINESS</span><h2>House allocations</h2></div><Link to="/dic/operations/houses" className="ops-text-link">View houses <Icon name="arrow" /></Link></div><BarList rows={data.house_distribution.map((row) => ({ label: row.name, value: row.allocated_count, meta: row.capacity ? `of ${row.capacity}` : 'participants' }))} empty="No houses are configured for this edition." /></article>
       </section>
       <section className="ops-bottom-grid">
-        <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">LATEST ACTIVITY</span><h2>Recent registrations</h2></div><Link to="/dic/operations/registrations" className="ops-text-link">View all <Icon name="arrow" /></Link></div><RegistrationTable rows={data.recent_registrations} compact /></article>
+        <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">LATEST ACTIVITY</span><h2>Recent registrations</h2></div><Link to="/dic/operations/registrations" className="ops-text-link">View all <Icon name="arrow" /></Link></div><RegistrationTable rows={data.recent_registrations} compact onUpdated={(action, reference) => { setActivity(`${reference}: ${action} completed.`); retry() }} /></article>
         <article className="ops-panel ops-attention-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">FOLLOW UP</span><h2>Needs attention</h2></div><span className="ops-attention-count">{data.attention.length}</span></div>{data.attention.length ? <ul className="ops-attention-list">{data.attention.slice(0, 6).map((item, index) => <li key={`${item.order_id}-${index}`}><span className="ops-attention-icon"><Icon name="alert" /></span><div><strong>{item.message}</strong><Link to={`/dic/operations/registrations/${item.order_id}`}>{item.reference}</Link></div><Icon name="arrow" className="ops-attention-arrow" /></li>)}</ul> : <EmptyState title="All clear for now" detail="No registrations currently need administrative attention." />}</article>
       </section>
       <footer className="ops-page-footer">Dawana Islamic Foundation <span>·</span> DIC 2026 Operations</footer>
@@ -346,6 +348,10 @@ function useFilters(initial = {}) {
     requiring_repricing: searchParams.get('requiring_repricing') || '',
   }))
   const [active, setActive] = useState(filters)
+  useEffect(() => {
+    const next = Object.fromEntries(Object.keys(filters).map(name => [name, searchParams.get(name) || initial[name] || '']))
+    setFilters(next); setActive(next)
+  }, [searchParams])
   const submit = (event) => {
     event?.preventDefault()
     const next = Object.fromEntries(Object.entries(filters).filter(([key, value]) => key !== 'page' && value))
@@ -386,27 +392,57 @@ function FilterSelect({ label, value, onChange, options }) {
   return <label className="ops-filter"><span>{label}</span><select value={value} onChange={(event) => onChange(event.target.value)}><option value="">All {label.toLowerCase()}</option>{options.map(([optionValue, text]) => <option value={optionValue} key={optionValue}>{text}</option>)}</select></label>
 }
 
-function RegistrationListPage() {
+function RegistrationListPage({ user }) {
+  const [activity, setActivity] = useState('')
   const { filters, active, update, submit, setPage, clear } = useFilters()
   const path = `/registrations/${buildQuery(active)}`
   const { data, loading, error, retry } = useData(path)
   const { data: filterOptions } = useData('/filters/')
   return <>
+    {activity && <p role="status">{activity}</p>}
+    <nav aria-label="Registration records"><Link to="/dic/operations/registrations">Active registrations</Link> <Link to="/dic/operations/registrations?archive=all">All non-deleted registrations</Link>{user?.permissions.registration_cleanup && <Link to="/dic/operations/registrations?archive=trash">Trash / Restore deleted registrations</Link>}</nav>
     <PageHeading eyebrow="DIC 2026" title="Registrations" description="Find registrations and check their payment status." />
-    <section className="ops-panel ops-list-panel"><form className="ops-filterbar ops-filterbar-refined" onSubmit={submit}><div className="ops-primary-filters"><SearchBar value={filters.q} onChange={(value) => update('q', value)} /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed'], ['refunded', 'Refunded']] } /></div><MoreFilters><FilterSelect label="Registration view" value={filters.archive} onChange={value => update('archive', value)} options={[['active', 'Active registrations'], ['expired', 'Expired archive'], ['all', 'All records']]} /><FilterSelect label="Order status" value={filters.status} onChange={(value) => update('status', value)} options={ [['submitted', 'Submitted'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /></MoreFilters><FilterActions onClear={clear} /></form>
-      {loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <RegistrationTable rows={data.results} count={data.count} /> }
+    <section className="ops-panel ops-list-panel"><form className="ops-filterbar ops-filterbar-refined" onSubmit={submit}><div className="ops-primary-filters"><SearchBar value={filters.q} onChange={(value) => update('q', value)} /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed'], ['refunded', 'Refunded']] } /></div><MoreFilters><FilterSelect label="Registration view" value={filters.archive} onChange={value => update('archive', value)} options={[['active', 'Active registrations'], ['expired', 'Expired archive'], ['all', 'All non-deleted registrations'], ...(user?.permissions.registration_cleanup ? [['trash', 'Trash / Restore']] : [])]} /><FilterSelect label="Order status" value={filters.status} onChange={(value) => update('status', value)} options={ [['submitted', 'Submitted'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /></MoreFilters><FilterActions onClear={clear} /></form>
+      {loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <RegistrationTable rows={data.results} count={data.count} onUpdated={(action, reference) => { setActivity(`${reference}: ${action} completed.`); retry() }} /> }
       {!loading && data?.pages > 1 && <Pagination page={data.page} pages={data.pages} onChange={setPage} />}
     </section>
   </>
 }
 
-function RegistrationTable({ rows, count, compact = false }) {
+function RegistrationTable({ rows, count, compact = false, onUpdated }) {
   if (!rows?.length) return <EmptyState title="No registrations found" detail="Registrations will appear here. If you used filters, try clearing them." />
-  return <div className="ops-table-wrap"><div className="ops-table-caption">{count !== undefined && <span>{formatNumber(count)} registration order{count === 1 ? '' : 's'}</span>}</div><table className="ops-table"><thead><tr><th>Registration</th><th>Date</th><th>Participants</th><th>Categories</th><th>Payment</th><th>Verification</th>{!compact && <th>Quoted total</th>}</tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.reference}><td><Link className="ops-reference" to={`/dic/operations/registrations/${row.id || row.reference}`}>{(row.id || row.reference).slice(0, 13)}…</Link></td><td>{formatDate(row.created_at)}</td><td>{row.participant_count ?? row.participants ?? row.participants?.length ?? 0}</td><td>{row.categories?.join(', ') || '—'}</td><td><StatusPill value={row.lifecycle?.expired ? 'Expired' : row.payment_status} /></td><td><StatusPill value={verificationLabel(row)} positive={row.verified_paid} /></td>{!compact && <td>{row.quoted_total_ngn ? `₦${Number(row.quoted_total_ngn).toLocaleString('en-NG')}` : '—'}</td>}</tr>)}</tbody></table></div>
+  return <div className="ops-table-wrap"><div className="ops-table-caption">{count !== undefined && <span>{formatNumber(count)} registration order{count === 1 ? '' : 's'}</span>}</div><table className="ops-table"><thead><tr><th>Registration</th><th>Date</th><th>Participants</th><th>Categories</th><th>Payment</th><th>Verification</th>{!compact && <th>Quoted total</th>}<th className="ops-actions-cell">Actions</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.reference}><td><Link className="ops-reference" to={`/dic/operations/registrations/${row.id || row.reference}`}>{(row.id || row.reference).slice(0, 13)}…</Link></td><td>{formatDate(row.created_at)}</td><td>{row.participant_count ?? row.participants ?? row.participants?.length ?? 0}</td><td>{row.categories?.join(', ') || '—'}</td><td><StatusPill value={row.lifecycle?.expired ? 'Expired' : row.payment_status} /></td><td><StatusPill value={verificationLabel(row)} positive={row.verified_paid} /></td>{!compact && <td>{row.quoted_total_ngn ? `₦${Number(row.quoted_total_ngn).toLocaleString('en-NG')}` : '—'}</td>}<td className="ops-actions-cell"><RegistrationRowActions registration={row} onUpdated={onUpdated} /></td></tr>)}</tbody></table></div>
 }
 
 function Pagination({ page, pages, onChange }) {
   return <div className="ops-pagination"><span>Page {page} of {pages}</span><div><button disabled={page <= 1} onClick={() => onChange(page - 1)}>Previous</button><button disabled={page >= pages} onClick={() => onChange(page + 1)}>Next</button></div></div>
+}
+
+function RegistrationRowActions({ registration, onUpdated }) {
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const deleted = registration.record_state === 'deleted'
+  const run = async action => {
+    if (busy) return
+    const reason = window.prompt(`Reason for ${action} of registration ${registration.id}:`)
+    if (!reason?.trim()) return
+    const consequences = action === 'Delete'
+      ? 'Move this registration to Trash and remove it from normal registration and checkout workflows. Financial evidence is retained. Authorized administrators may restore it; this is not permanent erasure.'
+      : action === 'Restore' ? 'Restore this registration from Trash. Payment eligibility will be rechecked. Previous checkout links will remain invalid.'
+        : 'Hide this registration from active Operations lists only. Payment processing and evidence remain intact. This is not deletion.'
+    if (!window.confirm(`${action} registration ${registration.id}? ${consequences}`)) return
+    setBusy(true); setMessage('')
+    const endpoint = { Delete: 'delete', Archive: 'archive-test', Restore: 'restore-deleted' }[action]
+    try {
+      await postOperationsData(`/registrations/${registration.id}/${endpoint}/`, { confirmation: registration.id, reason })
+      if (!onUpdated) setMessage(`${action} completed for ${registration.id}.`)
+      onUpdated?.(action, registration.id)
+    } catch (error) { setMessage(error.message || `${action} could not be completed.`) }
+    finally { setBusy(false) }
+  }
+  const deleteReason = registration.deletion ? registration.deletion.reason || 'Move this registration to Trash.' : 'Administrator deletion permission is required.'
+  const archiveReason = registration.test_cleanup ? registration.test_cleanup.archive_reason || 'Archive while retaining payment processing.' : 'Administrator archival permission is required.'
+  return <div className="ops-registration-actions">{deleted && <strong>Deleted / Trash</strong>}{!deleted && registration.test_cleanup?.archived && <strong>Archived</strong>}<button className="ops-button ops-button-secondary" type="button" disabled={busy || !registration.deletion?.eligible} title={deleteReason} onClick={() => run('Delete')}>Delete</button><button className="ops-button ops-button-secondary" type="button" disabled={busy || !registration.test_cleanup?.can_archive || registration.test_cleanup?.archived} title={archiveReason} onClick={() => run('Archive')}>Archive</button>{deleted && <button className="ops-button" type="button" disabled={busy || !registration.restore?.eligible} title={registration.restore?.reason || ''} onClick={() => run('Restore')}>Restore</button>}{registration.deletion && !registration.deletion.eligible && <small>{deleteReason}</small>}{deleted && !registration.restore?.eligible && <small>{registration.restore?.reason}</small>}{message && <small role="status">{message}</small>}</div>
 }
 
 function RegistrationDeletion({ registration, onDeleted }) {
@@ -416,29 +452,54 @@ function RegistrationDeletion({ registration, onDeleted }) {
   const [deleted, setDeleted] = useState(false)
   const remove = async event => {
     event.preventDefault()
-    if (busy || !window.confirm(`Permanently delete unpaid test registration ${registration.id}? This cannot be undone.`)) return
+    if (busy || !window.confirm(`Delete unpaid test registration ${registration.id}? It will move to Trash, disappear from normal workflows and lose checkout access. Financial evidence stays protected. An authorized administrator can restore it.`)) return
     setBusy(true); setMessage('')
     try {
       await postOperationsData(`/registrations/${registration.id}/delete/`, { confirmation: registration.id, reason })
-      onDeleted(); setDeleted(true); setMessage(`Registration ${registration.id} was permanently deleted.`)
+      onDeleted(); setDeleted(true); setMessage(`Registration ${registration.id} was moved to Trash.`)
     } catch (error) { setMessage(error.message || 'Deletion could not be completed. Refresh and review eligibility.') }
     finally { setBusy(false) }
   }
   if (deleted) return <section className="ops-panel"><p role="status">{message}</p><Link className="ops-button" to="/dic/operations/registrations">Return to refreshed registrations</Link></section>
-  return <section className="ops-panel"><h2>Delete unpaid test registration</h2>{registration.deletion.eligible ? <form onSubmit={remove}><p>Permanent deletion removes only this disposable registration. Accounts, participant records and audit history remain.</p><label>Reason for deleting this test registration<textarea required maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label><button className="ops-button" type="submit" disabled={busy}>{busy ? 'Deleting...' : 'Delete registration'}</button></form> : <p>{registration.deletion.reason}</p>}{message && <p role="alert">{message}</p>}</section>
+  return <section className="ops-panel"><h2>Delete unpaid test registration</h2>{registration.deletion.eligible ? <form onSubmit={remove}><p>Delete moves this registration to Trash and removes checkout access. Financial references and audit history remain. An administrator may restore it. This is distinct from Archive.</p><label>Reason for deleting this test registration<textarea required maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label><button className="ops-button" type="submit" disabled={busy}>{busy ? 'Deleting...' : 'Delete registration'}</button></form> : <><p>{registration.deletion.reason}</p><button className="ops-button ops-button-secondary" disabled>Delete registration</button></>}{message && <p role="alert">{message}</p>}</section>
+}
+
+function RegistrationArchive({ registration, onArchived, onRefresh }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const cleanup = registration.test_cleanup
+  const labels = { no_payment_attempt: 'No payment attempt recorded', failed_evidence_retained: 'Failed or rejected payment: evidence retained', reconciliation_required: 'Payment evidence requires reconciliation', payment_in_progress_or_unknown: 'Payment is in progress or uncertain', successful_or_protected: 'Successful or protected payment evidence' }
+  const archive = async event => {
+    event.preventDefault()
+    if (busy || !window.confirm(`Archive test registration ${registration.id} from the active list? All payment evidence and payment processing remain intact. This is not permanent deletion.`)) return
+    setBusy(true); setMessage('')
+    try { await postOperationsData(`/registrations/${registration.id}/archive-test/`, { confirmation: registration.id, reason }); onArchived() }
+    catch (error) { setMessage(error.message || 'Archival could not be completed.') }
+    finally { setBusy(false) }
+  }
+  const recheck = async () => {
+    setBusy(true); setMessage('')
+    try { await postOperationsData(`/registrations/${registration.id}/recheck-payment/`, {}); setMessage('Existing payment evidence checked.'); onRefresh() }
+    catch (error) { setMessage(error.message || 'The provider could not confirm the payment. Evidence remains protected.'); onRefresh() }
+    finally { setBusy(false) }
+  }
+  return <section className="ops-panel"><h2>Test registration cleanup</h2><p>{labels[cleanup.payment_state]}</p><p>Archive hides an unpaid test registration from the active list. It keeps the order, payment attempts and audit records, and does not cancel a payment. A later verified payment returns it to the active list.</p>{cleanup.archived ? <><p role="status">This test registration is archived.</p><button className="ops-button ops-button-secondary" disabled>Archive test registration</button></> : cleanup.can_archive ? <form onSubmit={archive}><label>Reason for archiving this test registration<textarea required maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label><button className="ops-button ops-button-secondary" disabled={busy}>Archive test registration</button></form> : <><p>{cleanup.archive_reason}</p><button className="ops-button ops-button-secondary" disabled>Archive test registration</button></>}{cleanup.can_recheck && !['no_payment_attempt', 'successful_or_protected'].includes(cleanup.payment_state) && <button className="ops-button ops-button-secondary" type="button" disabled={busy} onClick={recheck}>Recheck existing payment</button>}<Link to="/dic/operations/registrations?archive=all">View all registrations, including archived tests</Link>{message && <p role="status">{message}</p>}</section>
 }
 
 function RegistrationDetailPage({ user }) {
   const [deleted, setDeleted] = useState(false)
   const { publicId } = useParamsSafe()
   const { data, loading, error, retry } = useData(`/registrations/${publicId}/`)
-  if (deleted) return <section className="ops-panel"><p role="status">Registration {publicId} was permanently deleted.</p><Link className="ops-button" to="/dic/operations/registrations">Return to refreshed registrations</Link></section>
+  if (deleted) return <section className="ops-panel"><p role="status">Registration {publicId} {deleted === 'archived' ? 'was archived from the active list. Payment evidence remains intact.' : deleted === 'restored' ? 'was restored from Trash. Previous checkout links remain invalid.' : 'was moved to Trash. Financial evidence remains protected.'}</p><Link className="ops-button" to="/dic/operations/registrations">Return to refreshed registrations</Link><Link className="ops-button ops-button-secondary" to="/dic/operations/registrations?archive=trash">Trash / Restore deleted registrations</Link></section>
   if (loading) return <><BackLink to="/dic/operations/registrations" label="Registrations" /><LoadingState rows={5} /></>
   if (error) return <><BackLink to="/dic/operations/registrations" label="Registrations" /><ErrorState error={error} onRetry={retry} /></>
   return <>
     <BackLink to="/dic/operations/registrations" label="Registrations" />
-    {data.deletion && <RegistrationDeletion key={data.id} registration={data} onDeleted={() => setDeleted(true)} />}
-    {data.management_url && <section className="ops-panel"><h2>Manage this registration</h2><p>Cancel an eligible unpaid booking to remove it from active lists, or restore a reviewed cancellation. Each action requires confirmation. Payment attempts, issued IDs and check-ins remain protected.</p><a className="ops-button ops-button-secondary" href={backendUrl(data.management_url)}>Review cancellation or restoration</a><Link className="ops-button ops-button-secondary" to="/dic/operations/registrations?archive=all&amp;status=cancelled">View cancelled registrations</Link>{user.role === 'System Administrator' && <p><a href={backendUrl('/admin/accounts/user/')}>Review unused accounts in Administration</a>. Account removal is separate and remains subject to protected-record checks.</p>}<p className="ops-small-note">Cancellation retains history. Use the separate Delete action only for eligible unpaid test registrations.</p></section>}
+    {data.record_state === 'deleted' && <section className="ops-panel"><h2>Registration in Trash</h2><p>Deleted {formatDate(data.deleted_at)}. It is excluded from normal registration and payment workflows.</p><RegistrationRowActions registration={data} onUpdated={action => setDeleted(action === 'Restore' ? 'restored' : 'deleted')} /></section>}
+    {data.deletion && data.record_state !== 'deleted' && <RegistrationDeletion key={data.id} registration={data} onDeleted={() => setDeleted('deleted')} />}
+    {data.test_cleanup && data.record_state !== 'deleted' && <RegistrationArchive key={`cleanup-${data.id}`} registration={data} onArchived={() => setDeleted('archived')} onRefresh={retry} />}
+    {data.management_url && data.record_state !== 'deleted' && <section className="ops-panel"><h2>Manage this registration</h2><p>Cancel an eligible unpaid booking to remove it from active lists, or restore a reviewed cancellation. Each action requires confirmation. Payment attempts, issued IDs and check-ins remain protected.</p><a className="ops-button ops-button-secondary" href={backendUrl(data.management_url)}>Review cancellation or restoration</a><Link className="ops-button ops-button-secondary" to="/dic/operations/registrations?archive=all&amp;status=cancelled">View cancelled registrations</Link>{user.role === 'System Administrator' && <p><a href={backendUrl('/admin/accounts/user/')}>Review unused accounts in Administration</a>. Account removal is separate and remains subject to protected-record checks.</p>}<p className="ops-small-note">Cancellation retains history. Delete moves an eligible unpaid test registration to Trash; Archive is a separate list-only action.</p></section>}
     <PageHeading eyebrow="Registration details" title={data.id} description={`Submitted ${formatDate(data.submitted_at)} · ${data.participant_count} individual participant${data.participant_count === 1 ? '' : 's'}`} action={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} />
     <div className="ops-detail-grid"><section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ORDER SUMMARY</span><h2>Registration status</h2></div></div><DetailRow label="Registration status" value={<StatusPill value={data.lifecycle?.expired ? 'Expired' : data.status} />} /><DetailRow label="Payment status" value={<StatusPill value={data.registration_basis === 'tutor' ? verificationLabel(data) : data.verified_paid ? 'Verified paid' : data.payment_status} positive={data.verified_paid} />} /><DetailRow label="Current quoted total" value={`₦${Number(data.quoted_total_ngn).toLocaleString('en-NG')}`} /><DetailRow label="Categories" value={data.categories.join(', ') || '—'} /><DetailRow label="Recovery" value={data.recovery_status} />{data.requires_repricing && <div className="ops-callout"><Icon name="alert" /><span>This unpaid order has an outdated quote. Staff cannot start payment using the old amount; the registrant must accept the updated quote.</span></div>}</section>
       {data.registrant && <section className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">PRIMARY REGISTRANT</span><h2>Guardian details</h2></div></div><DetailRow label="Name" value={data.registrant.name || '—'} /><DetailRow label="Email" value={data.registrant.email || '—'} /><DetailRow label="Phone" value={data.registrant.phone || '—'} /></section>}</div>

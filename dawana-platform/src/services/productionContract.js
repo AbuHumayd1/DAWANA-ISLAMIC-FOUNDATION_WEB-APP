@@ -1,3 +1,4 @@
+import { paymentProtectionRequired } from './registrationDraft.js'
 import { validateGuardianContact } from './guardianContact.js'
 
 export function productionApiBase(value) {
@@ -17,9 +18,10 @@ export function backendUrl(path, apiBase = import.meta.env?.VITE_API_BASE_URL ||
 }
 
 // Draft contact, participant details, passwords and tokens stay in memory.
-// After a refresh use verified booking recovery, never a new inferred order.
+// Only genuine payment-request uncertainty survives a browser refresh.
 export function privateDraft(flow) {
   return {
+    draftVersion: 2, paymentRequested: paymentProtectionRequired(flow),
     participants: [], idempotencyKey: flow.idempotencyKey,
     orderId: flow.orderId || null, paymentStatus: flow.paymentStatus,
     submissionUncertain: Boolean(flow.submissionUncertain), expiresAt: flow.expiresAt,
@@ -27,7 +29,7 @@ export function privateDraft(flow) {
 }
 
 export function registrationSubmission(flow, credentials, contactPayload, participantPayload, credentialsPayload) {
-  if (!flow.participants.length) throw new Error('Use verified booking recovery after refreshing this page. Do not create or pay for another registration.')
+  if (!flow.participants.length) throw new Error(paymentProtectionRequired(flow) ? 'Check the existing payment status before paying again.' : 'Start a new registration to enter participant details.')
   validateGuardianContact(flow.participants, flow.primaryRegistrant)
   const guardians = (flow.primaryRegistrant?.guardianRelationships || [])
     .filter(row => flow.participants.some(person => person.id === row.childId)).map(row => {

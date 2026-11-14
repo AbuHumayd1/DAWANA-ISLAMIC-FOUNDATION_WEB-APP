@@ -551,3 +551,10 @@ a.ops-metric-card:hover { transform:translateY(-2px); border-color:var(--line); 
 .activity-member > input { flex:1 1 15rem; }
 .activity-results { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr)); gap:1rem; }
 .activity-results h3,.activity-results p { grid-column:1/-1; }
+
+.ops-registration-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; min-width:180px; }
+.ops-registration-actions small { flex-basis:100%; white-space:normal; line-height:1.4; }
+.ops-registration-actions .ops-button { min-height:44px; }
+
+.ops-actions-cell { min-width:210px; vertical-align:top; }
+@media(max-width:700px) { .ops-table .ops-actions-cell { position:sticky; right:0; z-index:1; background:var(--panel); } }

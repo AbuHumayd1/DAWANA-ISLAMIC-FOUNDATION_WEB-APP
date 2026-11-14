@@ -97,7 +97,7 @@ class DisposableRegistrationTests(TestCase):
         return self.client.post(reverse('dic:operations-registration-delete', args=[order.public_id]),
             {'confirmation': str(order.public_id), 'reason': 'Owner selected disposable synthetic test', **data}, content_type='application/json')
 
-    def test_explicit_delete_removes_only_order_and_retains_accounts_participants_audit(self):
+    def test_explicit_delete_moves_to_trash_and_retains_accounts_participants_audit(self):
         self.manager()
         enrollment = ensure_enrollment(self.unpaid_order.items.get().pk)
         participant = enrollment.participant
@@ -105,11 +105,13 @@ class DisposableRegistrationTests(TestCase):
         self.assertTrue(detail.json()['deletion']['eligible'])
         self.assertEqual(self.delete(self.unpaid_order, confirmation='wrong').status_code, 400)
         self.assertEqual(self.delete(self.unpaid_order).status_code, 200)
-        self.assertFalse(RegistrationOrder.objects.filter(pk=self.unpaid_order.pk).exists())
+        self.assertTrue(RegistrationOrder.objects.filter(pk=self.unpaid_order.pk).exists())
+        from .registration_cleanup import is_deleted
+        self.assertTrue(is_deleted(self.unpaid_order))
         self.assertTrue(RegistrationOrder.objects.filter(pk=self.paid_order.pk).exists())
         self.assertTrue(Participant.objects.filter(pk=participant.pk).exists())
-        self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_test_deleted', target_id=str(self.unpaid_order.pk)).exists())
-        self.assertEqual(self.delete(self.unpaid_order).status_code, 404)
+        self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_trashed', target_id=str(self.unpaid_order.pk)).exists())
+        self.assertEqual(self.delete(self.unpaid_order).status_code, 200)
 
     def test_unauthorized_paid_and_payment_attempts_fail_closed(self):
         self.assertIn(self.delete(self.unpaid_order).status_code, (401, 403))
@@ -125,7 +127,7 @@ class DisposableRegistrationTests(TestCase):
         manager = self.manager()
         participant = self.unpaid_order.items.get().participant
         checkin = CampCheckIn.objects.create(participant=participant, edition=self.edition, checked_in_by=manager)
-        self.assertIn('Check-in', disposal_blocker(self.unpaid_order))
+        self.assertIn('check-in', disposal_blocker(self.unpaid_order).lower())
         self.assertEqual(self.delete(self.unpaid_order).status_code, 400)
         self.assertTrue(CampCheckIn.objects.filter(pk=checkin.pk).exists())
 
@@ -232,8 +234,9 @@ class DisposableConcurrencyTests(TransactionTestCase):
                 return 'missing'
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: self.worker(remove), range(2)))
-        self.assertEqual(sorted(results), ['deleted', 'missing'])
-        self.assertEqual(DICAdminAuditEvent.objects.filter(action='registration_test_deleted').count(), 1)
+        self.assertEqual(results, ['deleted', 'deleted'])
+        self.assertEqual(DICAdminAuditEvent.objects.filter(action='registration_trashed').count(), 1)
+        self.assertEqual(DICAdminAuditEvent.objects.filter(action='registration_trash_repeat').count(), 1)
         self.assertTrue(RegistrationOrder.objects.filter(pk=self.paid_order.pk).exists())
 
     def test_payment_evidence_committed_under_order_lock_blocks_waiting_delete(self):
@@ -260,4 +263,4 @@ class DisposableConcurrencyTests(TransactionTestCase):
             with self.assertRaises(ValidationError): deletion.result(timeout=15)
         self.assertTrue(RegistrationOrder.objects.filter(public_id=reference).exists())
         self.assertTrue(PaymentAttempt.objects.filter(reference='locked-synthetic-init').exists())
-        self.assertFalse(DICAdminAuditEvent.objects.filter(action='registration_test_deleted').exists())
+        self.assertFalse(DICAdminAuditEvent.objects.filter(action='registration_trashed').exists())
