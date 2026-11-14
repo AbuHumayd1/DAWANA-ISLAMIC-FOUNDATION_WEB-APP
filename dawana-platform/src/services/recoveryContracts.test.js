@@ -8,10 +8,17 @@ import { MemoryRouter } from 'react-router-dom'
 import { experiencePayload } from './camperFeedbackForm.js'
 import { getOperationsUser, signIn, getOperationsData } from './operationsApi.js'
 
-let server, Info, Form, Editorial
+let server, Info, Form, Editorial, Landing
 before(async () => {
-  server = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
+  server = await createServer({ configFile: false, plugins: [{
+    name: 'test-landing-export',
+    transform(code, id) {
+      // Exercise the real internal hero without adding a production export.
+      if (id.replaceAll('\\', '/').endsWith('/src/pages/DIC.jsx')) return `${code}\nexport { DICLanding as TestDICLanding }\n`
+    },
+  }], server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
   Info = (await server.ssrLoadModule('/src/components/dic/DICCampInfo.jsx')).default
+  Landing = (await server.ssrLoadModule('/src/pages/DIC.jsx')).TestDICLanding
   Form = (await server.ssrLoadModule('/src/components/dic/CamperExperienceForm.jsx')).default
   Editorial = (await server.ssrLoadModule('/src/components/dic/DICEditorial.jsx')).default
 })
@@ -37,8 +44,13 @@ test('public camp details use API fees/theme without opening closed registration
   const options = { name: 'Configured edition', venue: 'Configured venue', general_information: { theme: 'Approved theme' }, registration_is_open: false,
     categories: [{ id: 1, name: 'Approved category', early_bird_fee_ngn: '4000.00', regular_fee_ngn: '5000.00' }] }
   const html = render(Info, { options, optionsState: 'ready' })
-  for (const text of ['Approved theme', 'Approved category', '4,000', '5,000', 'Early Bird', 'Regular']) assert.ok(html.includes(text))
+  for (const text of ['Approved category', '4,000', '5,000', 'Early Bird', 'Regular']) assert.ok(html.includes(text))
+  const landing = render(Landing, { options, optionsState: 'ready' })
+  assert.match(landing, /<h1 class="dic-theme">Approved theme<\/h1>/)
   assert.match(html, /disabled=""/)
+  const noCategories = render(Info, { options: { ...options, registration_is_open: true, categories: [] }, optionsState: 'ready' })
+  assert.doesNotMatch(noCategories, /Approved category|4,000|5,000|<table/)
+  assert.match(noCategories, /disabled=""/)
   assert.match(html, /href="\/dic\/participant"/)
   const unavailable = render(Info, { options: null, optionsState: 'error' })
   assert.doesNotMatch(unavailable, /4,000|Approved category|The Outliers|Fazil/)

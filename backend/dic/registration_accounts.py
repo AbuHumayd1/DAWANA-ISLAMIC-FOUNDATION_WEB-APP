@@ -4,10 +4,20 @@ from django.contrib.auth import get_user_model
 from django.db import transaction, IntegrityError
 from django.views.decorators.debug import sensitive_variables
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import APIException
 from . import portal_accounts as accounts
 from .models import PortalAccount, PortalAccountBooking, DICAdminAuditEvent
 from .recovery import normalize_email
 from .recovery_views import _contact_digest
+
+
+class RegistrationAccountConflict(APIException):
+    status_code = 409
+    default_code = 'account_conflict'
+
+    def __init__(self):
+        super().__init__({'detail': 'Account creation could not be completed. Use an existing participant account or recover your original booking before continuing.',
+            'code': 'account_conflict'})
 
 
 def pending_registration(account):
@@ -68,6 +78,11 @@ def bind_registration(order, credentials):
                     contact_channel='username', contact_digest=digest)
                 accounts.audit(account, 'registered')
         except IntegrityError:
+            # A booking contact may own only one username account. Do not turn
+            # that creation conflict into a bad-password error or attach an
+            # unauthenticated new username to the existing owner's account.
+            if PortalAccount.objects.filter(contact_channel='username', contact_digest=digest).exists():
+                raise RegistrationAccountConflict() from None
             raise AuthenticationFailed(accounts.INVALID) from None
     binding, created = PortalAccountBooking.objects.get_or_create(order=order, defaults={'account': account})
     if binding.account_id != account.pk or binding.revoked_at:

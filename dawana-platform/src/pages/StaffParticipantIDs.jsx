@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getOperationsData, postOperationsData } from '../services/operationsApi'
 import { ParticipantIDCard } from './ParticipantPortal'
 import { createLatestResource } from '../services/requestScope'
 import { eligibilityLabel } from '../services/participantIdentity'
 
 export default function StaffParticipantIDs({ user }) {
-  const [query, setQuery] = useState('')
-  const [active, setActive] = useState('')
+  const [params] = useSearchParams()
+  const hint = params.get('enrollment') || ''
+  const initial = /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(hint) ? hint : ''
+  const [query, setQuery] = useState(initial)
+  const [active, setActive] = useState(initial)
   const [page, setPage] = useState(1)
   const [listing, setListing] = useState({ data: null, loading: true, error: '' })
   const { data } = listing

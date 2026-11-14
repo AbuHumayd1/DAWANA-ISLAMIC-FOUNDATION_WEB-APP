@@ -1,0 +1,6 @@
+/* Keep the existing directory usable at medium widths without hiding fields. */
+.app-dic.model-campenrollment #changelist .results { max-width:100%; overflow-x:auto; }
+.app-dic.model-campenrollment #result_list td { white-space:normal; overflow-wrap:anywhere; }
+.app-dic.model-campenrollment .field-card_links { min-width:14rem; }
+.app-dic.model-campenrollment .field-card_links a { display:inline-block; padding:5px 7px; margin:3px; border:1px solid var(--border-color); border-radius:4px; }
+@media(max-width:1200px) { .app-dic.model-campenrollment #changelist { min-width:0; }.app-dic.model-campenrollment #changelist-form { min-width:0; } }

@@ -58,7 +58,7 @@ test('adult privacy choice removes DOB input; minors retain required DOB', () =>
 })
 test('measurements render requested labels and help without required attributes', () => {
   const html = renderToStaticMarkup(createElement(Measurements, { participant: { height: '', weight: '' }, onChange() {} }))
-  assert.match(html, /Height \(optional\)/); assert.match(html, /Weight \(optional\)/)
-  assert.ok(html.includes("If you don&#x27;t know your height or weight, you may leave these fields blank."))
+  assert.match(html, /for="height">Height</); assert.match(html, /for="weight">Weight</)
+  assert.ok(html.includes("Optional \u2014 leave blank if unknown."))
   assert.doesNotMatch(html, /required=/)
 })

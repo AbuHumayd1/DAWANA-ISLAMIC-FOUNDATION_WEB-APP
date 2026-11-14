@@ -24,6 +24,9 @@ class PortraitForm(forms.ModelForm):
 
 @admin.register(CampEnrollment)
 class ParticipantDirectoryAdmin(admin.ModelAdmin):
+    class Media:
+        css = {'all': ('dic/identity_admin.css',)}
+
     form = PortraitForm
     list_display = ('participant_number', 'participant_name', 'edition', 'age_category', 'registration_state',
                     'verified_payment', 'accommodation', 'allocation_state', 'guardian', 'id_state', 'qr_state', 'card_links')

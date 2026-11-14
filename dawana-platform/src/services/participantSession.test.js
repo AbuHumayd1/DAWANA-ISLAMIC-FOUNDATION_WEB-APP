@@ -27,6 +27,17 @@ test('cross-tab closure carries no sensitive values, persists only a marker and 
   assert.equal(second.listeners.size,0);assert.ok(env.channels.every(channel=>channel.closed))
   reopenParticipantSession(first);assert.equal(participantSessionClosed(second),false)
 })
+
+test('logout broadcast does not invalidate its own tab or abort its revocation request', () => {
+  const env = browserHarness(), first = env.tab(), second = env.tab()
+  let own = 0, other = 0
+  const stopOwn = subscribeParticipantSessionClosed(() => own++, first)
+  const stopOther = subscribeParticipantSessionClosed(() => other++, second)
+  notifyParticipantSessionClosed(first)
+  assert.equal(own, 0)
+  assert.ok(other > 0)
+  stopOwn(); stopOther()
+})
 test('storage fallback works without BroadcastChannel and ignores Operations/Admin keys',()=>{
   const env=browserHarness(),first=env.tab(),second=env.tab();first.BroadcastChannel=undefined;second.BroadcastChannel=undefined
   let cleared=0;const stop=subscribeParticipantSessionClosed(()=>cleared++,second)

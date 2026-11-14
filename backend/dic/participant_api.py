@@ -339,14 +339,20 @@ def authorized_portal_card(request, enrollment_id):
             approved_by__isnull=False).select_related('guardian').first()
         if not relation:
             raise PermissionDenied('Approved guardian access is required for this dependent ID.')
-        try:
-            relation.clean()
-        except PolicyError:
-            raise PermissionDenied('Guardian eligibility requires authorized staff review.')
         guardian = CampEnrollment.objects.filter(participant=relation.guardian, edition=enrollment.edition,
             source_item__order_id__in=order_ids).select_related('source_item__order', 'edition').first()
         if not guardian or not eligibility(guardian)['eligible']:
             raise PermissionDenied('The approved guardian must have eligible access within this verified booking.')
+        # Housing clean() also needs configured accommodation and may reject
+        # missing house setup. Document viewing checks only the approved identity
+        # relationship and the guardian's current, scoped eligibility.
+        try:
+            guardian_age = 18 if asserted_adult(relation.guardian, reference) else exact_age(relation.guardian.date_of_birth, reference)
+        except PolicyError:
+            raise PermissionDenied('The approved guardian’s date of birth or adult declaration needs staff review.')
+        if (relation.guardian.sex.lower() != 'female' or guardian_age < 6
+                or guardian.source_item.order.registration_basis == 'tutor'):
+            raise PermissionDenied('The approved guardian’s identity or registration needs staff review.')
     return enrollment
 
 
@@ -387,7 +393,13 @@ class StaffEnrollmentView(OperationsBaseView):
         number = request.query_params.get("q", "").strip()
         if number:
             from django.db.models import Q
-            query = query.filter(Q(participant_number__iexact=number) | Q(participant__full_name__icontains=number) | Q(source_item__order__public_id__icontains=number))
+            from uuid import UUID
+            condition = Q(participant_number__iexact=number) | Q(participant__full_name__icontains=number) | Q(source_item__order__public_id__icontains=number)
+            try:
+                condition |= Q(pk=UUID(number))
+            except ValueError:
+                pass
+            query = query.filter(condition)
         def summary(enrollment):
             data = id_summary(enrollment)
             if _can(request.user, "can_review_dic_enrollment_sources"):

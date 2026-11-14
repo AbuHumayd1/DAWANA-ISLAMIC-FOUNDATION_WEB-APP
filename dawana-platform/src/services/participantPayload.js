@@ -12,3 +12,8 @@ export function participantExpiry(data) {
   }
   return expires
 }
+
+export function participantSessionAbsent(data, now = Date.now()) {
+  const expiry = Date.parse(data?.expires_at)
+  return data?.authenticated === false || (data?.authenticated === true && Number.isFinite(expiry) && expiry <= now)
+}

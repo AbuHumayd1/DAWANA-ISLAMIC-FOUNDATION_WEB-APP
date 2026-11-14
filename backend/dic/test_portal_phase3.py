@@ -121,7 +121,7 @@ class PortalPhase3PolicyTests(SimpleTestCase):
         from .participant_api import authorized_portal_card
         child = NS(participant=NS(date_of_birth=date(2023, 1, 1)), edition=NS(),
             source_item=NS(order=NS(registration_basis='paid')))
-        relation = NS(guardian=NS(), clean=MagicMock())
+        relation = NS(guardian=NS(date_of_birth=date(1990, 1, 1), sex='Female'), clean=MagicMock())
         for same_booking in (False, True):
             with self.subTest(same_booking=same_booking), patch('dic.participant_api.scoped_enrollment', return_value=(NS(), child)), patch(
                     'dic.participant_api.scoped_orders', return_value=[NS(pk=7)]), patch(
@@ -130,7 +130,7 @@ class PortalPhase3PolicyTests(SimpleTestCase):
                     'dic.participant_api.CampEnrollment.objects') as enrollments, patch(
                     'dic.participant_api.eligibility', return_value={'eligible': True}):
                 relationships.filter.return_value.select_related.return_value.first.return_value = relation
-                enrollments.filter.return_value.select_related.return_value.first.return_value = NS() if same_booking else None
+                enrollments.filter.return_value.select_related.return_value.first.return_value = NS(source_item=NS(order=NS(registration_basis='paid'))) if same_booking else None
                 if same_booking: self.assertIs(authorized_portal_card(NS(), uuid4()), child)
                 else:
                     with self.assertRaises(PermissionDenied): authorized_portal_card(NS(), uuid4())

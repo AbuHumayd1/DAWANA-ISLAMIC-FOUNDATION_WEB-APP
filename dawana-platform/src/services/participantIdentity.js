@@ -26,5 +26,5 @@ function cardPath(id, format, download, staff) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !['pvc', 'a6', 'portrait'].includes(format)) throw new Error('Invalid participant card selection')
   const base = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
   const resource = staff ? `/dic/ids/cards/${id}/` : `/dic/participant/enrollments/${id}/card/`
-  return resolveMediaUrl(`${base}${resource}?format=${format}${download ? '&download=1' : ''}`)
+  return resolveMediaUrl(`${base}${resource}?format=${format}${download ? '&download=1' : ''}${staff ? '&return_to=operations' : ''}`)
 }

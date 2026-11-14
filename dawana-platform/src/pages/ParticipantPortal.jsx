@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { createRequestScope, assertParticipantAccess } from '../services/requestScope'
 import { participantRequest, participantDeliveryOptions } from '../services/participantApi'
-import { participantOrders, participantExpiry } from '../services/participantPayload'
+import { participantOrders, participantExpiry, participantSessionAbsent } from '../services/participantPayload'
+import { returnedCamperKey } from '../services/camperSelection'
 import './ParticipantPortal.css'
 import '../components/dic/CamperExperience.css'
 import DigitalIDPresentation from '../components/dic/DigitalIDPresentation'
@@ -37,9 +38,11 @@ export function ParticipantAuthStatus({ retryUntil, now, error, phase, channels,
 export default function ParticipantPortal() {
   const location = useLocation()
   const [oauthReturned] = useState(() => oauthReturn(location.hash))
+  const [returnCamper] = useState(() => new URLSearchParams(location.search).get('camper'))
   const [profile, setProfile] = useState(null)
   const [checking, setChecking] = useState(() => !participantSessionClosed() || oauthReturn(location.hash))
   const [orders, setOrders] = useState([])
+  const [camperPhase, setCamperPhase] = useState('idle')
   const [channels, setChannels] = useState([])
   const [deliveryPhase, setDeliveryPhase] = useState('loading')
   const [deliveryError, setDeliveryError] = useState('')
@@ -82,7 +85,7 @@ export default function ParticipantPortal() {
 
   const clearSensitive = useCallback(() => {
     deadline.current = null
-    setProfile(null); setOrders([]); setCard(null); setChallenge(null)
+    setProfile(null); setOrders([]); setCamperPhase('idle'); setCard(null); setChallenge(null)
     setSelection('')
     setCode(''); setContact(''); setReference(''); setRememberDevice(false); setLoginOpen(false); setBusy(false); setChecking(false)
   }, [])
@@ -96,9 +99,18 @@ export default function ParticipantPortal() {
     return data
   }, [assertAccess])
   const load = async (ticket) => {
-    const data = await read(ticket, '/enrollments/')
-    assertAccess(ticket)
-    setOrders(participantOrders(data))
+    setCamperPhase('loading')
+    try {
+      const data = await read(ticket, '/enrollments/')
+      assertAccess(ticket)
+      const authorizedOrders = participantOrders(data)
+      setOrders(authorizedOrders); setCamperPhase('ready')
+      const key = returnedCamperKey(authorizedOrders, returnCamper)
+      if (key) setSelection(key)
+    } catch (failure) {
+      if (access.current(ticket)) setCamperPhase('error')
+      throw failure
+    }
   }
   useEffect(() => {
     const controller = new AbortController()
@@ -137,18 +149,21 @@ export default function ParticipantPortal() {
     // protected requests still publish expiry and clear all sensitive UI state.
     if (!participantSessionClosed() || oauthReturned) read(ticket, '/enrollments/', undefined, { notifyExpiry: false }).then((result) => {
       assertAccess(ticket)
+      if (participantSessionAbsent(result)) { clearSensitive(); setError(''); setNotice(''); return }
       deadline.current = participantExpiry(result)
       assertAccess(ticket)
       if (oauthReturned) reopenParticipantSession()
       const orders = participantOrders(result)
-      setProfile(result); setOrders(orders)
+      const key = returnedCamperKey(orders, returnCamper)
+      if (key) setSelection(key)
+      setProfile(result); setOrders(orders); setCamperPhase('ready')
     }).catch((e) => { if (access.current(ticket) && e.status !== 403 && e.status !== 401) {
       if (e.status === 429) setRetryUntil(current => Math.max(current, e.retryAt || Date.now() + 60000))
       else setError(e.message)
     } })
       .finally(() => { if (access.current(ticket)) setChecking(false) })
     return () => { access.invalidate(); unsubscribe(); window.removeEventListener('participant-session-expired', expire) }
-  }, [access, assertAccess, clearSensitive, read, sessionAttempt, oauthReturned])
+  }, [access, assertAccess, clearSensitive, read, sessionAttempt, oauthReturned, returnCamper])
   useEffect(() => {
     if (!profile) return undefined
     const timer = window.setTimeout(() => window.dispatchEvent(new Event('participant-session-expired')), Math.max(0, new Date(profile.expires_at).getTime() - Date.now()))
@@ -189,8 +204,9 @@ export default function ParticipantPortal() {
       deadline.current = participantExpiry(result)
       reopenParticipantSession(); setLogoutFailed(false)
       assertAccess(ticket)
-      setCode(''); setChallenge(null); setContact(''); setReference(''); setNotice(''); setProfile(result)
+      setCode(''); setChallenge(null); setContact(''); setReference(''); setNotice('')
       await load(ticket)
+      assertAccess(ticket); setProfile(result)
     })
   }
   const logout = () => {
@@ -230,14 +246,15 @@ export default function ParticipantPortal() {
   const passwordLogin = credentials => perform(async ticket => {
     const result = await read(ticket, '/auth/password/login/', credentials, { notifyExpiry: false })
     deadline.current = participantExpiry(result); reopenParticipantSession(); setLogoutFailed(false)
-    setProfile(result); setNotice(''); await load(ticket)
+    setNotice(''); await load(ticket); assertAccess(ticket); setProfile(result)
   })
   const transitionCredentials = credentials => perform(async ticket => {
     const result = await read(ticket, '/auth/credentials/transition/', credentials, { notifyExpiry: false })
     setNotice(result.detail)
   })
 
-  if (checking) return <section className="participant-portal cp-access-loading" aria-busy="true"><CamperBrand /><div className="cp-loading-indicator" aria-hidden="true" /><h1>Opening your Camper Portal</h1><p role="status">Loading your registrations…</p></section>
+  if (checking || camperPhase === 'loading') return <section className="participant-portal cp-access-loading" aria-busy="true"><CamperBrand /><div className="cp-loading-indicator" aria-hidden="true" /><h1>Opening your Camper Portal</h1><p role="status">{checking ? 'Checking your session…' : 'Loading authorized campers…'}</p></section>
+  if (profile && camperPhase === 'error') return <section className="participant-portal cp-empty-state"><CamperBrand /><h1>Could not load your campers</h1><p role="alert">{error}</p><button className="button" onClick={() => perform(load)} disabled={busy}>Retry camper lookup</button><button className="button" onClick={logout}>Sign out</button></section>
   return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`}>
     {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><h1>Participant sign in</h1></div>}
     {!profile && (loginOpen || challenge || Boolean(error) || retryUntil > 0) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <p className="participant-notice" role="status">{notice}</p>}
