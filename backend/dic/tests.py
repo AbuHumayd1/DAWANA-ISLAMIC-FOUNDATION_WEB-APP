@@ -445,7 +445,11 @@ class RegistrationApiTests(APITestCase):
         self.assertFalse(binding.account.user.is_superuser)
         self.assertTrue(binding.account.user.check_password('River-Cedar!Sparrow-84'))
         self.assertIsNone(binding.account.verification_delivery_at)
-        self.assertEqual(binding.account.contact_channel, 'username')
+        self.assertEqual(binding.account.contact_channel, 'identity')
+        self.assertIsNone(binding.account.login_email)
+        from .recovery_views import _contact_digest
+        self.assertEqual(binding.account.contact_digest, _contact_digest('identity', binding.account.username_key))
+        self.assertNotEqual(binding.account.contact_digest, _contact_digest('email', binding.order.primary_registrant.email))
         self.assertEqual(binding.order.payment_status, 'pending')
         self.assertFalse(DigitalIDIssue.objects.exists())
         self.assertNotIn('portal_account', response.data)
