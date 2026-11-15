@@ -196,7 +196,8 @@ class OperationsClassDetailView(LaunchOperationsBase):
 class OperationsAssignmentsView(LaunchOperationsBase):
     def get(self, request):
         edition = edition_for(request)
-        registered = RegistrationOrderItem.objects.filter(order__edition=edition).exclude(order__registration_basis='tutor')
+        from .registration_scope import active_orders
+        registered = RegistrationOrderItem.objects.filter(order__in=active_orders().filter(edition=edition)).exclude(order__registration_basis='tutor')
         rows = Participant.objects.filter(pk__in=registered.values('participant_id')).order_by('full_name', 'pk')
         assignments = AcademicAssignment.objects.filter(edition=edition).select_related('academic_class')
         if request.query_params.get('q'):

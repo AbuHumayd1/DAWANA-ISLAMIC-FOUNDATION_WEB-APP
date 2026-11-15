@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.core.paginator import EmptyPage, Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Q, OuterRef, Subquery
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
@@ -26,6 +26,7 @@ from rest_framework.views import APIView
 from rest_framework.negotiation import DefaultContentNegotiation
 
 from .allocation import paid_participants, unallocated_paid_participants
+from .registration_scope import active_orders
 from .models import (
     CampEdition,
     DICAdminAuditEvent,
@@ -118,8 +119,7 @@ def _apply_order_filters(queryset, params, user, export_limit=None):
         queryset = queryset.exclude(pk__in=deleted_orders().values('pk'))
     archived = archive_query()
     if view == 'active':
-        from .registration_cleanup import archived_test_orders
-        queryset = queryset.exclude(archived).exclude(status='cancelled').exclude(pk__in=archived_test_orders().values('pk'))
+        queryset = active_orders(queryset)
     elif view == 'archived':
         from .registration_cleanup import archived_test_orders
         queryset = queryset.filter(pk__in=archived_test_orders().values('pk'))
@@ -361,10 +361,8 @@ def _participant_queryset(edition):
         "registration_items__category",
         "house_allocations__house",
     )
-    from .registration_cleanup import deleted_orders
-    queryset = queryset.filter(registration_items__order__in=RegistrationOrder.objects.exclude(pk__in=deleted_orders().values('pk')))
-    if edition:
-        queryset = queryset.filter(registration_items__order__edition=edition)
+    orders = active_orders().filter(edition=edition)
+    queryset = queryset.filter(registration_items__order__in=orders)
     return queryset.distinct()
 
 
@@ -375,7 +373,7 @@ def _apply_participant_filters(queryset, params, user, edition=None):
         if _can(user, "can_view_dic_contact_information"):
             condition |= Q(email__icontains=query) | Q(phone__icontains=query)
         queryset = queryset.filter(condition)
-    items = RegistrationOrderItem.objects.filter(order__edition=edition)
+    items = RegistrationOrderItem.objects.filter(order__in=active_orders().filter(edition=edition))
     for parameter in ("category", "house"):
         value = params.get(parameter)
         if value:
@@ -413,8 +411,7 @@ def _apply_participant_filters(queryset, params, user, edition=None):
 
 def _participant_data(participant, user, edition=None):
     from .tutor_registration import authorization_state
-    from .registration_cleanup import deleted_orders
-    item_query = participant.registration_items.exclude(order_id__in=deleted_orders().values('pk')).select_related(
+    item_query = participant.registration_items.filter(order__in=active_orders()).select_related(
         "order",
         "category",
         "order__edition",
@@ -675,9 +672,7 @@ class OperationsDashboardView(OperationsBaseView):
             raise ValidationError({"days": "Choose 7, 14 or 30 days."})
         edition = _edition_from_request(request)
         orders = _base_orders(edition)
-        from .order_lifecycle import archive_query
-        from .registration_cleanup import archived_test_orders
-        orders = orders.exclude(archive_query()).exclude(status='cancelled').exclude(pk__in=archived_test_orders().values('pk'))
+        orders = active_orders(orders)
         items = RegistrationOrderItem.objects.filter(order__in=orders)
         verified_orders = _verified_order_queryset(orders)
         unpaid_orders = orders.filter(
@@ -704,7 +699,7 @@ class OperationsDashboardView(OperationsBaseView):
         reconciliation_count = None
         if _can(request.user, "can_view_dic_finance"):
             reconciliation_count = PaymentAttempt.objects.filter(
-                order__edition=edition,
+                order__in=orders,
                 status__in=(
                     PaymentAttempt.Status.AMOUNT_MISMATCH,
                     PaymentAttempt.Status.RECONCILIATION_REQUIRED,
@@ -725,7 +720,7 @@ class OperationsDashboardView(OperationsBaseView):
                     }
                 )
             for attempt in PaymentAttempt.objects.filter(
-                order__edition=edition,
+                order__in=orders,
                 status__in=(
                     PaymentAttempt.Status.AMOUNT_MISMATCH,
                     PaymentAttempt.Status.RECONCILIATION_REQUIRED,
@@ -742,6 +737,7 @@ class OperationsDashboardView(OperationsBaseView):
 
         active_allocations = HouseAllocation.objects.filter(
             edition=edition,
+            participant_id__in=items.values("participant_id"),
             status=HouseAllocation.Status.ALLOCATED,
         )
         house_counts = list(
@@ -749,7 +745,8 @@ class OperationsDashboardView(OperationsBaseView):
             .annotate(
                 allocated_count=Count(
                     "allocations",
-                    filter=Q(allocations__status=HouseAllocation.Status.ALLOCATED),
+                    filter=Q(allocations__status=HouseAllocation.Status.ALLOCATED,
+                        allocations__participant_id__in=items.values("participant_id")),
                     distinct=True,
                 )
             )
@@ -776,7 +773,7 @@ class OperationsDashboardView(OperationsBaseView):
         registered_participants = items.values("participant_id").distinct().count()
         active_allocated_participants = active_allocations.values("participant_id").distinct().count()
         eligible_unallocated = (
-            unallocated_paid_participants(edition).count() if edition else 0
+            unallocated_paid_participants(edition).filter(pk__in=items.values("participant_id")).count() if edition else 0
         )
         recent = orders.order_by("-created_at")[:8]
         for order in recent:
@@ -951,11 +948,17 @@ class OperationsParticipantListView(OperationsBaseView):
         ordering_map = {
             "name": "full_name",
             "-name": "-full_name",
-            "date": "registration_items__order__created_at",
-            "-date": "-registration_items__order__created_at",
+            "date": "active_registration_date",
+            "-date": "-active_registration_date",
         }
         if ordering not in ordering_map:
             raise ValidationError({"ordering": "Choose a supported sort order."})
+        # Sorting through the reverse relation can duplicate a participant and
+        # pull dates from hidden registrations. Use one active date per person.
+        participants = participants.annotate(active_registration_date=Subquery(
+            RegistrationOrderItem.objects.filter(participant_id=OuterRef('pk'),
+                order__in=active_orders().filter(edition=edition))
+            .order_by('-created_at').values('order__created_at')[:1]))
         return Response(
             _paginate(
                 participants.order_by(ordering_map[ordering], "pk"),
@@ -979,7 +982,7 @@ class OperationsParticipantDetailView(OperationsBaseView):
                 "order__primary_registrant",
                 "order__current_price_revision",
             )
-            .filter(order__edition=edition)
+            .filter(order__in=active_orders().filter(edition=edition))
             .order_by("-created_at")
         ]
         return Response(data)
@@ -1078,10 +1081,13 @@ class OperationsHouseView(OperationsBaseView):
         edition = _edition_from_request(request)
         if edition is None:
             return Response({"edition": None, "houses": [], "allocations": [], "eligible_unallocated": 0})
+        active_people = RegistrationOrderItem.objects.filter(
+            order__in=active_orders().filter(edition=edition)).values("participant_id")
         houses = House.objects.filter(edition=edition).annotate(
             allocated_count=Count(
                 "allocations",
-                filter=Q(allocations__status=HouseAllocation.Status.ALLOCATED),
+                filter=Q(allocations__status=HouseAllocation.Status.ALLOCATED,
+                    allocations__participant_id__in=active_people),
                 distinct=True,
             )
         ).order_by("name")
@@ -1094,7 +1100,7 @@ class OperationsHouseView(OperationsBaseView):
         return Response(
             {
                 "edition": {"id": edition.pk, "name": edition.name, "year": edition.year},
-                "eligible_unallocated": unallocated_paid_participants(edition).count(),
+                "eligible_unallocated": unallocated_paid_participants(edition).filter(pk__in=active_people).count(),
                 "houses": [
                     {
                         "id": house.pk,

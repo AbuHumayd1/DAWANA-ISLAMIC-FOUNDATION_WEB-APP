@@ -12,6 +12,7 @@ from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError, APIException
 from .campsite_api import require_campsite_staff
+from .registration_scope import active_orders
 from .models import (RegistrationOrder, RegistrationOrderItem, RegistrationCategory, Participant,
     CampCheckIn, House, HouseAllocation, HousingJob, PortalAccountBooking, PaymentAttempt,
     WelfareReport, WelfareEvent)
@@ -138,7 +139,7 @@ def trusted_paid_orders(orders):
 
 
 def registration(edition, selected, actor):
-    items=scoped_items(edition,selected)
+    items=scoped_items(edition,selected).filter(order__in=active_orders())
     if selected['status']: items=items.filter(order__status=selected['status'])
     # Reference-only search: names/contacts are not queried by general summaries.
     if selected['q']: items=items.filter(order__public_id__icontains=selected['q'])

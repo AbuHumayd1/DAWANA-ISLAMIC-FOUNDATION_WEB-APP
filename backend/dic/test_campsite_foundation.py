@@ -82,19 +82,20 @@ class CampsiteFoundationTests(SimpleTestCase):
         def outcome(enrollment):
             code = codes[enrollment.participant_id]
             return {'eligible':code=='verified_paid','code':code}
-        with patch('dic.campsite_api.RegistrationOrderItem.objects') as items, \
+        with patch('dic.campsite_api.active_orders') as active, \
+             patch('dic.campsite_api.RegistrationOrderItem.objects') as items, \
              patch('dic.campsite_api.CampEnrollment') as enrollment_model, \
              patch('dic.campsite_api.HouseAllocation.objects') as housing, \
              patch('dic.campsite_api.DigitalIDIssue.objects') as issues, \
              patch('dic.campsite_api.eligibility',side_effect=outcome) as eligibility_check:
-            items.filter.return_value.exclude.return_value.select_related.return_value.order_by.return_value = rows[:4]+[rows[0]]
+            items.filter.return_value.select_related.return_value.order_by.return_value = rows[:4]+[rows[0]]
             enrollment_model.objects.filter.return_value.select_related.return_value = enrollments
             enrollment_model.return_value = SimpleNamespace(participant_id=2)
             housing.filter.return_value.values_list.return_value = [1,99]
             issues.filter.return_value.exclude.return_value.values.return_value.distinct.return_value.count.return_value = 1
             result = campsite_metrics(edition)
-            items.filter.assert_called_once_with(order__edition=edition)
-            items.filter.return_value.exclude.assert_called_once_with(order__status='cancelled')
+            active.return_value.filter.assert_called_once_with(edition=edition)
+            items.filter.assert_called_once_with(order__in=active.return_value.filter.return_value)
             enrollment_model.objects.filter.assert_called_once_with(edition=edition)
             housing.filter.assert_called_once_with(edition=edition,status='allocated')
             self.assertEqual(issues.filter.call_args.kwargs['enrollment__edition'],edition)

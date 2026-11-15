@@ -558,3 +558,13 @@ a.ops-metric-card:hover { transform:translateY(-2px); border-color:var(--line); 
 
 .ops-actions-cell { min-width:210px; vertical-align:top; }
 @media(max-width:700px) { .ops-table .ops-actions-cell { position:sticky; right:0; z-index:1; background:var(--panel); } }
+
+/* Route tabs retain native link and keyboard behavior. */
+.ops-registration-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: .5rem; margin: 1rem 0 1.5rem; padding: .5rem; background: #edf3f1; border: 1px solid #cbd9d3; border-radius: 1rem; }
+.ops-registration-tab { display: flex; flex-direction: column; gap: .25rem; padding: .85rem 1rem; border: 2px solid transparent; border-radius: .65rem; color: #344b42; text-decoration: none; min-height: 3rem; }
+.ops-registration-tab strong { font-size: .95rem; }
+.ops-registration-tab span { font-size: .75rem; line-height: 1.45; }
+.ops-registration-tab:hover { background: #fff; }
+.ops-registration-tab[aria-current="page"] { background: #fff; border-color: #176447; color: #104c36; box-shadow: 0 2px 5px #163c2814; }
+.ops-registration-tab:focus-visible { outline: 3px solid #a4660b; outline-offset: 3px; }
+@media (max-width: 480px) { .ops-registration-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ops-registration-tab { padding: .7rem; } }
