@@ -19,11 +19,24 @@ test('each eligible failed-payment registration row has separate enabled Delete 
  for(const label of ['Delete','Archive']){assert.ok(button(html,label));assert.doesNotMatch(button(html,label),/disabled/)}
  assert.equal(button(html,'Restore'),undefined)
 })
-test('paid or unresolved rows keep visible disabled actions and a clear reason',()=>{
- const html=render({...base,payment_status:'paid',deletion:{eligible:false,reason:'Verified payment is protected.'},test_cleanup:{can_archive:false,archive_reason:'Paid records are protected.'}})
- for(const label of ['Delete','Archive'])assert.match(button(html,label),/disabled/)
- assert.ok(html.includes('Verified payment is protected.'))
+test('authorized paid, pending, failed and mismatched rows expose enabled Delete and Archive',()=>{
+ for (const payment_status of ['paid','pending','failed','refunded']) {
+  const html=render({...base,payment_status})
+  for(const label of ['Delete','Archive'])assert.doesNotMatch(button(html,label),/disabled/)
+  assert.doesNotMatch(html,/reconcile.*before deletion/i)
+ }
 })
+
+test('archived rows expose enabled Unarchive and keep Delete available',()=>{
+ const html=render({...base,record_state:'archived',test_cleanup:{can_archive:true,archived:true,can_unarchive:true}})
+ for(const label of ['Delete','Unarchive'])assert.doesNotMatch(button(html,label),/disabled/)
+})
+
+test('ordinary record viewers cannot mutate registrations',()=>{
+ const html=render({...base,deletion:undefined,test_cleanup:undefined})
+ for(const label of ['Delete','Archive'])assert.match(button(html,label),/disabled/)
+})
+
 test('Trash rows expose Restore while distinguishing deleted status from Archive',()=>{
  const html=render({...base,record_state:'deleted',deletion:{eligible:false,reason:'Already in Trash.'},test_cleanup:{can_archive:false,archive_reason:'Restore first.'},restore:{eligible:true,reason:''}})
  assert.ok(html.includes('Deleted / Trash'))

@@ -113,13 +113,13 @@ class DisposableRegistrationTests(TestCase):
         self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_trashed', target_id=str(self.unpaid_order.pk)).exists())
         self.assertEqual(self.delete(self.unpaid_order).status_code, 200)
 
-    def test_unauthorized_paid_and_payment_attempts_fail_closed(self):
+    def test_unauthorized_fails_closed_authorized_paid_and_attempts_move_to_trash(self):
         self.assertIn(self.delete(self.unpaid_order).status_code, (401, 403))
         self.manager()
-        self.assertEqual(self.delete(self.paid_order).status_code, 400)
+        self.assertEqual(self.delete(self.paid_order).status_code, 200)
         from .models import PaymentAttempt
         PaymentAttempt.objects.create(order=self.unpaid_order, reference='synthetic-pending', amount_kobo=10000, status='pending')
-        self.assertEqual(self.delete(self.unpaid_order).status_code, 400)
+        self.assertEqual(self.delete(self.unpaid_order).status_code, 200)
         self.assertTrue(RegistrationOrder.objects.filter(pk=self.unpaid_order.pk).exists())
 
     def test_checkin_and_issued_dependencies_are_never_removed(self):
@@ -127,8 +127,8 @@ class DisposableRegistrationTests(TestCase):
         manager = self.manager()
         participant = self.unpaid_order.items.get().participant
         checkin = CampCheckIn.objects.create(participant=participant, edition=self.edition, checked_in_by=manager)
-        self.assertIn('check-in', disposal_blocker(self.unpaid_order).lower())
-        self.assertEqual(self.delete(self.unpaid_order).status_code, 400)
+        self.assertEqual(disposal_blocker(self.unpaid_order), '')
+        self.assertEqual(self.delete(self.unpaid_order).status_code, 200)
         self.assertTrue(CampCheckIn.objects.filter(pk=checkin.pk).exists())
 
     def test_record_view_permission_without_delete_permission_cannot_delete(self):
@@ -146,7 +146,7 @@ class DisposableRegistrationTests(TestCase):
             {'confirmation': str(self.unpaid_order.public_id), 'reason': 'Synthetic'}, content_type='application/json')
         self.assertEqual(response.status_code, 403)
 
-    def test_issued_id_evidence_protects_even_inconsistent_unpaid_legacy_record(self):
+    def test_explicit_trash_retains_issued_id_evidence_even_for_inconsistent_unpaid_legacy_record(self):
         from datetime import timedelta
         from django.utils import timezone
         from .models import DigitalIDIssue
@@ -155,7 +155,7 @@ class DisposableRegistrationTests(TestCase):
         # Deliberately inconsistent synthetic legacy evidence. Never an issuance path.
         DigitalIDIssue.objects.bulk_create([DigitalIDIssue(enrollment=enrollment, version=1,
             issued_by=manager, expires_at=timezone.now()+timedelta(days=1))])
-        self.assertEqual(self.delete(self.unpaid_order).status_code, 400)
+        self.assertEqual(self.delete(self.unpaid_order).status_code, 200)
         self.assertEqual(DigitalIDIssue.objects.filter(enrollment=enrollment).count(), 1)
         self.assertTrue(CampEnrollment.objects.filter(pk=enrollment.pk).exists())
 
@@ -239,7 +239,7 @@ class DisposableConcurrencyTests(TransactionTestCase):
         self.assertEqual(DICAdminAuditEvent.objects.filter(action='registration_trash_repeat').count(), 1)
         self.assertTrue(RegistrationOrder.objects.filter(pk=self.paid_order.pk).exists())
 
-    def test_payment_evidence_committed_under_order_lock_blocks_waiting_delete(self):
+    def test_payment_evidence_committed_under_order_lock_is_retained_when_delete_waits(self):
         from concurrent.futures import ThreadPoolExecutor
         from threading import Event
         from django.db import transaction
@@ -260,7 +260,7 @@ class DisposableConcurrencyTests(TransactionTestCase):
             self.assertTrue(locked.wait(timeout=5))
             deletion = pool.submit(self.worker, lambda: delete_disposable_registration(reference, actor, str(reference), 'Synthetic race'))
             release.set(); pending.result(timeout=15)
-            with self.assertRaises(ValidationError): deletion.result(timeout=15)
+            self.assertEqual(deletion.result(timeout=15), str(reference))
         self.assertTrue(RegistrationOrder.objects.filter(public_id=reference).exists())
         self.assertTrue(PaymentAttempt.objects.filter(reference='locked-synthetic-init').exists())
-        self.assertFalse(DICAdminAuditEvent.objects.filter(action='registration_trashed').exists())
+        self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_trashed').exists())

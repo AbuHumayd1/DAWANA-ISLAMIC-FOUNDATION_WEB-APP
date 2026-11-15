@@ -27,6 +27,7 @@ from .operations_api import (
     OperationsRegistrationDeleteView,
     OperationsRegistrationRestoreView,
     OperationsRegistrationArchiveView,
+    OperationsRegistrationUnarchiveView,
     OperationsRegistrationRecheckView,
     OperationsRegistrationListView,
     OperationsReportView,
@@ -64,6 +65,7 @@ from .participant_api import (
 
 urlpatterns = [
     path('operations/registrations/<uuid:public_id>/restore-deleted/', OperationsRegistrationRestoreView.as_view(), name='operations-registration-restore-deleted'),
+    path('operations/registrations/<uuid:public_id>/unarchive/', OperationsRegistrationUnarchiveView.as_view(), name='operations-registration-unarchive'),
     path('operations/registrations/<uuid:public_id>/archive-test/', OperationsRegistrationArchiveView.as_view(), name='operations-registration-archive-test'),
     path('operations/registrations/<uuid:public_id>/recheck-payment/', OperationsRegistrationRecheckView.as_view(), name='operations-registration-recheck-payment'),
     path('operations/registrations/<uuid:public_id>/delete/', OperationsRegistrationDeleteView.as_view(), name='operations-registration-delete'),

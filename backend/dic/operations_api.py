@@ -107,8 +107,8 @@ def _base_orders(edition, include_deleted=False):
 def _apply_order_filters(queryset, params, user, export_limit=None):
     from .order_lifecycle import archive_query
     view = params.get('archive', 'active')
-    if view not in ('active', 'expired', 'all', 'trash'):
-        raise ValidationError({'archive': 'Choose active, expired, all or trash.'})
+    if view not in ('active', 'expired', 'all', 'trash', 'archived'):
+        raise ValidationError({'archive': 'Choose active, expired, all, archived or trash.'})
     from .registration_cleanup import deleted_orders, disposable_permission
     if view == 'trash':
         if not disposable_permission(user):
@@ -120,6 +120,9 @@ def _apply_order_filters(queryset, params, user, export_limit=None):
     if view == 'active':
         from .registration_cleanup import archived_test_orders
         queryset = queryset.exclude(archived).exclude(status='cancelled').exclude(pk__in=archived_test_orders().values('pk'))
+    elif view == 'archived':
+        from .registration_cleanup import archived_test_orders
+        queryset = queryset.filter(pk__in=archived_test_orders().values('pk'))
     elif view == 'expired':
         queryset = queryset.filter(archived)
     for parameter, field in (
@@ -273,7 +276,7 @@ def _order_data(order, user, include_detail=False):
         from .registration_cleanup import archive_blocker, archived_test_orders, payment_cleanup_state
         data['test_cleanup'] = {'payment_state': payment_cleanup_state(order),
             'archived': archived_test_orders().filter(pk=order.pk).exists(),
-            'can_archive': not bool(archive_blocker(order)), 'archive_reason': archive_blocker(order),
+            'can_archive': not deleted, 'can_unarchive': not deleted and archived_test_orders().filter(pk=order.pk).exists(), 'archive_reason': archive_blocker(order),
             'can_recheck': user.has_perm('dic.can_view_dic_finance')}
         if not deleted and data['test_cleanup']['archived']:
             data['record_state'] = 'archived'
@@ -673,7 +676,8 @@ class OperationsDashboardView(OperationsBaseView):
         edition = _edition_from_request(request)
         orders = _base_orders(edition)
         from .order_lifecycle import archive_query
-        orders = orders.exclude(archive_query()).exclude(status='cancelled')
+        from .registration_cleanup import archived_test_orders
+        orders = orders.exclude(archive_query()).exclude(status='cancelled').exclude(pk__in=archived_test_orders().values('pk'))
         items = RegistrationOrderItem.objects.filter(order__in=orders)
         verified_orders = _verified_order_queryset(orders)
         unpaid_orders = orders.filter(
@@ -906,6 +910,16 @@ class OperationsRegistrationArchiveView(OperationsBaseView):
         except RegistrationOrder.DoesNotExist:
             return Response({'detail': 'Registration not found.'}, status=404)
         return Response({'archived': True, 'reference': reference})
+
+
+class OperationsRegistrationUnarchiveView(OperationsBaseView):
+    def post(self, request, public_id):
+        from .registration_cleanup import archive_test_registration
+        try:
+            reference = archive_test_registration(public_id, request.user, request.data.get('confirmation'), request.data.get('reason', ''), unarchive=True)
+        except RegistrationOrder.DoesNotExist:
+            return Response({'detail': 'Registration not found.'}, status=404)
+        return Response({'unarchived': True, 'reference': reference})
 
 
 class OperationsRegistrationRecheckView(OperationsBaseView):

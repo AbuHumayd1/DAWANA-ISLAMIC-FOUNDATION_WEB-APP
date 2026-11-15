@@ -1,3 +1,4 @@
+import { clearRegistrationDraft } from '../services/registrationDraft'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
@@ -88,6 +89,8 @@ function PaymentReturnPage() {
   return <section className="dic-summary dic-payment-return"><Container><div className="confirmation-box" aria-busy={busy}>
     <span className="eyebrow">DARUL ISLAM CAMP · SECURE PAYMENT RETURN</span>
     <h1>{title}</h1>
+    <button type="button" className="button button-outline" onClick={() => { clearRegistrationDraft(); navigate('/dic/register') }}>Start New Registration</button>
+    <p>A new registration is independent. Previous bookings and payments remain unchanged; use the status check below for the existing booking.</p>
     {busy && <p role="status">Please wait while Dawana retrieves your registration and checks its authoritative payment status.</p>}
     {error && <p className="dic-flow-message is-error" role="alert">{error}</p>}
     {!busy && ['temporary', 'authorization', 'limited'].includes(failureKind) && <button type="button" className="button" onClick={check}>Retry payment status check</button>}
@@ -104,7 +107,7 @@ function PaymentReturnPage() {
       <p>This status page is available in this browser while its secure return session is valid. Use verified contact recovery after the session expires.</p>
     </>}
     {!busy && result?.orders?.length > 0 && <ul className="dic-return-orders">{result.orders.map((item) => <li key={item.order_id}><p>{item.edition_name} · {item.payment_status}</p><small>{item.order_id}</small><button className="button button-outline" type="button" onClick={() => setLookup({ order_id: item.order_id })}>View registration</button></li>)}</ul>}
-    {missing && <><p>This tab could not authorize access to the existing registration. Your payment has not been treated as failed. Return to the original registration tab or use secure contact recovery. Do not create another registration or pay again.</p><p>{recoveryAvailable === false ? 'Automated contact recovery is currently unavailable. Contact the DIC registration team for assistance; ownership must be verified before registration details can be disclosed.' : 'Use account password recovery if needed, or contact authorized DIC support.'}</p><Link className="button button-outline" to="/dic/participant">Account sign in and password help</Link></>}
+    {missing && <><p>This tab could not authorize access to the existing registration. Your payment has not been treated as failed. Return to the original registration tab or use secure contact recovery. Do not pay the existing booking again while its payment is being checked.</p><p>{recoveryAvailable === false ? 'Automated contact recovery is currently unavailable. Contact the DIC registration team for assistance; ownership must be verified before registration details can be disclosed.' : 'Use account password recovery if needed, or contact authorized DIC support.'}</p><Link className="button button-outline" to="/dic/participant">Account sign in and password help</Link></>}
     {!busy && <p><Link to="/dic">Return to DIC</Link></p>}
   </div></Container></section>
 }

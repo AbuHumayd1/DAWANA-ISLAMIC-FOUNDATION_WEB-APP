@@ -103,21 +103,29 @@ class ReversibleDeletionTests(APITestCase):
         self.assertIsNotNone(attempt.provider_paid_at)
         self.assertFalse(eligibility(enrollment)['eligible'])
         self.assertEqual(eligibility(enrollment)['code'], 'registration_deleted')
-        self.assertEqual(self.act('operations-registration-restore-deleted').status_code, 400)
-        self.assertTrue(is_deleted(self.order))
-        self.assertEqual(self.client.get(reverse('dic:operations-registrations')).data['count'], 0)
-        self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_restored_rejected').exists())
+        # Only an explicit authorized Restore may reverse Trash, even after late evidence.
+        self.assertEqual(self.act('operations-registration-restore-deleted').status_code, 200)
+        self.assertFalse(is_deleted(self.order))
+        self.order.refresh_from_db()
+        self.assertNotEqual(self.order.payment_status, 'paid')
+        self.assertFalse(eligibility(enrollment)['eligible'])
+        self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_restored').exists())
 
-    def test_unresolved_mismatched_paid_and_checked_in_records_cannot_be_deleted(self):
+    def test_unresolved_mismatched_and_successful_attempts_can_be_trashed_without_financial_changes(self):
         attempt = self.create_pending_attempt('not-conclusive')
         self.manager()
         for state in ('initializing', 'init_unknown', 'pending', 'verify_pending', 'amount_mismatch', 'reconcile', 'failed'):
             PaymentAttempt.objects.filter(pk=attempt.pk).update(status=state)
-            self.assertEqual(self.act('operations-registration-delete').status_code, 400)
-            self.assertFalse(is_deleted(self.order))
+            detail = self.client.get(reverse('dic:operations-registration-detail', args=[self.order.public_id])).data
+            self.assertTrue(detail['deletion']['eligible'])
+            self.assertEqual(self.act('operations-registration-delete').status_code, 200)
+            self.assertTrue(is_deleted(self.order))
+            self.assertTrue(PaymentAttempt.objects.filter(pk=attempt.pk, status=state).exists())
+            self.assertEqual(self.act('operations-registration-restore-deleted').status_code, 200)
         PaymentAttempt.objects.filter(pk=attempt.pk).update(status='successful')
-        self.assertEqual(self.act('operations-registration-delete').status_code, 400)
-        self.assertFalse(is_deleted(self.order))
+        self.assertEqual(self.act('operations-registration-delete').status_code, 200)
+        self.assertTrue(is_deleted(self.order))
+        self.assertTrue(PaymentAttempt.objects.filter(pk=attempt.pk, status='successful').exists())
 
     def test_archive_and_delete_have_different_payment_and_visibility_semantics(self):
         self.failed(); self.manager()
@@ -143,3 +151,31 @@ class ReversibleDeletionTests(APITestCase):
         self.assertEqual(self.act('operations-registration-restore-deleted').status_code, 403)
         self.assertEqual(self.client.get(reverse('dic:operations-registrations'), {'archive': 'trash'}).status_code, 403)
         self.assertTrue(is_deleted(self.order))
+
+    def test_archive_unarchive_any_payment_state_and_audit_counts(self):
+        actor = self.manager()
+        attempt = self.create_pending_attempt('archive-unresolved')
+        for payment_status in ('pending', 'failed', 'paid', 'refunded'):
+            RegistrationOrder.objects.filter(pk=self.order.pk).update(payment_status=payment_status)
+            self.assertEqual(self.act('operations-registration-archive-test').status_code, 200)
+            self.assertEqual(self.client.get(reverse('dic:operations-registrations')).data['count'], 0)
+            archived = self.client.get(reverse('dic:operations-registrations'), {'archive': 'archived'}).data
+            self.assertEqual(archived['count'], 1)
+            self.assertTrue(archived['results'][0]['test_cleanup']['can_unarchive'])
+            self.assertEqual(self.act('operations-registration-unarchive', confirmation='wrong').status_code, 400)
+            self.assertEqual(self.act('operations-registration-unarchive').status_code, 200)
+            self.assertEqual(self.client.get(reverse('dic:operations-registrations')).data['count'], 1)
+            self.assertEqual(self.client.get(reverse('dic:operations-registrations'), {'archive': 'archived'}).data['count'], 0)
+            self.order.refresh_from_db(); attempt.refresh_from_db()
+            self.assertEqual(self.order.payment_status, payment_status)
+            self.assertEqual(attempt.status, 'pending')
+        for action in ('registration_test_archived', 'registration_unarchived'):
+            events = DICAdminAuditEvent.objects.filter(action=action)
+            self.assertEqual(events.count(), 4)
+            for event in events:
+                self.assertEqual(event.actor_id, actor.pk)
+                self.assertEqual(event.details['reference'], str(self.order.public_id))
+                self.assertEqual(event.details['outcome'], 'success')
+                self.assertIsNotNone(event.created_at)
+        self.client.logout()
+        self.assertEqual(self.act('operations-registration-unarchive').status_code, 403)
