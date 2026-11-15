@@ -97,7 +97,10 @@ class CampCheckInTests(SimpleTestCase):
         mocks = {}
         for name in ('RegistrationOrderItem', 'RegistrationOrder', 'Participant', 'CampEnrollment', 'CampCheckIn', 'DICAdminAuditEvent'):
             mocks[name] = stack.enter_context(patch(f'dic.checkin_services.{name}.objects'))
+        stack.enter_context(patch('dic.checkin_services.active_orders'))
         sources = mocks['RegistrationOrderItem'].filter.return_value
+        sources.filter.return_value = sources
+        sources.exists.return_value = True
         sources.values_list.return_value = [11]
         sources.select_related.return_value.order_by.return_value.first.return_value = SimpleNamespace(
             pk=22, participant_id=33, order=SimpleNamespace(edition_id=41))
@@ -174,7 +177,9 @@ class CampCheckInTests(SimpleTestCase):
                     order_id=number+10, order=SimpleNamespace(edition_id=41, public_id=f'REG-{number}', status='confirmed', payment_status='paid', registration_basis='paid'))
         first, second = item(1, 'Aisha'), item(2, 'Musa')
         arrival = SimpleNamespace(participant_id=1, checked_in_at=timezone.now(), checked_in_by=self.user())
-        with patch('dic.checkin_services.RegistrationOrderItem.objects') as items, \
+        with patch('dic.checkin_services.active_orders') as active, \
+             patch('dic.checkin_services.lifecycle_state', return_value='active'), \
+             patch('dic.checkin_services.RegistrationOrderItem.objects') as items, \
              patch('dic.checkin_services.CampEnrollment.objects') as enrollments, \
              patch('dic.checkin_services.CampCheckIn.objects') as arrivals, \
              patch('dic.checkin_services.HouseAllocation.objects') as houses, \
@@ -184,7 +189,8 @@ class CampCheckInTests(SimpleTestCase):
             arrivals.filter.return_value.select_related.return_value = [arrival]
             houses.filter.return_value.select_related.return_value = []
             rows, totals = checkin_directory(edition, 'MUSA')
-            items.filter.assert_called_once_with(order__edition=edition)
+            active.return_value.filter.assert_called_once_with(edition=edition)
+            items.filter.assert_called_once_with(order__in=active.return_value.filter.return_value)
             arrivals.filter.assert_called_once_with(edition=edition)
         self.assertEqual([row['name'] for row in rows], ['Musa'])
         self.assertEqual(totals, dict(registered=2, checked_in=1, not_yet_arrived=1, needs_attention=1))

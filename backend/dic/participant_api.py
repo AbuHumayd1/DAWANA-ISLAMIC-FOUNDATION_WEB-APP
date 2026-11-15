@@ -350,12 +350,16 @@ class PortalCardView(PortalView):
             card_format=request.query_params.get('format', 'pvc'), portal=True)
 
 
+from .registration_scope import active_orders, lifecycle_orders, lifecycle_state, operations_view, operational_eligibility
+
+
 class StaffEnrollmentView(OperationsBaseView):
     def get(self, request):
         if not _can(request.user, "can_view_dic_ids"):
             raise PermissionDenied()
-        from .registration_cleanup import deleted_orders
-        query = CampEnrollment.objects.exclude(source_item__order_id__in=deleted_orders().values('pk')).select_related("participant", "source_item__order", "edition").order_by("participant_number")
+        view = operations_view(request.query_params, request.user)
+        orders = active_orders() if view == 'active' else lifecycle_orders()
+        query = CampEnrollment.objects.filter(source_item__order__in=orders).select_related("participant", "source_item__order", "edition").order_by("participant_number")
         number = request.query_params.get("q", "").strip()
         if number:
             from django.db.models import Q
@@ -368,15 +372,25 @@ class StaffEnrollmentView(OperationsBaseView):
             query = query.filter(condition)
         def summary(enrollment):
             data = id_summary(enrollment)
+            data['registration_lifecycle'] = lifecycle_state(enrollment.source_item.order)
+            data['eligibility'] = operational_eligibility(enrollment)
+            if view == 'history':
+                data['issue_history'] = [dict(version=issue.version, issued_at=issue.created_at.isoformat(),
+                    issued_by=issue.issued_by.get_username() if issue.issued_by else 'System',
+                    expires_at=issue.expires_at.isoformat(),
+                    revoked_at=issue.revoked_at.isoformat() if issue.revoked_at else None)
+                    for issue in enrollment.id_issues.select_related('issued_by').order_by('-version')]
             if _can(request.user, "can_review_dic_enrollment_sources"):
                 data["restriction_reason"] = enrollment.restriction_reason
-                data["sources"] = [{"id": i.pk, "reference": str(i.order.public_id), "status": i.order.status, "payment_status": i.order.payment_status} for i in RegistrationOrderItem.objects.filter(participant=enrollment.participant, order__edition=enrollment.edition).select_related("order")]
+                data["sources"] = [{"id": i.pk, "reference": str(i.order.public_id), "status": i.order.status, "payment_status": i.order.payment_status} for i in RegistrationOrderItem.objects.filter(participant=enrollment.participant, order__edition=enrollment.edition).filter(**({'order__in': active_orders()} if view == 'active' else {})).select_related("order")]
             return data
         data = _paginate(query, request, summary)
-        candidates = RegistrationOrderItem.objects.exclude(order_id__in=deleted_orders().values('pk')).select_related("participant", "order__edition").order_by("-pk")
+        candidates = RegistrationOrderItem.objects.filter(order__in=active_orders()).select_related("participant", "order__edition").order_by("-pk")
         if number:
             candidates = candidates.filter(Q(participant__full_name__icontains=number) | Q(order__public_id__icontains=number))
-        data["registration_candidates"] = [{"registration_item_id": i.pk, "name": i.participant.full_name, "edition": i.order.edition.name, "category": i.category_name_snapshot} for i in candidates[:25]]
+        data["view"] = view
+        data["scope_label"] = "Active registrations" if view == "active" else "Historical IDs: all lifecycle states"
+        data["registration_candidates"] = [{"registration_item_id": i.pk, "name": i.participant.full_name, "edition": i.order.edition.name, "category": i.category_name_snapshot} for i in candidates[:25]] if view == "active" else []
         record("staff_participant_ids_searched", actor=request.user, page=data["page"],
                result_count=len(data["results"]), candidate_count=len(data["registration_candidates"]),
                searched=bool(number))
@@ -386,7 +400,7 @@ class StaffEnrollmentView(OperationsBaseView):
         if not _can(request.user, "can_manage_dic_ids"):
             raise PermissionDenied()
         item_id = request.data.get("registration_item_id")
-        if not isinstance(item_id, int) or not RegistrationOrderItem.objects.filter(pk=item_id).exists():
+        if not isinstance(item_id, int) or not RegistrationOrderItem.objects.filter(pk=item_id, order__in=active_orders()).exists():
             raise ValidationError("Choose a valid registration item.")
         enrollment = ensure_enrollment(item_id)
         record("staff_enrollment_accessed", enrollment, request.user)
@@ -425,7 +439,7 @@ class StaffIDView(OperationsBaseView):
                 enrollment = CampEnrollment.objects.select_for_update().get(pk=enrollment_id)
                 from .registration_cleanup import deleted_orders
                 items = list(RegistrationOrderItem.objects.filter(participant=enrollment.participant, order__edition=enrollment.edition).exclude(order_id__in=deleted_orders().values('pk')).select_related("order"))
-                chosen = next((i for i in items if i.pk == request.data.get("source_item_id")), None)
+                chosen = next((i for i in items if i.pk == request.data.get("source_item_id") and active_orders().filter(pk=i.order_id).exists()), None)
                 restriction = request.data.get("restriction_reason", "")
                 if not chosen or not isinstance(restriction, str) or len(restriction) > 240:
                     raise ValidationError("Choose a matching source and a restriction of up to 240 characters.")

@@ -7,8 +7,8 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 from django.db import connection
-from django.db.models import Count, Sum, Min, Q, F, OuterRef, Subquery
-from django.db.models.functions import TruncDate
+from django.db.models import Count, Sum, Min, Q, F, OuterRef, Subquery, DecimalField, Value
+from django.db.models.functions import TruncDate, Coalesce
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError, APIException
 from .campsite_api import require_campsite_staff
@@ -188,7 +188,8 @@ def registration(edition, selected, actor):
         series={'Registration categories':grouped(items,'category_name_snapshot','participant_id'),
             'Gender distribution':grouped(people,'sex'),'Age at camp start':[dict(label=k,value=v) for k,v in sorted(age_counts.items())],
             'Registration trends':trends(orders,'created_at'),'Recorded payment states (not settlement proof)':grouped(orders,'payment_status')},rows=rows,row_pagination=pagination,
-        notes=['Distinct participants and bookings use different denominators. Category totals may overlap when duplicate sources exist.',
+        notes=['Active registration totals exclude deleted and archived registrations; financial history uses all lifecycle states.',
+            'Distinct participants and bookings use different denominators. Category totals may overlap when duplicate sources exist.',
             'Age uses collected DOB only, at camp start, with existing housing-policy band boundaries; it does not allocate classes or certify housing.',
             'Confirmed status is not a completeness or portal-eligibility certificate. Payment evidence reuses Finance checks; source/identity review remains separate.',
             'Booking contacts, explicit portal links and approved housing guardian relationships are reported separately; no guardian relationship is inferred.'])
@@ -229,10 +230,15 @@ def finance(edition, selected, actor):
     trend=Counter()
     for row in data: trend[row['date']]+=row['verified_kobo']
     details=actor.has_perm('dic_finance.can_view_details_finance')
-    rows=[dict(label=row['order'],date=row['date'],status=row['status'],recorded_payment_status=row['payment_status'],
+    rows=[dict(label=row['order'],date=row['date'],status=row['status'],recorded_payment_status=row['payment_status'], registration_lifecycle=row['registration_lifecycle'],
         value=row['verified_kobo'],attempt_id=row['id'],reference=row['reference'],gross_kobo=row['gross_verified_kobo'],recorded_adjustment_kobo=row['adjustment_kobo'],
         exception=row['exception'],excluded_reason=row['excluded_reason']) for row in data] if details else []
-    expected=period(orders,'created_at',selected).aggregate(total=Sum('total_amount_ngn'))['total']
+    # Match the model property: accepted revision total, otherwise item snapshots.
+    item_totals=RegistrationOrderItem.objects.filter(order_id=OuterRef('pk')).order_by().values('order_id').annotate(
+        amount=Sum('fee_snapshot_ngn')).values('amount')[:1]
+    expected=period(orders,'created_at',selected).annotate(expected_amount=Coalesce(
+        'current_price_revision__total_amount_ngn', Subquery(item_totals), Value(Decimal(0)),
+        output_field=DecimalField(max_digits=16,decimal_places=2))).aggregate(total=Sum('expected_amount'))['total']
     recorded_adjustments=Reconciliation.objects.filter(edition=edition,attempt__order_id__in=orders.values('pk'),outcome__in=('refund','reversal'))
     recorded_adjustments=period(recorded_adjustments,'created_at',selected).aggregate(total=Sum('provider_amount_kobo'))['total'] or 0
     return dict(available=True,metrics=[metric('Expected booking value',int((expected or Decimal(0))*100),unit='NGN kobo'),
@@ -242,7 +248,8 @@ def finance(edition, selected, actor):
         metric('Exceptional attempts',totals['exceptions']),metric('Gross / accepted-price discrepancy',unattributed,unit='NGN kobo')],
         series={'Net verified collections by payment day (kobo)':[dict(label=k,value=v) for k,v in sorted(trend.items())],
             'Gross collections by accepted price category (kobo)':[dict(label=k,value=v) for k,v in sorted(categories.items())]},rows=rows,
-        notes=['Not settled bank revenue. Trusted Finance evidence, duplicate-charge exclusion and documented adjustments are reused unchanged.',
+        notes=['Historical financial totals include Active, Archived and Deleted registrations. Deletion is not a refund or reversal.',
+            'Not settled bank revenue. Trusted Finance evidence, duplicate-charge exclusion and documented adjustments are reused unchanged.',
             'Expected value uses booking creation dates and matching booking cohort; collections use provider completion dates and matching attempt status/search. Adjustments applied to charges include documented later adjustments; adjustment events use their recorded dates.',
             'Category filtering selects whole bookings. Category gross uses actual accepted revision lines, including siblings; refunds are not allocated to children without supporting records.',
             'Reconciliation documents, provider IDs, credentials and personal contacts are never returned by this endpoint.'])
@@ -250,7 +257,7 @@ def finance(edition, selected, actor):
 
 def accommodation(edition, selected, actor):
     if not storage(House,HouseAllocation,HousingJob): return unavailable('Accommodation schema awaits approved application.')
-    items=scoped_items(edition,selected,registration_dates=False)
+    items=scoped_items(edition,selected,registration_dates=False).filter(order__in=active_orders())
     tutor_ids=RegistrationOrderItem.objects.filter(order__edition=edition,order__registration_basis='tutor').values('participant_id')
     campers=items.exclude(participant_id__in=tutor_ids)
     allocations=HouseAllocation.objects.filter(edition=edition,house__edition=edition,status='allocated',participant_id__in=campers.values('participant_id'))
@@ -260,7 +267,7 @@ def accommodation(edition, selected, actor):
     if selected['status']: houses=houses.filter(status=selected['status'])
     if selected['q']: houses=houses.filter(name__icontains=selected['q'])
     allocations=allocations.filter(house_id__in=houses.values('pk'))
-    occupancy=HouseAllocation.objects.filter(house_id=OuterRef('pk'),edition=edition,status='allocated').values('house_id').annotate(n=Count('participant_id',distinct=True)).values('n')
+    occupancy=HouseAllocation.objects.filter(house_id=OuterRef('pk'),edition=edition,status='allocated',participant_id__in=campers.values('participant_id')).values('house_id').annotate(n=Count('participant_id',distinct=True)).values('n')
     houses=houses.annotate(occupancy=Subquery(occupancy))
     rows=[]
     for house in houses.order_by('name').values('name','capacity','status','occupancy'):
@@ -282,7 +289,8 @@ def accommodation(edition, selected, actor):
         metric('Tutor allocation exceptions',HouseAllocation.objects.filter(edition=edition,status='allocated',participant_id__in=tutor_ids).count())],
         series={'Allocated categories':grouped(campers.filter(participant_id__in=allocations.values('participant_id')),'category_name_snapshot','participant_id'),
             'Housing queue':grouped(jobs,'state')},rows=rows,
-        notes=['House capacity/occupancy is current, edition-wide within selected houses; category/date filters scope the allocation count, not shared capacity.',
+        notes=['Active registration totals exclude deleted and archived registrations. Historical allocations are retained in Operations allocation history.',
+            'House capacity/occupancy is current, edition-wide within selected houses; category/date filters scope the allocation count, not shared capacity.',
             'Room-level inventory is not configured. Missing capacity is unknown, not zero. Tutors remain excluded; any existing tutor allocation is an exception, not an entitlement.'])
 
 
@@ -343,7 +351,8 @@ def attendance(edition, selected, actor):
         metric('Open departures (no recorded return)',open_departures),metric('Inconsistent transitions',issues)],
         series={'Daily recorded arrivals':trends(window_arrivals,'checked_in_at'),
             'Daily movement scans':trends(window_moves,'recorded_at')},rows=rows,row_pagination=pagination,
-        notes=['Arrival is one initial camp check-in, not daily attendance. Presence is inferred from recorded events only, as of the selected end date.',
+        notes=['Historical attendance includes retained check-ins for deleted and archived registrations. These totals differ from active Camp Check-in.',
+            'Arrival is one initial camp check-in, not daily attendance. Presence is inferred from recorded events only, as of the selected end date.',
             'An open departure is not necessarily an error; no daily checkout deadline is invented. Movement details require participant-view permission in addition to movement/check-in access.',
             'UUID search and status filter scope the event drill-down; KPI totals retain the selected date/category population.'])
 

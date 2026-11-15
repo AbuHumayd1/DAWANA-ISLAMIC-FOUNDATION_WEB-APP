@@ -4,6 +4,9 @@ export function eligibilityLabel(code) {
   if (code === 'authorized_tutor') return 'Authorized complimentary tutor'
   if (code === 'tutor_authorization_required') return 'Tutor authorization unavailable or revoked'
   return {
+    registration_deleted: 'Deleted registration. Existing ID history is retained.',
+    registration_archived: 'Archived registration. Unarchive before active ID management.',
+    registration_cancelled: 'Cancelled registration. Staff review is required.',
     verified_paid: 'Registration payment verified',
     registration_not_verified_paid: 'The registration is not currently confirmed and verified paid.',
     settlement_evidence_review_required: 'Payment evidence needs authorized staff review.',

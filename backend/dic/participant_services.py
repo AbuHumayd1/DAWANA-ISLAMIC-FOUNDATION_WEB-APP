@@ -136,7 +136,8 @@ def id_command(enrollment_id, action, actor=None, reason=""):
             current.save(update_fields=("revoked_at", "revoked_by"), issuance_actor=actor)
             record("participant_id_revoked", enrollment, actor, issue=str(current.pk), reason=reason)
         return current
-    result = eligibility(enrollment)
+    from .registration_scope import operational_eligibility
+    result = operational_eligibility(enrollment)
     if not result["eligible"]:
         raise ValidationError({"detail": result["code"]})
     if action == "issue" and current and current.expires_at > timezone.now():

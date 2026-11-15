@@ -53,7 +53,8 @@ def allocation_configuration_fingerprint(edition):
 
 def paid_participants(edition, participant_ids=None):
     from .settlement_evidence import order_has_verified_settlement
-    orders = RegistrationOrder.objects.filter(edition=edition, registration_basis='paid',
+    from .registration_scope import active_orders
+    orders = active_orders().filter(edition=edition, registration_basis='paid',
         status='confirmed', payment_status='paid').select_related('current_price_revision')
     if participant_ids is not None:
         orders = orders.filter(items__participant_id__in=participant_ids).distinct()

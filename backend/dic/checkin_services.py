@@ -6,10 +6,13 @@ from rest_framework.exceptions import APIException, PermissionDenied, Validation
 from .campsite_api import require_campsite_staff
 from .models import (CampCheckIn, CampEnrollment, Participant, RegistrationOrder,
     RegistrationOrderItem, HouseAllocation, DICAdminAuditEvent)
-from .participant_services import eligibility
+from .registration_scope import active_orders, lifecycle_orders, lifecycle_state, operational_eligibility as eligibility
 
 
 REASONS = {
+    'registration_deleted': 'Deleted registration; restore before active operations',
+    'registration_archived': 'Archived registration; unarchive before active operations',
+    'registration_cancelled': 'Cancelled registration; staff review required',
     'authorized_tutor': 'Authorized complimentary tutor',
     'tutor_authorization_required': 'Tutor authorization unavailable or revoked',
     'verified_paid': 'Verified and eligible',
@@ -49,9 +52,10 @@ def checkin_summary(row):
         staff=row.checked_in_by.get_full_name() or row.checked_in_by.get_username())
 
 
-def checkin_directory(edition, search=''):
+def checkin_directory(edition, search='', view='active'):
     """Small camp directory. Totals always describe the entire selected edition."""
-    items = RegistrationOrderItem.objects.filter(order__edition=edition).select_related(
+    orders = active_orders() if view == 'active' else lifecycle_orders()
+    items = RegistrationOrderItem.objects.filter(order__in=orders.filter(edition=edition)).select_related(
         'participant', 'order', 'category').order_by('participant__full_name', 'participant_id', 'pk')
     enrollments = {row.participant_id: row for row in CampEnrollment.objects.filter(edition=edition)}
     arrivals = {row.participant_id: row for row in CampCheckIn.objects.filter(edition=edition).select_related('checked_in_by')}
@@ -67,7 +71,7 @@ def checkin_directory(edition, search=''):
         # Display the same source used by the established eligibility service.
         if enrollment:
             item = RegistrationOrderItem.objects.select_related('participant', 'order', 'category').filter(
-                pk=enrollment.source_item_id, participant_id=item.participant_id, order__edition=edition).first() or item
+                pk=enrollment.source_item_id, participant_id=item.participant_id, order__in=orders.filter(edition=edition)).first() or item
         result = eligibility(candidate_for(item, enrollment))
         arrival = arrivals.get(item.participant_id)
         checked_in += int(arrival is not None)
@@ -75,6 +79,7 @@ def checkin_directory(edition, search=''):
         number = enrollment.participant_number if enrollment else str(item.order.public_id)
         row = dict(participant_id=str(item.participant_id), name=item.participant.full_name,
             registration_number=str(item.order.public_id), participant_number=number,
+            registration_lifecycle=lifecycle_state(item.order),
             registration_status=item.order.status,
             payment_status=item.order.payment_status, registration_basis=item.order.registration_basis,
             eligibility=dict(**result, label=REASONS.get(result['code'], 'Staff review required')),
@@ -99,6 +104,9 @@ def check_in_participant(edition, participant_id, actor):
     Participant.objects.select_for_update().get(pk=participant_id)
     if set(sources.values_list('order_id', flat=True)) != order_ids:
         raise ValidationError('Registration changed. Refresh and try again.')
+    sources = sources.filter(order__in=active_orders())
+    if not sources.exists():
+        raise ValidationError('No active registration is available for check-in. Review administrative history.')
     existing = CampCheckIn.objects.filter(edition=edition, participant_id=participant_id).select_related('checked_in_by').first()
     if existing:
         return existing, False  # Preserve the original arrival time and staff.
