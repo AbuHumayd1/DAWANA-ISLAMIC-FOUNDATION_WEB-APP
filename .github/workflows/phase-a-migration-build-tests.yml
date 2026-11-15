@@ -43,7 +43,7 @@ jobs:
           from config.phase_a_migration_build import TARGET
           loader = MigrationLoader(None)
           assert not loader.detect_conflicts()
-                    assert TARGET in loader.graph.nodes
+          assert TARGET in loader.graph.nodes
           assert ('dic', '0042_integrated_camp_2026') in loader.graph.nodes
           assert any(
               TARGET in loader.graph.forwards_plan(leaf)
