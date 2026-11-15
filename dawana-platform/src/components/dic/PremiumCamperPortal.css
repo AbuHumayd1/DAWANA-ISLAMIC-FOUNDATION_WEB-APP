@@ -173,3 +173,11 @@
   .cp-route .cp-navigation::before { font-size:.75rem; letter-spacing:.025em; }
 }
 @media (max-width:699px) { .cp-route { --cp-heading-size:1.65rem; } }
+
+/* DIC26 compact touch layout; safe-area space remains below the fixed navigation. */
+ .cp-route .cp-experience { font-size: 1rem; overflow-x: clip; } .cp-route .cp-experience .cp-main { padding-bottom: calc(7.5rem + env(safe-area-inset-bottom)); } .cp-route .cp-experience h1 { font-size: clamp(1.65rem,5vw,2.5rem); line-height:1.15; } .cp-route .cp-experience h2 { font-size: clamp(1.15rem,3.5vw,1.65rem); } .cp-route .cp-experience h3 { font-size:1.05rem; } .cp-route .cp-card { padding:clamp(1rem,3vw,1.6rem); } .cp-route .cp-single-camper { display:block; font-weight:650; max-width:15rem; overflow-wrap:anywhere; } .cp-route .cp-day-columns { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:1rem; } .cp-route .cp-day-summary ol { list-style:none;padding:0; } .cp-route .cp-day-summary li { padding:.8rem 0;border-bottom:1px solid #dce5df;display:grid;gap:.3rem; } .cp-route .cp-day-summary time, .cp-route .cp-day-summary small { font-size:.85rem;color:#50685c; } .cp-route .cp-day-summary dt { text-transform:capitalize;font-weight:650;margin-top:.8rem; } .cp-route .cp-day-summary dd { margin:.3rem 0; } .cp-route .cp-recording { padding:1rem 0;border-bottom:1px solid #dce5df; } .cp-route .cp-recording audio, .cp-route .cp-recording video { width:100%;max-width:100%;display:block;margin:.6rem 0; } .cp-route .cp-navigation button { min-height:48px; }
+@media(max-width:480px){ .cp-route .cp-header{gap:.6rem;padding:.8rem} .cp-route .cw-header-switch{min-width:0;flex:1} .cp-route .cp-single-camper{font-size:.85rem} .cp-route .cp-navigation span{font-size:.7rem} .cp-route .cp-card{border-radius:1rem} .cp-route .cp-main{padding-inline:.85rem} .cp-route .cp-section-heading p{font-size:.95rem}}
+
+.cp-route .cp-experience .camper-select-trigger { font-size:.85rem; min-width:0; min-height:44px; padding:.6rem; }
+.cp-route .cp-experience .camper-select-trigger span { white-space:normal; overflow-wrap:anywhere; text-overflow:clip; }
+.cp-route .cp-experience .cw-header-switch { min-width:0; }

@@ -89,7 +89,7 @@ class TimetablePolicyTests(SimpleTestCase):
         self.assertFalse(admin.has_add_permission(request))
 
     def test_conflicting_ranges_rejected_before_publication(self):
-        rows = [Mock(start_time=time(11), end_time=time(13)), Mock(start_time=time(12), end_time=time(14))]
+        rows = [Mock(start_time=time(11), end_time=time(13),gender='all',audience='all'), Mock(start_time=time(12), end_time=time(14),gender='all',audience='all')]
         with self.assertRaises(ValidationError): validate_day(rows)
         rows[1].start_time = time(13)
         validate_day(rows)
@@ -166,7 +166,7 @@ class TimetablePolicyTests(SimpleTestCase):
 
     def test_portal_filters_published_and_scoped_edition(self):
         from .timetable_api import ParticipantTimetableView
-        with patch('dic.timetable_api.portal_item', return_value=SimpleNamespace(order=SimpleNamespace(edition=self.edition))), patch('dic.timetable_api.connection') as connection, patch('dic.timetable_api.TimetableEntry.objects') as entries:
+        with patch('dic.camp_content.audience_rows',side_effect=lambda query,*args:query), patch('dic.timetable_api.portal_item', return_value=SimpleNamespace(participant=SimpleNamespace(),order=SimpleNamespace(edition=self.edition))), patch('dic.timetable_api.connection') as connection, patch('dic.timetable_api.TimetableEntry.objects') as entries:
             self.edition.name = 'DIC 2026'
             connection.introspection.table_names.return_value = [TimetableEntry._meta.db_table]
             entries.filter.return_value.values_list.return_value = []

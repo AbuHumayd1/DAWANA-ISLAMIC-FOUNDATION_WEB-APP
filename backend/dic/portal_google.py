@@ -117,6 +117,10 @@ def safe_url(value, path):
 
 
 def google_available():
+    return False  # Owner-approved release excludes Google sign-in.
+
+
+def _legacy_google_configuration_available():
     try:
         library = importlib.util.find_spec('google.oauth2.id_token') is not None
     except (ImportError, ModuleNotFoundError, ValueError):

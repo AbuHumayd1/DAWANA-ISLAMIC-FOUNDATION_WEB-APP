@@ -371,6 +371,8 @@ class RegistrationCategory(models.Model):
 
 
 class House(models.Model):
+    canonical_key = models.CharField(max_length=80, blank=True, editable=False)
+
     badge_colour = models.CharField(max_length=7, blank=True,
         validators=[RegexValidator(
             r'^#[0-9A-Fa-f]{6}$', 'Use a six-digit hex colour, for example #174a34.')],
@@ -432,6 +434,7 @@ class House(models.Model):
     class Meta:
         ordering = ("edition__year", "gender", "name")
         constraints = [
+            models.UniqueConstraint(fields=['edition','canonical_key'], condition=~Q(canonical_key=''), name='dic_house_canonical_unique'),
             models.UniqueConstraint(
                 fields=("edition", "name"),
                 name="dic_house_name_unique_per_edition",
@@ -1553,3 +1556,5 @@ from .foundation_models import ContactEnquiry, FoundationDonation  # noqa: E402,
 
 from .fulfillment_models import CamperFulfillmentJob  # noqa: E402,F401
 from .order_lifecycle_models import OrderExpiryPolicy, OrderExpiry, PaymentResolution  # noqa: E402,F401
+
+from .camp_release_models import LectureRecording, CertificateRelease, ParticipationCertificate  # noqa: E402,F401

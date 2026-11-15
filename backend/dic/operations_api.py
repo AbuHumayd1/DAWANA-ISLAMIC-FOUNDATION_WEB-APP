@@ -557,6 +557,7 @@ def _user_data(user):
             user.is_staff and (user.is_superuser or user.has_module_perms("dic"))
         ),
         "permissions": {
+            "media": any(user.has_perm('dic.'+p) for p in ('view_campphotograph','view_campvideo','view_lecturerecording')),
             "registration_cleanup": bool(user.is_active and user.is_staff and user.has_perm('dic.delete_registrationorder') and user.has_perm('dic.can_manage_registration_access')),
             "manage_order_lifecycle": bool(user.is_active and user.is_staff and _can(user, 'manage_dic_order_lifecycle') and _can(user, 'can_view_dic_finance')),
             "classes": user.has_perm('dic.manage_dic_classes'),

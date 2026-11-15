@@ -22,6 +22,15 @@ class VideoForm(forms.ModelForm):
         if self.instance.pk and self.instance.state == "published":
             self.initial["state"] = "review"
         self.fields["thumbnail"].widget = forms.FileInput()
+        self.fields["recording_file"].widget = forms.FileInput()
+
+    def clean_recording_file(self):
+        upload=self.cleaned_data.get('recording_file')
+        if upload and not getattr(upload,'_committed',False):
+            from .recording_storage import recording_storage
+            try:recording_storage._backend()
+            except ImproperlyConfigured:raise forms.ValidationError('Video uploads await owner-approved private storage activation.') from None
+        return upload
 
     def clean_thumbnail(self):
         thumbnail = self.cleaned_data.get("thumbnail")
@@ -56,6 +65,7 @@ class CampVideoAdmin(admin.ModelAdmin):
         if change and not self.has_change_permission(request, obj):
             raise PermissionDenied
         obj.save(actor=request.user)
+        DICAdminAuditEvent.objects.create(actor=request.user,action='camp_video_draft_saved',target_type=type(obj).__name__,target_id=str(obj.pk),details={})
 
     @admin.action(description="Approve and publish selected videos", permissions=["publish"])
     def publish_selected(self, request, queryset):

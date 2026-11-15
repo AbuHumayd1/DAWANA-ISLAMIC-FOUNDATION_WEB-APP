@@ -31,7 +31,7 @@ test('password setup remains gated with OTP recovery available and Google hidden
   const html = render('PortalCredentialLogin', { recoveryAvailable: true })
   assert.match(html, /fieldset disabled=""/)
   assert.doesNotMatch(html, /Continue with Google|Link Google/)
-  for (const label of ['Username', 'Sign In', 'Forgot Password', 'First-Time Account Setup', 'secure booking verification']) assert.ok(html.includes(label))
+  for (const label of ['Email or username', 'Sign In', 'Forgot Password', 'First-Time Account Setup', 'secure booking verification']) assert.ok(html.includes(label))
 })
 test('configured credential form defaults to masked password and explicit unchecked persistence', () => {
   const html = render('PortalCredentialLogin', { capabilities: { accounts: { enabled: true }, google: { available: true } } })
@@ -57,7 +57,7 @@ test('account settings are absent until approved rollout is enabled', () => {
 })
 test('username login and reviewed recovery never require email activation', () => {
   const html = render('PortalCredentialLogin', { capabilities: { accounts: { enabled: true } } })
-  assert.match(html, /Username/)
+  assert.match(html, /Email or username/)
   assert.doesNotMatch(html, /No email activation is required/)
   assert.match(html, /Recover username access without email/)
   assert.doesNotMatch(html, /Resend email verification|Confirm email ownership/)

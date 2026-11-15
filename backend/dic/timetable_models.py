@@ -10,6 +10,11 @@ class TimetableEntry(models.Model):
     CERTAINTIES = [('confirmed', 'Confirmed'), ('proposed', 'Proposed'), ('unspecified', 'Unspecified')]
     edition = models.ForeignKey('dic.CampEdition', on_delete=models.PROTECT)
     timetable_type = models.CharField(max_length=12, choices=TYPES)
+    title = models.CharField(max_length=200, blank=True)
+    lecturer = models.CharField(max_length=200, blank=True)
+    audience = models.CharField(max_length=12, choices=[('all','General camp'),('talim',"Ta'lim: 5-9"),('tahdheeb','Tahdheeb: 10-15'),('dawah',"Da'wah: 16+"),('adults','Adults: 18+')], default='all')
+    gender = models.CharField(max_length=6, choices=[('all','Everyone'),('male','Brothers'),('female','Sisters')], default='all')
+    meal = models.CharField(max_length=10, blank=True, choices=[('breakfast','Breakfast'),('lunch','Lunch'),('dinner','Dinner')])
     date = models.DateField()
     day_number = models.PositiveSmallIntegerField()
     start_time = models.TimeField(null=True, blank=True)
@@ -33,6 +38,7 @@ class TimetableEntry(models.Model):
         indexes = [models.Index(fields=['edition', 'timetable_type', 'date', 'status'], name='dic_tt_day_status_idx')]
         permissions = [('manage_dic_timetables', 'Edit DIC timetable drafts'), ('publish_dic_timetables', 'Publish and unpublish DIC timetables')]
         constraints = [
+            models.UniqueConstraint(fields=['edition','date','meal'], condition=Q(timetable_type='food') & ~Q(meal=''), name='dic_food_date_meal_unique'),
             models.UniqueConstraint(fields=['edition', 'source_key'], condition=~Q(source_key=''), name='dic_tt_source_unique'),
             models.CheckConstraint(condition=Q(start_time__isnull=True) | Q(end_time__isnull=True) | Q(end_time__gt=F('start_time')), name='dic_tt_time_range'),
             models.CheckConstraint(condition=Q(timetable_type__in=['activities', 'food']), name='dic_tt_valid_type'),
@@ -57,7 +63,9 @@ class TimetableEntry(models.Model):
         if self.start_time and self.end_time and self.edition_id and self.date:
             if type(self).objects.filter(edition_id=self.edition_id, date=self.date,
                     timetable_type=self.timetable_type, start_time__lt=self.end_time,
-                    end_time__gt=self.start_time).exclude(pk=self.pk).exists():
+                    end_time__gt=self.start_time).exclude(pk=self.pk).filter(
+                        Q(gender='all') | Q(gender=self.gender) if self.gender != 'all' else Q()
+                    ).filter(Q(audience='all') | Q(audience=self.audience) | Q(audience__in=['dawah','adults']) if self.audience in ('dawah','adults') else (Q(audience='all') | Q(audience=self.audience) if self.audience != 'all' else Q())).exists():
                 raise ValidationError('This time range overlaps another entry in this timetable and edition.')
 
     def save(self, *args, **kwargs):
@@ -69,8 +77,8 @@ class TimetableEntry(models.Model):
                 previous = type(self).objects.get(pk=self.pk)
                 if previous.status == 'published':
                     raise ValidationError('Unpublish the day before editing.')
-                if (previous.edition_id, previous.date, previous.timetable_type) != (self.edition_id, self.date, self.timetable_type):
-                    raise ValidationError('Edition, day and timetable type are immutable; create a new draft entry.')
+                if (previous.edition_id, previous.timetable_type) != (self.edition_id, self.timetable_type):
+                    raise ValidationError('Edition and timetable type are immutable; create a new draft entry.')
         self.full_clean()
         return super().save(*args, **kwargs)
 

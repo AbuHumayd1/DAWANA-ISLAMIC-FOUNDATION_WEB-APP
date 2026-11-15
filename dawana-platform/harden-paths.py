@@ -1,0 +1,4 @@
+from pathlib import Path
+p=Path('backend/dic/camp_release_models.py');lines=p.read_text().splitlines();lines=["        if path.is_absolute() or ':' in self.artwork or chr(0) in self.artwork or '..' in path.parts or chr(92) in self.artwork:" if 'if path.is_absolute()' in x else x for x in lines];p.write_text('\n'.join(lines)+'\n')
+p=Path('backend/dic/recording_storage.py');lines=p.read_text().splitlines();lines=["    if not isinstance(name,str) or not name or chr(92) in name or chr(0) in name or ':' in name or PurePosixPath(name).is_absolute() or '..' in PurePosixPath(name).parts:" if 'if not isinstance(name,str)' in x else x for x in lines];p.write_text('\n'.join(lines)+'\n')
+p=Path('backend/dic/test_integrated_release.py');s=p.read_text();start=s.index('    def test_storage');print(s[start:start+1000]) if '    def test_storage' in s else print('inspect named test');p.write_text(s)

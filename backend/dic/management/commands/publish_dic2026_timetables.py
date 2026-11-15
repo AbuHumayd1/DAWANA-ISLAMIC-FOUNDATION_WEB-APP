@@ -22,6 +22,7 @@ class Command(BaseCommand):
         if not options['apply']:
             self.stdout.write(f'PREVIEW ONLY: {len(data["entries"])} reconciled entries. Seed SHA-256: {checksum}. No database accessed. Publication needs its own approval.')
             return
+        raise CommandError('This historical seed is superseded. Use initialize_dic2026_release, then review/publish the current programme in Django Admin.')
         if not options.get('database_name') or not options.get('approved_by') or options.get('approved_seed_sha256')!=checksum:
             raise CommandError('Exact target, publisher and reviewed seed SHA-256 are required.')
         if data.get('review_status')!='reconciled_operator_2026_10_28': raise CommandError('Source review is incomplete.')

@@ -33,9 +33,11 @@ def selected_date(edition, published_dates, requested=None, now=None):
 
 def validate_day(rows):
     bounded = sorted((r for r in rows if r.start_time and r.end_time), key=lambda r: r.start_time)
-    for left, right in zip(bounded, bounded[1:]):
-        if left.end_time > right.start_time:
-            raise ValidationError('Overlapping timetable entries cannot be published.')
+    from .camp_content import overlap
+    for index,left in enumerate(bounded):
+        for right in bounded[index+1:]:
+            if overlap(left,right):
+                raise ValidationError('Overlapping timetable entries for the same audience cannot be published.')
     for row in rows:
         row.full_clean()
 
@@ -53,6 +55,8 @@ def publish_days(user, queryset, publish):
         timetable_type=kind, date__in=days))
     for day in days:
         validate_day([r for r in rows if r.date == day])
+    if publish:
+        rows=[r for r in rows if r.certainty != 'proposed']
     now = timezone.now()
     for row in rows:
         row.status = 'published' if publish else 'draft'

@@ -24,8 +24,8 @@ const render = (component,props={},route='/dic/participant') => renderToStaticMa
 
 test('camper selector is in the compact branded header and remains tied to linked bookings', () => {
   const html = render(experience.default,{orders:[order],expiresAt:'2026-12-23T12:00:00Z'})
-  assert.match(html, /<header class="cp-header">.*aria-haspopup="listbox"/s)
-  assert.match(html, /My camper/)
+  assert.match(html, /<header class="cp-header">.*cp-single-camper/s)
+  assert.doesNotMatch(html, /aria-haspopup="listbox"/)
   assert.match(html, /Example Camper/)
   const source=fs.readFileSync(new URL('../components/dic/CamperExperience.jsx',import.meta.url),'utf8')
   assert.match(source,/value=\{selected.key\} disabled=\{busy\} onChange=\{onSelect\}/)

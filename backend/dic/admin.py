@@ -1825,3 +1825,5 @@ from . import timetable_admin  # noqa: E402,F401
 from . import launch_admin  # noqa: E402,F401
 from . import foundation_admin  # noqa: E402,F401
 from . import scoring_admin  # noqa: E402,F401
+
+from . import camp_release_admin  # noqa: E402,F401

@@ -11,9 +11,9 @@ from .timetable_services import publish_days
 
 @admin.register(TimetableEntry)
 class TimetableEntryAdmin(admin.ModelAdmin):
-    list_display = ('edition', 'timetable_type', 'date', 'day_number', 'time_label', 'description', 'display_order', 'status', 'modified_by', 'preview')
-    list_filter = ('edition', 'timetable_type', 'date', 'status')
-    search_fields = ('description', 'time_label')
+    list_display = ('edition', 'timetable_type', 'date', 'day_number', 'time_label', 'description', 'display_order', 'audience', 'gender', 'meal', 'status', 'modified_by', 'preview')
+    list_filter = ('edition', 'timetable_type', 'date', 'status', 'audience', 'gender')
+    search_fields = ('title', 'description', 'time_label', 'lecturer')
     ordering = ('edition', 'timetable_type', 'date', 'display_order')
     readonly_fields = ('status', 'source_key', 'modified_by', 'published_by', 'published_at', 'created_at', 'updated_at')
     actions = ('publish_selected_days', 'unpublish_selected_days')
@@ -31,7 +31,7 @@ class TimetableEntryAdmin(admin.ModelAdmin):
         return self.has_change_permission(request, obj)
 
     def get_readonly_fields(self, request, obj=None):
-        return self.readonly_fields + (('edition', 'date', 'timetable_type', 'day_number') if obj else ())
+        return self.readonly_fields + (('edition', 'timetable_type') if obj else ())
 
     def get_actions(self, request):
         actions = super().get_actions(request)

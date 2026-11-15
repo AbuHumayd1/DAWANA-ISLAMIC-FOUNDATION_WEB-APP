@@ -1,14 +1,14 @@
+import CamperDay from './CamperDay'
+import CamperResources from './CamperResources'
 import CamperSelect from './CamperSelect'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getRegistrationOptions } from '../../services/dicApi'
 import { CamperProfile, CamperExplore, CamperArena } from './CamperWorldSections'
 import { campDate } from '../../services/dicPresentation'
-import { eligibilityLabel } from '../../services/participantIdentity'
 import { camperKey, selectedCamper } from '../../services/camperSelection'
 import CamperScores from './CamperScores'
 import CamperBrand from './CamperBrand'
-import CamperTimetables from './CamperTimetables'
 import CampUpdates from './CampUpdates'
 import CamperHome from './CamperHome'
 import { portalDestinations, portalView, activeDestination, digitalIDState } from '../../services/premiumPortal'
@@ -34,17 +34,19 @@ export function HouseArena({ data, house, compact = false }) {
 
 export function DigitalIDStatus({ participant, onOpenID, busy }) {
   const state = digitalIDState(participant)
-  return <section className="cp-card cp-id-entry"><span className="cp-id-emblem"><PortalIcon name="id" /></span><span className="cp-kicker">YOUR CAMP IDENTITY</span><h2>{state.title}</h2><p>{state.detail}</p><p>{eligibilityLabel(participant.eligibility.code)}</p><p>ID: {participant.issue?.status || 'Not issued'}</p>{state.available ? <button className="button" disabled={busy} onClick={() => onOpenID(participant)}>Open my Digital ID</button> : <p className="cp-pending-label" role="status">Awaiting active ID</p>}</section>
+  return <section className="cp-card cp-id-entry"><span className="cp-id-emblem"><PortalIcon name="id" /></span><span className="cp-kicker">YOUR CAMP IDENTITY</span><h2>{state.title}</h2><p>{state.available ? 'Your authorized camp ID and download formats.' : 'Your ID will appear here when it is ready.'}</p><p>ID: {participant.issue?.status || 'Not issued'}</p>{state.available ? <button className="button" disabled={busy} onClick={() => onOpenID(participant)}>Open my Digital ID</button> : <p className="cp-pending-label" role="status">Awaiting active ID</p>}</section>
 }
 
-export function ExperienceContent({ tab, participant: p, order, data, error, onNavigate, onPage, onRefresh, onOpenID, busy, camp, timetableType }) {
+export function ExperienceContent({ tab, participant: p, order, data, error, onNavigate, onPage, onRefresh, onOpenID, busy, camp }) {
   const tutor = p.registration_basis === 'tutor'
   const resolvedView = portalView(tab)
   const view = tutor && resolvedView === 'arena' ? 'me' : resolvedView
   const scoreState = error ? <div className="participant-error" role="alert"><p>{error}</p><button className="cp-text-button" onClick={onRefresh}>Retry points</button></div> : !data ? <p className="cp-skeleton" role="status">Loading verified camp points…</p> : !data.ready ? <p className="participant-notice" role="status">{data.message}</p> : null
-  if (view === 'day') return <><div className="cp-section-heading"><span className="cp-kicker">A DAY FULL OF POSSIBILITY</span><h1>My Day</h1><p>Published activities, shared meals and moments that matter.</p></div><CamperTimetables key={`${p.registration_item_id}:${timetableType}`} item={p.registration_item_id} initialType={timetableType} /></>
+  if (view === 'recordings') return <CamperResources key={p.registration_item_id} item={p.registration_item_id} />
+  if (view === 'certificate') return <CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly />
+  if (view === 'day') return <><div className="cp-section-heading"><span className="cp-kicker">A DAY FULL OF POSSIBILITY</span><h1>My Day</h1><p>Published activities, shared meals and moments that matter.</p></div><CamperDay key={p.registration_item_id} item={p.registration_item_id} /></>
   if (view === 'digital-id') return <><div className="cp-section-heading"><h1>My Digital ID</h1></div><DigitalIDStatus participant={p} onOpenID={onOpenID} busy={busy} /><button className="cp-text-button" onClick={() => onNavigate('me')}>Back to my profile</button></>
-  if (view === 'me') return <CamperProfile participant={p} order={order} ID={DigitalIDStatus} Icon={PortalIcon} onOpenID={onOpenID} busy={busy} />
+  if (view === 'me') return <><CamperProfile participant={p} order={order} ID={DigitalIDStatus} Icon={PortalIcon} onOpenID={onOpenID} busy={busy} /><CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly /><button className="cp-text-button" onClick={()=>onNavigate('recordings')}>Lecture Recordings</button></>
   if (view === 'feedback') return <><div className="cp-section-heading"><span className="cp-kicker">WE ARE LISTENING</span><h1>Your voice matters</h1><p>Use your verified booking to share your experience.</p></div><div className="cp-explore-grid">{[['daily', 'Daily feedback', 'Reflect on your camp day.'], ['welfare', 'Submit a complaint', 'Raise a welfare concern securely.'], ['history', 'My complaints / complaint status', 'Follow updates on your existing concerns.'], ['final', 'Final camp evaluation', 'Help shape the next camp experience.']].map(([channel, title, text]) => <Link className="cp-card cp-link-card" key={channel} to={`/dic/feedback?channel=${channel}`}><div><h2>{title}</h2><p>{text}</p></div><span aria-hidden="true">↗</span></Link>)}</div></>
   if (view === 'announcements') return <><div className="cp-section-heading"><span className="cp-kicker">IN THE KNOW</span><h1>Camp announcements</h1></div><CampUpdates key={p.registration_item_id} item={p.registration_item_id} /></>
   if (view === 'explore') return <CamperExplore participant={p} camp={camp} onNavigate={onNavigate} Icon={PortalIcon} />
@@ -70,7 +72,7 @@ export default function CamperExperience({ orders, selection, onSelect, busy, on
     window.scrollTo({ top: 0, behavior: 'instant' })
     if (previousView.current !== null) contentRef.current?.focus({ preventScroll: true })
     previousView.current = tab
-  }, [tab, selected?.key])
+  }, [tab])
   const navigate = (view, type) => setParams(view === 'home' ? {} : { view, ...(type === 'food' ? { type } : {}) })
   if (!selected) return <div className="cp-experience cp-empty-state"><CamperBrand /><section className="cp-card"><h1>No campers linked yet</h1><p>Recover your booking to check access, or contact DIC support if your registration needs review.</p><div className="portal-id-actions"><Link className="button" to="/dic/register/recover">Recover booking</Link><button className="button" disabled={loggingOut} onClick={onLogout}>Sign out</button></div></section></div>
   const { participant, order } = selected
@@ -79,7 +81,7 @@ export default function CamperExperience({ orders, selection, onSelect, busy, on
   const colour = participant.house_assignment?.colour
   const content = state => <div className="cp-page" key={tab}><ExperienceContent {...state} tab={tab} participant={participant} order={order} onNavigate={(view, type) => { state.onPage?.(1); navigate(view, type) }} onOpenID={onOpenID} busy={busy} camp={camp?.name === order.edition ? camp : null} timetableType={timetableType} /></div>
   return <div className="cp-experience" style={/^#[0-9a-f]{6}$/i.test(colour || '') ? { '--cp-house': colour } : undefined}>
-    <a className="cp-skip-link" href="#cp-view">Skip to camper content</a><header className="cp-header"><Link to="/dic" className="cp-brand"><CamperBrand /></Link><div className="cw-header-switch"><CamperSelect label="My camper" value={selected.key} disabled={busy} onChange={onSelect} options={orders.flatMap(booking => booking.participants.map(person => ({ value: camperKey(booking, person), label: person.name })))} /></div><button className="cp-profile-shortcut" aria-label="Open my profile" onClick={() => navigate('me')}>{participant.name?.slice(0, 1)}</button></header>
+    <a className="cp-skip-link" href="#cp-view">Skip to camper content</a><header className="cp-header"><Link to="/dic" className="cp-brand"><CamperBrand /></Link><div className="cw-header-switch">{orders.reduce((count,booking)=>count+booking.participants.length,0)===1?<span className="cp-single-camper">{participant.name}</span>:<CamperSelect label="My camper" value={selected.key} disabled={busy} onChange={onSelect} options={orders.flatMap(booking => booking.participants.map(person => ({ value: camperKey(booking, person), label: person.name })))} />}</div><button className="cp-profile-shortcut" aria-label="Open my profile" onClick={() => navigate('me')}>{participant.name?.slice(0, 1)}</button></header>
     <nav className="cp-navigation" aria-label="Camper navigation" style={{ gridTemplateColumns: `repeat(${navigation.length}, minmax(0, 1fr))` }}>{navigation.map(([key, label]) => <button key={key} aria-current={activeDestination(tab) === key ? 'page' : undefined} onClick={() => navigate(key)}><PortalIcon name={key} /><span>{label}</span></button>)}</nav>
     <div className="cp-main">
       <div id="cp-view" ref={contentRef} tabIndex={-1} className="cp-view" aria-label={`${activeDestination(tab)} content`}>{tutor ? content({}) : <CamperScores key={selected.key} item={participant.registration_item_id} destination={tab}>{content}</CamperScores>}</div>

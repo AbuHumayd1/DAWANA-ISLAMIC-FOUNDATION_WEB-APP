@@ -69,6 +69,8 @@ class PrivateMemoryStorage(Storage):
                             region_name=getattr(settings, "DIC_MEMORY_S3_REGION", "us-east-1"))
 
     def _open(self, name, mode="rb"):
+        from .recording_storage import safe_key
+        safe_key(name)
         backend = self._backend()
         if backend is not None:
             return backend.open(name, mode)

@@ -25,7 +25,7 @@ class VideosView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        videos = CampVideo.objects.filter(state="published", published_at__isnull=False).select_related("edition").prefetch_related("activities")
+        videos = CampVideo.objects.exclude(video_url='').filter(state="published", published_at__isnull=False).select_related("edition").prefetch_related("activities")
         for parameter, field in (("edition", "edition_id"), ("activity", "activities__id")):
             value = request.query_params.get(parameter)
             if value:
