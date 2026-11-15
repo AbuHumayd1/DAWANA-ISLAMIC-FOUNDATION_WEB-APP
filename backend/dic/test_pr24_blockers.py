@@ -57,7 +57,8 @@ class CleanupAndInitiationTests(APITestCase):
         _apply_verified_transaction(attempt.pk, invalid)
         self.manager()
         self.assertEqual(payment_cleanup_state(self.order), 'reconciliation_required')
-        self.assertEqual(self.action('operations-registration-delete').status_code, 400)
+        self.assertEqual(self.action('operations-registration-delete').status_code, 200)
+        self.assertEqual(self.action('operations-registration-restore-deleted').status_code, 200)
         with patch('dic.payments.PaystackClient') as factory:
             factory.return_value.verify_transaction.return_value = invalid
             response = self.action('operations-registration-recheck-payment')
@@ -70,7 +71,7 @@ class CleanupAndInitiationTests(APITestCase):
         self.assertEqual(self.order.status, 'submitted')
         self.assertTrue(PaymentAttempt.objects.filter(pk=attempt.pk, failure_code='provider_data_mismatch').exists())
 
-    def test_late_settlement_of_archived_order_is_preserved_and_returns_to_active(self):
+    def test_late_settlement_of_archived_order_is_preserved_without_unarchiving(self):
         attempt = self.create_pending_attempt('synthetic-late-settlement')
         _apply_verified_transaction(attempt.pk, self.provider_result(attempt.reference, status='failed', paid_at=None))
         self.manager()
@@ -79,26 +80,31 @@ class CleanupAndInitiationTests(APITestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.payment_status, 'paid')
         self.assertEqual(self.order.status, 'confirmed')
-        self.assertFalse(archived_test_orders().filter(pk=self.order.pk).exists())
+        self.assertTrue(archived_test_orders().filter(pk=self.order.pk).exists())
+        self.assertEqual(self.client.get(reverse('dic:operations-registrations')).json()['count'], 0)
+        self.assertEqual(self.action('operations-registration-unarchive').status_code, 200)
         self.assertEqual(self.client.get(reverse('dic:operations-registrations')).json()['count'], 1)
-        self.assertEqual(self.action('operations-registration-delete').status_code, 400)
-        self.assertEqual(self.action('operations-registration-archive-test').status_code, 400)
+        self.assertEqual(self.action('operations-registration-archive-test').status_code, 200)
+        self.assertEqual(self.action('operations-registration-delete').status_code, 200)
 
-    def test_pending_and_unknown_never_enable_hard_delete(self):
+    def test_pending_and_unknown_can_be_trashed_without_erasing_evidence(self):
         attempt = self.create_pending_attempt('synthetic-uncertain')
         self.manager()
         for state in ('pending', 'init_unknown', 'verify_pending', 'failed'):
             PaymentAttempt.objects.filter(pk=attempt.pk).update(status=state)
             self.assertEqual(payment_cleanup_state(self.order), 'payment_in_progress_or_unknown')
-            self.assertEqual(self.action('operations-registration-delete').status_code, 400)
+            self.assertEqual(self.action('operations-registration-delete').status_code, 200)
+            self.assertTrue(PaymentAttempt.objects.filter(pk=attempt.pk, status=state).exists())
+            self.assertEqual(self.action('operations-registration-restore-deleted').status_code, 200)
 
     def test_authorization_confirmation_and_checkin_protection(self):
         self.assertEqual(self.action('operations-registration-archive-test').status_code, 403)
         actor = self.manager()
         CampCheckIn.objects.create(edition=self.edition, participant=self.order.items.get().participant, checked_in_by=actor)
-        self.assertEqual(self.action('operations-registration-archive-test').status_code, 400)
-        self.assertEqual(self.action('operations-registration-delete').status_code, 400)
-        self.assertFalse(DICAdminAuditEvent.objects.filter(action='registration_test_archived').exists())
+        self.assertEqual(self.action('operations-registration-archive-test').status_code, 200)
+        self.assertEqual(self.action('operations-registration-delete').status_code, 200)
+        self.assertTrue(CampCheckIn.objects.filter(edition=self.edition).exists())
+        self.assertTrue(DICAdminAuditEvent.objects.filter(action='registration_test_archived').exists())
 
     @override_settings(PAYSTACK_SECRET_KEY='')
     def test_authoritative_no_attempt_flag_does_not_require_account_recovery(self):

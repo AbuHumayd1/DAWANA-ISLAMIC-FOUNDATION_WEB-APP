@@ -74,15 +74,8 @@ def deleted_orders():
 
 
 def disposal_blocker(order):
-    blocker = archive_blocker(order, allow_deleted=True)
-    if blocker:
-        return blocker
-    state = payment_cleanup_state(order)
-    if state not in ('no_payment_attempt', 'failed_evidence_retained'):
-        return 'Payment is unresolved or mismatched. Verify/reconcile it before deletion; a failed label alone is insufficient.'
-    for attempt in order.payment_attempts.all():
-        if attempt.provider_paid_at or attempt.provider_status == 'success' or attempt.resolutions.exists():
-            return 'Payment or resolution evidence requires finance review before deletion.'
+    # Logical deletion retains financial/operational evidence. Payment state is
+    # never an eligibility gate on an explicit authorized Trash instruction.
     return ''
 
 
@@ -120,9 +113,6 @@ def _change_trash_locked(public_id, actor, confirmation, reason, restore):
     if restore:
         if not deleted:
             raise ValidationError('This registration is not in Trash.')
-        blocker = disposal_blocker(order)
-        if blocker:
-            raise ValidationError('Restoration requires review: '+blocker)
         from .security import new_order_access_token, digest_value
         order.access_token_digest = digest_value(new_order_access_token())
         order.access_token_expires_at = timezone.now()
@@ -133,9 +123,6 @@ def _change_trash_locked(public_id, actor, confirmation, reason, restore):
         if deleted:
             _activity(actor, 'registration_trash_repeat', order, reason, outcome='already_deleted')
             return str(order.public_id)
-        blocker = disposal_blocker(order)
-        if blocker:
-            raise ValidationError(blocker)
         order.access_token_revoked_at = timezone.now()
         order.save(update_fields=['access_token_revoked_at'])
         _activity(actor, 'registration_trashed', order, reason,
@@ -178,16 +165,6 @@ def payment_cleanup_state(order):
 def archive_blocker(order, allow_deleted=False):
     if not allow_deleted and is_deleted(order):
         return 'Restore this registration from Trash before archiving it.'
-    from .models import HouseAllocation
-    if order.registration_basis != 'paid' or order.payment_status not in ('pending', 'failed') or order.status == 'confirmed':
-        return 'Paid, refunded and complimentary registrations cannot use test archival.'
-    if order.payment_attempts.filter(status__in=('successful', 'duplicate_success')).exists():
-        return 'Successful payment evidence protects this registration.'
-    ids = order.items.values_list('participant_id', flat=True)
-    if (CampCheckIn.objects.filter(edition=order.edition, participant_id__in=ids).exists()
-            or HouseAllocation.objects.filter(edition=order.edition, participant_id__in=ids).exists()
-            or CampEnrollment.objects.filter(edition=order.edition, participant_id__in=ids, id_issues__isnull=False).exists()):
-        return 'An issued ID, check-in or housing record protects this registration.'
     return ''
 
 
@@ -195,27 +172,25 @@ def archived_test_orders():
     from django.db.models import OuterRef, Subquery, CharField
     from django.db.models.functions import Cast
     latest = DICAdminAuditEvent.objects.filter(target_type='RegistrationOrder', target_id=Cast(OuterRef('pk'), CharField()),
-        action__in=('registration_test_archived', 'registration_restored')).order_by('-pk').values('action')[:1]
-    return RegistrationOrder.objects.annotate(_archive_state=Subquery(latest)).filter(
-        _archive_state='registration_test_archived', payment_status__in=('pending', 'failed'),
-        registration_basis='paid').exclude(status='confirmed')
+        action__in=('registration_test_archived', 'registration_unarchived', 'registration_restored')).order_by('-pk').values('action')[:1]
+    return RegistrationOrder.objects.annotate(_archive_state=Subquery(latest)).filter(_archive_state='registration_test_archived')
 
 
 @transaction.atomic
-def archive_test_registration(public_id, actor, confirmation, reason):
+def archive_test_registration(public_id, actor, confirmation, reason, unarchive=False):
     if not disposable_permission(actor):
         raise PermissionDenied('Registration deletion and management permissions are required.')
     order = RegistrationOrder.objects.select_for_update().get(public_id=public_id)
     if confirmation != str(order.public_id) or not isinstance(reason, str) or not reason.strip():
-        raise ValidationError('Confirm the registration reference and give a test-record archival reason.')
+        raise ValidationError('Confirm the registration reference and give a reason.')
     blocker = archive_blocker(order)
     if blocker:
         raise ValidationError(blocker)
-    if not archived_test_orders().filter(pk=order.pk).exists():
-        DICAdminAuditEvent.objects.create(actor=actor, action='registration_test_archived',
-            target_type='RegistrationOrder', target_id=str(order.pk), details={'reference': str(order.public_id),
-                'reason': reason.strip()[:1000], 'payment_state': payment_cleanup_state(order), 'outcome': 'success',
-                'actor_id': actor.pk, 'actor_username': actor.get_username()})
-    # No payment state, token, attempt, account or registration is deleted/cancelled.
-    # A later verified settlement returns the order to active lists automatically.
+    archived = archived_test_orders().filter(pk=order.pk).exists()
+    action = 'registration_unarchived' if unarchive else 'registration_test_archived'
+    if archived != (not unarchive):
+        _activity(actor, action, order, reason, payment_state=payment_cleanup_state(order))
+    else:
+        _activity(actor, action+'_repeat', order, reason, outcome='already_unarchived' if unarchive else 'already_archived')
+    # Archive affects listing only; no status, payment, entitlement or token changes.
     return str(order.public_id)

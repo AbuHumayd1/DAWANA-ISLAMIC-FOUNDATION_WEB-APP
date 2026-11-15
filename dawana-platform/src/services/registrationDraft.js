@@ -8,3 +8,9 @@ export function paymentProtectionRequired(flow) {
 export function retainedRegistrationDraft(saved) {
   return paymentProtectionRequired(saved) ? saved : null
 }
+
+// Clear only this tab's draft, never account sessions, server orders or payments.
+export function clearRegistrationDraft(storage) {
+  try { (storage || globalThis.sessionStorage).removeItem('dawana.dic.registration.v1'); return true }
+  catch { return false }
+}

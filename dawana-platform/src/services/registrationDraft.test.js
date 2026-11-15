@@ -1,7 +1,7 @@
 ﻿import test from 'node:test'
 import assert from 'node:assert/strict'
 import { privateDraft } from './productionContract.js'
-import { paymentProtectionRequired, retainedRegistrationDraft } from './registrationDraft.js'
+import { clearRegistrationDraft, paymentProtectionRequired, retainedRegistrationDraft } from './registrationDraft.js'
 
 test('known pre-payment drafts clear even with an unused order or uncertain order submission', () => {
   for (const stale of [false, true]) {
@@ -26,4 +26,11 @@ test('ambiguous legacy order hints are never silently labelled never-initiated',
   assert.equal(paymentProtectionRequired(legacy), true)
   assert.equal(paymentProtectionRequired(privateDraft(legacy)), true)
   assert.equal(retainedRegistrationDraft({ participants: [], expiresAt: 1 }), null)
+})
+
+test('explicit fresh registration clears only the draft key and never account or payment authority', () => {
+  const storage = new Map([['dawana.dic.registration.v1', 'old-order'], ['account', 'preserved'], ['other', 'preserved']])
+  assert.equal(clearRegistrationDraft({removeItem: key => storage.delete(key)}), true)
+  assert.deepEqual([...storage], [['account', 'preserved'], ['other', 'preserved']])
+  assert.equal(clearRegistrationDraft({removeItem: () => { throw new Error('storage unavailable') }}), false)
 })

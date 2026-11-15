@@ -8,8 +8,8 @@ const base='http://127.0.0.1:5178', ref='11111111-1111-4111-8111-111111111111'
  for(const width of [390,1440]){
  const page=await browser.newPage({viewport:{width,height:960}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let deleted=false,archived=false,deleteRequests=0,restoreRequests=0,archiveRequests=0,confirmAction=true
  const record=()=>({id:ref,created_at:'2026-11-14T00:00:00Z',submitted_at:'2026-11-14T00:00:00Z',participant_count:0,categories:['Adult'],participants:[],quoted_total_ngn:'40000',payment_status:'failed',status:'submitted',registration_basis:'paid',record_state:deleted?'deleted':archived?'archived':'normal',deleted_at:deleted?'2026-11-14T01:00:00Z':null,deletion:{eligible:!deleted,reason:deleted?'Already in Trash.':'',reversible:true},restore:{eligible:deleted,reason:''},test_cleanup:{can_archive:!deleted,archived,archive_reason:deleted?'Restore from Trash first.':'',payment_state:'failed_evidence_retained',can_recheck:false}})
- const other={...record(),id:'22222222-2222-4222-8222-222222222222',payment_status:'pending',deletion:{eligible:false,reason:'Unresolved payment is protected.'},test_cleanup:{can_archive:false,archive_reason:'Protected fixture'}}
- const paid={...other,id:'33333333-3333-4333-8333-333333333333',payment_status:'paid',verified_paid:true,deletion:{eligible:false,reason:'Verified paid registration is protected.'}}
+ const other={...record(),id:'22222222-2222-4222-8222-222222222222',payment_status:'pending',deletion:{eligible:true,reason:''},test_cleanup:{can_archive:true,archive_reason:''}}
+ const paid={...other,id:'33333333-3333-4333-8333-333333333333',payment_status:'paid',verified_paid:true,deletion:{eligible:true,reason:''}}
  await page.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!==base)return route.abort();if(!u.pathname.startsWith('/api/'))return route.continue();let data={}
  if(u.pathname.endsWith('/auth/me/'))data={display_name:'Synthetic Administrator',role:'DIC Operator',permissions:{operations:true,registrations:true,participants:true,registration_cleanup:true}}
  if(u.pathname.endsWith('/csrf/'))data={csrfToken:'synthetic-csrf'}
@@ -28,7 +28,7 @@ const base='http://127.0.0.1:5178', ref='11111111-1111-4111-8111-111111111111'
  const row=()=>page.locator('tbody tr').filter({hasText:'11111111-1111'})
  await page.goto(base+'/dic/operations/registrations');await row().getByRole('button',{name:'Delete',exact:true}).waitFor()
  assert.equal(await row().getByRole('button',{name:'Archive',exact:true}).isEnabled(),true)
- assert.equal(await page.locator('tbody tr').filter({hasText:'33333333-3333'}).getByRole('button',{name:'Delete',exact:true}).isDisabled(),true)
+ assert.equal(await page.locator('tbody tr').filter({hasText:'33333333-3333'}).getByRole('button',{name:'Delete',exact:true}).isEnabled(),true)
  confirmAction=false;await row().getByRole('button',{name:'Delete',exact:true}).click();assert.equal(deleteRequests,0)
  confirmAction=true;await row().getByRole('button',{name:'Delete',exact:true}).click();await page.locator('p[role=status]').filter({hasText:'Delete completed'}).waitFor();await page.waitForFunction(()=>document.querySelectorAll('tbody tr').length===2);assert.equal(await row().count(),0);assert.equal(deleteRequests,1)
  await page.getByRole('link',{name:'Trash / Restore deleted registrations',exact:true}).click();await row().getByRole('button',{name:'Restore',exact:true}).waitFor();assert.equal(await row().getByRole('button',{name:'Delete',exact:true}).isDisabled(),true)
@@ -36,7 +36,7 @@ const base='http://127.0.0.1:5178', ref='11111111-1111-4111-8111-111111111111'
  await row().getByRole('link').first().click();await page.getByRole('heading',{name:'Registration in Trash'}).waitFor();await page.getByRole('button',{name:'Restore',exact:true}).click();await page.getByRole('status').filter({hasText:'was restored from Trash'}).waitFor();assert.equal(restoreRequests,1)
  await page.getByRole('link',{name:'Return to refreshed registrations',exact:true}).click();await row().getByRole('button',{name:'Archive',exact:true}).waitFor();await row().getByRole('button',{name:'Archive',exact:true}).click();await page.locator('p[role=status]').filter({hasText:'Archive completed'}).waitFor();await page.waitForFunction(()=>document.querySelectorAll('tbody tr').length===2);assert.equal(archiveRequests,1)
  await page.getByRole('link',{name:'All non-deleted registrations',exact:true}).click();await row().getByRole('button',{name:'Delete',exact:true}).waitFor();assert.equal(await row().getByRole('button',{name:'Archive',exact:true}).isDisabled(),true)
- await row().getByRole('link').first().click();await page.getByRole('button',{name:'Delete registration',exact:true}).waitFor();await page.getByLabel('Reason for deleting this test registration').fill('Owner selected synthetic test')
+ await row().getByRole('link').first().click();await page.getByRole('button',{name:'Delete registration',exact:true}).waitFor();await page.getByLabel('Reason for deleting this registration').fill('Owner selected synthetic test')
  await page.getByRole('button',{name:'Delete registration',exact:true}).click();await page.getByRole('status').filter({hasText:'was moved to Trash'}).waitFor();assert.equal(deleteRequests,2)
  assert.deepEqual(errors,[]);await page.close();console.log(`${width}: row Delete/Archive, cancel/confirm, Trash, detail Restore, old-link consequence and separate Archive behavior passed`)
  }
