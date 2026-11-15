@@ -9,6 +9,11 @@ from .services import money, require, payment_reason, registration_rows, command
 
 
 class FinancePolicyTests(SimpleTestCase):
+    def setUp(self):
+        state_patch = patch('dic_finance.services.lifecycle_orders')
+        state_patch.start().return_value.values_list.return_value = [(3, 'active')]
+        self.addCleanup(state_patch.stop)
+
     def actor(self, allowed=True):
         return NS(pk=7,is_authenticated=True,is_active=True,is_staff=True,has_perm=lambda name:allowed)
 

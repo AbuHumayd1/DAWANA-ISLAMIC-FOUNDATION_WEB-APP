@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getOperationsData, postOperationsData } from '../services/operationsApi'
-import { financePath, financeSections, naira, entryActions, receivedKobo, recentFinanceRows } from '../services/finance'
+import { financeColumnLabel, financePath, financeSections, naira, entryActions, receivedKobo, recentFinanceRows } from '../services/finance'
 import './Finance.css'
 
 const reports = ['registration', 'income', 'expenses', 'budgets', 'reconciliation', 'summary']
@@ -91,7 +91,7 @@ export default function Finance() {
       {tab === 'Overview' && <FinanceOverview summary={summary} permissions={permissions} payments={data.payments} entries={data.entries} busy={busy} onAction={next => { setTab(next); changeFilters({}); setNotice('') }} onDetail={setDetail} />}
       {!permissions.view_details && tab !== 'Overview' && <p>Finance transaction-detail permission is required.</p>}
       {permissions.view_details && <>
-        {['Registration revenue', 'Reconciliation'].includes(tab) && <FinanceTable rows={data.payments} columns={['reference', 'date', 'status', 'payment_status', 'amount_kobo', 'verified_kobo', 'exception', 'reconciliation']} onDetail={setDetail} />}
+        {['Registration revenue', 'Reconciliation'].includes(tab) && <FinanceTable rows={data.payments} columns={['reference', 'date', 'status', 'payment_status', 'registration_state', 'amount_kobo', 'verified_kobo', 'exception', 'reconciliation']} onDetail={setDetail} />}
         {['Other income', 'Expenses'].includes(tab) && <>
           {permissions[kind === 'income' ? 'record_income' : 'submit_expense'] && <FinanceEntryForm kind={kind} categories={data.categories} busy={busy} onSubmit={e => submit(e, 'create')} />}
           <FinanceTable rows={data.entries.filter(e => e.kind === kind)} columns={['title', 'category', 'date', 'amount_kobo', 'status', 'reference']} onDetail={setDetail} />
@@ -113,6 +113,7 @@ export function FinanceOverview({ summary, permissions, payments = [], entries =
       ['Money Received', receivedKobo(summary)], ['Money Spent', summary.expenditure_kobo],
       ['Recorded Net Position', summary.net_position_kobo],
     ].map(([label, value]) => <article key={label}><span>{label}</span><strong>{naira(value)}</strong></article>)}</div>
+    <p>Financial history includes Active, Archived and Deleted registrations. Registration deletion is not a refund, reversal or payment failure; genuine receipts remain in the totals.</p>
     <p>Online registration payments appear automatically once verified. Money Received also includes approved other income. Money Spent includes paid expenses only.</p>
     <p className="finance-note">These figures follow the selected filters. Recorded Net Position is recorded income minus paid expenses, not a reconciled bank balance or available operating balance.</p>
     <div className="finance-quick-actions">
@@ -123,7 +124,7 @@ export function FinanceOverview({ summary, permissions, payments = [], entries =
     <h2>Recent transactions</h2>
     {permissions.view_details ? <>
       <p className="finance-note">Up to 10 records, newest dates first, from the loaded transaction pages. Open the relevant Finance section to browse more. Drafts and unpaid expenses are excluded from the totals; online amounts show verified receipts after adjustments.</p>
-      <FinanceTable rows={rows} columns={['source', 'amount_kobo', 'date', 'status']} onDetail={row => onDetail(row.record)} />
+      <FinanceTable rows={rows} columns={['source', 'amount_kobo', 'date', 'status', 'registration_state']} onDetail={row => onDetail(row.record)} />
     </> : <p>Transaction-detail permission is required to see recent transactions.</p>}
     <details className="finance-tools"><summary>Approvals, budgets and payment checks</summary>
       <p>Approved but unpaid: {naira(summary.approved_unpaid_kobo)}. Approved budget: {naira(summary.approved_budget_kobo)}. Budget remaining: {naira(summary.remaining_budget_kobo)}.</p>
@@ -154,5 +155,5 @@ function Fields({ names }) {
 }
 function FinanceTable({ rows, columns, onDetail }) {
   if (!rows.length) return <p>No matching records. No financial data has been invented.</p>
-  return <div className="finance-table" tabIndex="0" role="region" aria-label="Financial records"><table><thead><tr>{columns.map(c => <th key={c}>{c.replaceAll('_', ' ')}</th>)}<th>Detail</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row.id || index}>{columns.map(c => <td key={c}>{c.endsWith('_kobo') ? naira(row[c]) : String(row[c] ?? '')}</td>)}<td><button onClick={() => onDetail(row)}>View</button></td></tr>)}</tbody></table></div>
+  return <div className="finance-table" tabIndex="0" role="region" aria-label="Financial records"><table><thead><tr>{columns.map(c => <th key={c}>{financeColumnLabel(c)}</th>)}<th>Detail</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row.id || index}>{columns.map(c => <td key={c}>{c.endsWith('_kobo') ? naira(row[c]) : String(row[c] ?? '')}</td>)}<td><button onClick={() => onDetail(row)}>View</button></td></tr>)}</tbody></table></div>
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getOperationsData, postOperationsData } from '../services/operationsApi'
 import { ParticipantIDCard } from './ParticipantPortal'
 import { createLatestResource } from '../services/requestScope'
@@ -7,6 +7,8 @@ import { eligibilityLabel } from '../services/participantIdentity'
 
 export default function StaffParticipantIDs({ user }) {
   const [params] = useSearchParams()
+  const view = params.get('view') || 'active'
+  const history = view === 'history'
   const hint = params.get('enrollment') || ''
   const initial = /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(hint) ? hint : ''
   const [query, setQuery] = useState(initial)
@@ -16,18 +18,18 @@ export default function StaffParticipantIDs({ user }) {
   const { data } = listing
   const [revision, setRevision] = useState(0)
   const [resource] = useState(() => createLatestResource(
-    ({ query, page }, signal) => getOperationsData(`/enrollments/?q=${encodeURIComponent(query)}&page=${page}`, { signal }), setListing))
+    ({ query, page, view }, signal) => getOperationsData(`/enrollments/?q=${encodeURIComponent(query)}&page=${page}&view=${view}`, { signal }), setListing))
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [card, setCard] = useState(null)
   const [reason, setReason] = useState('')
   const [source, setSource] = useState({})
   const [restrictions, setRestrictions] = useState({})
-  const load = () => resource.run({ query: active, page })
+  const load = () => resource.run({ query: active, page, view })
   useEffect(() => {
-    resource.run({ query: active, page })
+    resource.run({ query: active, page, view })
     return () => resource.cancel()
-  }, [resource, active, page, revision])
+  }, [resource, active, page, revision, view])
   const perform = async (action) => {
     setLoading(true); setError('')
     try { await action(); await load() } catch (e) { setError(e.message) } finally { setLoading(false) }
@@ -36,6 +38,8 @@ export default function StaffParticipantIDs({ user }) {
   if (card) return <ParticipantIDCard staff card={card} onClose={() => setCard(null)} />
   return <>
     <div className="ops-page-heading"><div><span className="ops-eyebrow">Participant identification</span><h1>Participant IDs</h1><p>Find a participant and check their ID status.</p></div></div>
+    <nav aria-label="Participant ID record scope"><Link to="?view=active" aria-current={!history ? 'page' : undefined}>Active ID management</Link>{user.permissions.audit && <> · <Link to="?view=history" aria-current={history ? 'page' : undefined}>Administrative ID history</Link></>}</nav>
+    <p>{history ? 'Historical IDs include deleted and archived registrations. Issued records are retained; this view is read only.' : 'Only active registration sources appear in ordinary ID management.'}</p>
     <details className="ops-help"><summary>About participant IDs</summary><p>ID cards do not confirm arrival or authorise camp entry or departure. Issuing, replacing and revoking cards requires the existing staff permission.</p></details>
     {(error || listing.error) && <p className="participant-error" role="alert">{error || listing.error}</p>}
     <div className="staff-id-controls"><form className="ops-filterbar" onSubmit={(e) => { e.preventDefault(); if (loading) return; setPage(1); setActive(query); setError(''); setRevision((value) => value + 1) }}><label className="ops-filter">Participant number, booking reference or name<input disabled={loading} value={query} onChange={(e) => setQuery(e.target.value)} /></label><button className="ops-button ops-button-primary" disabled={loading}>Search</button></form>
@@ -44,13 +48,13 @@ export default function StaffParticipantIDs({ user }) {
     {listing.loading && <button className="ops-button ops-button-secondary" onClick={() => resource.cancel(true)}>Cancel search</button>}
     {listing.error && <button className="ops-button ops-button-secondary" onClick={() => setRevision((value) => value + 1)}>Retry search</button>}
     {!data ? <p role="status">{listing.loading ? 'Loading participant identification...' : listing.cancelled ? 'Search cancelled.' : 'No search results loaded.'}</p> : <>
-      <div className="participant-grid">{data.results.map((enrollment) => <article className="participant-summary" key={enrollment.id}><h2>{enrollment.name}</h2><p>{enrollment.participant_number}</p><p>{eligibilityLabel(enrollment.eligibility.code)}</p><p>ID: {enrollment.issue?.status || 'not issued'} {enrollment.issue && `· version ${enrollment.issue.version}`}</p><div className="portal-id-actions">
-        <button className="ops-button ops-button-secondary" disabled={loading || !enrollment.eligibility.eligible || enrollment.issue?.status !== 'current'} onClick={() => perform(async () => setCard(await getOperationsData(`/enrollments/${enrollment.id}/id/`)))}>View / print current ID</button>
-        {user.permissions.manage_ids && <><button className="ops-button ops-button-primary" disabled={loading || !enrollment.eligibility.eligible} onClick={() => manage(enrollment, enrollment.issue ? 'reissue' : 'issue')}>{enrollment.issue ? 'Replace ID' : 'Issue ID'}</button><button className="ops-button ops-button-secondary" disabled={loading || enrollment.issue?.status !== 'current'} onClick={() => manage(enrollment, 'revoke')}>Revoke ID</button></>}
-      </div>{user.permissions.review_id_sources && <div className="staff-id-controls"><label className="ops-filter">Reviewed registration source<select value={source[enrollment.id] || ''} onChange={(e) => setSource({ ...source, [enrollment.id]: e.target.value })}><option value="">Select source after reviewing evidence</option>{enrollment.sources.map((item) => <option key={item.id} value={item.id}>{item.reference} · {item.status} / {item.payment_status}</option>)}</select></label><label className="ops-filter">ID eligibility restriction (blank clears after review)<input maxLength={240} value={restrictions[enrollment.id] ?? enrollment.restriction_reason} onChange={(e) => setRestrictions({ ...restrictions, [enrollment.id]: e.target.value })} /></label><p>Saving a source review revokes any current issue. It does not change payment evidence.</p><button className="ops-button ops-button-secondary" disabled={loading || !source[enrollment.id]} onClick={() => manage(enrollment, 'review_source')}>Save reviewed source / restriction</button></div>}</article>)}</div>
+      <div className="participant-grid">{data.results.map((enrollment) => <article className="participant-summary" key={enrollment.id}><h2>{enrollment.name}</h2><p>{enrollment.participant_number}</p><p>Registration lifecycle: {enrollment.registration_lifecycle}</p><p>{eligibilityLabel(enrollment.eligibility.code)}</p>{history && enrollment.issue_history?.length > 0 && <details><summary>Issued ID history</summary>{enrollment.issue_history.map(issue => <p key={issue.version}>Version {issue.version} · issued {issue.issued_at} by {issue.issued_by} · {issue.revoked_at ? 'Revoked ' + issue.revoked_at : 'No recorded revocation'}</p>)}</details>}<p>ID: {enrollment.issue?.status || 'not issued'} {enrollment.issue && `· version ${enrollment.issue.version}`}</p><div className="portal-id-actions">
+        <button className="ops-button ops-button-secondary" disabled={history || loading || !enrollment.eligibility.eligible || enrollment.issue?.status !== 'current'} onClick={() => perform(async () => setCard(await getOperationsData(`/enrollments/${enrollment.id}/id/`)))}>View / print current ID</button>
+        {!history && user.permissions.manage_ids && <><button className="ops-button ops-button-primary" disabled={history || loading || !enrollment.eligibility.eligible} onClick={() => manage(enrollment, enrollment.issue ? 'reissue' : 'issue')}>{enrollment.issue ? 'Replace ID' : 'Issue ID'}</button><button className="ops-button ops-button-secondary" disabled={loading || enrollment.issue?.status !== 'current'} onClick={() => manage(enrollment, 'revoke')}>Revoke ID</button></>}
+      </div>{!history && user.permissions.review_id_sources && <div className="staff-id-controls"><label className="ops-filter">Reviewed registration source<select value={source[enrollment.id] || ''} onChange={(e) => setSource({ ...source, [enrollment.id]: e.target.value })}><option value="">Select source after reviewing evidence</option>{enrollment.sources.map((item) => <option key={item.id} value={item.id}>{item.reference} · {item.status} / {item.payment_status}</option>)}</select></label><label className="ops-filter">ID eligibility restriction (blank clears after review)<input maxLength={240} value={restrictions[enrollment.id] ?? enrollment.restriction_reason} onChange={(e) => setRestrictions({ ...restrictions, [enrollment.id]: e.target.value })} /></label><p>Saving a source review revokes any current issue. It does not change payment evidence.</p><button className="ops-button ops-button-secondary" disabled={loading || !source[enrollment.id]} onClick={() => manage(enrollment, 'review_source')}>Save reviewed source / restriction</button></div>}</article>)}</div>
       {data.results.length === 0 && <p>No enrollments match. Search the registration candidates below to prepare an enrollment.</p>}
       {data.pages > 1 && <div className="ops-pagination"><button disabled={loading || page <= 1} onClick={() => { setError(''); setPage(page - 1) }}>Previous</button><span>Page {data.page} of {data.pages}</span><button disabled={loading || page >= data.pages} onClick={() => { setError(''); setPage(page + 1) }}>Next</button></div>}
-      {user.permissions.manage_ids && <section className="ops-panel staff-id-controls"><h2>Registration candidates</h2><p>Up to 25 matching participants. Preparing an enrollment creates an individual number; it does not verify payment or issue an ID.</p>{data.registration_candidates.map((item) => <div className="ops-detail-row" key={item.registration_item_id}><span>{item.name} · {item.edition} · {item.category}</span><button className="ops-button ops-button-secondary" disabled={loading} onClick={() => perform(() => postOperationsData('/enrollments/', { registration_item_id: item.registration_item_id }))}>Create participant number</button></div>)}</section>}
+      {!history && user.permissions.manage_ids && <section className="ops-panel staff-id-controls"><h2>Registration candidates</h2><p>Up to 25 matching participants. Preparing an enrollment creates an individual number; it does not verify payment or issue an ID.</p>{data.registration_candidates.map((item) => <div className="ops-detail-row" key={item.registration_item_id}><span>{item.name} · {item.edition} · {item.category}</span><button className="ops-button ops-button-secondary" disabled={loading} onClick={() => perform(() => postOperationsData('/enrollments/', { registration_item_id: item.registration_item_id }))}>Create participant number</button></div>)}</section>}
     </>}
   </>
 }

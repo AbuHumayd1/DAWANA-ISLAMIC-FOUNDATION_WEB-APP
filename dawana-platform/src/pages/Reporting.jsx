@@ -51,7 +51,7 @@ export default function Reporting() {
     {!edition?<p>Choose an edition to load recorded camp data.</p>:!data&&!error?<p role="status">Loading filtered report...</p>:data&&<>
       <h2>{data.title} — {data.edition.name}</h2><p>Generated {data.generated_at} ({data.timezone})</p>
       {!data.available&&<p role="status"><strong>Not Yet Configured</strong></p>}
-      <ul className="report-notes">{data.notes.map((note,index)=><li key={index}>{note}</li>)}</ul>
+      <p className="finance-note">{data.scope_label}</p><ul className="report-notes">{data.notes.map((note,index)=><li key={index}>{note}</li>)}</ul>
       {data.can_export&&<nav className="feedback-actions" aria-label="Report exports">{['csv','print'].map(format=><a className="ops-button" key={format} target="_blank" rel="noopener noreferrer" href={getReportingExportUrl(params,format)}>{format==='csv'?'Download CSV':'Printable report'}</a>)}</nav>}
       <ReportMetrics metrics={data.metrics}/><ReportCharts series={data.series}/><ReportTable columns={data.columns} rows={data.rows}/>
       {data.count>0&&<nav className="report-pagination" aria-label="Report pages"><button disabled={data.page<=1} onClick={()=>page(data.page-1)}>Previous</button><span>Page {data.page} · {data.count} detail rows</span><button disabled={data.page*data.page_size>=data.count} onClick={()=>page(data.page+1)}>Next</button></nav>}

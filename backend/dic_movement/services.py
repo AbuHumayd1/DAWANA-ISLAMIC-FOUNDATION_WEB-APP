@@ -7,7 +7,7 @@ from dic.campsite_api import require_campsite_staff
 from dic.checkin_services import check_in_participant, checkin_summary, require_checkin_storage
 from dic.identity_tokens import digest
 from dic.models import CampCheckIn, DigitalIDIssue, Participant, RegistrationOrder, RegistrationOrderItem, DICAdminAuditEvent
-from dic.participant_services import eligibility
+from dic.registration_scope import operational_eligibility as eligibility
 from .models import Movement
 
 
@@ -111,6 +111,9 @@ def record_movement(edition, participant_id, actor, data, token=None):
                 or existing.reason != reason.strip() or existing.authorization_reference != reference):
             raise ValidationError('This request identifier was already used for a different action.')
         return existing, False
+    from dic.registration_scope import active_orders
+    if kind == 'return' and not active_orders().filter(edition=edition, items__participant_id=participant_id).exists():
+        raise ValidationError('An active registration is required for a new return. Historical movement records remain unchanged.')
     current = snapshot(edition, participant_id, actor)
     from dic.models import CampEnrollment
     enrollment = CampEnrollment.objects.filter(edition=edition, participant_id=participant_id).first()

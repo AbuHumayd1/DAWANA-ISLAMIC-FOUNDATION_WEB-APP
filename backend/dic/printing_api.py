@@ -9,7 +9,7 @@ from .operations_api import OperationsBaseView
 from .identity_cards import card_context, current_issue, require_staff
 from .identity_views import secured
 from .models import CampEnrollment, DICAdminAuditEvent, RegistrationOrder, Participant, DigitalIDIssue
-from .participant_services import eligibility
+from .registration_scope import active_orders, operational_eligibility as eligibility
 from .portrait_pdf import house_details, render_pdf, require_pdf_dependencies
 from .media_delivery import safe_media
 
@@ -41,7 +41,7 @@ class PrintingDirectoryView(OperationsBaseView):
             for card in event.details.get('cards', []):
                 (printed if is_printed else exported).add((card['enrollment_id'], card['issue_id']))
         rows = []
-        for enrollment in CampEnrollment.objects.select_related('participant', 'edition', 'source_item__category').order_by('participant_number'):
+        for enrollment in CampEnrollment.objects.filter(source_item__order__in=active_orders()).select_related('participant', 'edition', 'source_item__category').order_by('participant_number'):
             issue = current_issue(enrollment)
             if not printable(enrollment, issue):
                 continue
@@ -81,6 +81,8 @@ class PrintingExportView(OperationsBaseView):
             list(Participant.objects.select_for_update().filter(pk__in=[e.participant_id for e in initial]).order_by('pk'))
             enrollments = list(CampEnrollment.objects.select_for_update().filter(pk__in=ids).order_by('participant_number'))
             list(DigitalIDIssue.objects.select_for_update().filter(enrollment__in=enrollments))
+            if any(not eligibility(e)['eligible'] for e in enrollments):
+                raise ValidationError('Only active, eligible registrations may be exported. Historical IDs are retained.')
             cards = [card_context(request, e) for e in enrollments]
             payload = render_pdf(cards)
             batch = str(uuid.uuid4())

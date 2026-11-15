@@ -125,7 +125,8 @@ def eligible_members(edition, day=None, participant_id=None, house_id=None, lock
         and row.house.edition_id == edition.pk and row.house.purpose == 'participants'
         and row.house.status == 'active' and (house_id is None or row.house_id == house_id)]
     ids = [row.participant_id for row in allocations]
-    sources = RegistrationOrderItem.objects.filter(participant_id__in=ids, order__edition=edition)
+    from .registration_scope import active_orders, operational_eligibility
+    sources = RegistrationOrderItem.objects.filter(participant_id__in=ids, order__in=active_orders().filter(edition=edition))
     source_ids = set(sources.values_list('pk', flat=True))
     if lock:
         list(RegistrationOrder.objects.select_for_update().filter(pk__in=sources.values('order_id')).order_by('pk'))
@@ -152,7 +153,7 @@ def eligible_members(edition, day=None, participant_id=None, house_id=None, lock
             continue
         candidate = enrollments.get(pid) or SimpleNamespace(source_item_id=items[pid].pk,
             participant_id=pid, edition_id=edition.pk, source_review_fingerprint='', restriction_reason='')
-        if eligibility(candidate)['eligible']:
+        if operational_eligibility(candidate)['eligible']:
             result.append(allocation)
     return result
 

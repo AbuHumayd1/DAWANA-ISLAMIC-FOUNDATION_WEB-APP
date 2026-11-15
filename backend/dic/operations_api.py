@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 from rest_framework.negotiation import DefaultContentNegotiation
 
 from .allocation import paid_participants, unallocated_paid_participants
-from .registration_scope import active_orders
+from .registration_scope import active_orders, lifecycle_state, LABELS
 from .models import (
     CampEdition,
     DICAdminAuditEvent,
@@ -313,6 +313,8 @@ def _order_data(order, user, include_detail=False):
                     else None
                 ),
                 "currency": attempt.currency,
+                "registration_lifecycle": lifecycle_state(attempt.order),
+                "registration_state": LABELS[lifecycle_state(attempt.order)],
                 "provider_currency": attempt.provider_reported_currency or None,
                 "provider_status": attempt.provider_status,
                 "provider_paid_at": attempt.provider_paid_at.isoformat()
@@ -1044,6 +1046,8 @@ class OperationsPaymentListView(OperationsBaseView):
                 "reference": attempt.reference,
                 "resolution_count": attempt.resolutions.count(),
                 "order_reference": str(attempt.order.public_id),
+                "registration_lifecycle": lifecycle_state(attempt.order),
+                "registration_state": LABELS[lifecycle_state(attempt.order)],
                 "status": attempt.status,
                 "verified_paid": _verified_payment(attempt.order),
                 "expected_amount_ngn": str(Decimal(attempt.amount_kobo) / 100),
@@ -1171,7 +1175,7 @@ def _report_rows(report_type, queryset, user, edition=None):
             headers.extend(("Email", "Phone", "Address"))
         rows = []
         for participant in queryset:
-            item = participant.registration_items.filter(order__edition=edition).select_related("order", "category").first()
+            item = participant.registration_items.filter(order__in=active_orders().filter(edition=edition)).select_related("order", "category").first()
             allocation = participant.house_allocations.filter(
                 status=HouseAllocation.Status.ALLOCATED, edition=edition,
             ).select_related("house").first()
@@ -1192,7 +1196,7 @@ def _report_rows(report_type, queryset, user, edition=None):
     if report_type == "payments":
         if not include_finance:
             raise PermissionDenied
-        headers = ["Registration reference", "Payment reference", "Expected amount (NGN)", "Provider amount (NGN)", "Currency", "Provider currency", "Attempt status", "Verified paid", "Provider completion time", "Reconciliation reason"]
+        headers = ["Registration reference", "Payment reference", "Expected amount (NGN)", "Provider amount (NGN)", "Currency", "Provider currency", "Attempt status", "Verified paid", "Provider completion time", "Reconciliation reason", "Registration lifecycle"]
         rows = [
             [
                 str(attempt.order.public_id),
@@ -1205,6 +1209,7 @@ def _report_rows(report_type, queryset, user, edition=None):
                 "Yes" if _verified_payment(attempt.order) else "No",
                 attempt.provider_paid_at.isoformat() if attempt.provider_paid_at else "",
                 attempt.failure_code,
+                LABELS[lifecycle_state(attempt.order)],
             ]
             for attempt in queryset
         ]
@@ -1342,7 +1347,8 @@ class OperationsReportView(OperationsBaseView):
             queryset = House.objects.filter(edition=edition).annotate(
                 allocated_count=Count(
                     "allocations",
-                    filter=Q(allocations__status=HouseAllocation.Status.ALLOCATED),
+                    filter=Q(allocations__status=HouseAllocation.Status.ALLOCATED,
+                        allocations__participant_id__in=RegistrationOrderItem.objects.filter(order__in=active_orders().filter(edition=edition)).values("participant_id")),
                     distinct=True,
                 )
             ).select_related("edition")

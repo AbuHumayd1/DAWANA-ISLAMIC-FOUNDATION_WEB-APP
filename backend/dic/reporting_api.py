@@ -53,6 +53,7 @@ class ReportingView(OperationsBaseView):
             raise PermissionDenied('Finance detail and export permissions are required.')
         selected['_exporting']=bool(exporting)
         data=services.page_result(services.report(edition,selected,request.user,domain),selected,exporting=bool(exporting))
+        data['scope_label'] = ('Active operational registrations' if domain in ('overview', 'registration', 'accommodation') else 'Historical records; all registration lifecycle states')
         data.update(domain=domain,title=services.DOMAINS[domain][0],edition={'id':edition.pk,'name':edition.name},
             filters={key:value for key,value in selected.items() if key!='q' and not key.startswith('_')},
             categories=list(RegistrationCategory.objects.filter(edition=edition).order_by('name').values('id','name')),

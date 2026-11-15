@@ -7,7 +7,8 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from dic.models import CampEdition, PaymentAttempt, DICAdminAuditEvent
+from dic.models import CampEdition, PaymentAttempt, DICAdminAuditEvent, RegistrationOrder
+from dic.registration_scope import lifecycle_orders, LABELS
 from dic.payment_views import _revision_is_valid_at_payment
 from .models import Category, Entry, BudgetRevision, Reconciliation
 
@@ -68,6 +69,7 @@ def registration_rows(edition, filters, *, report_timezone=None, order_ids=None)
     if filters.get('category'):
         attempts = attempts.filter(order__items__category_id=filters['category']).distinct()
     # Receipt dates use provider completion time; unresolved attempts use creation date.
+    states = dict(lifecycle_orders(RegistrationOrder.objects.filter(edition_id=edition.pk)).values_list('pk', 'registration_lifecycle'))
     rows, seen_orders, seen_provider = [], set(), set()
     review_orders = set(attempts.filter(status__in=['reconcile','amount_mismatch','duplicate_success']).values_list('order_id',flat=True))
     notes, histories = {}, {}
@@ -98,6 +100,8 @@ def registration_rows(edition, filters, *, report_timezone=None, order_ids=None)
             seen_orders.add(attempt.order_id); seen_provider.add(attempt.provider_transaction_id)
         row = dict(id=str(attempt.pk), reference=attempt.reference, order=str(attempt.order.public_id),
             date=day.isoformat(), status=attempt.status, provider_mode=attempt.provider_mode,
+            registration_lifecycle=states[attempt.order_id],
+            registration_state=LABELS[states[attempt.order_id]],
             payment_status=attempt.order.payment_status,
             amount_kobo=attempt.amount_kobo, provider_amount_kobo=attempt.provider_reported_amount_kobo,
             provider_transaction_id=attempt.provider_transaction_id, verified_kobo=received,gross_verified_kobo=gross,

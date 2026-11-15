@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from .operations_api import OperationsBaseView, _edition_from_request
 from .campsite_api import require_campsite_staff
 from .models import CampEdition
+from .registration_scope import operations_view
 from .checkin_services import (require_checkin_staff, require_checkin_storage,
     checkin_directory, check_in_participant, checkin_summary)
 
@@ -14,6 +15,7 @@ from .checkin_services import (require_checkin_staff, require_checkin_storage,
 class CampCheckInView(OperationsBaseView):
     def get(self, request):
         require_campsite_staff(request.user)
+        view = operations_view(request.query_params, request.user)
         printing = request.query_params.get('print') == '1'
         if printing and not request.user.has_perm('dic.can_export_dic_reports'):
             raise PermissionDenied('Report export permission is required to print the check-in list.')
@@ -22,10 +24,10 @@ class CampCheckInView(OperationsBaseView):
         search = request.query_params.get('search', '').strip()
         if len(search) > 200:
             raise ValidationError('Search must be 200 characters or fewer.')
-        rows, totals = checkin_directory(edition, search) if edition else ([], None)
+        rows, totals = checkin_directory(edition, search, **({'view': view} if view != 'active' else {})) if edition else ([], None)
         if printing:
             html = render_to_string('dic/checkin_list.html', dict(edition=edition,
-                rows=rows, totals=totals, search=search, generated_at=timezone.now()))
+                rows=rows, totals=totals, search=search, scope_label='Active registrations' if view == 'active' else 'Historical registrations: all lifecycle states', generated_at=timezone.now()))
             response = HttpResponse(html, content_type='text/html; charset=utf-8')
             response['Cache-Control'] = 'private, no-store'
             return response
@@ -37,6 +39,7 @@ class CampCheckInView(OperationsBaseView):
             raise ValidationError('Choose a valid page.') from exc
         return Response(dict(edition=dict(id=edition.pk, name=edition.name) if edition else None,
             editions=list(CampEdition.objects.order_by('-year', '-pk').values('id', 'name', 'year')),
+            view=view, scope_label='Active registrations' if view == 'active' else 'Historical registrations: all lifecycle states',
             totals=totals, count=len(rows), page=page, page_size=25,
             results=rows[(page-1)*25:page*25]))
 

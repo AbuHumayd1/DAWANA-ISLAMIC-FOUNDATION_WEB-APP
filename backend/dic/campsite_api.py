@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from .operations_api import OperationsBaseView, _edition_from_request
 from .models import CampEdition, CampEnrollment, RegistrationOrderItem, HouseAllocation, DigitalIDIssue
-from .participant_services import eligibility
+from .registration_scope import operational_eligibility as eligibility
 from .registration_scope import active_orders
 
 

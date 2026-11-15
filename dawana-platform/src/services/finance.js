@@ -10,10 +10,10 @@ export function receivedKobo(summary = {}) {
 export function recentFinanceRows(payments = [], entries = []) {
   return [
     ...payments.map(row => ({ id: `payment-${row.id}`, source: 'Online registration',
-      amount_kobo: row.verified_kobo, date: row.date,
+      amount_kobo: row.verified_kobo, date: row.date, registration_state: row.registration_state || '',
       status: row.verified_kobo > 0 ? 'Received' : `Not received (${row.excluded_reason || row.status})`, record: row })),
     ...entries.map(row => ({ id: `entry-${row.id}`, source: row.kind === 'income' ? 'Other income' : 'Expense',
-      amount_kobo: row.amount_kobo, date: row.date, status: row.status, record: row })),
+      amount_kobo: row.amount_kobo, date: row.date, registration_state: 'Not applicable', status: row.status, record: row })),
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)) || a.id.localeCompare(b.id)).slice(0, 10)
 }
 export function naira(kobo) {
@@ -32,4 +32,8 @@ export function entryActions(entry, permissions) {
   if (['draft', 'submitted'].includes(entry.status) && permissions.approve) result.push('cancel')
   if (['approved', 'paid'].includes(entry.status) && permissions.reconcile) result.push('reverse')
   return result
+}
+
+export function financeColumnLabel(column) {
+  return column.endsWith('_kobo') ? column.slice(0, -5).replaceAll('_', ' ') + ' (NGN)' : column.replaceAll('_', ' ')
 }
