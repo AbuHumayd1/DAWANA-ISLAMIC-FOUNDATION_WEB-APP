@@ -1,3 +1,4 @@
+import RegistrationTabs from '../components/operations/RegistrationTabs'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -291,7 +292,7 @@ function DashboardPage() {
       {activity && <p role="status">{activity}</p>}
       <section className="ops-metric-grid" aria-label="Registration metrics">
         <MetricCard title="Registration orders" value={metrics.orders} note="Parent or guardian checkouts" icon="clipboard" to="/dic/operations/registrations" />
-        <MetricCard title="Individual participants" value={metrics.participants} note="Participants across all orders" icon="users" tone="gold" to="/dic/operations/participants" />
+        <MetricCard title="Individual participants" value={metrics.participants} note="Participants in active registrations" icon="users" tone="gold" to="/dic/operations/participants" />
         <MetricCard title="Verified paid orders" value={metrics.verified_paid_orders} note={`${paidRate}% of all orders`} icon="card" tone="green" to="/dic/operations/registrations?payment_status=paid" />
         <MetricCard title="Paid participants" value={metrics.verified_paid_participants} note="Payment verified by provider" icon="users" tone="green" to="/dic/operations/participants?payment_status=paid" />
         <MetricCard title="Pending / unpaid" value={metrics.pending_unpaid_orders} note="Orders awaiting payment" icon="card" tone="amber" to="/dic/operations/registrations?payment_status=pending" />
@@ -400,7 +401,7 @@ function RegistrationListPage({ user }) {
   const { data: filterOptions } = useData('/filters/')
   return <>
     {activity && <p role="status">{activity}</p>}
-    <nav aria-label="Registration records" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBlock: '1rem' }}><Link to="/dic/operations/registrations">Active registrations</Link> <Link to="/dic/operations/registrations?archive=all">All non-deleted registrations</Link> <Link to="/dic/operations/registrations?archive=archived">Archived registrations</Link>{user?.permissions.registration_cleanup && <Link to="/dic/operations/registrations?archive=trash">Trash / Restore deleted registrations</Link>}</nav>
+    <RegistrationTabs canRestore={Boolean(user?.permissions.registration_cleanup)} />
     <PageHeading eyebrow="DIC 2026" title="Registrations" description="Find registrations and check their payment status." />
     <section className="ops-panel ops-list-panel"><form className="ops-filterbar ops-filterbar-refined" onSubmit={submit}><div className="ops-primary-filters"><SearchBar value={filters.q} onChange={(value) => update('q', value)} /><FilterSelect label="Payment status" value={filters.payment_status} onChange={(value) => update('payment_status', value)} options={ [['pending', 'Pending'], ['paid', 'Paid'], ['failed', 'Failed'], ['refunded', 'Refunded']] } /></div><MoreFilters><FilterSelect label="Registration view" value={filters.archive} onChange={value => update('archive', value)} options={[['active', 'Active registrations'], ['expired', 'Expired archive'], ['archived', 'Archived registrations'], ['all', 'All non-deleted registrations'], ...(user?.permissions.registration_cleanup ? [['trash', 'Trash / Restore']] : [])]} /><FilterSelect label="Order status" value={filters.status} onChange={(value) => update('status', value)} options={ [['submitted', 'Submitted'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled']] } /><FilterSelect label="Category" value={filters.category} onChange={(value) => update('category', value)} options={(filterOptions?.categories || []).map((item) => [item.id, item.name])} /><FilterSelect label="House" value={filters.house} onChange={(value) => update('house', value)} options={(filterOptions?.houses || []).map((item) => [item.id, item.name])} /><DateFilter label="From" value={filters.date_from} onChange={(value) => update('date_from', value)} /><DateFilter label="To" value={filters.date_to} onChange={(value) => update('date_to', value)} /></MoreFilters><FilterActions onClear={clear} /></form>
       {loading ? <LoadingState /> : error ? <ErrorState error={error} onRetry={retry} /> : <RegistrationTable rows={data.results} count={data.count} onUpdated={(action, reference) => { setActivity(`${reference}: ${action} completed.`); retry() }} /> }

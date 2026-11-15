@@ -13,6 +13,8 @@ from .models import (
     RegistrationOrder,
     RegistrationOrderItem,
 )
+from .registration_scope import active_orders
+
 from .pricing import (
     PricingConfigurationError,
     current_order_prices,
@@ -24,12 +26,12 @@ def operations_dashboard(request):
     if not request.user.has_perm("dic.can_view_dic_operations"):
         raise PermissionDenied
 
-    verified_paid = RegistrationOrder.objects.filter(
+    verified_paid = active_orders().filter(
         payment_status=RegistrationOrder.PaymentStatus.PAID,
         status=RegistrationOrder.Status.CONFIRMED,
         payment_attempts__status=PaymentAttempt.Status.SUCCESSFUL,
     ).distinct()
-    unpaid = RegistrationOrder.objects.filter(
+    unpaid = active_orders().filter(
         payment_status__in=(
             RegistrationOrder.PaymentStatus.PENDING,
             RegistrationOrder.PaymentStatus.FAILED,
@@ -40,7 +42,7 @@ def operations_dashboard(request):
         status=PaymentAttempt.Status.SUCCESSFUL,
     )
     unverified_paid = (
-        RegistrationOrder.objects.filter(
+        active_orders().filter(
             payment_status=RegistrationOrder.PaymentStatus.PAID,
         )
         .annotate(has_successful_attempt=Exists(successful_attempt))
@@ -62,6 +64,7 @@ def operations_dashboard(request):
     if request.user.has_perm("dic.can_view_dic_finance"):
         reconciliation_order_ids = set(
             PaymentAttempt.objects.filter(
+                order__in=active_orders(),
                 status__in=(
                     PaymentAttempt.Status.AMOUNT_MISMATCH,
                     PaymentAttempt.Status.RECONCILIATION_REQUIRED,
@@ -88,7 +91,7 @@ def operations_dashboard(request):
 
     attention_ids = set(needs_attention)
     attention_orders = (
-        RegistrationOrder.objects.filter(pk__in=attention_ids)
+        active_orders().filter(pk__in=attention_ids)
         .select_related("edition")
         .order_by("-created_at")[:10]
     )
@@ -102,7 +105,7 @@ def operations_dashboard(request):
     ]
 
     category_counts = (
-        RegistrationOrderItem.objects.values(
+        RegistrationOrderItem.objects.filter(order__in=active_orders()).values(
             "order__edition__year",
             "category_name_snapshot",
         )
@@ -115,6 +118,9 @@ def operations_dashboard(request):
     house_counts = (
         HouseAllocation.objects.filter(
             status=HouseAllocation.Status.ALLOCATED,
+            participant_id__in=RegistrationOrderItem.objects.filter(
+                order__in=active_orders(), order__edition_id=OuterRef('edition_id')
+            ).values('participant_id'),
         )
         .values("edition__year", "house__name")
         .annotate(participants=Count("participant_id", distinct=True))
@@ -125,8 +131,8 @@ def operations_dashboard(request):
         **admin.site.each_context(request),
         "title": "DIC operations",
         "report_editions": CampEdition.objects.order_by("-year"),
-        "total_orders": RegistrationOrder.objects.count(),
-        "individual_participants": RegistrationOrderItem.objects.values(
+        "total_orders": active_orders().count(),
+        "individual_participants": RegistrationOrderItem.objects.filter(order__in=active_orders()).values(
             "participant_id"
         ).distinct().count(),
         "verified_paid_orders": verified_paid.count(),

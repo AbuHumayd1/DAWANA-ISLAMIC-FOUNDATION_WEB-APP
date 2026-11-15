@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from .operations_api import OperationsBaseView, _edition_from_request
 from .models import CampEdition, CampEnrollment, RegistrationOrderItem, HouseAllocation, DigitalIDIssue
 from .participant_services import eligibility
+from .registration_scope import active_orders
 
 
 def require_campsite_staff(user):
@@ -16,7 +17,7 @@ def require_campsite_staff(user):
 
 def campsite_metrics(edition):
     """Use the existing ID eligibility definition without preparing or issuing IDs."""
-    items = RegistrationOrderItem.objects.filter(order__edition=edition).exclude(order__status='cancelled').select_related(
+    items = RegistrationOrderItem.objects.filter(order__in=active_orders().filter(edition=edition)).select_related(
         'participant', 'order', 'category').order_by('participant_id', 'pk')
     enrollments = {row.participant_id: row for row in CampEnrollment.objects.filter(
         edition=edition).select_related('participant', 'edition', 'source_item')}
@@ -59,11 +60,11 @@ class CampsiteOverviewView(OperationsBaseView):
             edition=dict(id=edition.pk, name=edition.name, year=edition.year) if edition else None,
             editions=editions, metrics=campsite_metrics(edition) if edition else None,
             definitions=dict(
-                registered_participants='Distinct participants with active registration items in this edition; cancelled bookings are excluded.',
+                registered_participants='Distinct participants with active registration items in this edition; trashed, archived, expired and cancelled bookings are excluded.',
                 eligible_participants='Existing ID eligibility: confirmed registration, trusted payment evidence and no unresolved source or identity restriction.',
                 awaiting_payment_verification='Non-cancelled participants failing the registration/payment state check. Other evidence problems appear under attention.',
                 assigned_participants='Registered participants with an active allocation record in this edition; this is not a housing-policy certification.',
                 awaiting_house_assignment='Eligible participants without an active allocation record in this edition.',
                 active_ids='Eligible participants with an unrevoked, unexpired QR credential. Does not establish attendance.',
-                requiring_attention='Ineligible participants requiring review beyond pending registration/payment state, including cancelled registrations.',
+                requiring_attention='Ineligible participants requiring review beyond pending registration/payment state, among active registrations.',
                 attendance='Unavailable: campsite check-in and attendance are not implemented in Phase 2.1.')))
