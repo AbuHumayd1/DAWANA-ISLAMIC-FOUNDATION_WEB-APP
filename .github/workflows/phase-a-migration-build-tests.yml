@@ -43,13 +43,13 @@ jobs:
           from config.phase_a_migration_build import TARGET
           loader = MigrationLoader(None)
           assert not loader.detect_conflicts()
-          assert TARGET in loader.graph.nodes
-assert ('dic', '0042_integrated_camp_2026') in loader.graph.nodes
-assert any(
-    TARGET in loader.graph.forwards_plan(leaf)
-    and ('dic', '0042_integrated_camp_2026') in loader.graph.forwards_plan(leaf)
-    for leaf in loader.graph.leaf_nodes('dic')
-)
+                    assert TARGET in loader.graph.nodes
+          assert ('dic', '0042_integrated_camp_2026') in loader.graph.nodes
+          assert any(
+              TARGET in loader.graph.forwards_plan(leaf)
+              and ('dic', '0042_integrated_camp_2026') in loader.graph.forwards_plan(leaf)
+              for leaf in loader.graph.leaf_nodes('dic')
+          )
           assert ('dic', '0040_username_credential_transition') in loader.graph.forwards_plan(TARGET)
           print('PASS: real Phase A graph; no database connection.')
           PY
