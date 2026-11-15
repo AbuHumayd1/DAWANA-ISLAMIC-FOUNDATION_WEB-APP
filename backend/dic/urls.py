@@ -1,3 +1,4 @@
+from .camp_release_api import CamperResourcesView,CamperRecordingView,CamperCertificateView
 from django.urls import path
 from dic_finance.api import FinanceView
 from dic_movement.api import ScanView, MovementView
@@ -64,6 +65,9 @@ from .participant_api import (
 )
 
 urlpatterns = [
+    path('participant/resources/',CamperResourcesView.as_view(),name='camper-resources'),
+    path('participant/recordings/<str:kind>/<int:pk>/',CamperRecordingView.as_view(),name='camper-recording'),
+    path('participant/certificate/',CamperCertificateView.as_view(),name='camper-certificate'),
     path('operations/registrations/<uuid:public_id>/restore-deleted/', OperationsRegistrationRestoreView.as_view(), name='operations-registration-restore-deleted'),
     path('operations/registrations/<uuid:public_id>/unarchive/', OperationsRegistrationUnarchiveView.as_view(), name='operations-registration-unarchive'),
     path('operations/registrations/<uuid:public_id>/archive-test/', OperationsRegistrationArchiveView.as_view(), name='operations-registration-archive-test'),

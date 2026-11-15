@@ -1,3 +1,4 @@
+import CamperDay from './CamperDay'
 import { useEffect, useState } from 'react'
 import { participantRequest } from '../../services/participantApi'
 import { timetablePath } from '../../services/timetables'
@@ -56,6 +57,7 @@ export default function CamperHome({ participant, data, scoreState, onNavigate, 
     <section className="cp-welcome"><div className="cw-hero-copy"><span className="cp-kicker">DIC CAMPER WORLD</span><h1>As-salāmu ʿalaykum,<br /><span>{participant.name}.</span></h1><p>Welcome to your DIC experience.</p></div><div className="cw-hero-art" aria-hidden="true"><span>✦</span><Icon name="camp" /><span>☾</span></div><div className="cp-hero-status"><span><Icon name="day" /><small>Your journey</small><strong>{campDayLabel(published.data)}</strong></span>{!tutor && <span><Icon name="points" /><small>Verified points</small><strong>{data?.ready ? data.total : 'Not yet available'}</strong></span>}<span><Icon name={tutor ? 'explore' : 'arena'} /><small>{tutor ? 'Your role' : 'Your house'}</small><strong>{tutor ? 'Camp tutor' : house || 'Assignment coming soon'}</strong></span></div></section>
     <FeatureTiles onNavigate={onNavigate} Icon={Icon} tutor={tutor} />
     <div className="cp-home-columns"><ProgrammePreview {...published} onRetry={published.retry} onNavigate={onNavigate} />{!tutor && <section className="cp-card cp-championship"><div className="cp-card-title"><div><span className="cp-kicker">THE SPIRIT OF TOGETHERNESS</span><h2>House championship</h2></div><button onClick={() => onNavigate('arena')}>Arena ↗</button></div>{scoreState}<Arena data={data} house={house} compact /><p className="cp-section-note">Every verified contribution makes a difference.</p></section>}</div>
+    <CamperDay item={participant.registration_item_id} compact /><button className="cp-text-button" onClick={()=>onNavigate('recordings')}>Lecture Recordings</button>
     <CampUpdates key={participant.registration_item_id} item={participant.registration_item_id} compact onReadMore={() => onNavigate('announcements')} />
   </>
 }

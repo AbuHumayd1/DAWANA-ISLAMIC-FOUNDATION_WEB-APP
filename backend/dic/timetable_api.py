@@ -30,6 +30,8 @@ class ParticipantTimetableView(PortalView):
         edition = item.order.edition
         # The edition comes solely from the eligible, session-scoped booking item.
         published = TimetableEntry.objects.filter(edition=edition, timetable_type=kind, status='published')
+        from .camp_content import audience_rows
+        published = audience_rows(published, item.participant, edition)
         published_dates = set(published.values_list('date', flat=True))
         now = timezone.localtime(timezone.now(), LAGOS)
         try:
@@ -43,10 +45,11 @@ class ParticipantTimetableView(PortalView):
         upcoming = next((r.pk for r in sorted(rows, key=lambda r: (r.start_time is None, r.start_time))
                          if r.start_time and (day > now.date() or day == now.date() and r.start_time > now.time())), None)
         return Response(dict(edition=edition.pk, edition_name=edition.name, type=kind,
+            camp_state='upcoming' if now.date()<edition.camp_start_date else 'completed' if now.date()>edition.camp_end_date else 'in_camp',
             today=str(now.date()), date=str(day), timezone='Africa/Lagos', current=current, upcoming=upcoming,
             dates=[dict(date=str(d), published=d in published_dates) for d in dates_for(edition)],
             state='published' if rows else 'unpublished',
-            entries=[dict(id=r.pk, day_number=r.day_number, time_label=r.time_label,
+            entries=[dict(id=r.pk, title=r.title, lecturer=r.lecturer, meal=r.meal, audience=r.audience, gender=r.gender, day_number=r.day_number, time_label=r.time_label,
                 start_time=r.start_time.isoformat() if r.start_time else None,
                 end_time=r.end_time.isoformat() if r.end_time else None,
                 description=r.description, certainty=r.certainty, location=r.location,

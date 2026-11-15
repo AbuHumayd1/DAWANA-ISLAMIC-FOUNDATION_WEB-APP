@@ -55,8 +55,14 @@ class CampPhotograph(models.Model):
 
 
 class CampVideo(models.Model):
+    from .recording_storage import recording_storage, validate_video
+    recording_file = models.FileField(storage=recording_storage, validators=[validate_video], max_length=200, blank=True)
+    lecturer = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True, max_length=5000)
+    session = models.ForeignKey('dic.TimetableEntry', null=True, blank=True, on_delete=models.SET_NULL)
+
     edition = models.ForeignKey("dic.CampEdition", on_delete=models.PROTECT, related_name="videos")
-    video_url = models.URLField(max_length=500, help_text="Approved hosted links only. No video uploads or HTML.")
+    video_url = models.URLField(max_length=500, blank=True, help_text="Approved hosted links only. No video uploads or HTML.")
     thumbnail = models.FileField(storage=private_memory_storage, validators=[validate_photo], max_length=200)
     activities = models.ManyToManyField(MemoryActivity, blank=True)
     caption = models.CharField(max_length=300)
@@ -79,6 +85,11 @@ class CampVideo(models.Model):
         super().clean()
         from .video_providers import video_source
         from django.core.exceptions import ValidationError
+        if self.session_id and self.session.edition_id != self.edition_id:
+            raise ValidationError('Programme session and video must belong to the same edition.')
+        if bool(self.video_url) == bool(self.recording_file):
+            raise ValidationError('Choose one approved hosted video link or one private video upload.')
+        if self.recording_file: return
         try:
             video_source(self.video_url)
         except ValidationError as exc:

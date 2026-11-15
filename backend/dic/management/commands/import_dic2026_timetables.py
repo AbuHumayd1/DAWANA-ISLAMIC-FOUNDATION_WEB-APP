@@ -53,6 +53,7 @@ class Command(BaseCommand):
         if not options['apply']:
             self.stdout.write(f"PREVIEW ONLY: {len(data['entries'])} draft entries, ten dates, two timetables. No database accessed.")
             return
+        raise CommandError('This historical seed is superseded. Use initialize_dic2026_release, then review/publish the current programme in Django Admin.')
         if not options['approved_by'] or not options['database_name']:
             raise CommandError('Separate approval, named staff operator and exact database name are required.')
         if options.get('approved_seed_sha256') != hashlib.sha256(SOURCE.read_bytes()).hexdigest():

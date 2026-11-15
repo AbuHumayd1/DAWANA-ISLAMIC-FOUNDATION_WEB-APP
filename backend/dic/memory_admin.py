@@ -77,6 +77,7 @@ class CampPhotographAdmin(admin.ModelAdmin):
             raise PermissionDenied
         # Every content edit withdraws publication until a publisher approves it again.
         obj.save(actor=request.user)
+        DICAdminAuditEvent.objects.create(actor=request.user,action='camp_photo_draft_saved',target_type=type(obj).__name__,target_id=str(obj.pk),details={})
 
     @admin.action(description="Approve and publish selected photographs", permissions=["publish"])
     def publish_selected(self, request, queryset):

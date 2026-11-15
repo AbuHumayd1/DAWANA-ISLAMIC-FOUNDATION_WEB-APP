@@ -75,8 +75,8 @@ class AccountStatusView(PortalView):
                     proof, orders = accounts.fresh_otp(request)
                 except PermissionDenied:
                     return Response({'enabled': True, 'fresh_otp': False, 'account': None})
-                account = accounts.PortalAccount.objects.filter(contact_channel__in=accounts.proof_channels(proof.channel), contact_digest=proof.contact_digest,
-                    bookings__order__in=orders, bookings__revoked_at__isnull=True).select_related('user').distinct().first()
+                try:account = accounts.owned_account(proof,orders,allow_pending=True)
+                except PermissionDenied:account=None
                 fresh = True
         from .registration_accounts import pending_registration
         visible = accounts.usable(account) or (fresh and account and grant.channel == 'email'
@@ -184,11 +184,34 @@ class GoogleUnlinkView(PortalView):
 
 class EmailVerifyView(PortalView):
     def post(self, request):
-        return Response({'detail': 'Email activation has been retired. Use your username or authorized account recovery.'}, status=410)
+        if 'token' in request.data:
+            return Response({'detail':'Legacy email activation links are retired. Verify your booking email and confirm the account password.'},status=410)
+        from . import portal_accounts as accounts
+        from .recovery import normalize_email
+        from .recovery_views import _contact_digest
+        from django.db import IntegrityError
+        proof,orders=accounts.fresh_otp(request)
+        if proof.channel!='email':raise PermissionDenied('Verify the booking email before enabling email sign-in.')
+        email=normalize_email(request.data.get('email',''))
+        import secrets
+        if not email or not secrets.compare_digest(proof.contact_digest,_contact_digest('email',email)):
+            raise PermissionDenied('Use the email verified in this booking session.')
+        with transaction.atomic():
+            account=accounts.owned_account(proof,orders,allow_pending=True)
+            # Require existing credentials too; shared contact emails never select an account.
+            if not account.user.check_password(request.data.get('password','')):
+                raise PermissionDenied('Confirm the current account password.')
+            try:
+                with transaction.atomic():
+                    account.login_email=email;account.save(update_fields=['login_email'])
+            except IntegrityError:raise serializers.ValidationError('This email is already a sign-in address. Use a unique verified sign-in email or retain your username.') from None
+            accounts.audit(account,'email_verified')
+        return Response({'verified':True})
 
 
-class EmailResendView(EmailVerifyView):
-    pass
+class EmailResendView(PortalView):
+    def post(self,request):
+        return Response({'detail':'Use verified booking recovery; legacy activation mail is retired.'},status=410)
 
 
 class TransitionInput(Activation):

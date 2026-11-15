@@ -1,3 +1,4 @@
+import MediaManagement from './MediaManagement'
 import RegistrationTabs from '../components/operations/RegistrationTabs'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
@@ -159,7 +160,7 @@ function Operations() {
   if (!user) return <LoginPage onSubmit={handleLogin} error={error} />
 
   return (
-    <Routes>
+    <>{user.permissions.media && <Link className="ops-button ops-button-secondary" to="/dic/operations/media-management">Media management</Link>}<Routes>
       <Route element={<OperationsShell user={user} onLogout={handleLogout} />}>
         <Route index element={user.can_access_campsite ? <CampsiteFoundation user={user} /> : <EmptyState title="Campsite staff access required" detail="An active staff account with explicit DIC Operations permission is required." />} />
         <Route path="registration-overview" element={<DashboardPage />} />
@@ -171,6 +172,7 @@ function Operations() {
         <Route path="feedback" element={user.can_access_campsite && user.permissions.feedback ? <FeedbackDashboard user={user} /> : <EmptyState title="Feedback summary permission required" />} />
         <Route path="feedback-submit" element={user.can_access_campsite && user.permissions.feedback_entry ? <FeedbackEntry user={user} /> : <EmptyState title="Feedback submission permission required" />} />
         <Route path="welfare" element={user.can_access_campsite && user.permissions.welfare ? <WelfareDashboard user={user} /> : <EmptyState title="Welfare permission required" />} />
+        <Route path="media-management" element={user.permissions.media ? <MediaManagement /> : <EmptyState title="Media permission required" />} />
         <Route path="finance" element={user.can_access_campsite && user.permissions.finance ? <Finance /> : <EmptyState title="Finance staff permission required" />} />
         <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
@@ -187,7 +189,7 @@ function Operations() {
         <Route path="activity" element={user.permissions.audit ? <ActivityPage /> : <EmptyState title="Audit permission required" />} />
         <Route path="*" element={<DashboardPage />} />
       </Route>
-    </Routes>
+    </Routes></>
   )
 }
 

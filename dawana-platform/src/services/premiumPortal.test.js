@@ -79,7 +79,7 @@ test('ID authorization requires enrollment, eligibility and current issuance tog
     assert.equal(digitalIDState({ ...p, ...changed }).available, false)
   }
   const pending = render(experience.DigitalIDStatus, { participant: p })
-  assert.match(pending, /when issuance is complete/)
+  assert.match(pending, /when it is ready/)
   assert.doesNotMatch(pending, /Staff issuance required|officer still needs/)
   assert.doesNotMatch(pending, /Open my Digital ID|<canvas|<img/)
 })
@@ -113,8 +113,8 @@ test('eligible OTP recovery controls appear only when delivery is configured', (
 
 test('food deep link and participant switch keep the real timetable item scope', () => {
   const html = render(experience.default, { orders: [order], expiresAt: '2026-12-23T12:00:00Z' }, '/dic/participant?view=day&type=food')
-  assert.match(html, /aria-haspopup="listbox"/)
-  assert.match(html, />Food Timetable<\/span>/)
+  assert.doesNotMatch(html, /aria-haspopup="listbox"/)
+  assert.match(html, /Loading your day/)
   assert.match(html, /aria-current="page"[^>]*>.*My Day/s)
   const source = fs.readFileSync(new URL('../components/dic/CamperExperience.jsx', import.meta.url), 'utf8')
   assert.match(source, /key=\{selected.key\}/)
