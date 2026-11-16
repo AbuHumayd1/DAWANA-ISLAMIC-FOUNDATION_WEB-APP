@@ -1,121 +1,79 @@
 import * as React from 'react'
-import { boundDate, calendarKey, changeMonth, dateError, dateValue, parseDate } from './dateValue'
+import { dateError, dateValue, parseDate } from './dateValue'
+import { wheelClamp, wheelChoices, wheelISO, wheelParts } from './dateWheel'
 import './DateField.css'
-import { prefersNativeIOSControls } from './nativeIOSControls'
 
-const months = Array.from({ length: 12 }, (_, month) => new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2000, month, 1)))
-const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const fullDate = (date) => new Intl.DateTimeFormat('en-GB', { dateStyle: 'full' }).format(date)
+const monthNames = Array.from({ length:12 }, (_,i) => new Intl.DateTimeFormat('en-GB',{month:'long'}).format(new Date(2000,i,1)))
+const ROW_HEIGHT=48
 
-export default function DateField({ label, name, value, onChange, required = true, min, max }) {
-  const lower = min || '0001-01-01'
-  const upper = max || dateValue(new Date())
-  const [open, setOpen] = React.useState(false)
-  const [active, setActive] = React.useState(() => dateValue(boundDate(parseDate(value) || parseDate(upper), lower, upper)))
-  const [error, setError] = React.useState('')
-  const root = React.useRef(null)
-  const input = React.useRef(null)
-  const trigger = React.useRef(null)
-  const focusDay = React.useRef(false)
-  const selected = parseDate(value)
-  const current = parseDate(active)
-  const year = current.getFullYear()
-  const month = current.getMonth()
-  const first = parseDate(`${active.slice(0, 7)}-01`)
-  const last = changeMonth(first, 1)
-  last.setDate(0)
-  const count = Math.ceil((first.getDay() + last.getDate()) / 7) * 7
-  const heading = `${months[month]} ${year}`
-  const previous = changeMonth(current, -1)
-  const next = changeMonth(current, 1)
-  const close = (restore = false) => { setOpen(false); if (restore) trigger.current?.focus({ preventScroll: true }) }
-  const move = (date, focus = false) => { focusDay.current = focus; setActive(dateValue(boundDate(date, lower, upper))) }
-  const show = () => { move(selected || parseDate(upper), true); setOpen(true) }
-
-  React.useLayoutEffect(() => { input.current?.setCustomValidity(dateError(value, min, upper)) }, [value, min, upper])
+function WheelColumn({ label, items, value, onChange, text }) {
+  const ref=React.useRef(null)
+  const timer=React.useRef(null)
+  const selectedIndex=items.indexOf(value)
   React.useLayoutEffect(() => {
-    if (open && focusDay.current) {
-      root.current?.querySelector(`[data-date="${active}"]`)?.focus({ preventScroll: true })
-      focusDay.current = false
-    }
-  }, [open, active])
+    const element=ref.current
+    if (element && selectedIndex>=0) element.scrollTop=selectedIndex*ROW_HEIGHT
+  }, [selectedIndex])
+  React.useEffect(() => () => clearTimeout(timer.current), [])
+  const settle=event => {
+    const node=event.currentTarget
+    clearTimeout(timer.current)
+    timer.current=setTimeout(() => {
+      const index=Math.max(0,Math.min(items.length-1,Math.round(node.scrollTop/ROW_HEIGHT)))
+      if (items[index]!==undefined && items[index]!==value) onChange(items[index])
+    },110)
+  }
+  return <div className="dic-wheel-column"><span className="dic-wheel-heading">{label}</span><div className="dic-wheel-list" ref={ref} role="group" aria-label={`Scroll ${label.toLowerCase()}`} onScroll={settle}>
+    {items.map(item => <button type="button" key={item} className={value===item?'is-selected':''} aria-pressed={value===item} onClick={() => onChange(item)}>{text(item)}</button>)}
+  </div></div>
+}
+
+export default function DateField({ label,name,value,onChange,required=true,min,max }) {
+  const lower=min||'0001-01-01'
+  const upper=max||dateValue(new Date())
+  const [open,setOpen]=React.useState(false)
+  const [error,setError]=React.useState('')
+  const defaultDate=React.useCallback(() => {
+    const upperParts=wheelParts(upper)
+    const candidate=wheelISO(Math.max(1,upperParts[0]-18),upperParts[1],upperParts[2])
+    return wheelClamp(wheelParts(value)||wheelParts(parseDate(candidate)?candidate:upper),lower,upper)
+  },[value,lower,upper])
+  const [draft,setDraft]=React.useState(defaultDate)
+  const input=React.useRef(null)
+  const opener=React.useRef(null)
+  const dialog=React.useRef(null)
+  const titleId=`${name}-wheel-title`
+  React.useLayoutEffect(() => { input.current?.setCustomValidity(dateError(value,min,upper)) },[value,min,upper])
   React.useEffect(() => {
     if (!open) return undefined
-    const outside = (event) => { if (!root.current?.contains(event.target)) setOpen(false) }
-    document.addEventListener('pointerdown', outside)
-    document.addEventListener('focusin', outside)
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('focusin', outside) }
-  }, [open])
-
-  const choose = (iso) => {
-    onChange({ target: { name, value: iso } })
+    const escape=e=>{if(e.key==='Escape'){e.preventDefault();setOpen(false);opener.current?.focus({preventScroll:true})}}
+    document.addEventListener('keydown',escape)
+    const previous=document.activeElement
+    dialog.current?.querySelector('.dic-wheel-done')?.focus({preventScroll:true})
+    return ()=>{document.removeEventListener('keydown',escape);if(previous?.isConnected && document.activeElement===document.body) previous.focus({preventScroll:true})}
+  },[open])
+  const show=()=>{setDraft(defaultDate());setOpen(true)}
+  const update=(index,item)=>setDraft(current=>wheelClamp(current.map((n,i)=>i===index?item:n),lower,upper))
+  const choose=()=>{
+    const iso=wheelISO(...draft)
+    onChange({target:{name,value:iso}})
     input.current?.setCustomValidity('')
     setError('')
-    close(true)
+    setOpen(false)
+    opener.current?.focus({preventScroll:true})
   }
-
-  if (prefersNativeIOSControls()) return <div className="dic-field dic-date-field dic-ios-date-field">
+  const {years,months,days}=wheelChoices(draft,lower,upper)
+  return <div className="dic-field dic-date-field">
     <label htmlFor={name}>{label}{required && <b aria-hidden="true"> *</b>}</label>
-    <input id={name} name={name} type="date" value={value || ''} required={required}
-      min={min} max={upper} autoComplete="bday"
-      onChange={(event) => { setError(''); onChange(event) }}
-      onInvalid={(event) => setError(event.currentTarget.validationMessage)}
-      aria-invalid={Boolean(error) || undefined} aria-describedby={error ? `${name}-error` : undefined} />
-    {error && <small className="dic-field-error" id={`${name}-error`} role="alert">{error}</small>}
-  </div>
-
-  return <div className="dic-field dic-date-field" ref={root} onKeyDown={(event) => {
-    if (open && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true) }
-  }}>
-    <label htmlFor={name}>{label}{required && <b aria-hidden="true"> *</b>}</label>
-    <div className="dic-date-input">
-      <input ref={input} id={name} name={name} type="text" value={value} required={required} min={min} max={max}
-        placeholder="YYYY-MM-DD" autoComplete="bday" inputMode="text" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-        aria-invalid={Boolean(error) || undefined} aria-describedby={`${name}-hint${error ? ` ${name}-error` : ''}`}
-        onChange={(event) => { const message = dateError(event.target.value, min, upper); event.target.setCustomValidity(message); if (error) setError(message); onChange(event) }}
-        onFocus={() => setOpen(false)} onBlur={() => { if (input.current?.value) setError(input.current.validationMessage) }}
-        onInvalid={(event) => setError(event.currentTarget.validationMessage)}
-        onKeyDown={(event) => { if (event.key === 'ArrowDown' && event.altKey) { event.preventDefault(); show() } }} />
-      <button ref={trigger} className="dic-date-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} aria-controls={`${name}-calendar`}
-        aria-label={selected ? `Change ${label.toLowerCase()}, ${fullDate(selected)}` : `Choose ${label.toLowerCase()}`}
-        onClick={() => open ? close() : show()}>
-        <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7" /><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
-      </button>
-    </div>
-    <small id={`${name}-hint`} className="dic-date-hint">Year–month–day. Type a date or choose from the calendar.</small>
-    {error && <small className="dic-field-error" id={`${name}-error`} role="alert">{error}</small>}
-    {open && <div id={`${name}-calendar`} className="dic-calendar" role="dialog" aria-modal="false" aria-label={`Choose ${label.toLowerCase()}`}>
-      <div className="dic-calendar-title"><span>{label}</span><button type="button" aria-label="Close calendar" onClick={() => close(true)}>×</button></div>
-      <div className="dic-calendar-selects">
-        <label>Month<select aria-label="Birth month" value={month} onChange={(event) => move(changeMonth(current, Number(event.target.value) - month))}>
-          {months.map((title, index) => <option key={title} value={index} disabled={`${year.toString().padStart(4, '0')}-${String(index + 1).padStart(2, '0')}` < lower.slice(0, 7) || `${year.toString().padStart(4, '0')}-${String(index + 1).padStart(2, '0')}` > upper.slice(0, 7)}>{title}</option>)}
-        </select></label>
-        <label>Year<select aria-label="Birth year" value={year} onChange={(event) => move(changeMonth(current, (Number(event.target.value) - year) * 12))}>
-          {Array.from({ length: Number(upper.slice(0, 4)) - Number(lower.slice(0, 4)) + 1 }, (_, index) => Number(upper.slice(0, 4)) - index).map((year) => <option key={year} value={year}>{year}</option>)}
-        </select></label>
-      </div>
-      <div className="dic-calendar-navigation">
-        <button type="button" aria-label="Previous month" disabled={dateValue(previous).slice(0, 7) < lower.slice(0, 7)} onClick={() => move(previous)}>‹</button>
-        <strong id={`${name}-month`} aria-live="polite" aria-atomic="true">{heading}</strong>
-        <button type="button" aria-label="Next month" disabled={dateValue(next).slice(0, 7) > upper.slice(0, 7)} onClick={() => move(next)}>›</button>
-      </div>
-      <table className="dic-calendar-grid" role="grid" aria-labelledby={`${name}-month`} aria-describedby={`${name}-keys`}>
-        <thead><tr>{weekdays.map((day) => <th key={day} scope="col" abbr={day}>{day.slice(0, 2)}</th>)}</tr></thead>
-        <tbody key={active.slice(0, 7)}>{Array.from({ length: count / 7 }, (_, week) => <tr key={week}>{Array.from({ length: 7 }, (_, weekday) => {
-          const day = week * 7 + weekday - first.getDay() + 1
-          if (day < 1 || day > last.getDate()) return <td key={weekday} />
-          const iso = `${active.slice(0, 7)}-${String(day).padStart(2, '0')}`
-          const disabled = iso < lower || iso > upper
-          return <td key={weekday} aria-selected={value === iso} aria-disabled={disabled || undefined}>
-            <button type="button" data-date={iso} tabIndex={active === iso ? 0 : -1} disabled={disabled} aria-label={fullDate(parseDate(iso))}
-              aria-current={iso === dateValue(new Date()) ? 'date' : undefined}
-              onFocus={() => { if (active !== iso) setActive(iso) }} onClick={() => choose(iso)}
-              onKeyDown={(event) => { const target = calendarKey(parseDate(iso), event.key, event.shiftKey, lower, upper); if (target) { event.preventDefault(); move(target, true) } }}>{day}</button>
-          </td>
-        })}</tr>)}</tbody>
-      </table>
-      <p className="dic-calendar-help" id={`${name}-keys`}>Arrow keys move by day or week. Page Up/Down changes month; hold Shift to change year.</p>
-      <button className="dic-calendar-done" type="button" onClick={() => close(true)}>Done</button>
-    </div>}
+    <div className="dic-date-input"><input ref={input} id={name} name={name} type="text" value={value||''} required={required} min={min} max={upper} placeholder="YYYY-MM-DD" autoComplete="bday" inputMode="numeric" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" aria-describedby={`${name}-hint${error?' '+name+'-error':''}`} aria-invalid={Boolean(error)||undefined}
+      onPointerDown={e=>{if(e.pointerType==='touch'){e.preventDefault();show()}}} onChange={e=>{const message=dateError(e.target.value,min,upper);e.target.setCustomValidity(message);setError(message);onChange(e)}} onInvalid={e=>setError(e.currentTarget.validationMessage)} />
+      <button type="button" ref={opener} className="dic-date-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls={`${name}-wheel`} aria-label={`Choose ${label.toLowerCase()}`} onClick={()=>open?setOpen(false):show()}><svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></button>
+    </div><small id={`${name}-hint`} className="dic-date-hint">Choose from the scrolling wheels or enter YYYY-MM-DD.</small>{error && <small className="dic-field-error" id={`${name}-error`} role="alert">{error}</small>}
+    {open && <div className="dic-wheel-backdrop" onPointerDown={e=>{if(e.target===e.currentTarget) setOpen(false)}}><section ref={dialog} id={`${name}-wheel`} className="dic-wheel-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={e=>{if(e.key==='Tab'){const controls=[...e.currentTarget.querySelectorAll('button')];const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}>
+      <div className="dic-wheel-title"><div><span className="dic-wheel-kicker">SELECT A DATE</span><h2 id={titleId}>{label}</h2></div><button type="button" className="dic-wheel-close" onClick={()=>{setOpen(false);opener.current?.focus({preventScroll:true})}} aria-label="Cancel date selection">×</button></div>
+      <div className="dic-wheel-frame"><span className="dic-wheel-selection" aria-hidden="true"/><div className="dic-wheel-columns"><WheelColumn label="Day" items={days} value={draft[2]} onChange={n=>update(2,n)} text={n=>String(n).padStart(2,'0')}/><WheelColumn label="Month" items={months} value={draft[1]} onChange={n=>update(1,n)} text={n=>monthNames[n-1]}/><WheelColumn label="Year" items={years} value={draft[0]} onChange={n=>update(0,n)} text={n=>n}/></div></div>
+      <p className="dic-wheel-preview" aria-live="polite">{new Intl.DateTimeFormat('en-GB',{dateStyle:'full'}).format(parseDate(wheelISO(...draft)))}</p>
+      <div className="dic-wheel-actions"><button type="button" onClick={()=>{setOpen(false);opener.current?.focus({preventScroll:true})}}>Cancel</button><button type="button" className="dic-wheel-done" onClick={choose}>Use this date</button></div>
+    </section></div>}
   </div>
 }

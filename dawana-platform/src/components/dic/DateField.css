@@ -32,3 +32,27 @@
 /* On iPhone/iPad, the platform owns its familiar date wheel and validation. */
 .dic-flow .dic-ios-date-field input[type="date"] { width:100%; min-width:0; min-height:48px; padding:.75rem; border:1px solid var(--line); border-radius:var(--dic-control-radius,10px); background:var(--panel); color:var(--text-main); font:inherit; font-size:1rem; line-height:1.5; font-variant-numeric:tabular-nums; -webkit-appearance:auto; appearance:auto; }
 .dic-flow .dic-ios-date-field input[type="date"]:focus-visible { outline:2px solid var(--focus); outline-offset:3px; }
+
+/* Accessible, browser-independent three-column scrolling DOB wheel. */
+.dic-wheel-backdrop { position:fixed; inset:0; z-index:900; display:flex; justify-content:center; align-items:center; padding:1rem; background:rgba(10,30,22,.45); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+.dic-wheel-dialog { box-sizing:border-box; width:min(100%,430px); max-height:min(90dvh,700px); overflow:auto; padding:1.25rem; border:1px solid var(--line); border-radius:22px; background:var(--panel); color:var(--text-main); box-shadow:0 22px 70px #061b143d; }
+.dic-wheel-title { display:flex; align-items:start; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+.dic-wheel-title h2 { margin:.2rem 0 0; color:var(--heading); font-size:1.35rem; }
+.dic-wheel-kicker { font-size:.7rem; letter-spacing:.08em; font-weight:700; color:var(--text-muted); }
+.dic-wheel-close { width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--panel-soft); color:var(--heading); font-size:1.5rem; cursor:pointer; }
+.dic-wheel-frame { position:relative; margin-top:.3rem; }
+.dic-wheel-columns { display:grid; grid-template-columns:.8fr 1.4fr 1fr; gap:.4rem; position:relative; z-index:1; }
+.dic-wheel-selection { position:absolute; z-index:0; left:0; right:0; top:calc(1.4rem + 96px); height:48px; border-radius:12px; background:var(--panel-green); border:1px solid var(--line); pointer-events:none; }
+.dic-wheel-column { min-width:0; }
+.dic-wheel-heading { display:block; text-align:center; height:1.4rem; font-size:.75rem; font-weight:650; color:var(--text-muted); }
+.dic-wheel-list { height:240px; overflow-y:auto; overscroll-behavior:contain; scroll-snap-type:y mandatory; scroll-padding-block:96px; padding-block:96px; box-sizing:content-box; height:48px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.dic-wheel-list::-webkit-scrollbar { display:none; }
+.dic-wheel-list button { display:block; box-sizing:border-box; width:100%; height:48px; min-height:48px; border:0; background:transparent; color:var(--text-muted); font:500 .95rem/1.2 var(--font-body,inherit); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; scroll-snap-align:center; }
+.dic-wheel-list button.is-selected { color:var(--heading); font-weight:750; }
+.dic-wheel-list button:focus-visible { outline:2px solid var(--focus); outline-offset:-3px; border-radius:9px; }
+.dic-wheel-preview { margin:.95rem 0; text-align:center; color:var(--heading); font-size:.9rem; font-weight:600; }
+.dic-wheel-actions { display:grid; grid-template-columns:1fr 1.4fr; gap:.6rem; }
+.dic-wheel-actions button { min-height:48px; padding:.7rem; border:1px solid var(--line); border-radius:11px; background:var(--panel-soft); color:var(--heading); font:600 .93rem var(--font-body,inherit); cursor:pointer; }
+.dic-wheel-actions .dic-wheel-done { background:var(--brand-solid); color:var(--on-brand); border-color:var(--brand-solid); }
+@media(max-width:600px) { .dic-wheel-backdrop { align-items:end; padding:0; } .dic-wheel-dialog { width:100%; max-height:85dvh; padding:1.25rem 1.15rem max(1.25rem,env(safe-area-inset-bottom)); border-radius:24px 24px 0 0; } }
+@media(prefers-reduced-motion:reduce) { .dic-wheel-list { scroll-behavior:auto; } }
