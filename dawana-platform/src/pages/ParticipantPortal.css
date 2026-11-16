@@ -72,3 +72,18 @@
 .cp-route .cp-account-settings fieldset { border:0; padding:0; display:grid; gap:12px; min-width:0; }
 @keyframes participant-loading { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .cp-route .cp-loading-indicator { animation:none; } }
+
+/* Compact, accessible camper access experience. */
+.cp-route .cp-access-loading { gap: 12px; min-height: min(65vh, 34rem); }
+.cp-route .cp-access-loading .cp-loading-indicator { width: 28px; height: 28px; border-width: 2.5px; }
+.cp-route .cp-access-loading p[role="status"] { margin: 0; font-weight: 500; font-size: 1rem; color: var(--text-main); }
+.cp-route .cp-auth-help { margin: 0; align-self: center; }
+.cp-route .cp-back-link { display: inline-flex; align-items: center; min-height: 44px; padding: .35rem .5rem; color: var(--heading); font-size: .925rem; font-weight: 500; text-decoration: underline; text-underline-offset: .2em; border-radius: .5rem; }
+.cp-route .cp-back-link:hover { color: var(--brand-solid); }
+.cp-route .cp-back-link:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .cp-route .participant-page-heading { gap: .65rem; margin-bottom: 1.25rem; }
+  .cp-route .participant-page-heading h1 { font-size: clamp(1.65rem, 6vw, 2rem); }
+  .cp-route .participant-access-panel { padding: 1.25rem; }
+  .cp-route .participant-access-panel form { gap: 1rem; }
+}

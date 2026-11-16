@@ -241,3 +241,62 @@
   .cp-route .cp-main { width:100%; margin:0; padding:0; }
   .cp-route .cw-day .cw-agenda-item { break-inside:avoid; border:1px solid #aaa; background:white; }
 }
+
+/* DIC 2026 portal usability: findable sign-out, balanced mobile rhythm. */
+.cp-route .cp-header-signout { flex: 0 0 auto; border: 1px solid #d6dfd5; border-radius: 10px; background: transparent; color: var(--brand-deep); font: 600 .8125rem/1.3 var(--font-body); padding: .55rem .7rem; min-height: 40px; cursor: pointer; }
+.cp-route .cp-header-signout:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.cp-route .cp-header-signout:hover { background: #e8eee7; }
+.cp-route .cp-header-signout:disabled { opacity: .55; cursor: wait; }
+.cp-route .cw-account-drawer { max-width: 100%; margin-top: 1rem; padding-inline: 1rem; background: #f5f4ed; }
+.cp-route .cw-account-drawer > summary { min-height: 54px; }
+.cp-route .cw-account-drawer .cp-security-settings { max-width: 100%; }
+@media (max-width: 699px) {
+  .cp-route .cp-header { gap: .5rem; }
+  .cp-route .cw-header-switch { max-width: 33%; }
+  .cp-route .cp-header-signout { font-size: .75rem; padding: .5rem; min-height: 40px; }
+  .cp-route .cp-experience { font-size: .9375rem; }
+  .cp-route .cp-page { gap: 1rem; }
+  .cp-route .cp-card { padding: 1rem; }
+  .cp-route .cp-main { padding-bottom: calc(9rem + env(safe-area-inset-bottom)); }
+}
+
+/* DIC 2026 compact resources menu and mobile layout refinement. */
+.cp-route .cp-utility-menu { position: relative; z-index: 25; flex: 0 0 auto; }
+.cp-route .cp-utility-menu > summary { display:flex; align-items:center; justify-content:center; min-height:40px; padding:.45rem .7rem; cursor:pointer; list-style:none; border:1px solid #d6dfd5; border-radius:10px; font:600 .8125rem/1.3 var(--font-body); color:var(--brand-deep); background:#fffdf8; }
+.cp-route .cp-utility-menu > summary::-webkit-details-marker { display:none; }
+.cp-route .cp-utility-menu > summary:focus-visible { outline:2px solid var(--brand-solid); outline-offset:2px; }
+.cp-route .cp-utility-options { position:absolute; top:calc(100% + 8px); right:0; display:grid; gap:3px; width:max-content; max-width:min(18rem,calc(100vw - 30px)); min-width:12rem; padding:7px; background:#fffdf8; border:1px solid #dce4dc; border-radius:13px; box-shadow:0 10px 30px #092f2324; }
+.cp-route .cp-utility-options button { text-align:left; min-height:42px; padding:.65rem .75rem; border:0; border-radius:8px; background:transparent; color:var(--brand-deep); font:500 .875rem/1.3 var(--font-body); cursor:pointer; }
+.cp-route .cp-utility-options button:hover, .cp-route .cp-utility-options button:focus-visible { background:#e9f0e9; }
+.cp-route .cp-empty-compact { padding: .6rem 0; text-align:left; }
+.cp-route .cp-empty-compact p { margin: .2rem 0 .65rem; }
+@media(max-width:699px) {
+  .cp-route .cp-header { padding:12px 14px; gap:6px; }
+  .cp-route .cp-header .cp-official-logo { width:36px; height:36px; flex-basis:36px; }
+  .cp-route .cw-header-switch > .cp-single-camper { display:none; }
+  .cp-route .cw-header-switch { flex:0 1 auto; max-width:24%; }
+  .cp-route .cp-profile-shortcut { display:none; }
+  .cp-route .cp-utility-menu > summary, .cp-route .cp-header-signout { padding:.5rem .55rem; font-size:.75rem; }
+  .cp-route .cp-utility-options { right:0; }
+  .cp-route .cp-main .cp-home-columns { gap: 1rem; }
+}
+@media(prefers-reduced-motion:reduce) { .cp-route .cp-utility-options { transition:none; } }
+
+/* My Day: a single understated status instead of two large unpublished cards. */
+.cp-route .cp-day-unpublished { padding:1rem 1.25rem; border:1px solid #dce4dc; border-radius:14px; background:#fffdf8; box-shadow:none; }
+.cp-route .cp-day-unpublished p { margin:0; color:#526458; line-height:1.5; font-size:.9375rem; }
+
+/* Keep the fixed five-tab navigation legible and fully clear of the home indicator. */
+@media (max-width:699px) {
+  .cp-route .cp-navigation { box-sizing:border-box; padding:6px max(6px,env(safe-area-inset-right)) 6px max(6px,env(safe-area-inset-left)); }
+  .cp-route .cp-navigation button { min-width:0; min-height:52px; padding:7px 2px; gap:3px; }
+  .cp-route .cp-navigation button span { min-width:0; overflow-wrap:normal; line-height:1.15; text-align:center; }
+  .cp-route .cp-experience .cp-main { padding-bottom:calc(9.5rem + env(safe-area-inset-bottom)); }
+  .cp-route .cp-footer { padding-bottom:.75rem; }
+}
+@media (max-width:375px) {
+  .cp-route .cp-navigation { left:6px; right:6px; gap:2px; }
+  .cp-route .cp-navigation button { padding-inline:0; }
+  .cp-route .cp-navigation button span { font-size:.6875rem; }
+  .cp-route .cp-navigation svg { width:19px; height:19px; }
+}

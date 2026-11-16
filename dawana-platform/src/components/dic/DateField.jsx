@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { boundDate, calendarKey, changeMonth, dateError, dateValue, parseDate } from './dateValue'
 import './DateField.css'
+import { prefersNativeIOSControls } from './nativeIOSControls'
 
 const months = Array.from({ length: 12 }, (_, month) => new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2000, month, 1)))
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -52,6 +53,16 @@ export default function DateField({ label, name, value, onChange, required = tru
     setError('')
     close(true)
   }
+
+  if (prefersNativeIOSControls()) return <div className="dic-field dic-date-field dic-ios-date-field">
+    <label htmlFor={name}>{label}{required && <b aria-hidden="true"> *</b>}</label>
+    <input id={name} name={name} type="date" value={value || ''} required={required}
+      min={min} max={upper} autoComplete="bday"
+      onChange={(event) => { setError(''); onChange(event) }}
+      onInvalid={(event) => setError(event.currentTarget.validationMessage)}
+      aria-invalid={Boolean(error) || undefined} aria-describedby={error ? `${name}-error` : undefined} />
+    {error && <small className="dic-field-error" id={`${name}-error`} role="alert">{error}</small>}
+  </div>
 
   return <div className="dic-field dic-date-field" ref={root} onKeyDown={(event) => {
     if (open && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true) }

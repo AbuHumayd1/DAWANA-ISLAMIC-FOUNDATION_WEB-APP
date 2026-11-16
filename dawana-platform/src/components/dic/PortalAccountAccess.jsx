@@ -9,14 +9,20 @@ export function PasswordField({ value, onChange, autoComplete = 'current-passwor
 
 export function PortalCredentialLogin({ capabilities, busy, onLogin, onRecover, onTransition, recoveryAvailable = false, recoveryLoading = false, onCheckRecovery }) {
   const [identifier, setIdentifier] = useState(''), [password, setPassword] = useState(''), [remember, setRemember] = useState(false)
+  const [recoveryOpen, setRecoveryOpen] = useState(false)
   const enabled = capabilities?.accounts?.enabled === true
+  if (recoveryOpen) return <section className="cp-account-login cp-recovery-screen" aria-label="Recover sign-in details">
+    <button type="button" className="cp-text-button" onClick={() => setRecoveryOpen(false)}>Back to sign in</button>
+    <h2>Recover your account</h2>
+    <PortalCredentialRecovery busy={busy || !enabled} onSubmit={onTransition} />
+    {recoveryAvailable ? <div className="portal-id-actions"><button type="button" disabled={busy} onClick={() => onRecover('reset')}>Forgot Password</button><button type="button" disabled={busy} onClick={() => onRecover('setup')}>First-Time Account Setup</button></div> : onCheckRecovery ? <button type="button" className="cp-text-button" disabled={busy} onClick={onCheckRecovery}>Recover using booking contact</button> : <p role="status">{recoveryLoading ? 'Checking secure recovery options…' : 'Contact DIC support for account recovery.'}</p>}
+  </section>
   return <div className="cp-account-login"><form onSubmit={event => { event.preventDefault(); const secret = password; setPassword(''); onLogin({ identifier, password: secret, remember_device: remember }) }}>
     <fieldset disabled={!enabled || busy}><label>Email or username<input required maxLength={254} autoComplete="username" value={identifier} onChange={event => setIdentifier(event.target.value)} /></label><PasswordField value={password} onChange={setPassword} />
-      <label className="cp-remember-device"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />Keep me signed in on this personal device (up to 8 hours). Leave unchecked on shared devices.</label>
+      <label className="cp-remember-device"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />Keep me signed in</label>
       <button className="button" type="submit">{busy ? 'Signing in…' : 'Sign In'}</button></fieldset>
   </form>{!enabled && <p role="status">Password accounts await approved setup. Contact authorized DIC staff if secure booking verification is unavailable.</p>}
-    <PortalCredentialRecovery busy={busy || !enabled} onSubmit={onTransition} />
-    {recoveryAvailable ? <div className="portal-id-actions"><button type="button" disabled={busy} onClick={() => onRecover('reset')}>Forgot Password</button><button type="button" disabled={busy} onClick={() => onRecover('setup')}>First-Time Account Setup</button></div> : onCheckRecovery ? <><p>Recover access using your booking contact.</p><button type="button" className="cp-text-button" disabled={busy} onClick={onCheckRecovery}>Forgot your sign-in details?</button></> : <p role="status">{recoveryLoading ? 'Checking secure recovery options…' : 'Contact DIC support for account recovery.'}</p>}
+    <button type="button" className="cp-text-button cp-recovery-link" onClick={() => setRecoveryOpen(true)}>Forgot your sign-in details?</button>
   </div>
 }
 

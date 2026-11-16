@@ -45,7 +45,7 @@ const card = { id, name: person.name, participant_number: person.participant_num
         return json({})
       })
       await page.goto(base + '/dic/participant?view=digital-id')
-      await page.getByRole('heading', { name: 'Opening your Camper Portal' }).waitFor()
+      await page.getByRole('status', { name: 'Opening your portal…' }).waitFor()
       await page.getByRole('button', { name: 'Open my Digital ID' }).click()
       await page.getByRole('link', { name: 'Preview PVC Card', exact: true }).waitFor()
       assert.equal(probes, 0)
@@ -54,8 +54,7 @@ const card = { id, name: person.name, participant_number: person.participant_num
       await page.getByRole('heading', { name: 'Protected synthetic issued ID' }).waitFor()
       // Return to the actual app and exercise a complete sign-out.
       await page.goto(base + '/dic/participant?view=me')
-      await page.locator('.cw-account-drawer > summary').click()
-      await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+      await page.locator('.cp-header-signout').click()
       await page.getByRole('button', { name: 'Sign In', exact: true }).waitFor()
       assert.equal(await page.getByRole('button', { name: 'Retry server sign-out' }).count(), 0)
       const looseZero = await page.locator('section.participant-portal').evaluate(node => [...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE && child.textContent.trim() === '0'))
