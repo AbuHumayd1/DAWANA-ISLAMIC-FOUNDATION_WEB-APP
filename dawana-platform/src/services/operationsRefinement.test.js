@@ -30,7 +30,8 @@ test('grouping preserves every allowed route once for all combinations of existi
     assert.equal(new Set(grouped).size, grouped.length)
   }
   assert.deepEqual(visibleOperationsGroups(user).map(group => group.label), ['Camp Overview','Participants & Registration','Camp Activities','Finance & Reports','Administration'])
-  assert.equal(navigation.length, 21)
+  assert.equal(navigation.length, 22)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/media-management').length, 1)
   assert.equal(navigation.filter(item => item.to === '/dic/operations/check-in').length, 1)
 })
 
