@@ -35,7 +35,7 @@ test('home never relabels a future published programme as today or exposes draft
   assert.deepEqual(todayProgramme({ ...schedule, date: '2026-12-24' }), [])
   assert.deepEqual(todayProgramme({ ...schedule, state: 'unpublished' }), [])
   const future = render(home.ProgrammePreview, { data: { ...schedule, date: '2026-12-24' } })
-  assert.match(future, /No activities are published for today/)
+  assert.match(future, /No activities published for today\./)
   assert.doesNotMatch(future, /Approved activity/)
 })
 
