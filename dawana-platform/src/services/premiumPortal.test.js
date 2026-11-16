@@ -173,3 +173,26 @@ test('pastel text contrast and main green identity meet the design contract', ()
   assert.match(css, /cp-skip-link:focus/)
   assert.doesNotMatch(css, /overflow-x:\s*hidden/)
 })
+
+test('Camper appearance control is a compact icon beside Account settings, never a large textual menu item', () => {
+  const source = fs.readFileSync(new URL('../components/dic/CamperExperience.jsx', import.meta.url), 'utf8')
+  const css = fs.readFileSync(new URL('../components/dic/CamperWorld.css', import.meta.url), 'utf8')
+  assert.match(source, /className="cp-utility-settings-row"/)
+  assert.match(source, /className="cp-theme-icon-button"/)
+  assert.match(source, /Switch Camper Portal to dark appearance/)
+  assert.match(source, /Switch Camper Portal to light appearance/)
+  assert.match(source, /aria-pressed=\{theme === 'dark'\}/)
+  assert.doesNotMatch(source, /className="cp-theme-switch"/)
+  assert.match(css, /\.cp-route \.cp-utility-options \.cp-theme-icon-button \{[^}]*width:38px/)
+})
+test('dark Camper palette covers Arena, Explore, Me and scoring, without changing main website', () => {
+  const styles = fs.readFileSync(new URL('../components/dic/CamperWorld.css', import.meta.url), 'utf8')
+  const earn = fs.readFileSync(new URL('../components/dic/EarnPoints.css', import.meta.url), 'utf8')
+  for (const target of ['.cp-header .cp-official-copy', '.cw-arena-banner', '.cw-explore-banner', '.cw-discover-card', '.cw-status-chips div', '.cw-profile-grid .cp-class-card', '.cw-care-links a', '.cw-camp-note']) {
+    assert.ok(styles.includes(target), target + ' should have scoped appearance treatment')
+  }
+  assert.match(styles, /\.cp-route \.cp-experience\[data-theme=dark\] \.cw-arena-banner/)
+  assert.match(styles, /\.cp-route \.cp-experience\[data-theme=dark\] \.cw-explore-banner/)
+  assert.match(earn, /\.cp-route \.cp-experience\[data-theme=dark\] \.earn-points/)
+  assert.match(styles, /\.cp-route \.cp-experience\[data-theme=dark\] \.cp-utility-options/)
+})
