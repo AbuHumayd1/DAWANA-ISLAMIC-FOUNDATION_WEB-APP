@@ -189,7 +189,7 @@ function Operations() {
         <Route path="activity" element={user.permissions.audit ? <ActivityPage /> : <EmptyState title="Audit permission required" />} />
         <Route path="*" element={<DashboardPage />} />
       </Route>
-    </Routes></>
+    </Routes>
   )
 }
 
