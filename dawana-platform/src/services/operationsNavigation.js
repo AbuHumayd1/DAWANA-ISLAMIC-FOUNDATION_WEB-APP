@@ -1,5 +1,4 @@
 export const navigation = [
-  { label: 'Media management', to: '/dic/operations/media-management', icon: 'file', permission: 'media' },
   { label: 'Timetables', to: '/dic/operations/timetables', icon: 'clipboard', permission: 'timetables' },
   { label: 'Classes', to: '/dic/operations/classes', icon: 'users', permission: 'classes', campsite: true },
   { label: 'Announcements', to: '/dic/operations/announcements', icon: 'clipboard', permission: 'announcements', campsite: true },
