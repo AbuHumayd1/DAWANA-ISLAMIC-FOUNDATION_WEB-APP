@@ -5,28 +5,63 @@ import { wheelClamp, wheelChoices, wheelISO, wheelParts } from './dateWheel'
 import './DateField.css'
 
 const monthNames = Array.from({ length:12 }, (_,i) => new Intl.DateTimeFormat('en-GB',{month:'long'}).format(new Date(2000,i,1)))
-const ROW_HEIGHT=48
+const ROW_HEIGHT=36
 
 function WheelColumn({ label, items, value, onChange, text }) {
-  const ref=React.useRef(null)
-  const timer=React.useRef(null)
-  const selectedIndex=items.indexOf(value)
+  const ref = React.useRef(null)
+  const timer = React.useRef(null)
+  const drag = React.useRef(null)
+  const selectedIndex = items.indexOf(value)
+  // One centred item with an item above and below it. Keep DOM scroll and
+  // React selection synchronized, without resetting an active finger drag.
   React.useLayoutEffect(() => {
-    const element=ref.current
-    if (element && selectedIndex>=0) element.scrollTop=selectedIndex*ROW_HEIGHT
+    if (ref.current && selectedIndex >= 0 && !drag.current) {
+      ref.current.scrollTop = selectedIndex * ROW_HEIGHT
+    }
   }, [selectedIndex])
   React.useEffect(() => () => clearTimeout(timer.current), [])
-  const settle=event => {
-    const node=event.currentTarget
+
+  const settle = (element) => {
     clearTimeout(timer.current)
-    timer.current=setTimeout(() => {
-      const index=Math.max(0,Math.min(items.length-1,Math.round(node.scrollTop/ROW_HEIGHT)))
-      if (items[index]!==undefined && items[index]!==value) onChange(items[index])
-    },110)
+    const index = Math.max(0, Math.min(items.length - 1, Math.round(element.scrollTop / ROW_HEIGHT)))
+    if (items[index] !== undefined) {
+      element.scrollTop = index * ROW_HEIGHT
+      if (items[index] !== value) onChange(items[index])
+    }
   }
-  return <div className="dic-wheel-column"><span className="dic-wheel-heading">{label}</span><div className="dic-wheel-list" ref={ref} role="group" aria-label={`Scroll ${label.toLowerCase()}`} onScroll={settle}>
-    {items.map(item => <button type="button" key={item} className={value===item?'is-selected':''} aria-pressed={value===item} onClick={() => onChange(item)}>{text(item)}</button>)}
-  </div></div>
+  const onScroll = event => {
+    if (drag.current) return
+    const element = event.currentTarget
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => settle(element), 120)
+  }
+  // iOS Safari sometimes gives the surrounding bottom sheet the gesture.
+  // Drive the visible wheel directly under the finger as a fallback.
+  const touchStart = event => {
+    clearTimeout(timer.current)
+    drag.current = { y: event.touches[0].clientY, top: ref.current.scrollTop }
+    ref.current.classList.add('is-dragging')
+  }
+  const touchMove = event => {
+    if (!drag.current) return
+    const delta = event.touches[0].clientY - drag.current.y
+    ref.current.scrollTop = drag.current.top - delta
+    if (event.cancelable) event.preventDefault()
+  }
+  const touchEnd = () => {
+    if (!drag.current) return
+    drag.current = null
+    ref.current.classList.remove('is-dragging')
+    settle(ref.current)
+  }
+  return <div className="dic-wheel-column">
+    <span className="dic-wheel-heading">{label}</span>
+    <div className="dic-wheel-list" ref={ref} role="group" aria-label={`Scroll ${label.toLowerCase()}`}
+      onScroll={onScroll} onTouchStart={touchStart} onTouchMove={touchMove} onTouchEnd={touchEnd} onTouchCancel={touchEnd}>
+      {items.map(item => <button type="button" key={item} className={value === item ? 'is-selected' : ''}
+        aria-pressed={value === item} onClick={() => onChange(item)}>{text(item)}</button>)}
+    </div>
+  </div>
 }
 
 export default function DateField({ label,name,value,onChange,required=true,min,max }) {
