@@ -1,6 +1,7 @@
 import * as React from 'react'
 import './RegistrationControls.css'
 import DateField from './DateField'
+import { prefersNativeIOSControls } from './nativeIOSControls'
 
 // A select-only combobox with a native backing control for form validity/values.
 export function RegistrationSelect({ id, name = id, label, value, onChange, options, required = false }) {
@@ -63,6 +64,14 @@ export function RegistrationSelect({ id, name = id, label, value, onChange, opti
       if (index !== undefined) setActive(index)
     }
   }
+
+  if (prefersNativeIOSControls()) return <div className="dic-field dic-ios-select-field">
+    <label htmlFor={id}>{label}{required && <b aria-hidden="true"> *</b>}</label>
+    <select id={id} name={name} value={value} required={required} onChange={onChange}>
+      <option value="">Select {label.toLowerCase()}</option>
+      {items.map((item) => <option key={item.value} value={item.value} disabled={item.disabled}>{item.label}</option>)}
+    </select>
+  </div>
 
   return <div className="dic-field dic-select-field" ref={root}>
     <label id={`${id}-label`} htmlFor={id}>{label}{required && <b aria-hidden="true"> *</b>}</label>
