@@ -160,7 +160,7 @@ function Operations() {
   if (!user) return <LoginPage onSubmit={handleLogin} error={error} />
 
   return (
-    <>{user.permissions.media && <Link className="ops-button ops-button-secondary" to="/dic/operations/media-management">Media management</Link>}<Routes>
+    <Routes>
       <Route element={<OperationsShell user={user} onLogout={handleLogout} />}>
         <Route index element={user.can_access_campsite ? <CampsiteFoundation user={user} /> : <EmptyState title="Campsite staff access required" detail="An active staff account with explicit DIC Operations permission is required." />} />
         <Route path="registration-overview" element={<DashboardPage />} />
