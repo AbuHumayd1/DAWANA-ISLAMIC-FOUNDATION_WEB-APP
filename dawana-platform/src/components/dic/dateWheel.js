@@ -1,4 +1,4 @@
-import { boundDate, dateValue, parseDate } from './dateValue'
+import { boundDate, dateValue, parseDate } from './dateValue.js'
 
 // Work exclusively with local calendar dates. The registration and backend
 // continue receiving the same YYYY-MM-DD value and unchanged age policies.
