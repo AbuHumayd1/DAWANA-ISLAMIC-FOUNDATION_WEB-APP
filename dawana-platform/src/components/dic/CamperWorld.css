@@ -300,3 +300,49 @@
   .cp-route .cp-navigation button span { font-size:.6875rem; }
   .cp-route .cp-navigation svg { width:19px; height:19px; }
 }
+
+/* November live-screen acceptance: a compact native-feeling tools menu. */
+.cp-route .cp-header { position:relative; overflow:visible; }
+.cp-route .cp-utility-menu { z-index:100; }
+.cp-route .cp-hamburger { display:inline-flex; align-items:center; justify-content:center; gap:.55rem; min-height:44px; padding:.5rem .8rem; border:1px solid #d5dfd6; border-radius:12px; background:#fffdf8; color:var(--brand-deep); font:600 .875rem/1.3 var(--font-body); cursor:pointer; }
+.cp-route .cp-hamburger svg { display:block; width:21px; height:21px; flex:none; }
+.cp-route .cp-hamburger[aria-expanded=true] { background:#e8f1e8; border-color:#b5cfbd; }
+.cp-route .cp-hamburger:focus-visible { outline:3px solid #a6874a; outline-offset:3px; }
+.cp-route .cp-utility-options { display:grid; position:absolute; right:0; top:calc(100% + 9px); width:min(19rem,calc(100vw - 2rem)); max-width:none; min-width:0; padding:.5rem; gap:.15rem; border:1px solid #d9e5da; border-radius:17px; background:#fffefa; box-shadow:0 16px 45px #092f2329; }
+.cp-route .cp-utility-options button { display:flex; align-items:center; gap:.8rem; min-height:47px; padding:.7rem .85rem; border-radius:10px; text-align:left; font-weight:550; }
+.cp-route .cp-utility-options button > span { display:grid; place-items:center; flex:0 0 25px; font-size:1.15rem; color:#24604c; }
+.cp-route .cp-utility-options button:active { background:#e0eddf; }
+.cp-route .cp-settings-view { display:grid; gap:1rem; max-width:760px; margin:0 auto; }
+.cp-route .cp-settings-view .cp-section-heading { margin:0; }
+.cp-route .cp-settings-view .cp-security-settings { min-width:0; }
+.cp-route .cp-settings-view .cp-account-settings { margin:0; max-width:none; background:#fffdf8; border-radius:17px; border:1px solid #dce5dc; box-shadow:none; }
+.cp-route .cp-settings-view .cp-session-controls { display:grid; gap:.8rem; padding:1.2rem; margin:0; }
+.cp-route .cp-settings-view .cp-session-controls :is(h2,p) { margin:0; }
+.cp-route .cp-session-actions { display:flex; gap:.7rem; flex-wrap:wrap; }
+.cp-route .cp-session-actions button { min-height:44px; padding:.65rem .85rem; border:1px solid #d2ddd3; border-radius:10px; background:#f7f7ef; color:var(--brand-deep); font:500 .875rem var(--font-body); }
+.cp-route .cp-day-heading { margin-bottom:0; }
+.cp-route .cp-day-heading h1 { margin:.25rem 0; }
+.cp-route .cp-day-heading p { max-width:35rem; margin:.25rem 0 0; color:#526458; font-size:.9rem; line-height:1.55; }
+.cp-route .cp-day-summary { display:grid; gap:.9rem; }
+.cp-route .cp-day-overview { display:flex; gap:1rem; align-items:center; padding:1.15rem; border:1px solid #dce7dc; border-radius:18px; background:linear-gradient(110deg,#e5efe5,#f7f6ee); }
+.cp-route .cp-day-symbol { display:grid; flex:0 0 49px; width:49px; height:49px; place-items:center; border-radius:15px; color:#194f3c; background:#fffdf8; font-size:1.7rem; }
+.cp-route .cp-day-overview h2 { margin:.15rem 0; font-size:1.13rem; color:var(--brand-deep); }
+.cp-route .cp-day-overview p { margin:0; font-size:.875rem; line-height:1.5; color:#57695c; }
+.cp-route .cp-day-empty { display:flex; gap:.9rem; align-items:center; padding:1rem 1.15rem; background:#fffdfa; border:1px solid #e2e8df; border-radius:15px; }
+.cp-route .cp-day-empty-symbol { display:grid; place-items:center; flex:0 0 37px; width:37px; height:37px; border-radius:11px; background:#f4f0e3; color:#8a6a31; font-size:1.35rem; }
+.cp-route .cp-day-empty strong { display:block; font-weight:600; font-size:.925rem; }
+.cp-route .cp-day-empty p { margin:.2rem 0 0; color:#586a5d; font-size:.865rem; line-height:1.5; }
+@media(max-width:699px) {
+ .cp-route .cp-header { gap:.5rem; }
+ .cp-route .cp-hamburger { min-width:44px; padding:.5rem .6rem; }
+ .cp-route .cp-menu-label { display:none; }
+ .cp-route .cp-utility-options { right:0; top:calc(100% + 8px); }
+ .cp-route .cp-day-heading { gap:.2rem; }
+ .cp-route .cp-day-overview { padding:1rem; align-items:flex-start; }
+ .cp-route .cp-day-empty { align-items:flex-start; }
+}
+
+.cp-route .cp-utility-divider { height:1px; background:#e3e9e0; margin:.35rem .35rem; }
+@media(max-width:699px) { .cp-route .cp-utility-menu { margin-left:auto; } .cp-route .cp-header .cp-brand { min-width:0; } }
+
+.cp-route .cp-utility-options button > span svg { display:block; width:20px; height:20px; stroke-width:1.7; }

@@ -64,8 +64,10 @@ export default function ParticipantPortal() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState(() => location.hash.startsWith('#verify-email=') ? 'Recover your existing booking or contact DIC support to complete account verification.' : location.hash === '#signin=failed' ? 'Use your username and password, or recover your booking.' : participantSessionClosed() ? 'Sign in again to continue.' : '')
   useEffect(() => {
-    if (notice !== 'Signed out.') return undefined
-    const timeout = window.setTimeout(() => setNotice(current => current === 'Signed out.' ? '' : current), 4000)
+    // Transient session hints must not remain pasted above the sign-in form.
+    // Verification instructions and recovery messages remain visible until resolved.
+    if (!['Signed out.', 'Sign in again to continue.'].includes(notice)) return undefined
+    const timeout = window.setTimeout(() => setNotice(current => current === notice ? '' : current), 4500)
     return () => window.clearTimeout(timeout)
   }, [notice])
   const [card, setCard] = useState(null)
@@ -262,7 +264,7 @@ export default function ParticipantPortal() {
   if (profile && camperPhase === 'error') return <section className="participant-portal cp-empty-state"><CamperBrand /><h1>Could not load your campers</h1><p role="alert">{error}</p><button className="button" onClick={() => perform(load)} disabled={busy}>Retry camper lookup</button><button className="button" onClick={logout}>Sign out</button></section>
   return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`}>
     {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><p className="cp-auth-help"><Link className="cp-back-link" to="/">Back to main website</Link></p><h1>Participant sign in</h1></div>}
-    {!profile && (loginOpen || challenge || Boolean(error) || retryUntil > 0) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <p className="participant-notice" role="status">{notice}</p>}
+    {!profile && (loginOpen || challenge || Boolean(error) || retryUntil > 0) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <div className="cp-auth-toast" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss notification" onClick={() => setNotice('')}>×</button></div>}
     {!profile && logoutFailed && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
     {!profile ? <div className="participant-access-panel">{challenge && <><h2>Check your inbox</h2><p>Enter the six-digit code sent through {channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.</p></>}
       {!challenge && <PortalCredentialLogin capabilities={capabilities} recoveryAvailable={deliveryPhase === 'ready' && channels.some(c => c.available)} recoveryLoading={loginOpen && deliveryPhase === 'loading'} onCheckRecovery={!loginOpen && deliveryPhase === 'loading' ? () => recoverAccount('reset') : undefined} busy={busy || loggingOut || now < retryUntil} onLogin={passwordLogin} onRecover={recoverAccount} onTransition={transitionCredentials} />}

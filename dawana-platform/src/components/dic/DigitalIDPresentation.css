@@ -28,3 +28,23 @@
 :is(.cp-route, .ops-app) .id-format-row a { justify-content:center; text-align:center; text-decoration:none; border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--panel); color:var(--heading); }
 :is(.cp-route, .ops-app) .id-presentation { color:var(--heading); }
 @media(max-width:420px) { :is(.cp-route, .ops-app) .id-format-row { grid-template-columns:minmax(0,1fr); } }
+
+/* One-format-at-a-time digital ID interface. Preserve all issued card URLs. */
+:is(.cp-route,.ops-app) .id-presentation-compact { max-width:770px; padding:clamp(1rem,3vw,1.6rem); }
+:is(.cp-route,.ops-app) .id-presentation-compact .id-presentation-heading { margin-bottom:1.25rem; gap:.9rem; }
+:is(.cp-route,.ops-app) .id-presentation-compact .id-presentation-heading h1 { font-size:clamp(1.5rem,4.5vw,1.95rem); }
+:is(.cp-route,.ops-app) .id-presentation-compact .id-back { flex:none; }
+:is(.cp-route,.ops-app) .id-card-workspace { border:1px solid #dce4d8; border-radius:20px; background:#fffdf7; padding:clamp(1rem,3vw,1.55rem); }
+:is(.cp-route,.ops-app) .id-card-workspace h2 { font-size:1.125rem; margin:0 0 .4rem; color:var(--brand-deep); }
+:is(.cp-route,.ops-app) .id-card-workspace > p { font-size:.875rem; line-height:1.5; color:#526458; margin:.2rem 0 1rem; }
+:is(.cp-route,.ops-app) .id-card-workspace .id-format-tabs { justify-content:stretch; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; margin:0 0 1rem; }
+:is(.cp-route,.ops-app) .id-card-workspace .id-format-tabs button { min-width:0; min-height:46px; padding:.55rem .3rem; font-size:.85rem; }
+:is(.cp-route,.ops-app) .id-card-active { display:flex; justify-content:space-between; align-items:center; gap:1.2rem; padding:1rem; border-radius:14px; background:#f2f5ed; }
+:is(.cp-route,.ops-app) .id-card-active strong { display:block; font-size:1rem; color:var(--brand-deep); }
+:is(.cp-route,.ops-app) .id-card-active small { display:block; font-size:.8rem; color:#59685c; margin-top:.25rem; overflow-wrap:anywhere; }
+:is(.cp-route,.ops-app) .id-card-actions { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+:is(.cp-route,.ops-app) .id-card-actions a { display:flex; align-items:center; justify-content:center; min-height:46px; padding:.6rem 1rem; border-radius:10px; font-size:.875rem; text-decoration:none; white-space:nowrap; }
+:is(.cp-route,.ops-app) .id-card-actions .id-download-action { background:#fffdf7; color:var(--brand-deep); border:1px solid #c8d6ca; }
+:is(.cp-route,.ops-app) .id-card-workspace .id-private-note { margin:1rem 0 0; font-size:.8125rem; }
+@media(max-width:650px) { :is(.cp-route,.ops-app) .id-card-active { flex-direction:column; align-items:stretch; } :is(.cp-route,.ops-app) .id-card-actions a { flex:1; } :is(.cp-route,.ops-app) .id-presentation-compact .id-presentation-heading { flex-direction:row; align-items:start; } }
+@media(max-width:370px) { :is(.cp-route,.ops-app) .id-card-workspace .id-format-tabs button { font-size:.77rem; } }

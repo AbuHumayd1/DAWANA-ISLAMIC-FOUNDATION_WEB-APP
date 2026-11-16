@@ -60,27 +60,32 @@ test('home has six navigable tiles and no security, booking reference or disable
   assert.match(html, /&lt;Camper&gt;/)
 })
 
-test('account settings render exclusively in Me, including legacy profile bookmarks', () => {
+test('account settings are a separate protected Me subview, not an oversized Me accordion', () => {
   const marker = createElement('div', null, 'Security settings sentinel')
-  for (const tab of ['home','day','arena','explore','feedback','announcements','digital-id']) {
-    const html = render(experience.ExperienceContent, { tab, participant: p, order, accountSettings: marker })
-    assert.doesNotMatch(html, /Security settings sentinel/)
+  for (const tab of ['home','day','arena','explore','feedback','announcements','digital-id','me']) {
+    const html = render(experience.default, { orders: [order], accountSettings: marker, expiresAt: '2026-12-23T12:00:00Z' }, `/dic/participant?view=${tab}`)
+    assert.doesNotMatch(html, /Security settings sentinel|cw-account-drawer/)
   }
-  const me = render(experience.default, { orders: [order], accountSettings: marker, expiresAt: '2026-12-23T12:00:00Z' }, '/dic/participant?view=me')
-  assert.match(me, /<details class="cw-account-drawer"><summary/)
-  assert.match(me, /Security settings sentinel/)
-  assert.doesNotMatch(me, /<details class="cw-account-drawer" open/)
+  const settings = render(experience.default, { orders: [order], accountSettings: marker, expiresAt: '2026-12-23T12:00:00Z' }, '/dic/participant?view=settings')
+  assert.match(settings, /class="cp-settings-view"/)
+  assert.match(settings, /Security settings sentinel/)
+  assert.match(settings, /Refresh registrations|Session expires/)
+  assert.equal(activeDestination('settings'), 'me')
+  assert.equal(portalView('settings'), 'settings')
 })
 
-test('compact camper utility menu exposes accessible links and closes after selection', () => {
+test('hamburger menu dismisses on outside pointer, Escape, and destination selection', () => {
   const html = render(experience.default, { orders: [order], expiresAt: '2026-12-23T12:00:00Z' })
-  assert.match(html, /<details class="cp-utility-menu"><summary aria-label="More camper options">More<\/summary>/)
-  for (const label of ['Lecture recordings', 'Announcements', 'My account']) assert.ok(html.includes(label))
-  assert.doesNotMatch(html, /<details class="cp-utility-menu" open/)
+  assert.match(html, /class="cp-hamburger"/)
+  assert.match(html, /aria-label="Open camper menu"/)
+  assert.match(html, /aria-expanded="false"/)
+  assert.doesNotMatch(html, /id="cp-utility-options"/)
   const source = fs.readFileSync(new URL('../components/dic/CamperExperience.jsx', import.meta.url), 'utf8')
-  assert.match(source, /utilityMenuRef\.current\.open = false/)
-  assert.match(source, /event\.key === 'Escape'/)
-  assert.match(source, /navigateUtility\('recordings'\)/)
+  assert.match(source, /document.addEventListener\('pointerdown', outside\)/)
+  assert.match(source, /document.addEventListener\('keydown', escape\)/)
+  assert.match(source, /event.key === 'Escape'/)
+  assert.match(source, /setUtilityOpen\(false\)/)
+  assert.match(source, /navigateUtility\('settings'\)/)
 })
 
 test('mobile camper navigation leaves iPhone safe area clear', () => {

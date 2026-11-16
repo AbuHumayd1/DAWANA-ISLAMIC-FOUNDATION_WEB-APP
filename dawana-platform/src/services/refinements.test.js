@@ -23,15 +23,19 @@ test('camper selector exposes labelled controlled state, escapes text and disabl
 test('ID layout uses existing authorized format routes without exposing QR secrets',()=>{
   const id='12345678-1234-4234-8234-123456789abc'
   const html=render(ID,{card:{id,name:'Synthetic camper',participant_number:'TEST'},onClose(){}})
-  for(const format of ['pvc','a6','portrait'])assert.ok(html.includes(`format=${format}`))
-  assert.equal((html.match(/download=1/g)||[]).length,3)
+  for (const label of ['PVC card','A6 badge','PDF badge']) assert.ok(html.includes(label))
+  assert.equal((html.match(/download=1/g)||[]).length,1)
+  const source = fs.readFileSync(new URL('../components/dic/DigitalIDPresentation.jsx',import.meta.url),'utf8')
+  assert.match(source,/\['portrait','PDF badge'\]/)
+  assert.match(source,/setFormat\(key\)/)
+  assert.doesNotMatch(html,/id-action-panel|id-format-row/)
   const staff = render(ID, { card: { id, name: 'Synthetic camper', participant_number: 'TEST' }, staff: true, onClose() {} })
   for (const [markup, pathname] of [
     [html, `/api/v1/dic/participant/enrollments/${id}/card/`],
     [staff, `/api/v1/dic/ids/cards/${id}/`],
   ]) {
-    const preview = markup.match(/<a\b([^>]+)>Preview PVC Card<\/a>/)
-    assert.ok(preview, 'Accessible PVC preview link must be present')
+    const preview = markup.match(/<a\b([^>]+)>Open &amp; print<\/a>/)
+    assert.ok(preview, 'Selected PVC print link must be present')
     const href = preview[1].match(/\bhref="([^"]+)"/)
     assert.ok(href, 'Preview must navigate to its protected document')
     // Local builds use relative URLs; production uses the configured HTTPS API.

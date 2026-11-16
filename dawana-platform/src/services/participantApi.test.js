@@ -165,7 +165,9 @@ test('issued ID presentation renders separate protected staff and participant do
   assert.match(participant, /href="(?:https:\/\/api\.dawanaislamicfoundation\.org)?\/api\/v1\/dic\/participant\/enrollments\//)
   assert.doesNotMatch(participant, /\/ids\/cards\//)
   for (const html of [staff, participant]) {
-    assert.match(html, /format=portrait&amp;download=1/)
+    assert.match(html, /format=pvc&amp;download=1/)
+    assert.match(html, /PDF badge/)
+    assert.match(html, /aria-pressed="true"/)
     assert.doesNotMatch(html, /<iframe/)
   }
 })

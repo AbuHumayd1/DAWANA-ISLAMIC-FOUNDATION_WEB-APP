@@ -87,3 +87,17 @@
   .cp-route .participant-access-panel { padding: 1.25rem; }
   .cp-route .participant-access-panel form { gap: 1rem; }
 }
+
+/* Session hints are temporary and dismissible, never an oversized sticky banner. */
+.cp-route .cp-auth .cp-auth-toast { width:min(100% - 2rem,48rem); display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:.25rem auto 1rem; padding:.7rem .85rem .7rem 1rem; border-radius:12px; background:#f5f0df; border:1px solid #e8ddc0; color:#765a28; font-size:.875rem; line-height:1.45; }
+.cp-route .cp-auth-toast button { flex:none; display:grid; place-items:center; width:36px; height:36px; padding:0; border:0; border-radius:9px; background:transparent; color:inherit; font-size:1.45rem; cursor:pointer; }
+.cp-route .cp-auth-toast button:hover,.cp-route .cp-auth-toast button:focus-visible { background:#ece0c1; outline-offset:2px; }
+.cp-route .cp-auth .participant-page-heading { gap:.5rem; }
+.cp-route .cp-auth .participant-page-heading .cp-auth-help { margin:0; }
+.cp-route .cp-auth .participant-access-panel { margin-top:.5rem; }
+.cp-route .cp-auth .cp-password-field { display:flex; align-items:stretch; width:100%; gap:.5rem; }
+.cp-route .cp-auth .cp-password-field input { min-width:0; flex:1 1 auto; }
+.cp-route .cp-auth .cp-password-field button { flex:0 0 auto; min-width:54px; padding:0 .65rem; border:1px solid #d1dfd4; border-radius:10px; background:#f2f6ef; color:#174c38; font-size:.875rem; font-weight:600; }
+.cp-route .cp-auth .cp-account-login { gap:.75rem; }
+.cp-route .cp-auth .cp-recovery-link { min-height:44px; margin:0 auto; }
+@media(max-width:600px) { .cp-route .cp-auth .participant-page-heading { margin-bottom:.7rem; } .cp-route .cp-auth .participant-access-panel { padding:1.15rem; } .cp-route .cp-auth .cp-auth-toast { width:calc(100% - 2rem); } }
