@@ -71,6 +71,7 @@ export default function ParticipantPortal() {
     return () => window.clearTimeout(timeout)
   }, [notice])
   const [card, setCard] = useState(null)
+  const [cardTheme, setCardTheme] = useState('light')
   const [selection,setSelection] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutFailed,setLogoutFailed] = useState(false)
@@ -235,6 +236,7 @@ export default function ParticipantPortal() {
     }
     const data = await read(ticket, `/enrollments/${id}/id/`)
     assertAccess(ticket)
+    try { setCardTheme(window.localStorage.getItem('dic-camper-appearance') === 'dark' ? 'dark' : 'light') } catch { setCardTheme('light') }
     setCard({ ...data, id })
     window.scrollTo(0, 0)
   })
@@ -262,11 +264,11 @@ export default function ParticipantPortal() {
 
   if (checking || camperPhase === 'loading') return <section className="participant-portal cp-access-loading" aria-busy="true"><div className="cp-loading-indicator" aria-hidden="true" /><p role="status">Opening your portal…</p></section>
   if (profile && camperPhase === 'error') return <section className="participant-portal cp-empty-state"><CamperBrand /><h1>Could not load your campers</h1><p role="alert">{error}</p><button className="button" onClick={() => perform(load)} disabled={busy}>Retry camper lookup</button><button className="button" onClick={logout}>Sign out</button></section>
-  return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`}>
-    {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><p className="cp-auth-help"><Link className="cp-back-link" to="/">Back to main website</Link></p><h1>Participant sign in</h1></div>}
+  return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`} data-theme={card ? cardTheme : undefined}>
+    {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><p className="cp-auth-help"><Link className="cp-back-link" to="/">Back to main website</Link></p><div className="cp-auth-title"><span className="cp-auth-kicker">YOUR CAMPER WORLD</span><h1>Welcome back</h1><p>Sign in to your DIC 2026 Camper Portal</p></div></div>}
     {!profile && (loginOpen || challenge || Boolean(error) || retryUntil > 0) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <div className="cp-auth-toast" role="status"><span>{notice}</span><button type="button" aria-label="Dismiss notification" onClick={() => setNotice('')}>×</button></div>}
     {!profile && logoutFailed && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
-    {!profile ? <div className="participant-access-panel">{challenge && <><h2>Check your inbox</h2><p>Enter the six-digit code sent through {channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.</p></>}
+    {!profile ? <div className="participant-access-panel"><div className="cp-auth-panel-header"><span className="cp-auth-eyebrow">SECURE CAMPER ACCESS</span><h2>Participant sign in</h2><p>Use your username or email and password to continue.</p></div>{challenge && <><h2>Check your inbox</h2><p>Enter the six-digit code sent through {channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.</p></>}
       {!challenge && <PortalCredentialLogin capabilities={capabilities} recoveryAvailable={deliveryPhase === 'ready' && channels.some(c => c.available)} recoveryLoading={loginOpen && deliveryPhase === 'loading'} onCheckRecovery={!loginOpen && deliveryPhase === 'loading' ? () => recoverAccount('reset') : undefined} busy={busy || loggingOut || now < retryUntil} onLogin={passwordLogin} onRecover={recoverAccount} onTransition={transitionCredentials} />}
       <PortalLoginChoices showGoogle={false} open={loginOpen || Boolean(challenge)} onVerify={() => { if (challenge) { setChallenge(null); setCode(''); setNotice(''); setLoginOpen(false) } else setLoginOpen(value => !value) }} />
       {(loginOpen || challenge) && <form id="cp-booking-verification" onSubmit={challenge ? verify : requestCode}>
