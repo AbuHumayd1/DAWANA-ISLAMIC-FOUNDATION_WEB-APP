@@ -241,3 +241,21 @@
   .cp-route .cp-main { width:100%; margin:0; padding:0; }
   .cp-route .cw-day .cw-agenda-item { break-inside:avoid; border:1px solid #aaa; background:white; }
 }
+
+/* DIC 2026 portal usability: findable sign-out, balanced mobile rhythm. */
+.cp-route .cp-header-signout { flex: 0 0 auto; border: 1px solid #d6dfd5; border-radius: 10px; background: transparent; color: var(--brand-deep); font: 600 .8125rem/1.3 var(--font-body); padding: .55rem .7rem; min-height: 40px; cursor: pointer; }
+.cp-route .cp-header-signout:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.cp-route .cp-header-signout:hover { background: #e8eee7; }
+.cp-route .cp-header-signout:disabled { opacity: .55; cursor: wait; }
+.cp-route .cw-account-drawer { max-width: 100%; margin-top: 1rem; padding-inline: 1rem; background: #f5f4ed; }
+.cp-route .cw-account-drawer > summary { min-height: 54px; }
+.cp-route .cw-account-drawer .cp-security-settings { max-width: 100%; }
+@media (max-width: 699px) {
+  .cp-route .cp-header { gap: .5rem; }
+  .cp-route .cw-header-switch { max-width: 33%; }
+  .cp-route .cp-header-signout { font-size: .75rem; padding: .5rem; min-height: 40px; }
+  .cp-route .cp-experience { font-size: .9375rem; }
+  .cp-route .cp-page { gap: 1rem; }
+  .cp-route .cp-card { padding: 1rem; }
+  .cp-route .cp-main { padding-bottom: calc(9rem + env(safe-area-inset-bottom)); }
+}
