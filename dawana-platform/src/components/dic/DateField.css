@@ -56,3 +56,12 @@
 .dic-wheel-actions .dic-wheel-done { background:var(--brand-solid); color:var(--on-brand); border-color:var(--brand-solid); }
 @media(max-width:600px) { .dic-wheel-backdrop { align-items:end; padding:0; } .dic-wheel-dialog { width:100%; max-height:85dvh; padding:1.25rem 1.15rem max(1.25rem,env(safe-area-inset-bottom)); border-radius:24px 24px 0 0; } }
 @media(prefers-reduced-motion:reduce) { .dic-wheel-list { scroll-behavior:auto; } }
+
+/* DOB wheel must appear above the fixed public navbar on iOS Safari. 
+   It is portaled to document.body, outside registration form stacking contexts. */
+body > .dic-wheel-backdrop { position:fixed; inset:0; z-index:2147483000; isolation:isolate; }
+body > .dic-wheel-backdrop > .dic-wheel-dialog { position:relative; z-index:1; flex:0 1 auto; opacity:1; visibility:visible; transform:none; }
+@media(max-width:600px) {
+  body > .dic-wheel-backdrop { justify-content:stretch; }
+  body > .dic-wheel-backdrop > .dic-wheel-dialog { flex:0 0 auto; width:100%; }
+}
