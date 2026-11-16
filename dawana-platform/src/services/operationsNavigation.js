@@ -2,6 +2,7 @@ export const navigation = [
   { label: 'Timetables', to: '/dic/operations/timetables', icon: 'clipboard', permission: 'timetables' },
   { label: 'Classes', to: '/dic/operations/classes', icon: 'users', permission: 'classes', campsite: true },
   { label: 'Announcements', to: '/dic/operations/announcements', icon: 'clipboard', permission: 'announcements', campsite: true },
+  { label: 'Media management', to: '/dic/operations/media-management', icon: 'file', permission: 'media' },
   { label: 'Overview', to: '/dic/operations', icon: 'grid' },
   { label: 'Camp Check-in', to: '/dic/operations/check-in', icon: 'clipboard', campsite: true },
   { label: 'Finance', to: '/dic/operations/finance', icon: 'card', permission: 'finance', campsite: true },
@@ -32,7 +33,7 @@ export const operationsNavigationGroups = [
   { label: 'Participants & Registration', paths: ['check-in', 'assisted-registration', 'registrations', 'participants', 'participant-ids', 'id-printing', 'houses'] },
   { label: 'Camp Activities', paths: ['classes', 'timetables', 'announcements', 'scoring', 'feedback','feedback-submit','welfare'] },
   { label: 'Finance & Reports', paths: ['payments', 'finance', 'reports', 'reporting-hub'] },
-  { label: 'Administration', paths: ['activity'] },
+  { label: 'Administration', paths: ['media-management', 'activity'] },
 ]
 
 export function visibleOperationsGroups(user) {
