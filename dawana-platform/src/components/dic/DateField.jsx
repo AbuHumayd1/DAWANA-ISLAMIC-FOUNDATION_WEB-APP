@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { dateError, dateValue, parseDate } from './dateValue'
 import { wheelClamp, wheelChoices, wheelISO, wheelParts } from './dateWheel'
 import './DateField.css'
@@ -69,11 +70,11 @@ export default function DateField({ label,name,value,onChange,required=true,min,
       onPointerDown={e=>{if(e.pointerType==='touch'){e.preventDefault();show()}}} onChange={e=>{const message=dateError(e.target.value,min,upper);e.target.setCustomValidity(message);setError(message);onChange(e)}} onInvalid={e=>setError(e.currentTarget.validationMessage)} />
       <button type="button" ref={opener} className="dic-date-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls={`${name}-wheel`} aria-label={`Choose ${label.toLowerCase()}`} onClick={()=>open?setOpen(false):show()}><svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></button>
     </div><small id={`${name}-hint`} className="dic-date-hint">Choose from the scrolling wheels or enter YYYY-MM-DD.</small>{error && <small className="dic-field-error" id={`${name}-error`} role="alert">{error}</small>}
-    {open && <div className="dic-wheel-backdrop" onPointerDown={e=>{if(e.target===e.currentTarget) setOpen(false)}}><section ref={dialog} id={`${name}-wheel`} className="dic-wheel-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={e=>{if(e.key==='Tab'){const controls=[...e.currentTarget.querySelectorAll('button')];const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}>
+    {open && typeof document !== 'undefined' && createPortal(<div className="dic-wheel-backdrop" onPointerDown={e=>{if(e.target===e.currentTarget) setOpen(false)}}><section ref={dialog} id={`${name}-wheel`} className="dic-wheel-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={e=>{if(e.key==='Tab'){const controls=[...e.currentTarget.querySelectorAll('button')];const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}>
       <div className="dic-wheel-title"><div><span className="dic-wheel-kicker">SELECT A DATE</span><h2 id={titleId}>{label}</h2></div><button type="button" className="dic-wheel-close" onClick={()=>{setOpen(false);opener.current?.focus({preventScroll:true})}} aria-label="Cancel date selection">×</button></div>
       <div className="dic-wheel-frame"><span className="dic-wheel-selection" aria-hidden="true"/><div className="dic-wheel-columns"><WheelColumn label="Day" items={days} value={draft[2]} onChange={n=>update(2,n)} text={n=>String(n).padStart(2,'0')}/><WheelColumn label="Month" items={months} value={draft[1]} onChange={n=>update(1,n)} text={n=>monthNames[n-1]}/><WheelColumn label="Year" items={years} value={draft[0]} onChange={n=>update(0,n)} text={n=>n}/></div></div>
       <p className="dic-wheel-preview" aria-live="polite">{new Intl.DateTimeFormat('en-GB',{dateStyle:'full'}).format(parseDate(wheelISO(...draft)))}</p>
       <div className="dic-wheel-actions"><button type="button" onClick={()=>{setOpen(false);opener.current?.focus({preventScroll:true})}}>Cancel</button><button type="button" className="dic-wheel-done" onClick={choose}>Use this date</button></div>
-    </section></div>}
+    </section></div>, document.body)}
   </div>
 }
