@@ -63,6 +63,11 @@ export default function ParticipantPortal() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState(() => location.hash.startsWith('#verify-email=') ? 'Recover your existing booking or contact DIC support to complete account verification.' : location.hash === '#signin=failed' ? 'Use your username and password, or recover your booking.' : participantSessionClosed() ? 'Sign in again to continue.' : '')
+  useEffect(() => {
+    if (notice !== 'Signed out.') return undefined
+    const timeout = window.setTimeout(() => setNotice(current => current === 'Signed out.' ? '' : current), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [notice])
   const [card, setCard] = useState(null)
   const [selection,setSelection] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
@@ -253,10 +258,10 @@ export default function ParticipantPortal() {
     setNotice(result.detail)
   })
 
-  if (checking || camperPhase === 'loading') return <section className="participant-portal cp-access-loading" aria-busy="true"><CamperBrand /><div className="cp-loading-indicator" aria-hidden="true" /><h1>Opening your Camper Portal</h1><p role="status">{checking ? 'Checking your session…' : 'Loading authorized campers…'}</p></section>
+  if (checking || camperPhase === 'loading') return <section className="participant-portal cp-access-loading" aria-busy="true"><div className="cp-loading-indicator" aria-hidden="true" /><p role="status">Opening your portal…</p></section>
   if (profile && camperPhase === 'error') return <section className="participant-portal cp-empty-state"><CamperBrand /><h1>Could not load your campers</h1><p role="alert">{error}</p><button className="button" onClick={() => perform(load)} disabled={busy}>Retry camper lookup</button><button className="button" onClick={logout}>Sign out</button></section>
   return <section className={`participant-portal ${profile ? 'cp-authenticated' : 'cp-auth'} ${card ? 'is-printing-card' : ''}`}>
-    {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><p className="cp-auth-help"><Link className="button button-outline" to="/">Back to DAWANA Website</Link></p><h1>Participant sign in</h1></div>}
+    {!profile && <div className="participant-page-heading"><Link to="/dic" className="cp-auth-brand"><CamperBrand /></Link><p className="cp-auth-help"><Link className="cp-back-link" to="/">Back to main website</Link></p><h1>Participant sign in</h1></div>}
     {!profile && (loginOpen || challenge || Boolean(error) || retryUntil > 0) && <ParticipantAuthStatus retryUntil={retryUntil} now={now} error={error} phase={deliveryPhase} channels={channels} deliveryError={deliveryError} onRetry={retryAccess} />}{profile && error && <p className="participant-error" role="alert">{error}</p>}{notice && !retryUntil && <p className="participant-notice" role="status">{notice}</p>}
     {!profile && logoutFailed && <button className="button" disabled={loggingOut} onClick={logout}>{loggingOut?'Signing out…':'Retry server sign-out'}</button>}
     {!profile ? <div className="participant-access-panel">{challenge && <><h2>Check your inbox</h2><p>Enter the six-digit code sent through {channels.find(c => c.value === channel)?.label || 'your selected channel'} if your booking details match.</p></>}
