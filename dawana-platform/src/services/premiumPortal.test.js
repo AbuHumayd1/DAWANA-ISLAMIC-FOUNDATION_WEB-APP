@@ -72,6 +72,25 @@ test('account settings render exclusively in Me, including legacy profile bookma
   assert.doesNotMatch(me, /<details class="cw-account-drawer" open/)
 })
 
+test('compact camper utility menu exposes accessible links and closes after selection', () => {
+  const html = render(experience.default, { orders: [order], expiresAt: '2026-12-23T12:00:00Z' })
+  assert.match(html, /<details class="cp-utility-menu"><summary aria-label="More camper options">More<\/summary>/)
+  for (const label of ['Lecture recordings', 'Announcements', 'My account']) assert.ok(html.includes(label))
+  assert.doesNotMatch(html, /<details class="cp-utility-menu" open/)
+  const source = fs.readFileSync(new URL('../components/dic/CamperExperience.jsx', import.meta.url), 'utf8')
+  assert.match(source, /utilityMenuRef\.current\.open = false/)
+  assert.match(source, /event\.key === 'Escape'/)
+  assert.match(source, /navigateUtility\('recordings'\)/)
+})
+
+test('mobile camper navigation leaves iPhone safe area clear', () => {
+  const css = fs.readFileSync(new URL('../components/dic/CamperWorld.css', import.meta.url), 'utf8')
+  assert.match(css, /@media \(max-width:699px\)/)
+  assert.match(css, /\.cp-route \.cp-navigation \{ box-sizing:border-box;/)
+  assert.match(css, /\.cp-route \.cp-experience \.cp-main \{ padding-bottom:calc\(9\.5rem \+ env\(safe-area-inset-bottom\)\); \}/)
+  assert.match(css, /\.cp-route \.cp-navigation button \{ min-width:0; min-height:52px;/)
+})
+
 test('ID authorization requires enrollment, eligibility and current issuance together', () => {
   assert.equal(digitalIDState(p).available, false)
   assert.equal(digitalIDState({ ...p, id: 9, issue: { status: 'current' } }).available, true)
