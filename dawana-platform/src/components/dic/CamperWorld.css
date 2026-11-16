@@ -389,3 +389,26 @@
 .cp-route .cp-experience[data-theme=dark] a { color:#b9ead0; }
 .cp-route .cp-experience[data-theme=dark] .cp-menu-backdrop { background:#0008; }
 @media(prefers-reduced-motion:reduce) { .cp-route .cp-theme-switch .cp-theme-toggle,.cp-route .cp-theme-switch .cp-theme-toggle i { transition:none; } }
+
+/* Dark appearance keeps original mint/amber/sky tile personality with readable text. */
+.cp-route .cp-experience[data-theme=dark] {
+ --cp-paper:#0f211b; --cp-ink:#e5f5ea; --cp-line:#3b5948;
+ --cp-mint:#1c4032; --cp-amber:#4c3926; --cp-lavender:#352d4c;
+ --cp-sky:#213e50; --cp-coral:#4a302d; --cp-yellow:#4b4022;
+}
+.cp-route .cp-experience[data-theme=dark] .cp-welcome { background:linear-gradient(115deg,#092f24,#16573e 70%,#1d674b); color:#fff; }
+.cp-route .cp-experience[data-theme=dark] .cp-welcome h1,.cp-route .cp-experience[data-theme=dark] .cp-welcome strong { color:#fff; }
+.cp-route .cp-experience[data-theme=dark] .cp-welcome h1 span,.cp-route .cp-experience[data-theme=dark] .cp-welcome .cp-kicker { color:#f6d48a; }
+.cp-route .cp-experience[data-theme=dark] .cp-welcome p,.cp-route .cp-experience[data-theme=dark] .cp-welcome small { color:#c5e5d4; }
+.cp-route .cp-experience[data-theme=dark] .cp-feature-tile { color:#edf8ef; border-color:#45604c; }
+.cp-route .cp-experience[data-theme=dark] .cp-feature-tile > span:last-child { color:#cedbd0; }
+.cp-route .cp-experience[data-theme=dark] .cp-feature-tile .cp-tile-icon { background:#ffffff12; }
+.cp-route .cp-experience[data-theme=dark] .cp-shortcuts .cp-kicker { color:#e6c989; }
+.cp-route .cp-experience[data-theme=dark] .cp-hero-status small { color:#c5e5d4; }
+.cp-route .cp-experience[data-theme=dark] .cp-programme-time small,.cp-route .cp-experience[data-theme=dark] .cp-programme-list p { color:#c0d1c4; }
+.cp-route .cp-experience[data-theme=dark] .cp-programme-time { color:#b9ecc9; }
+.cp-route .cp-experience[data-theme=dark] .cp-rank,.cp-route .cp-experience[data-theme=dark] .cp-arena b { color:#d2ead8; }
+.cp-route .cp-experience[data-theme=dark] .cp-arena .cp-own-house { background:#244331; border-color:#41664d; }
+.cp-route .cp-experience[data-theme=dark] .cp-id-emblem { background:#244b42; }
+.cp-route .cp-experience[data-theme=dark] .cp-id-emblem svg { color:#ceebd5; }
+.cp-route .cp-experience[data-theme=dark] .cp-pending-label { background:#514328; color:#f3dfa1; }
