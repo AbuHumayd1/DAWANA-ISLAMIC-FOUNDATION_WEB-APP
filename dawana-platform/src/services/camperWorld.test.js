@@ -62,13 +62,13 @@ test('timetable has distinct activity/meal buttons with secondary controls in a 
   assert.doesNotMatch(html, /<details class="cw-day-tools" open/)
 })
 
-test('Me preserves booking, class, ID and secure actions while security/session details start collapsed', () => {
+test('Me keeps participant details while settings and session controls live in their own view', () => {
   const html = render(experience.default,{orders:[order],expiresAt:'2026-12-23T12:00:00Z',accountSettings:createElement('p',null,'Existing settings')},'/dic/participant?view=me')
-  assert.match(html, /<details class="cw-account-drawer"><summary/)
-  for (const text of ['Existing settings','Account Settings','Refresh registrations','Sign out','Session expires']) assert.ok(html.includes(text), text)
+  assert.doesNotMatch(html, /Existing settings|cw-account-drawer|Session expires/)
+  const settings = render(experience.default,{orders:[order],expiresAt:'2026-12-23T12:00:00Z',accountSettings:createElement('p',null,'Existing settings')},'/dic/participant?view=settings')
+  for (const text of ['Existing settings','Account settings','Refresh registrations','Sign out','Session expires']) assert.ok(settings.includes(text), text)
   const profile = render(experience.ExperienceContent,{tab:'me',participant:p,order})
   for(const text of ['Example Camper','Approved class','confirmed','paid','Not checked in','PRIVATE-REFERENCE','Awaiting active ID']) assert.ok(profile.includes(text),text)
-  assert.doesNotMatch(html, /<details class="cw-account-drawer" open/)
 })
 
 test('Explore keeps every care channel and approved activity link in colorful grouped destinations', () => {
