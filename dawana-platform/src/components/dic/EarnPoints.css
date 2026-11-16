@@ -11,3 +11,12 @@
 .cp-route .earn-points-category strong { flex:none; font-size:1.125rem; text-align:right; color:var(--brand-deep); }
 .cp-route .earn-points-category summary:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
 @media(max-width:420px) { .cp-route .earn-points { padding:16px; }.cp-route .earn-points-category li { gap:10px; } }
+
+/* Keep Arena scoring catalogue readable in independently selected dark mode. */
+.cp-route .cp-experience[data-theme=dark] .earn-points { background:#1c3328; color:#eaf4ec; border-color:#45634e; }
+.cp-route .cp-experience[data-theme=dark] .earn-points > p { color:#d0e1d4; }
+.cp-route .cp-experience[data-theme=dark] .earn-points .earn-points-guidance { color:#c1d3c6; }
+.cp-route .cp-experience[data-theme=dark] .earn-points-category { border-top-color:#476251; }
+.cp-route .cp-experience[data-theme=dark] .earn-points-category li { border-top-color:#3c5445; }
+.cp-route .cp-experience[data-theme=dark] .earn-points-category :is(summary,h3,strong) { color:#ecf8ee; }
+.cp-route .cp-experience[data-theme=dark] .earn-points-category :is(span,small) { color:#c0d3c5; }
