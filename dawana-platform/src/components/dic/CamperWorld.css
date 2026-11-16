@@ -341,3 +341,6 @@
  .cp-route .cp-day-overview { padding:1rem; align-items:flex-start; }
  .cp-route .cp-day-empty { align-items:flex-start; }
 }
+
+.cp-route .cp-utility-divider { height:1px; background:#e3e9e0; margin:.35rem .35rem; }
+@media(max-width:699px) { .cp-route .cp-utility-menu { margin-left:auto; } .cp-route .cp-header .cp-brand { min-width:0; } }
