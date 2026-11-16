@@ -101,3 +101,39 @@
 .cp-route .cp-auth .cp-account-login { gap:.75rem; }
 .cp-route .cp-auth .cp-recovery-link { min-height:44px; margin:0 auto; }
 @media(max-width:600px) { .cp-route .cp-auth .participant-page-heading { margin-bottom:.7rem; } .cp-route .cp-auth .participant-access-panel { padding:1.15rem; } .cp-route .cp-auth .cp-auth-toast { width:calc(100% - 2rem); } }
+
+/* Premium DIC 2026 sign-in presentation: visual only; all credential,
+   recovery, verification and session components retain their behaviour. */
+.cp-route .cp-auth { padding:clamp(24px,4.5vw,52px) 18px 72px; background:radial-gradient(ellipse at top left,#e8efe5 0%,transparent 49%),linear-gradient(165deg,#f9f8f2 0%,#f3f3e9 100%); }
+.cp-route .cp-auth .participant-page-heading { display:grid; justify-items:center; text-align:center; gap:13px; max-width:560px; margin:0 auto 26px; }
+.cp-route .cp-auth .cp-auth-brand { display:inline-flex; justify-content:center; text-decoration:none; padding:8px 14px; border-radius:18px; }
+.cp-route .cp-auth .cp-auth-title { display:grid; gap:5px; justify-items:center; }
+.cp-route .cp-auth .cp-auth-kicker { color:#92703c; letter-spacing:.17em; font-size:.7rem; font-weight:700; }
+.cp-route .cp-auth .cp-auth-title h1 { margin:3px 0 0; color:#123f2c; font-size:clamp(2rem,6vw,2.7rem); line-height:1.17; letter-spacing:-.04em; }
+.cp-route .cp-auth .cp-auth-title p { margin:3px 0 0; color:#52665a; font-size:.92rem; line-height:1.55; }
+.cp-route .cp-auth .cp-auth-help { order:2; margin:0; }
+.cp-route .cp-auth .cp-back-link { font-size:.83rem; color:#386a52; text-decoration-thickness:1px; }
+.cp-route .cp-auth .participant-access-panel { max-width:520px; padding:clamp(22px,5vw,38px); border:1px solid #d5e1d6; border-radius:24px; background:#fffefa; box-shadow:0 18px 54px #0d352019,0 3px 10px #0d35200a; margin:0 auto; }
+.cp-route .cp-auth .cp-auth-panel-header { margin:0 0 22px; padding:0 0 19px; border-bottom:1px solid #e6eadf; }
+.cp-route .cp-auth .cp-auth-eyebrow { display:block; color:#9b7b42; letter-spacing:.13em; font-size:.68rem; font-weight:700; }
+.cp-route .cp-auth .cp-auth-panel-header h2 { margin:7px 0 3px; color:#183e2e; font-size:1.3rem; line-height:1.25; }
+.cp-route .cp-auth .cp-auth-panel-header p { margin:0; color:#617568; font-size:.85rem; line-height:1.55; }
+.cp-route .cp-auth .cp-account-login { gap:1rem; }
+.cp-route .cp-auth .cp-account-login form fieldset { display:grid; gap:17px; border:0; padding:0; margin:0; min-width:0; }
+.cp-route .cp-auth .cp-account-login form fieldset > label { font-weight:600; font-size:.88rem; color:#224433; gap:7px; }
+.cp-route .cp-auth .cp-account-login form input:not([type=checkbox]) { border:1px solid #cfdccc; background:#f8faf6; border-radius:12px; min-height:50px; font-size:1rem; padding:11px 14px; transition:border-color .15s,box-shadow .15s; }
+.cp-route .cp-auth .cp-account-login form input:focus { border-color:#367e59; box-shadow:0 0 0 3px #3e926528; outline:none; }
+.cp-route .cp-auth .cp-password-field button { min-width:64px; border-radius:12px; background:#eaf2eb; color:#204d36; }
+.cp-route .cp-auth .cp-remember-device { display:flex!important; flex-direction:row!important; align-items:center; gap:10px!important; font-weight:500!important; }
+.cp-route .cp-auth .cp-remember-device input[type=checkbox] { flex:none; width:19px; height:19px; accent-color:#22613f; }
+.cp-route .cp-auth .cp-account-login .button { min-height:50px; border-radius:12px; background:#164831; color:#fff; font-weight:650; letter-spacing:.005em; border:1px solid #164831; }
+.cp-route .cp-auth .cp-account-login .cp-recovery-link { color:#255b41; font-size:.88rem; font-weight:600; }
+.cp-route .cp-auth .cp-login-choices { border-top:1px solid #e3e9df; margin-top:16px; }
+.cp-route .cp-auth .participant-access-panel > form { margin-top:16px; }
+@media(max-width:600px) {
+ .cp-route .cp-auth { padding:22px 15px 54px; }
+ .cp-route .cp-auth .participant-page-heading { gap:10px; margin-bottom:20px; }
+ .cp-route .cp-auth .participant-access-panel { padding:23px 20px; border-radius:21px; }
+ .cp-route .cp-auth .cp-auth-panel-header { margin-bottom:18px; }
+}
+@media(prefers-reduced-motion:reduce) { .cp-route .cp-auth .cp-account-login form input:not([type=checkbox]) { transition:none; } }

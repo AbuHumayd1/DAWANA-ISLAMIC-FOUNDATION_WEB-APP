@@ -67,3 +67,20 @@ test('DOB wheel is portaled outside form stacking contexts for iPhone Safari', (
   assert.match(component, /aria-modal="true"/)
   assert.match(component, /onPointerDown=\{e=>\{if\(e\.target===e\.currentTarget\) setOpen\(false\)\}\}/)
 })
+
+
+test('DOB has a compact iPhone wheel with independent manual touch dragging', () => {
+  const component = fs.readFileSync(new URL('../components/dic/DateField.jsx', import.meta.url), 'utf8')
+  const css = fs.readFileSync(new URL('../components/dic/DateField.css', import.meta.url), 'utf8')
+  for (const event of ['onTouchStart={touchStart}', 'onTouchMove={touchMove}', 'onTouchEnd={touchEnd}', 'onTouchCancel={touchEnd}']) {
+    assert.ok(component.includes(event), event)
+  }
+  assert.match(component, /ref\.current\.scrollTop = drag\.current\.top - delta/)
+  assert.match(component, /if \(drag\.current\) return/)
+  assert.match(component, /const ROW_HEIGHT=36/)
+  assert.match(component, /Math\.round\(element\.scrollTop \/ ROW_HEIGHT\)/)
+  assert.match(css, /height:108px; padding:36px 0; overflow-y:auto/)
+  assert.match(css, /touch-action:none/)
+  assert.match(css, /\.dic-wheel-list\.is-dragging \{ scroll-snap-type:none/)
+  assert.match(css, /max-height:min\(75dvh,480px\)/)
+})

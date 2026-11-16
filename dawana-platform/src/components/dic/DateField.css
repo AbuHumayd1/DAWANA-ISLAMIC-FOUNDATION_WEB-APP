@@ -65,3 +65,32 @@ body > .dic-wheel-backdrop > .dic-wheel-dialog { position:relative; z-index:1; f
   body > .dic-wheel-backdrop { justify-content:stretch; }
   body > .dic-wheel-backdrop > .dic-wheel-dialog { flex:0 0 auto; width:100%; }
 }
+
+/* Live iPhone correction: compact three-row wheel with genuine touch dragging.
+   The centre guide is an overlay, not a competing scroll target. */
+body > .dic-wheel-backdrop > .dic-wheel-dialog {
+ max-width:360px; padding:14px 16px 16px; max-height:min(75dvh,480px); border-radius:18px;
+}
+body > .dic-wheel-backdrop .dic-wheel-title { margin-bottom:10px; }
+body > .dic-wheel-backdrop .dic-wheel-title h2 { font-size:1.12rem; margin:2px 0 0; }
+body > .dic-wheel-backdrop .dic-wheel-kicker { font-size:.625rem; }
+body > .dic-wheel-backdrop .dic-wheel-close { width:32px; height:32px; }
+body > .dic-wheel-backdrop .dic-wheel-columns { gap:4px; grid-template-columns:.8fr 1.45fr .9fr; }
+body > .dic-wheel-backdrop .dic-wheel-heading { height:20px; font-size:.7rem; }
+body > .dic-wheel-backdrop .dic-wheel-list {
+ box-sizing:border-box; height:108px; padding:36px 0; overflow-y:auto; overflow-x:hidden;
+ scroll-snap-type:y mandatory; scroll-padding-block:36px; overscroll-behavior:contain;
+ touch-action:none; -webkit-overflow-scrolling:touch;
+}
+body > .dic-wheel-backdrop .dic-wheel-list.is-dragging { scroll-snap-type:none; scroll-behavior:auto; }
+body > .dic-wheel-backdrop .dic-wheel-list button { height:36px; min-height:36px; font-size:.86rem; scroll-snap-align:center; }
+body > .dic-wheel-backdrop .dic-wheel-selection { top:calc(20px + 36px); height:36px; border-radius:9px; }
+body > .dic-wheel-backdrop .dic-wheel-preview { margin:9px 0; font-size:.8rem; }
+body > .dic-wheel-backdrop .dic-wheel-actions button { min-height:40px; font-size:.85rem; padding:8px; }
+@media(max-width:600px) {
+ body > .dic-wheel-backdrop { align-items:end; justify-content:center; }
+ body > .dic-wheel-backdrop > .dic-wheel-dialog {
+  width:100%; max-width:none; border-radius:19px 19px 0 0;
+  padding:14px 16px max(16px,env(safe-area-inset-bottom));
+ }
+}

@@ -48,3 +48,27 @@
 :is(.cp-route,.ops-app) .id-card-workspace .id-private-note { margin:1rem 0 0; font-size:.8125rem; }
 @media(max-width:650px) { :is(.cp-route,.ops-app) .id-card-active { flex-direction:column; align-items:stretch; } :is(.cp-route,.ops-app) .id-card-actions a { flex:1; } :is(.cp-route,.ops-app) .id-presentation-compact .id-presentation-heading { flex-direction:row; align-items:start; } }
 @media(max-width:370px) { :is(.cp-route,.ops-app) .id-card-workspace .id-format-tabs button { font-size:.77rem; } }
+
+/* Separate authorized ID screen inherits the Camper Portal's own saved
+   appearance; staff Operations ID screens and issued PDFs are unchanged. */
+.cp-route .participant-portal[data-theme=dark] {
+ --heading:#eff8f1; --text-main:#e4f1e8; --text-muted:#b9cfbf;
+ --brand-deep:#e6f6ea; --brand-solid:#2d855d; --on-brand:#fff;
+ --line:#456052; --panel:#193027; --panel-soft:#253e30;
+ background:#10241b; color:#eaf5ed; color-scheme:dark; min-height:100vh;
+}
+.cp-route .participant-portal[data-theme=dark] .id-presentation { color:#eaf5ed; }
+.cp-route .participant-portal[data-theme=dark] .id-eyebrow { color:#e5c986; }
+.cp-route .participant-portal[data-theme=dark] .id-presentation-heading :is(h1,p,.participant-id-number) { color:#ecf8f0; }
+.cp-route .participant-portal[data-theme=dark] .id-back { background:#223c2d; color:#ebf7ed; border-color:#52735b; }
+.cp-route .participant-portal[data-theme=dark] .id-card-workspace { background:#1a3227; border-color:#49634e; color:#eaf5ed; }
+.cp-route .participant-portal[data-theme=dark] .id-card-workspace h2,
+.cp-route .participant-portal[data-theme=dark] .id-card-active strong { color:#f0faf3; }
+.cp-route .participant-portal[data-theme=dark] .id-card-workspace > p,
+.cp-route .participant-portal[data-theme=dark] .id-card-active small,
+.cp-route .participant-portal[data-theme=dark] .id-private-note { color:#c4d9cb; }
+.cp-route .participant-portal[data-theme=dark] .id-format-tabs button { background:#264332; border-color:#5a755f; color:#e5f5ea; }
+.cp-route .participant-portal[data-theme=dark] .id-format-tabs button[aria-pressed=true] { background:#39815b; color:#fff; border-color:#70bd91; }
+.cp-route .participant-portal[data-theme=dark] .id-card-active { background:#233e30; border:1px solid #45664e; }
+.cp-route .participant-portal[data-theme=dark] .id-primary-action { background:#39815b; color:#fff; }
+.cp-route .participant-portal[data-theme=dark] .id-card-actions .id-download-action { background:#182f23; color:#e9f7ed; border-color:#65816a; }
