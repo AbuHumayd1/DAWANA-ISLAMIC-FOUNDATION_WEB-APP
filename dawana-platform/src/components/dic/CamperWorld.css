@@ -412,3 +412,84 @@
 .cp-route .cp-experience[data-theme=dark] .cp-id-emblem { background:#244b42; }
 .cp-route .cp-experience[data-theme=dark] .cp-id-emblem svg { color:#ceebd5; }
 .cp-route .cp-experience[data-theme=dark] .cp-pending-label { background:#514328; color:#f3dfa1; }
+
+/* Live iPhone acceptance: a compact contrast icon, not an oversized theme row. */
+.cp-route .cp-utility-settings-row { display:flex; align-items:center; gap:2px; min-width:0; }
+.cp-route .cp-utility-settings-row > button:first-child { flex:1 1 auto; min-width:0; }
+.cp-route .cp-utility-options .cp-theme-icon-button { flex:0 0 38px; display:grid; place-items:center; width:38px; height:38px; min-height:38px; padding:8px; border:1px solid #d8e4d9; border-radius:10px; background:#eef3ec; color:#22563f; }
+.cp-route .cp-theme-icon-button svg { display:block; width:21px; height:21px; }
+.cp-route .cp-utility-options .cp-theme-icon-button[aria-pressed=true] { background:#1c503c; border-color:#1c503c; color:#fff; }
+.cp-route .cp-utility-options .cp-theme-icon-button:focus-visible { outline:3px solid #cba75b; outline-offset:2px; }
+
+/* Dark-mode acceptance. Override light-only component surfaces instead of
+   inheriting pale text onto pale coloured cards. Restricted to Camper Portal. */
+.cp-route .cp-experience[data-theme=dark] {
+  --cw-mint:#224737; --cw-amber:#493921; --cw-lavender:#39314f;
+  --cw-sky:#244153; --cw-coral:#4b332f; --cw-yellow:#4b4225;
+  --cp-mint:#224737; --cp-amber:#493921; --cp-lavender:#39314f;
+  --cp-sky:#244153; --cp-coral:#4b332f; --cp-yellow:#4b4225;
+  --cp-ink:#eff8f0; --cp-muted:#c1d3c7; --cp-line:#465d4d;
+  --heading:#f0f8f1; --text-main:#e7f0e9; --text-muted:#c1d3c7;
+  --brand-solid:#78c99e; --brand-deep:#e1f5e7;
+  --on-brand:#10271b;
+}
+/* Legible header and primary emphasis. */
+.cp-route .cp-experience[data-theme=dark] .cp-header .cp-official-copy,
+.cp-route .cp-experience[data-theme=dark] .cp-header .cp-official-copy :is(strong,span),
+.cp-route .cp-experience[data-theme=dark] .cp-header .cp-brand,
+.cp-route .cp-experience[data-theme=dark] .cp-header .cp-parent-name { color:#eef9f0; }
+.cp-route .cp-experience[data-theme=dark] .cp-header .cp-official-copy strong span { color:#b9d2c1; }
+.cp-route .cp-experience[data-theme=dark] .cw-header-switch :is(span,select) { color:#e4f3e9; }
+/* The full-width hero banners were still light pastel with nearly white ink. */
+.cp-route .cp-experience[data-theme=dark] .cw-arena-banner {
+ background:linear-gradient(120deg,#342c4b,#46365f); border:1px solid #625477; color:#f8f2ff;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-explore-banner {
+ background:linear-gradient(120deg,#483126,#593e30); border:1px solid #725240; color:#fff5e9;
+}
+.cp-route .cp-experience[data-theme=dark] :is(.cw-arena-banner,.cw-explore-banner) :is(h1,p,.cp-kicker) { color:#fff7f0; }
+.cp-route .cp-experience[data-theme=dark] .cw-arena-banner .cw-trophy { color:#e2c77f; }
+.cp-route .cp-experience[data-theme=dark] .cw-explore-banner > svg { color:#e9b394; }
+/* Pastel overview cards, house/class panels, points and booking status. */
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-profile-grid .cp-class-card,.cw-status-chips div,.cw-discover-card,.cw-care-links a,.cw-camp-note,.cw-contribution-section .cp-contributions li,.cw-booking-summary .cw-quiet-details) {
+ color:#f0f8f1; border-color:#466251;
+}
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card).cp-tone-mint,
+.cp-route .cp-experience[data-theme=dark] .cw-status-chips div { background:#224737; }
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card).cp-tone-lavender,
+.cp-route .cp-experience[data-theme=dark] .cw-profile-grid .cp-class-card { background:#39314f; border-color:#605472; }
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card).cp-tone-sky { background:#244153; border-color:#45697d; }
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card).cp-tone-coral { background:#4b332f; border-color:#76524c; }
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card).cp-tone-yellow { background:#4b4225; border-color:#75643d; }
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card,.cw-profile-grid .cp-class-card,.cw-status-chips div) :is(.cp-kicker,h2,h3,strong,dt,dd,p,small,span) { color:#f0f8f1; }
+.cp-route .cp-experience[data-theme=dark] :is(.cw-info-card,.cw-discover-card,.cw-profile-grid .cp-class-card,.cw-status-chips div) :is(.cp-kicker,dt,small) { color:#c4d7c9; }
+.cp-route .cp-experience[data-theme=dark] .cw-discover-card > svg { color:#c3e8ca; }
+.cp-route .cp-experience[data-theme=dark] .cw-status-chips dd { color:#fff; }
+.cp-route .cp-experience[data-theme=dark] .cw-profile-person .cp-avatar { color:#163627; }
+.cp-route .cp-experience[data-theme=dark] .cw-profile-pass { background:linear-gradient(125deg,#173a2b,#28674a); color:#fff; border-color:#48735a; }
+.cp-route .cp-experience[data-theme=dark] .cw-profile-pass :is(h1,p,.cp-kicker) { color:#fff; }
+.cp-route .cp-experience[data-theme=dark] .cw-profile-pass .cw-pass-top { color:#f5d995; }
+/* Replace exceptionally pale light-mode Earn Points, Explore and notices panels. */
+.cp-route .cp-experience[data-theme=dark] .cw-contribution-section .cp-contributions li { background:#1c3428; }
+.cp-route .cp-experience[data-theme=dark] .cw-care-links a { background:#294637; color:#edf7ef; }
+.cp-route .cp-experience[data-theme=dark] .cw-care-links a:hover { background:#355a45; }
+.cp-route .cp-experience[data-theme=dark] .cw-camp-note { background:#263c31; color:#eaf4eb; }
+.cp-route .cp-experience[data-theme=dark] .cw-camp-note :is(h2,p) { color:#edf7ef; }
+.cp-route .cp-experience[data-theme=dark] .cw-quiet-details { border-top-color:#496052; color:#e5f2e9; }
+.cp-route .cp-experience[data-theme=dark] .cw-quiet-details :is(summary,p) { color:#e5f2e9; }
+.cp-route .cp-experience[data-theme=dark] .cp-card.cp-programme,
+.cp-route .cp-experience[data-theme=dark] .cp-card.cp-championship { background:transparent; }
+.cp-route .cp-experience[data-theme=dark] .cp-card-title :is(h2,.cp-kicker) { color:#e9f5ee; }
+.cp-route .cp-experience[data-theme=dark] .cp-card-title button,
+.cp-route .cp-experience[data-theme=dark] .cp-text-button { color:#9fe4b9; }
+.cp-route .cp-experience[data-theme=dark] .cp-explore-grid > .cp-card { background:#293f32; color:#f0f8f1; border:1px solid #4f6956; }
+.cp-route .cp-experience[data-theme=dark] .cp-explore-grid > .cp-card:nth-child(2) { background:#38314c; border-color:#5d5472; }
+.cp-route .cp-experience[data-theme=dark] .cp-explore-grid > .cp-card:nth-child(3) { background:#274254; border-color:#48697a; }
+.cp-route .cp-experience[data-theme=dark] .cp-explore-grid > .cp-card:nth-child(4) { background:#2b4939; }
+.cp-route .cp-experience[data-theme=dark] .cp-explore-grid > .cp-card :is(h2,p,span,strong) { color:#f2f9f4; }
+/* Navigation and menu must preserve contrast when appearance is dark. */
+.cp-route .cp-experience[data-theme=dark] .cp-utility-options { background:#1c3026; color:#f0f8f1; border-color:#486251; }
+.cp-route .cp-experience[data-theme=dark] .cp-utility-settings-row > button:first-child { color:#f0f8f1; }
+.cp-route .cp-experience[data-theme=dark] .cp-utility-options .cp-theme-icon-button { background:#2b4c38; border-color:#5f856c; color:#eef7ef; }
+.cp-route .cp-experience[data-theme=dark] .cp-utility-options .cp-theme-icon-button[aria-pressed=true] { background:#d2e7d6; color:#173d2a; }
+.cp-route .cp-experience[data-theme=dark] .cp-navigation button[aria-current=page] { color:#fff; }

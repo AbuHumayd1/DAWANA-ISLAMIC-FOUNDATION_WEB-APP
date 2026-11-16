@@ -1,5 +1,6 @@
 import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -52,4 +53,17 @@ test('date and measurement controls keep names, required fields and validation b
   assert.match(number, /min="0.01"/)
   assert.match(number, /step="0.01"/)
   assert.match(number, />cm</)
+})
+
+
+test('DOB wheel is portaled outside form stacking contexts for iPhone Safari', () => {
+  const component = fs.readFileSync(new URL('../components/dic/DateField.jsx', import.meta.url), 'utf8')
+  const styles = fs.readFileSync(new URL('../components/dic/DateField.css', import.meta.url), 'utf8')
+  assert.match(component, /import \{ createPortal \} from 'react-dom'/)
+  assert.match(component, /createPortal\(<div className="dic-wheel-backdrop"/)
+  assert.match(component, /<\/section><\/div>, document\.body\)/)
+  assert.match(styles, /body > \.dic-wheel-backdrop \{ position:fixed; inset:0; z-index:2147483000;/)
+  assert.match(styles, /body > \.dic-wheel-backdrop > \.dic-wheel-dialog/)
+  assert.match(component, /aria-modal="true"/)
+  assert.match(component, /onPointerDown=\{e=>\{if\(e\.target===e\.currentTarget\) setOpen\(false\)\}\}/)
 })
