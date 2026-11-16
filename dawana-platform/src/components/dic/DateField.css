@@ -28,3 +28,7 @@
 .dic-calendar-grid tbody { animation: dic-calendar-enter 120ms ease-out; }
 @keyframes dic-calendar-enter { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .dic-calendar, .dic-calendar-grid tbody { animation: none; } .dic-calendar .dic-calendar-grid button { transition: none; } }
+
+/* On iPhone/iPad, the platform owns its familiar date wheel and validation. */
+.dic-flow .dic-ios-date-field input[type="date"] { width:100%; min-width:0; min-height:48px; padding:.75rem; border:1px solid var(--line); border-radius:var(--dic-control-radius,10px); background:var(--panel); color:var(--text-main); font:inherit; font-size:1rem; line-height:1.5; font-variant-numeric:tabular-nums; -webkit-appearance:auto; appearance:auto; }
+.dic-flow .dic-ios-date-field input[type="date"]:focus-visible { outline:2px solid var(--focus); outline-offset:3px; }
