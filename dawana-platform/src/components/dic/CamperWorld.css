@@ -344,3 +344,5 @@
 
 .cp-route .cp-utility-divider { height:1px; background:#e3e9e0; margin:.35rem .35rem; }
 @media(max-width:699px) { .cp-route .cp-utility-menu { margin-left:auto; } .cp-route .cp-header .cp-brand { min-width:0; } }
+
+.cp-route .cp-utility-options button > span svg { display:block; width:20px; height:20px; stroke-width:1.7; }
