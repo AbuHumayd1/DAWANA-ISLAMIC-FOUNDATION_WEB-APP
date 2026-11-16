@@ -281,3 +281,22 @@
   .cp-route .cp-main .cp-home-columns { gap: 1rem; }
 }
 @media(prefers-reduced-motion:reduce) { .cp-route .cp-utility-options { transition:none; } }
+
+/* My Day: a single understated status instead of two large unpublished cards. */
+.cp-route .cp-day-unpublished { padding:1rem 1.25rem; border:1px solid #dce4dc; border-radius:14px; background:#fffdf8; box-shadow:none; }
+.cp-route .cp-day-unpublished p { margin:0; color:#526458; line-height:1.5; font-size:.9375rem; }
+
+/* Keep the fixed five-tab navigation legible and fully clear of the home indicator. */
+@media (max-width:699px) {
+  .cp-route .cp-navigation { box-sizing:border-box; padding:6px max(6px,env(safe-area-inset-right)) 6px max(6px,env(safe-area-inset-left)); }
+  .cp-route .cp-navigation button { min-width:0; min-height:52px; padding:7px 2px; gap:3px; }
+  .cp-route .cp-navigation button span { min-width:0; overflow-wrap:normal; line-height:1.15; text-align:center; }
+  .cp-route .cp-experience .cp-main { padding-bottom:calc(9.5rem + env(safe-area-inset-bottom)); }
+  .cp-route .cp-footer { padding-bottom:.75rem; }
+}
+@media (max-width:375px) {
+  .cp-route .cp-navigation { left:6px; right:6px; gap:2px; }
+  .cp-route .cp-navigation button { padding-inline:0; }
+  .cp-route .cp-navigation button span { font-size:.6875rem; }
+  .cp-route .cp-navigation svg { width:19px; height:19px; }
+}
