@@ -346,3 +346,46 @@
 @media(max-width:699px) { .cp-route .cp-utility-menu { margin-left:auto; } .cp-route .cp-header .cp-brand { min-width:0; } }
 
 .cp-route .cp-utility-options button > span svg { display:block; width:20px; height:20px; stroke-width:1.7; }
+
+/* Round 2: true modal-like outside-tap interception; no click-through navigation. */
+.cp-route .cp-experience[data-menu-open] .cp-header { z-index:202; pointer-events:none; }
+.cp-route .cp-experience[data-menu-open] .cp-utility-menu { pointer-events:auto; }
+.cp-route .cp-experience[data-menu-open] .cp-navigation { pointer-events:none; }
+.cp-route .cp-menu-backdrop { position:fixed; inset:0; z-index:190; width:100vw; height:100dvh; padding:0; margin:0; border:0; border-radius:0; background:rgba(9,33,26,.24); backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); cursor:default; }
+.cp-route .cp-hamburger { position:relative; z-index:204; }
+.cp-route .cp-utility-menu { z-index:205; }
+.cp-route .cp-utility-options { z-index:206; width:min(15.5rem,calc(100vw - 3rem)); max-width:15.5rem; padding:.4rem; border-radius:14px; gap:0; }
+.cp-route .cp-utility-options button { padding:.57rem .65rem; min-height:44px; gap:.55rem; font-size:.82rem; }
+.cp-route .cp-utility-options button > span { flex-basis:22px; }
+.cp-route .cp-utility-options button > span svg { width:19px; height:19px; }
+.cp-route .cp-theme-switch .cp-theme-toggle { display:inline-flex; flex:0 0 36px; height:21px; align-items:center; padding:2px; margin-left:auto; border-radius:40px; background:#d8dfd8; transition:background .15s ease; }
+.cp-route .cp-theme-switch .cp-theme-toggle i { width:17px; height:17px; border-radius:50%; background:#fff; box-shadow:0 1px 3px #0002; transition:transform .15s ease; }
+.cp-route .cp-theme-switch[aria-pressed=true] .cp-theme-toggle { background:#15533c; }
+.cp-route .cp-theme-switch[aria-pressed=true] .cp-theme-toggle i { transform:translateX(15px); }
+@media(max-width:699px) { .cp-route .cp-utility-options { width:min(15rem,calc(100vw - 2.5rem)); right:0; } }
+
+/* Camper-scoped theme: does not alter registration, main website or Operations. */
+.cp-route .cp-experience[data-theme=dark] {
+ --heading:#e5f5ea; --text-main:#e4eee8; --text-muted:#aebdb3; --line:#3f5549;
+ --panel:#172c24; --panel-soft:#203b2e; --panel-green:#234836;
+ --brand-deep:#e0f4e7; --brand-solid:#3a946e; --on-brand:#ffffff;
+ --cp-muted:#b5c9bc; --cp-surface:#172b24; --cp-border:#3b5445;
+ background:#0f211b; color:#e5f5ea; color-scheme:dark; min-height:100vh;
+}
+.cp-route .cp-experience[data-theme=dark] .cp-header { background:#12251ecc; }
+.cp-route .cp-experience[data-theme=dark] .cp-brand { color:#e5f5ea; }
+.cp-route .cp-experience[data-theme=dark] :is(.cp-main,.cp-view,.cp-page,.cp-footer,.cp-day-summary) { color:#e5f5ea; }
+.cp-route .cp-experience[data-theme=dark] :is(.cp-card,.cp-utility-options,.cp-settings-view .cp-account-settings,.cp-session-controls,.cp-day-empty,.cp-day-overview,.cp-feature-tile,.cw-card,.cw-panel,.cw-day,.cw-profile-section,.cp-explore-card) { background:#182e25; border-color:#3c5949; color:#e5f5ea; }
+.cp-route .cp-experience[data-theme=dark] :is(.cp-card,.cp-utility-options,.cp-settings-view,.cp-day-summary,.cp-page,.cw-profile-grid,.cp-explore-grid) :is(h1,h2,h3,h4,strong,p,small,span) { color:inherit; }
+.cp-route .cp-experience[data-theme=dark] :is(.cp-section-heading,.cp-section-heading p,.cp-day-heading p,.cp-day-overview p,.cp-day-empty p,.cp-footer,.cp-kicker) { color:#b9cfbf; }
+.cp-route .cp-experience[data-theme=dark] :is(.cp-hamburger,.cp-utility-options button,.cp-session-actions button) { background:#1b3529; color:#e5f5ea; border-color:#496552; }
+.cp-route .cp-experience[data-theme=dark] .cp-utility-options button:hover { background:#2a4e39; }
+.cp-route .cp-experience[data-theme=dark] .cp-utility-options button > span { color:#9fdbb6; }
+.cp-route .cp-experience[data-theme=dark] .cp-navigation { background:#1a3127; border-color:#365341; }
+.cp-route .cp-experience[data-theme=dark] .cp-navigation button { color:#c5dacb; }
+.cp-route .cp-experience[data-theme=dark] .cp-navigation button[aria-current=page] { background:#27734f; color:#fff; }
+.cp-route .cp-experience[data-theme=dark] .cp-id-entry,.cp-route .cp-experience[data-theme=dark] .cw-profile-card { background:#192f25; }
+.cp-route .cp-experience[data-theme=dark] :is(input,select,textarea) { background:#172c24; color:#e5f5ea; border-color:#536d5b; }
+.cp-route .cp-experience[data-theme=dark] a { color:#b9ead0; }
+.cp-route .cp-experience[data-theme=dark] .cp-menu-backdrop { background:#0008; }
+@media(prefers-reduced-motion:reduce) { .cp-route .cp-theme-switch .cp-theme-toggle,.cp-route .cp-theme-switch .cp-theme-toggle i { transition:none; } }
