@@ -102,6 +102,19 @@ class StudioAccessTests(TestCase):
         self.assertEqual(record.state, 'draft')
         self.assertEqual(record.published_by_id, None)
 
+    @override_settings(DIC_MEDIA_STUDIO_UPLOADS_ENABLED=False)
+    def test_uploads_fail_closed_without_explicit_owner_r2_activation(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('dic:studio-uploads'))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['enabled'])
+        token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
+        response = self.client.post(reverse('dic:studio-uploads'),
+                                    {'library': 'photos', 'caption': 'Should not upload'},
+                                    HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn('r2.cloudflarestorage.com', str(response.content))
+
     def test_nonpublisher_cannot_publish_even_if_can_view(self):
         viewer = get_user_model().objects.create_user('studio-viewer', password='synthetic', is_staff=True)
         viewer.user_permissions.add(Permission.objects.get(
