@@ -39,7 +39,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         from .house_configuration import approved_2026_houses
         from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
         first = initialize(self.edition, self.owner)
-        self.assertEqual(first, 182)
+        self.assertEqual(first, 180)
         houses = list(House.objects.filter(edition=self.edition))
         self.assertEqual(len(houses), 8)
         self.assertEqual(sum(row.capacity for row in houses), 240)
@@ -54,6 +54,9 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         existing.refresh_from_db()
         self.assertEqual(existing.eligibility_notes, 'Staff-customized description')
         self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), first)
+        self.assertFalse(TimetableEntry.objects.filter(edition=self.edition,description__icontains='Millionaire').exists())
+        self.assertTrue(TimetableEntry.objects.filter(edition=self.edition,date=date(2026,12,31),title='Explanation of Ahsanul Akhlaq',certainty='confirmed').exists())
+        self.assertTrue(TimetableEntry.objects.filter(edition=self.edition,timetable_type='food',date=date(2026,12,23),meal='lunch').exists())
 
     def test_legacy_unconfigured_matching_house_is_completed_without_renaming(self):
         from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
