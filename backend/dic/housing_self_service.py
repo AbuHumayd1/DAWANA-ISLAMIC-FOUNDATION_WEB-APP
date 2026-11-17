@@ -57,7 +57,7 @@ def process_authorized_housing(orders):
             get_user_model().DoesNotExist):
         logger.warning('Housing processing unavailable; booking remains accessible and awaiting allocation.')
     except Exception:
-        logger.exception('Housing processing failed after independent payment settlement.')
+        logger.error('Housing processing failed after independent payment settlement; internal details suppressed.')
     return 'awaiting'
 
 
