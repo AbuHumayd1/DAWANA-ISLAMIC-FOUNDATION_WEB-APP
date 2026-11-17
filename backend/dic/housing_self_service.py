@@ -9,12 +9,12 @@ import logging
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 
 from .allocation import AllocationError, unallocated_paid_participants
 from .housing_service import permitted, require_automation
 from .housing_queue import claim_for_participants, process_claim
-from .models import CampEdition, HousingJob
+from .models import CampEdition, HousingJob, DICAdminAuditEvent
 from .settlement_evidence import order_has_verified_settlement
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,28 @@ def process_authorized_housing(orders):
                                .filter(pk__in=ids).values_list('pk', flat=True))
             for participant_id in ids:
                 if participant_id in eligible_ids:
-                    HousingJob.objects.get_or_create(
+                    job, created = HousingJob.objects.get_or_create(
                         edition_id=edition.pk, participant_id=participant_id)
+                    # One-time compatibility repair for the former 2026 guardian
+                    # housing gate. No other held/failed/supervisor cases are
+                    # reopened by an authenticated camper request.
+                    if edition.year == 2026 and not created:
+                        with transaction.atomic():
+                            locked = HousingJob.objects.select_for_update().get(pk=job.pk)
+                            if (locked.state == 'held' and locked.reason in (
+                                'Dependent child has no approved guardian; hold for supervisor review.',
+                                'Dependent child requires an approved female guardian; hold for review.',
+                                'A guardian relationship awaits approval; hold the entire group.',
+                            )):
+                                locked.state = 'pending'
+                                locked.reason = ''
+                                locked.retry_at = None
+                                locked.claimed_at = None
+                                locked.save(update_fields=('state', 'reason', 'retry_at', 'claimed_at', 'updated_at'))
+                                DICAdminAuditEvent.objects.create(
+                                    actor=actor, action='housing_legacy_guardian_hold_recovered',
+                                    target_type='HousingJob', target_id=str(locked.pk),
+                                    details={'policy': 'dic2026_independent_housing'})
             claimed = claim_for_participants(edition.pk, ids, actor)
             if claimed:
                 process_claim(*claimed, actor)

@@ -493,3 +493,34 @@
 .cp-route .cp-experience[data-theme=dark] .cp-utility-options .cp-theme-icon-button { background:#2b4c38; border-color:#5f856c; color:#eef7ef; }
 .cp-route .cp-experience[data-theme=dark] .cp-utility-options .cp-theme-icon-button[aria-pressed=true] { background:#d2e7d6; color:#173d2a; }
 .cp-route .cp-experience[data-theme=dark] .cp-navigation button[aria-current=page] { color:#fff; }
+
+
+/* Arena standings in dark mode: podium cards must not keep pale backgrounds
+   while inheriting light text from the dark Camper Portal theme. */
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li {
+  background:#253c31;
+  border-color:#526956;
+  color:#f3faf4;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li.cw-place-1 {
+  background:#493c26;
+  border-color:#897349;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li.cw-place-2 {
+  background:#303f4c;
+  border-color:#617b8d;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li.cw-place-3 {
+  background:#49372e;
+  border-color:#866655;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li.cp-own-house {
+  box-shadow:inset 3px 0 #9ce0b5;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li :is(strong,small,b,.cp-rank) {
+  color:#f3faf4;
+}
+.cp-route .cp-experience[data-theme=dark] .cw-leaderboard li .cw-house-emblem {
+  background:#e2efe5;
+  color:#183c2c;
+}
