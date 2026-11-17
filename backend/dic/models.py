@@ -1561,3 +1561,5 @@ from .camp_release_models import LectureRecording, CertificateRelease, Participa
 
 # Unified Foundation Media Studio catalogue (separate from DIC legacy media source rows).
 from .studio_models import StudioAsset, StudioPlacement  # noqa: E402,F401
+
+from .studio_hosted_models import StudioHostedVideo  # noqa: E402,F401
