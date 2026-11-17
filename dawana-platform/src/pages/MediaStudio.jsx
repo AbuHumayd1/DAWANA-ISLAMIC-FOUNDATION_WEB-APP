@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
 import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit } from '../services/mediaStudioApi'
 import './MediaStudio.css'
+import StudioDestinations from './StudioDestinations'
 
 const COMPOSER_FIELDS = {
   photos: [{ name: 'caption', label: 'Caption', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
@@ -194,6 +195,7 @@ export default function MediaStudio() {
         </article>)}</div> : <div className="studio-state"><strong>No media records match this view.</strong><p>Use the filters to find existing items. New uploads and the full unified media composer will be enabled after private storage activation and validation.</p></div>}
         {more && <p className="studio-pagination">More than 100 items match this view. Narrow your search to see more specific results.</p>}
       </section>
+      {user.owner || user.libraries?.length ? <StudioDestinations user={user} editions={uploadInfo.editions} library={library} records={rows} /> : null}
       <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>
     </main>
   </div>
