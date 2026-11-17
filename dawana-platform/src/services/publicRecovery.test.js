@@ -32,7 +32,7 @@ test('public footer exposes distinct staff, participant and backend Admin destin
   try {
     const { Footer } = await server.ssrLoadModule('/src/components/layout/SiteChrome.jsx')
     const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Footer)))
-    assert.match(html, /href="\/dic\/operations"[^>]*>Team access/)
+    assert.match(html, /href="\/dic\/operations"[^>]*>Operations Portal/)
     const { backendUrl: configuredBackendUrl } = await server.ssrLoadModule('/src/services/productionContract.js')
     const adminUrl = configuredBackendUrl('/admin/')
     assert.ok(['/admin/', 'https://api.dawanaislamicfoundation.org/admin/'].includes(adminUrl))
