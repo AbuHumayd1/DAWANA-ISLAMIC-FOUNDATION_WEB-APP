@@ -92,6 +92,23 @@ class HostedLinkPublishingTests(TestCase):
         self.assertEqual(items[0]['source_kind'], 'hosted')
         self.assertNotIn('audio', str(items))
 
+    def test_staff_library_preview_is_safe_canonical_embed_without_private_keys(self):
+        created = self.submit('studio-hosted-links', {'items': [{
+            'title': 'Livestream test',
+            'video_url': 'https://www.youtube.com/live/abcDEFG1234',
+        }]})
+        self.assertEqual(created.status_code, 201, created.content)
+        library = self.client.get(reverse('dic:studio-library'), {'library': 'hosted'})
+        self.assertEqual(library.status_code, 200, library.content)
+        self.assertEqual(library.json()['items'][0]['player_url'],
+                         'https://www.youtube-nocookie.com/embed/abcDEFG1234?playsinline=1')
+        self.assertNotIn('r2.cloudflarestorage.com', str(library.content))
+        self.assertNotIn('secret', str(library.content))
+        self.assertIsNone(library.json()['items'][0]['preview_url'])
+        anonymous = Client()
+        self.assertIn(anonymous.get(reverse('dic:studio-library'),
+                                    {'library': 'hosted'}).status_code, (401, 403))
+
     def test_operator_can_publish_without_upload_switch_and_viewer_cannot_create(self):
         self.assertFalse(self.client.get(reverse('dic:studio-uploads')).json()['enabled'])
         viewer = get_user_model().objects.create_user('video-viewer', password='synthetic',
