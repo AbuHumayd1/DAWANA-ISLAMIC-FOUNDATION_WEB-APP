@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { backendUrl } from '../services/productionContract'
 import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 
@@ -113,7 +114,7 @@ export default function MediaStudio() {
         </div>
         {message && <p className="studio-notice" role="status">{message}</p>}
         {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className="studio-item" key={item.id}>
-          <div className="studio-art"><span aria-hidden="true">{selected?.icon}</span><small>Asset #{item.id}</small></div>
+          <div className="studio-art">{item.preview_url ? <img src={backendUrl(item.preview_url)} loading="lazy" alt={item.title} onError={(event) => { event.currentTarget.hidden = true }} /> : <span aria-hidden="true">{selected?.icon}</span>}<small>Asset #{item.id}</small></div>
           <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublish && ['photos','videos','recordings','flyers','promotions','activities'].includes(library) ? <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button> : <span>Read-only catalogue</span>}</div></div>
         </article>)}</div> : <div className="studio-state"><strong>No media records match this view.</strong><p>Use the filters to find existing items. New uploads and the full unified media composer will be enabled after private storage activation and validation.</p></div>}
         {more && <p className="studio-pagination">More than 100 items match this view. Narrow your search to see more specific results.</p>}
