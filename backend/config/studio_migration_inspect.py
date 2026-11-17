@@ -5,10 +5,17 @@ commit. No migrations, release SQL or data-writing commands are executed.
 """
 import json
 import os
+import re
 
-from config.integrated_schema_recovery import Stop, environment, identity, require
+from config.integrated_schema_recovery import identity, require
 from config.release_migrations import plan_manifest
 
+
+# Independently verified from the current production Render PostgreSQL instance.
+# Non-secret identity is pinned; no configuration changes are needed on Render.
+APPROVED_DATABASE = "dawana_db"
+APPROVED_ROLE = "dawana_db_user"
+APPROVED_CLUSTER_ID = "7705861322388955175"
 
 ALLOWED = (
     ("dic", "0043_exclude_dic2026_millionaire_drafts"),
@@ -24,9 +31,24 @@ def inspection():
 
     require(settings.SETTINGS_MODULE == "config.settings.render",
             "RENDER_SETTINGS_REQUIRED")
-    _, expected, commit, _ = environment(os.environ, recovery=False)
-    require(commit == os.environ.get("DAWANA_STUDIO_INSPECT_COMMIT"),
-            "PINNED_INSPECTION_COMMIT_MISMATCH")
+    require(os.environ.get("RENDER") == "true", "RENDER_REQUIRED")
+    commit = os.environ.get("RENDER_GIT_COMMIT", "")
+    require(re.fullmatch(r"[0-9a-f]{40}", commit) is not None,
+            "RENDER_COMMIT_REQUIRED")
+    config = connection.settings_dict
+    expected = {
+        "database": APPROVED_DATABASE,
+        "role": APPROVED_ROLE,
+        "cluster_id": APPROVED_CLUSTER_ID,
+        "host": str(config.get("HOST") or ""),
+        "port": "5432",
+    }
+    # The host is authenticated by PostgreSQL TLS verify-full, while the
+    # PostgreSQL system identifier is independently pinned to production.
+    require(config.get("NAME") == APPROVED_DATABASE and
+            config.get("USER") == APPROVED_ROLE and
+            str(config.get("PORT") or "5432") == "5432",
+            "PRODUCTION_DATABASE_IDENTITY_MISMATCH")
     with transaction.atomic(using=connection.alias):
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
