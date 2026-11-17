@@ -76,7 +76,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), 0)
         self.assertEqual(House.objects.filter(edition=self.edition).count(), 1)
         self.edition.refresh_from_db()
-        self.assertIsNone(self.edition.housing_age_reference_date)
+        self.assertEqual(self.edition.housing_age_reference_date, date(2026, 12, 23))
 
     def test_approved_revisions_and_audience_parallel_slots_publish_without_overlap(self):
         initialize(self.edition,self.owner)
