@@ -24,6 +24,8 @@ const scoped = (dest) => dest.startsWith('dic_') || dest === 'camper_resources'
 
 export default function StudioDestinations({ user, editions, library }) {
   const [items, setItems] = useState([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -50,14 +52,16 @@ export default function StudioDestinations({ user, editions, library }) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    studioAssets().then(response => {
+    studioAssets(page).then(response => {
       if (!active) return
-      setItems(response.assets || [])
-      setSelected(current => response.assets?.some(item => item.id === current) ? current : '')
+      setHasMore(Boolean(response.has_more))
+      setItems(previous => page === 1 ? (response.assets || []) :
+        [...previous.filter(item => !(response.assets || []).some(next => next.id === item.id)), ...(response.assets || [])])
+      if (page === 1) setSelected(current => response.assets?.some(item => item.id === current) ? current : '')
     }).catch(error => { if (active) setMessage(error.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [revision])
+  }, [revision, page])
   useEffect(() => {
     if (!current) return
     setAlbum(current.album || '')
@@ -109,6 +113,7 @@ export default function StudioDestinations({ user, editions, library }) {
         {loading ? <p>Loading catalogue…</p> : items.filter(x => showArchive || !x.archived).length ? items.filter(x => showArchive || !x.archived).map(item =>
           <button type="button" className={selected === item.id ? 'studio-linked-item selected' : 'studio-linked-item'} key={item.id} onClick={() => setSelected(item.id)}><span>{item.source_kind}</span><strong>{item.title}</strong><small>{item.archived ? 'Archived' : item.destinations?.filter(p => p.state === 'published').length + ' published destinations'}</small></button>)
           : <p className="studio-empty-linked">No assets linked yet. Link an existing media record to organize and distribute it.</p>}
+        {!loading && hasMore && <button type="button" className="studio-loadmore" onClick={() => setPage(n => n + 1)}>Load more assets</button>}
       </div>
       <div className="studio-destination-detail">
         {!current ? <div className="studio-destination-empty"><strong>Select a linked asset</strong><p>Its metadata and destination publication controls will appear here.</p></div> : <>
