@@ -137,6 +137,38 @@ class StudioCatalogueTests(TestCase):
         self.assertEqual(self.client.get(reverse('dic:studio-public-placements'),
                          {'destination': 'camper_resources'}).status_code, 404)
 
+    def test_catalogue_pages_are_bounded_and_source_permission_filtered(self):
+        for n in range(32):
+            StudioAsset.objects.create(
+                source_kind='photos', source_id=10000 + n,
+                title=f'Fixture {n}', created_by=self.owner)
+        response = self.client.get(reverse('dic:studio-assets'), {'page': 1})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(len(response.json()['assets']), 30)
+        self.assertTrue(response.json()['has_more'])
+        last = self.client.get(reverse('dic:studio-assets'), {'page': 2})
+        self.assertEqual(len(last.json()['assets']), 2)
+        self.assertFalse(last.json()['has_more'])
+        self.assertEqual(self.client.get(reverse('dic:studio-assets'), {'page': 101}).status_code, 400)
+
+    def test_library_pages_bound_query_and_do_not_expose_private_file_keys(self):
+        with TemporaryDirectory() as root, override_settings(
+                DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            for n in range(32):
+                self.photo(title=f'Private fixture {n}')
+            page_one = self.client.get(reverse('dic:studio-library'), {
+                'library': 'photos', 'page': 1})
+            self.assertEqual(page_one.status_code, 200, page_one.content)
+            self.assertEqual(len(page_one.json()['items']), 30)
+            self.assertTrue(page_one.json()['has_more'])
+            self.assertNotIn('memories/', str(page_one.content))
+            page_two = self.client.get(reverse('dic:studio-library'), {
+                'library': 'photos', 'page': 2})
+            self.assertEqual(len(page_two.json()['items']), 2)
+            self.assertFalse(page_two.json()['has_more'])
+            self.assertEqual(self.client.get(reverse('dic:studio-library'), {
+                'library': 'photos', 'page': 101}).status_code, 400)
+
     def test_unprivileged_studio_viewer_cannot_link_or_publish(self):
         viewer = get_user_model().objects.create_user('catalogue-viewer', password='synthetic', is_staff=True)
         viewer.user_permissions.add(Permission.objects.get(
