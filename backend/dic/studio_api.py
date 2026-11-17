@@ -195,7 +195,8 @@ class StudioLibraryView(StudioView):
         return self.nocache({'library': kind, 'items': rows, 'limit': 30, 'page': page,
                              'has_more': len(records) > 30,
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename)),
-                             'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename))})
+                             'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename)),
+                             'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename))})
 
 
 class StudioPublicationView(StudioView):
