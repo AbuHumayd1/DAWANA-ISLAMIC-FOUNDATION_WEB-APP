@@ -33,3 +33,17 @@ test('R2 is not accessed directly from the browser', () => {
   const api = read('./mediaStudioApi.js')
   assert.doesNotMatch(ui + api, /r2\.cloudflarestorage\.com|AWS_ACCESS|secret_access_key/)
 })
+
+test('Foundation publishing panel remains in the standalone Studio and uses scoped backend catalogue', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  const panel = read('../pages/StudioDestinations.jsx')
+  const api = read('./mediaStudioApi.js')
+  assert.match(studio, /<StudioDestinations /)
+  assert.match(panel, /studioLinkAsset/)
+  assert.match(panel, /studioPlacement/)
+  assert.match(panel, /studioArchiveAsset/)
+  assert.match(panel, /studioAssetMetadata/)
+  assert.match(panel, /camper_resources/)
+  assert.match(api, /\/assets\//)
+  assert.doesNotMatch(panel, /r2\.cloudflarestorage\.com|AWS_ACCESS|\/admin\//)
+})
