@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { studioAssets, studioLinkAsset, studioAssetMetadata, studioArchiveAsset, studioPlacement } from '../services/mediaStudioApi'
 import './StudioDestinations.css'
 
@@ -24,6 +24,7 @@ const choices = {
 const scoped = (dest) => dest.startsWith('dic_') || dest === 'camper_resources'
 
 export default function StudioDestinations({ user, editions, library, sourceLinkRefresh, focusAsset }) {
+  const handledFocus = useRef('')
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -66,7 +67,13 @@ export default function StudioDestinations({ user, editions, library, sourceLink
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [revision, page, sourceLinkRefresh])
-  useEffect(() => { if (focusAsset && items.some(item => item.id === focusAsset)) setSelected(focusAsset) }, [focusAsset, items])
+  useEffect(() => {
+    if (focusAsset && focusAsset !== handledFocus.current && items.some(item => item.id === focusAsset)) {
+      handledFocus.current = focusAsset
+      setSelected(focusAsset)
+    }
+  }, [focusAsset, items])
+  useEffect(() => { if (choices[library]) setLinkKind(library) }, [library])
   useEffect(() => {
     if (!current) return
     setAlbum(current.album || '')
