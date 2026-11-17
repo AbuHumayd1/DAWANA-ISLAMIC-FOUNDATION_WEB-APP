@@ -11,10 +11,10 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import DatabaseError
 
-from .allocation import AllocationError
+from .allocation import AllocationError, unallocated_paid_participants
 from .housing_service import permitted, require_automation
 from .housing_queue import claim_for_participants, process_claim
-from .models import CampEdition, HousingJob, RegistrationOrder
+from .models import CampEdition, HousingJob
 from .settlement_evidence import order_has_verified_settlement
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,14 @@ def process_authorized_housing(orders):
             edition = CampEdition.objects.get(pk=order.edition_id)
             require_automation(edition)
             ids = list(order.items.values_list('participant_id', flat=True)[:20])
+            # Repair missed post-payment handoffs, but never reset a held,
+            # failed, released or previously completed allocation.
+            eligible_ids = set(unallocated_paid_participants(edition)
+                               .filter(pk__in=ids).values_list('pk', flat=True))
+            for participant_id in ids:
+                if participant_id in eligible_ids:
+                    HousingJob.objects.get_or_create(
+                        edition_id=edition.pk, participant_id=participant_id)
             claimed = claim_for_participants(edition.pk, ids, actor)
             if claimed:
                 process_claim(*claimed, actor)
