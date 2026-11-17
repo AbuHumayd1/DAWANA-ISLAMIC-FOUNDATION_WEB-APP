@@ -213,7 +213,9 @@ class StudioPlacementView(StudioView):
             if edition_id and not CampEdition.objects.filter(pk=edition_id).exists():
                 raise ValidationError({'edition': 'Choose an existing camp edition.'})
             # Preserve original DIC ownership for all participant or camp-specific placements.
-            if edition_id is not None and hasattr(source, 'edition_id') and source.edition_id != edition_id:
+            if (edition_id is not None and hasattr(source, 'edition_id')
+                    and (asset.source_kind != 'hosted' or source.edition_id is not None)
+                    and source.edition_id != edition_id):
                 raise ValidationError({'edition': 'An asset cannot cross its original DIC edition private delivery boundary.'})
             placement, _ = StudioPlacement.objects.select_for_update().get_or_create(
                 asset=asset, destination=destination, edition_id=edition_id)
