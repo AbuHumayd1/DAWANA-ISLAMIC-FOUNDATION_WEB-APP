@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 
 const COMPOSER_FIELDS = {
@@ -37,6 +37,8 @@ export default function MediaStudio() {
   const [edition, setEdition] = useState('')
   const [rows, setRows] = useState([])
   const [canPublish, setCanPublish] = useState(false)
+  const [canEdit, setCanEdit] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [loading, setLoading] = useState(false)
   const [more, setMore] = useState(false)
   const [pending, setPending] = useState(null)
@@ -88,7 +90,7 @@ export default function MediaStudio() {
     const current = ++seq.current
     setLoading(true); setMessage('')
     studioLibrary({ library, q, state, edition })
-      .then(data => { if (active && current === seq.current) { setRows(data.items); setMore(data.has_more); setCanPublish(data.can_publish) } })
+      .then(data => { if (active && current === seq.current) { setRows(data.items); setMore(data.has_more); setCanPublish(data.can_publish); setCanEdit(data.can_edit) } })
       .catch(e => { if (active && current === seq.current) { setRows([]); setMessage(e.message) } })
       .finally(() => { if (active && current === seq.current) setLoading(false) })
     return () => { active = false }
@@ -103,6 +105,24 @@ export default function MediaStudio() {
   async function signOut() {
     try { await studioLogout(); setUser(null); setRows([]); setMenuOpen(false) }
     catch (error) { setMessage(error.message) }
+  }
+  async function saveMetadata(event, item) {
+    event.preventDefault()
+    setPending(item.id); setMessage('')
+    const values = Object.fromEntries(new FormData(event.currentTarget))
+    const metadata = {}
+    for (const [key, original] of Object.entries(item.metadata || {})) {
+      if (typeof original === 'boolean') metadata[key] = values[key] === 'on'
+      else if (typeof original === 'number') metadata[key] = Number(values[key])
+      else metadata[key] = values[key] || ''
+    }
+    try {
+      const response = await studioEdit(library, item.id, metadata)
+      setRows(previous => previous.map(row => row.id === item.id ? { ...row, metadata: response.metadata, state: response.state, title: response.metadata.title || response.metadata.name || response.metadata.caption || row.title } : row))
+      setEditing(null)
+      setMessage('Changes saved. Previously published material has been returned to draft for review.')
+    } catch (error) { setMessage(error.message) }
+    finally { setPending(null) }
   }
   async function publish(item, action) {
     setPending(item.id); setMessage('')
@@ -153,7 +173,8 @@ export default function MediaStudio() {
         {message && <p className="studio-notice" role="status">{message}</p>}
         {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className="studio-item" key={item.id}>
           <div className="studio-art">{item.preview_url ? <img src={backendUrl(item.preview_url)} loading="lazy" alt={item.title} onError={(event) => { event.currentTarget.hidden = true }} /> : <span aria-hidden="true">{selected?.icon}</span>}<small>Asset #{item.id}</small></div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublish && ['photos','videos','recordings','flyers','promotions','activities'].includes(library) ? <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button> : <span>Read-only catalogue</span>}</div></div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && ['photos','videos','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          {editing === item.id && <form className="studio-edit-form" onSubmit={event => saveMetadata(event, item)}><strong>Editorial details</strong>{Object.entries(item.metadata || {}).map(([name,value]) => <label key={name}>{name.replaceAll('_',' ')}{typeof value === 'boolean' ? <input name={name} type="checkbox" defaultChecked={value} /> : <input name={name} type={typeof value === 'number' ? 'number' : 'text'} min={typeof value === 'number' ? 0 : undefined} maxLength={typeof value === 'number' ? undefined : 5000} defaultValue={value ?? ''} />}</label>)}<button type="submit" disabled={pending !== null}>Save changes</button></form>}</div>
         </article>)}</div> : <div className="studio-state"><strong>No media records match this view.</strong><p>Use the filters to find existing items. New uploads and the full unified media composer will be enabled after private storage activation and validation.</p></div>}
         {more && <p className="studio-pagination">More than 100 items match this view. Narrow your search to see more specific results.</p>}
       </section>
