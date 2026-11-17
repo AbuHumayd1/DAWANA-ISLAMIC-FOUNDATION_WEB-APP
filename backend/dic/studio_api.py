@@ -41,7 +41,7 @@ ACTION_GRANTS = ('dic.publish_campphotograph', 'dic.publish_campvideo',
 
 
 def studio_allowed(user):
-    return bool(user.is_authenticated and user.is_active and user.is_staff
+    return bool(user is not None and user.is_authenticated and user.is_active and user.is_staff
                 and (user.is_superuser or any(user.has_perm(p) for p in VIEW_GRANTS)))
 
 
