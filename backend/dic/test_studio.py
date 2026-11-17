@@ -46,7 +46,9 @@ class StudioAccessTests(TestCase):
         response = self.login('studio-owner')
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['owner'])
-        self.assertEqual(len(response.json()['libraries']), 8)
+        from dic.studio_api import LIBRARIES
+        self.assertEqual(set(response.json()['libraries']), set(LIBRARIES))
+        self.assertIn('hosted', response.json()['libraries'])
 
     def test_camper_and_anonymous_user_cannot_browse_library(self):
         response = self.client.get(reverse('dic:studio-library'))
