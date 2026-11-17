@@ -13,6 +13,7 @@ const destinationNames = {
 const choices = {
   photos: ['foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing'],
   videos: ['foundation_archive', 'foundation_home', 'dic_landing'],
+  hosted: ['foundation_archive', 'foundation_home', 'dic_landing', 'dic_resources'],
   recordings: ['dic_resources', 'camper_resources'],
   flyers: ['foundation_archive', 'dic_landing'],
   promotions: ['foundation_archive', 'foundation_home', 'dic_landing'],
