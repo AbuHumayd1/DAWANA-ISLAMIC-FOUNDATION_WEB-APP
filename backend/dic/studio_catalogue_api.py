@@ -63,6 +63,10 @@ def published_url(asset, source):
         return reverse('dic:official-flyer', args=[source.pk]) if source.edition.is_active else None
     if asset.source_kind == 'promotions':
         return reverse('dic:promo-stream', args=[source.pk]) if source.edition.is_active else None
+    if asset.source_kind == 'appearances':
+        if source.edition.is_active and source.lecturer.photograph and source.confirmation_status != 'declined':
+            return reverse('dic:showcase-image', args=['lecturer', source.pk])
+        return None
     if asset.source_kind == 'activities':
         return reverse('dic:showcase-image', args=['activity', source.pk]) if source.photograph and source.edition.is_active else None
     return None  # Recordings are ONLY accessible via existing camper entitlement routes.
