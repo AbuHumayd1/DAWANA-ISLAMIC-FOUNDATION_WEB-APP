@@ -66,10 +66,30 @@
 - No duplicate media upload to reach multiple destinations.
 - No invented content, speaker verification, captions, external videos or media programme associations.
 
-## 5. Current milestone progress (draft PR #46)
+## 5. Development progress — draft PR #46 (not merged)
 
-**Implemented in this draft branch, not on production:** isolated `/media-studio` login using shared DAWANA staff authentication and CSRF, unrestricted system-superuser Studio access, a distinct media-team permission group (no default access to other DIC operations), desktop/mobile/dark responsive studio, footer Media Studio Login link, searchable and filtered per-model media catalogues, authenticated private thumbnail previews, owner-gated upload composer (including bounded sequential bulk photo upload), metadata editing that withdraws previously published assets, directly authorized publish/withdraw actions and audit receipts, synthetic backend tests and static frontend tests.
+### Implemented and committed on the feature branch
 
-**Outstanding before milestone completion:** unified Foundation asset catalogue and reusable placement model, destinations across website/DIC/portal with per-placement publication and revocation, real gallery/album organizational UX, destination publishing and archive controls, full rich editing including file replacement/recording previews, contextual lecturer/activity metadata flows, large-library pagination, private R2 storage approval/credentials/connectivity/backup restoration and final live access/upload acceptance, fully passing current CI, merge and production deploy. The existing models remain edition-scoped; do not claim cross-Foundation reuse is already complete. There is no R2 activation change in this PR.
+- Standalone `/media-studio` portal with shared staff login, independent scoped authorization, responsive mobile and dark mode, footer entry, owner/superuser access, secure preview and existing media-model library browsing.
+- Eight legacy media collections; metadata editing, audited direct source publishing/withdrawal, upload composer and bounded batch photography. Upload switch `DIC_MEDIA_STUDIO_UPLOADS_ENABLED` defaults **false**; private R2 storage and credentials still require separate approval.
+- New additive migration `0044_studio_catalogue_placements` introducing Foundation-wide `StudioAsset` index and `StudioPlacement` per-destination records. Source objects and private R2 bytes are **not copied**. One legacy media source may be linked once and used in multiple destinations. No automatic content publication or migration of pre-existing media.
+- Foundation media archive, home, DIC landing, DIC memories, DIC resource and Camper Portal resource placement types, strictly typed allowlists; draft/publish/withdraw with audit; metadata including album, campaign, programme and event; archive/restore with all placement withdrawals.
+- Public Foundation archive and home and DIC landing consume only live, previously published media. Public archive API checks both source and placement and never exposes unpublished drafts or private audio/object keys. Validated hosted video links use private-friendly YouTube/Vimeo embed hosts; original uploaded videos and lecture recordings remain camper-scope only.
+- Linked lecture audio is visible to eligible Camper Portal users only while the same edition has an active `camper_resources` placement. Existing **unlinked** recordings retain their established release behavior. The ordinary participant entitlement/session authorization is still the controlling gate; no admin backdoor to camper accounts.
+- Withdrawal of a source or an edit to an already published source revokes all linked Studio destination approvals so that source republishing cannot silently resurrect an old public placement.
+- Disposable/synthetic tests for media team roles, public/private boundaries, migration-compatible catalogue operations, independent placement withdrawal, cross-edition rejection, archive, source linking idempotency and camper-resource gating. No staging/demo/production dataset used.
 
-**Release policy:** Do not merge/deploy until the relevant current-HEAD CI passes and owner explicitly approves the release and R2 activation separately. The deployed live code and data remain unchanged while this branch is in draft.
+### Still outstanding or blocked until explicit owner release approval
+
+- GitHub Actions verification against the **latest feature-branch commit**; do not infer a passing run from an earlier revision. Fix any new failures before merging.
+- Real Cloudflare R2 credentials, storage bucket connectivity, access rules and backup/restore acceptance; the upload switch stays disabled. Do not enable storage implicitly.
+- Rich album/gallery browsing and high-volume pagination, file replacement, private audio/video player previews, finalized download UX, and direct public delivery of recorded lectures outside entitled Camper Portal (if separately approved). Existing DIC photo gallery is still legacy source-driven; destination-specific selective display integration needs its own acceptance review.
+- Approval/release stage: owner confirms migration `0043` reconciliation and `0044` production application, then merge and manual Render and Cloudflare deploy. No production changes are authorized by this draft work alone.
+
+### Non-negotiable safety invariants
+
+1. Verified payments, house assignments, registration and the 180 published camp timetable entries are untouched.
+2. Never publicly expose R2 URLs, participant portraits or scoped lecture recordings.
+3. Public destination selection does not bypass original edition, publication or provider validation.
+4. One authorized media operator may publish directly; system superuser is owner of all staff/admin portals but **not automatically of camper portal identities**.
+5. Every source or destination release, archive and withdrawal must be auditable and revocable.
