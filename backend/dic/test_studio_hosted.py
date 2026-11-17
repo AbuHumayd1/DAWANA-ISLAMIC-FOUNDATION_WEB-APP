@@ -64,6 +64,28 @@ class HostedLinkPublishingTests(TestCase):
         self.assertEqual(withdraw.status_code, 200)
         self.assertEqual(self.client.get(reverse('dic:studio-public-placements')).json()['items'], [])
 
+    def test_disabling_hosted_provider_hides_previous_public_embed_without_500(self):
+        response = self.submit('studio-hosted-links', {'items': [
+            {'title': 'Retired stream', 'video_url': 'https://youtu.be/abcDEFG1234'},
+        ]})
+        self.assertEqual(response.status_code, 201, response.content)
+        video_id = response.json()['items'][0]['id']
+        asset_id = response.json()['items'][0]['asset_id']
+        self.assertEqual(self.submit('studio-publication', {'action': 'publish'},
+                                     ['hosted', video_id]).status_code, 200)
+        self.assertEqual(self.submit('studio-placements',
+                                     {'destination': 'foundation_archive', 'action': 'publish'},
+                                     [asset_id]).status_code, 200)
+        with override_settings(DIC_VIDEO_APPROVED_PROVIDERS=[]):
+            inventory = self.client.get(reverse('dic:studio-library'),
+                                        {'library': 'hosted'})
+            self.assertEqual(inventory.status_code, 200)
+            self.assertIsNone(inventory.json()['items'][0]['player_url'])
+            public = self.client.get(reverse('dic:studio-public-placements'),
+                                     {'destination': 'foundation_archive'})
+            self.assertEqual(public.status_code, 200)
+            self.assertEqual(public.json()['items'], [])
+
     def test_bad_url_rejects_entire_batch_without_creating_media(self):
         response = self.submit('studio-hosted-links', {'items': [
             {'title': 'Acceptable', 'video_url': 'https://youtu.be/abcDEFG1234'},
