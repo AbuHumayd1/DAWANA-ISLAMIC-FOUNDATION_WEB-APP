@@ -4,7 +4,7 @@ import { Container } from '../components/layout/SiteChrome'
 import './PublishedStudioArchive.css'
 
 /** Public only: the backend checks both current source publication and destination. */
-export default function PublishedStudioArchive() {
+export default function PublishedStudioArchive({ destination = 'foundation_archive' }) {
   const [items, setItems] = useState([])
   const [state, setState] = useState('loading')
   useEffect(() => {
@@ -23,10 +23,10 @@ export default function PublishedStudioArchive() {
       setState('ready')
     }).catch(error => { if (error.name !== 'AbortError') setState('unavailable') })
     return () => controller.abort()
-  }, [])
+  }, [destination])
   if (state !== 'ready' || !items.length) return null
   return <section className="published-studio-archive" aria-labelledby="published-studio-title"><Container>
-    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id="published-studio-title">From the DAWANA media library</h2><p>Approved media shared by our Foundation team.</p></div>
+    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id="published-studio-title">destination === 'foundation_home' ? 'Featured Foundation stories' : 'From the DAWANA media library'</h2><p>Approved media shared by our Foundation team.</p></div>
     <div className="published-studio-grid">{items.map((item, i) => <article key={item.url + i} className="published-studio-card">
       {['photos', 'flyers', 'promotions', 'activities'].includes(item.source_kind) && <div className="published-studio-visual">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
