@@ -88,8 +88,9 @@ This is an application setting, **not** a new Render service.
 For any failed/held assignment, the Camper Portal shows only
 **"Awaiting house allocation"**. No internal staff reason is shown. The
 Operations Portal House Allocation page lists held/failed cases and lets
-authorized housing supervisors retry with a recorded reason. Each new portal
-refresh can process the retried job; there are no automatic retries of
+authorized housing supervisors retry with a recorded reason. The Operations retry attempts the pending allocation immediately on the
+existing Render Django service; a later authenticated camper refresh can
+also process a pending retry. There are no automatic retries of
 supervisor-held work. Payment verification, verified settlement, Camper
 Portal login, Digital IDs and existing check-in are not dependent on the
 housing result. Housing enqueue failures are isolated in their own database
