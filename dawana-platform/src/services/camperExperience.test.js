@@ -66,7 +66,7 @@ test('home uses verified zero and explicit unassigned states without fictional a
   assert.match(markup, /As-salāmu/)
   assert.match(markup, /Test Camper/)
   assert.match(markup, /<strong>0<\/strong>/)
-  assert.match(markup, /Assignment coming soon/)
+  assert.match(markup, /Awaiting house allocation/)
   for (const label of ['Activities', 'Meals', 'House Arena', 'My Digital ID', 'Discover', 'Feedback']) assert.ok(markup.includes(label))
   assert.match(markup, /Today’s programme/)
   assert.match(markup, /No participant houses are configured/)

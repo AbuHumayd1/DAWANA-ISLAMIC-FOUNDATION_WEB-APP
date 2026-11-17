@@ -17,7 +17,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -1139,6 +1139,65 @@ class OperationsHouseView(OperationsBaseView):
                 ),
             }
         )
+
+
+
+
+class OperationsHousingJobsView(OperationsBaseView):
+    """Housing holds in Operations, no participant access to internal reasons."""
+
+    def get(self, request):
+        if not _can(request.user, 'view_houseallocation'):
+            raise PermissionDenied('Housing records permission required.')
+        from .models import HousingJob
+        edition = _edition_from_request(request)
+        if not edition:
+            return Response({'jobs': [], 'can_retry': False})
+        jobs = (HousingJob.objects.filter(edition=edition, state__in=['held', 'failed'])
+                .select_related('participant').order_by('created_at', 'pk')[:100])
+        return Response({'can_retry': _can(request.user, 'can_process_housing_queue'),
+                         'jobs': [{'id': job.pk, 'participant': job.participant.full_name,
+                                   'state': job.state, 'reason': job.reason,
+                                   'attempts': job.attempts}
+                                  for job in jobs]})
+
+
+class OperationsHousingRetryView(OperationsBaseView):
+    """Explicit staff-approved retry: a held case is never silently reset."""
+
+    def post(self, request, job_id):
+        from .models import HousingJob
+        from .housing_queue import retry
+        from .allocation import AllocationError
+        from .housing_service import permitted
+        permitted(request.user, 'can_process_housing_queue')
+        edition = _edition_from_request(request)
+        if not edition or not HousingJob.objects.filter(pk=job_id, edition=edition).exists():
+            raise NotFound('Housing review case not found.')
+        reason = request.data.get('reason')
+        if not isinstance(reason, str) or not 5 <= len(reason.strip()) <= 500:
+            raise ValidationError({'reason': 'Enter a review reason (5–500 characters).'})
+        try:
+            retry(job_id, request.user, reason.strip())
+        except AllocationError as exc:
+            raise ValidationError({'housing': str(exc)}) from exc
+        # No paid worker needed: Operations can process the supervised retry
+        # immediately, outside settlement and after the retry is committed.
+        state = 'pending'
+        try:
+            from .housing_service import require_automation
+            from .housing_queue import claim_for_participants, process_claim
+            require_automation(edition)
+            participant_id = HousingJob.objects.values_list('participant_id', flat=True).get(pk=job_id)
+            claimed = claim_for_participants(edition.pk, [participant_id], request.user)
+            if claimed:
+                state = process_claim(*claimed, request.user)
+        except Exception:
+            # A housing failure must not disturb staff login or financial data.
+            state = 'pending'
+        return Response({'state': state,
+                         'message': 'Housing assigned.' if state == 'completed'
+                         else 'Housing remains awaiting allocation; review the case if needed.'})
 
 
 class OperationsActivityView(OperationsBaseView):

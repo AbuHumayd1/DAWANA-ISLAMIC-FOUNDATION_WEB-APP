@@ -115,6 +115,17 @@ export default function ParticipantPortal() {
       setOrders(authorizedOrders); setCamperPhase('ready')
       const key = returnedCamperKey(authorizedOrders, returnCamper)
       if (key) setSelection(key)
+      // Housing refresh is independent of sign-in, verified payments, and
+      // portal loading. Any failure leaves the normal camper view intact.
+      if (authorizedOrders.some(order => order.payment_status === 'paid')) {
+        read(ticket, '/housing/refresh/', {}).then(() =>
+          read(ticket, '/enrollments/', undefined, { notifyExpiry: false })
+        ).then(refreshed => {
+          if (access.current(ticket)) setOrders(participantOrders(refreshed))
+        }).catch(() => {
+          // Housing can remain awaiting for Operations to resolve.
+        })
+      }
     } catch (failure) {
       if (access.current(ticket)) setCamperPhase('error')
       throw failure

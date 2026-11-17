@@ -380,7 +380,16 @@ def _apply_verified_transaction(attempt_id, provider_data):
             # Persist the existing queue job with settlement. Allocation happens
             # later, outside payment locks; duplicate notifications cannot reset it.
             from .payment_followups import enqueue_housing
-            enqueue_housing(order)
+            # Housing is a best-effort follow-up. Savepoint isolation means
+            # failed housing queue writes never reverse an already verified
+            # Paystack settlement. Portal/Operations can recover missing jobs.
+            try:
+                with transaction.atomic():
+                    enqueue_housing(order)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning(
+                    'Housing enqueue failed; payment evidence is unaffected.')
             from .fulfillment import enqueue_verified
             enqueue_verified(order, attempt)
         return attempt, order

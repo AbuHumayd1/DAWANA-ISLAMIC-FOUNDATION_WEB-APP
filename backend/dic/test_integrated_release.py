@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from . import test_participant_portal as portal
 from .models import TimetableEntry,House,CertificateRelease,ParticipationCertificate,LectureRecording,DICAdminAuditEvent
 from .management.commands.initialize_dic2026_release import initialize,SOURCE
@@ -25,12 +26,57 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
     def test_reference_initialization_idempotent_preserves_edits_and_assignments(self):
         count=initialize(self.edition,self.owner)
         self.assertGreater(count,170);self.assertEqual(House.objects.filter(edition=self.edition).count(),8)
-        self.assertTrue(all(h.capacity is None for h in House.objects.filter(edition=self.edition)))
+        self.assertTrue(all(h.capacity == 30 and h.badge_colour for h in House.objects.filter(edition=self.edition)))
+        self.edition.refresh_from_db()
+        self.assertEqual(self.edition.housing_age_reference_date, date(2026, 12, 23))
         self.assertEqual(TimetableEntry.objects.filter(timetable_type='food').count(),27)
         row=TimetableEntry.objects.filter(timetable_type='food').first();row.description='Administrator edit';row.save()
         self.assertEqual(initialize(self.edition,self.owner),0)
         row.refresh_from_db();self.assertEqual(row.description,'Administrator edit')
         self.assertFalse(CertificateRelease.objects.get(edition=self.edition).enabled)
+
+    def test_approved_houses_populate_with_stable_keys_and_existing_drafts_are_not_recreated(self):
+        from .house_configuration import approved_2026_houses
+        from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
+        first = initialize(self.edition, self.owner)
+        self.assertEqual(first, 182)
+        houses = list(House.objects.filter(edition=self.edition))
+        self.assertEqual(len(houses), 8)
+        self.assertEqual(sum(row.capacity for row in houses), 240)
+        self.assertEqual({h.name for h in houses}, {h['name'] for h in approved_2026_houses()})
+        self.assertEqual({h.canonical_key for h in houses}, set(LEGACY_KEYS.values()))
+        self.assertEqual({h.gender for h in houses}, {'female', 'male'})
+        self.assertFalse(self.edition.allocation_strategy == 'balanced')
+        existing = houses[0]
+        existing.eligibility_notes = 'Staff-customized description'
+        existing.save(update_fields=['eligibility_notes'])
+        self.assertEqual(initialize(self.edition, self.owner), 0)
+        existing.refresh_from_db()
+        self.assertEqual(existing.eligibility_notes, 'Staff-customized description')
+        self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), first)
+
+    def test_legacy_unconfigured_matching_house_is_completed_without_renaming(self):
+        from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
+        from .house_configuration import approved_2026_houses
+        row = approved_2026_houses()[0]
+        legacy = House.objects.create(edition=self.edition, name=row['name'],
+                                      gender=row['gender'], canonical_key=LEGACY_KEYS[canonical(row['name'])])
+        pk = legacy.pk
+        initialize(self.edition, self.owner)
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.pk, pk)
+        self.assertEqual(legacy.capacity, 30)
+        self.assertEqual(legacy.badge_colour, row['badge_colour'])
+        self.assertEqual(House.objects.filter(edition=self.edition).count(), 8)
+
+    def test_conflicting_house_inventory_fails_atomically_and_preserves_records(self):
+        House.objects.create(edition=self.edition, name='Unexpected extra house', gender='male', capacity=30)
+        with self.assertRaises(CommandError):
+            initialize(self.edition, self.owner)
+        self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), 0)
+        self.assertEqual(House.objects.filter(edition=self.edition).count(), 1)
+        self.edition.refresh_from_db()
+        self.assertEqual(self.edition.housing_age_reference_date, date(2026, 12, 23))
 
     def test_approved_revisions_and_audience_parallel_slots_publish_without_overlap(self):
         initialize(self.edition,self.owner)
@@ -43,6 +89,22 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertIn('Campus Challenge',thursday.get(time_label='After Isha').description)
         publish_days(self.owner,monday,True)
         self.assertTrue(monday.filter(status='published').exists())
+
+    def test_camper_housing_refresh_is_optional_and_awaiting_does_not_block_portal(self):
+        from django.urls import reverse
+        client, _ = self.login()
+        with override_settings(DIC_AUTOMATION_ACTOR_ID=0, DAWANA_WEBSITE_ONLY=False):
+            refreshed = self.post(client, 'participant-housing-refresh', {})
+            self.assertEqual(refreshed.status_code, 200, refreshed.content)
+            self.assertEqual(refreshed.json()['housing'], 'awaiting_or_updated')
+        visible = client.get(reverse('dic:participant-enrollments'))
+        self.assertEqual(visible.status_code, 200, visible.content)
+        campers = [person for order in visible.json()['orders']
+                   for person in order['participants']]
+        self.assertTrue(campers)
+        self.assertIn('housing', campers[0])
+        self.assertEqual(campers[0]['housing']['status'], 'awaiting')
+        self.assertEqual(campers[0]['housing']['message'], 'Awaiting house allocation')
 
     def test_published_timetable_scoped_to_gender_and_lagos_midnight(self):
         initialize(self.edition,self.owner)
