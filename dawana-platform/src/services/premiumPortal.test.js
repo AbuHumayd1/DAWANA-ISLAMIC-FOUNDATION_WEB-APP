@@ -199,7 +199,7 @@ test('dark Camper palette covers Arena, Explore, Me and scoring, without changin
 
 test('Arena leaderboard podium and labels remain readable in dark appearance', () => {
   const css = fs.readFileSync(new URL('../components/dic/CamperWorld.css', import.meta.url), 'utf8')
-  assert.match(css, /\[data-theme=dark\] \.cw-leaderboard li \\{/)
+  assert.ok(css.includes('[data-theme=dark] .cw-leaderboard li {'))
   for (const rank of ['1','2','3']) {
     assert.ok(css.includes('[data-theme=dark] .cw-leaderboard li.cw-place-' + rank),
       'dark podium position ' + rank + ' must have its own contrasting surface')
