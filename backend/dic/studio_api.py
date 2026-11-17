@@ -175,7 +175,8 @@ class StudioLibraryView(StudioView):
                          'metadata': {name: getattr(item, name) for name in EDIT_FIELDS.get(kind, ())}})
         return self.nocache({'library': kind, 'items': rows, 'limit': 100,
                              'has_more': queryset[:101].count() > 100,
-                             'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename))})
+                             'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename)),
+                             'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename))})
 
 
 class StudioPublicationView(StudioView):
