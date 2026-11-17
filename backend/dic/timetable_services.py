@@ -43,7 +43,7 @@ def validate_day(rows):
 
 
 @transaction.atomic
-def publish_days(user, queryset, publish):
+def publish_days(user, queryset, publish, *, allow_provisional=False):
     require_staff(user, 'publish_dic_timetables')
     scopes = list(queryset.order_by().values_list('edition_id', 'timetable_type').distinct())
     if len(scopes) != 1:
@@ -53,7 +53,19 @@ def publish_days(user, queryset, publish):
     days = list(queryset.order_by().values_list('date', flat=True).distinct())
     rows = list(TimetableEntry.objects.select_for_update().filter(edition_id=edition_id,
         timetable_type=kind, date__in=days))
-    if publish:
+    if publish and allow_provisional:
+        # Owner-authorized full DIC 2026 release: retain source certainty labels.
+        # This opt-in is unavailable to ordinary publication actions or other editions.
+        edition = CampEdition.objects.get(pk=edition_id)
+        if not (user.is_superuser and kind == 'activities'
+                and edition.year == 2026
+                and str(edition.camp_start_date) == '2026-12-23'
+                and str(edition.camp_end_date) == '2027-01-01'):
+            raise PermissionDenied('Provisional timetable release requires DIC 2026 superuser approval.')
+        if (any(r.certainty == 'proposed' for r in rows)
+                or any('millionaire' in (r.title + ' ' + r.description).lower() for r in rows)):
+            raise ValidationError('Excluded or proposed activities must be resolved before release.')
+    if publish and not allow_provisional:
         # A complete-day publication is not an approval of an imported
         # committee-review draft. In particular, DIC 2026 has 144
         # unspecified activities, including two excluded games.
@@ -76,5 +88,7 @@ def publish_days(user, queryset, publish):
         row.save()
     DICAdminAuditEvent.objects.create(actor=user, action='timetable_published' if publish else 'timetable_unpublished',
         target_type='CampEdition', target_id=str(edition_id),
-        details={'type': kind, 'days': [str(d) for d in days], 'entries': len(rows)})
+        details={'type': kind, 'days': [str(d) for d in days], 'entries': len(rows),
+                 'owner_authorized_provisional_release': bool(publish and allow_provisional),
+                 'remaining_unspecified': sum(r.certainty == 'unspecified' for r in rows)})
     return len(rows)

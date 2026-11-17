@@ -16,7 +16,7 @@ class TimetableEntryAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description', 'time_label', 'lecturer')
     ordering = ('edition', 'timetable_type', 'date', 'display_order')
     readonly_fields = ('status', 'source_key', 'modified_by', 'published_by', 'published_at', 'created_at', 'updated_at')
-    actions = ('publish_selected_days', 'unpublish_selected_days')
+    actions = ('publish_selected_days', 'publish_dic2026_entire_provisional_programme', 'unpublish_selected_days')
 
     def permitted(self, request, permission):
         return request.user.is_active and request.user.is_staff and request.user.has_perm('dic.' + permission)
@@ -37,6 +37,9 @@ class TimetableEntryAdmin(admin.ModelAdmin):
         actions = super().get_actions(request)
         if not self.permitted(request, 'publish_dic_timetables'):
             actions.pop('publish_selected_days', None)
+            actions.pop('publish_dic2026_entire_provisional_programme', None)
+        if not request.user.is_superuser:
+            actions.pop('publish_dic2026_entire_provisional_programme', None)
             actions.pop('unpublish_selected_days', None)
         return actions
 
@@ -50,6 +53,35 @@ class TimetableEntryAdmin(admin.ModelAdmin):
 
     @admin.action(description='Publish complete selected days (one edition and type)')
     def publish_selected_days(self, request, queryset): self.publication(request, queryset, True)
+    @admin.action(description='OWNER APPROVED: Publish all DIC 2026 activities (retain provisional labels)')
+    def publish_dic2026_entire_provisional_programme(self, request, queryset):
+        # One selected DIC 2026 activity suffices; the action releases all
+        # available days atomically rather than a misleading subset.
+        from datetime import date
+        if not (request.user.is_superuser and self.permitted(request, 'publish_dic_timetables')):
+            raise PermissionDenied
+        if not queryset.filter(edition__year=2026, timetable_type='activities').exists():
+            self.message_user(request, 'Select a DIC 2026 daily activity, not a meal.', messages.ERROR)
+            return
+        if queryset.exclude(edition__year=2026, timetable_type='activities').exists():
+            self.message_user(request, 'Selection mixes activities or editions; no change.', messages.ERROR)
+            return
+        edition = CampEdition.objects.filter(year=2026,
+            camp_start_date=date(2026, 12, 23), camp_end_date=date(2027, 1, 1)).first()
+        if edition is None:
+            self.message_user(request, 'Exact DIC 2026 edition not found; no change.', messages.ERROR)
+            return
+        candidates = TimetableEntry.objects.filter(edition=edition, timetable_type='activities')
+        if candidates.count() != 153 or candidates.filter(status='published').exists():
+            self.message_user(request, 'Expected 153 unpublished activities; review changed records before publishing.', messages.ERROR)
+            return
+        try:
+            total = publish_days(request.user, candidates, True, allow_provisional=True)
+        except ValidationError as error:
+            self.message_user(request, '; '.join(error.messages), messages.ERROR)
+        else:
+            self.message_user(request, f'{total} DIC 2026 activities published with source certainty preserved. Camper access is calendar-gated.')
+
     @admin.action(description='Unpublish complete selected days (one edition and type)')
     def unpublish_selected_days(self, request, queryset): self.publication(request, queryset, False)
 

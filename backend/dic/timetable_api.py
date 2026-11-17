@@ -39,21 +39,31 @@ class ParticipantTimetableView(PortalView):
             day = selected_date(edition, published_dates, date.fromisoformat(raw) if raw else None, now)
         except (ValueError, DjangoValidationError):
             raise ValidationError('Choose a valid date in this camp edition.') from None
-        rows = list(published.filter(date=day))
+        # Never expose programme or food before arrival day, including via an
+        # explicit ?date= request. During camp the portal serves TODAY only.
+        # No cron/worker is required: server time determines the calendar day.
+        today = now.date()
+        within_camp = edition.camp_start_date <= today <= edition.camp_end_date
+        if within_camp and raw and day != today:
+            raise ValidationError('Only today’s camp timetable is available.')
+        rows = list(published.filter(date=today)) if within_camp else []
+        day = today if within_camp else edition.camp_start_date
         current = next((r.pk for r in rows if day == now.date() and r.start_time and r.end_time
                         and r.start_time <= now.time() < r.end_time), None)
         upcoming = next((r.pk for r in sorted(rows, key=lambda r: (r.start_time is None, r.start_time))
                          if r.start_time and (day > now.date() or day == now.date() and r.start_time > now.time())), None)
-        return Response(dict(edition=edition.pk, edition_name=edition.name, type=kind,
+        response = Response(dict(edition=edition.pk, edition_name=edition.name, type=kind,
             camp_state='upcoming' if now.date()<edition.camp_start_date else 'completed' if now.date()>edition.camp_end_date else 'in_camp',
             today=str(now.date()), date=str(day), timezone='Africa/Lagos', current=current, upcoming=upcoming,
-            dates=[dict(date=str(d), published=d in published_dates) for d in dates_for(edition)],
-            state='published' if rows else 'unpublished',
+            dates=[dict(date=str(d), published=within_camp and d == today and d in published_dates) for d in dates_for(edition)],
+            state='scheduled' if today < edition.camp_start_date else 'completed' if today > edition.camp_end_date else 'published' if rows else 'unpublished',
             entries=[dict(id=r.pk, title=r.title, lecturer=r.lecturer, meal=r.meal, audience=r.audience, gender=r.gender, day_number=r.day_number, time_label=r.time_label,
                 start_time=r.start_time.isoformat() if r.start_time else None,
                 end_time=r.end_time.isoformat() if r.end_time else None,
                 description=r.description, certainty=r.certainty, location=r.location,
                 instructions=r.instructions) for r in rows]))
+        response['Cache-Control'] = 'private, no-store'
+        return response
 
 
 class OperationsTimetableView(OperationsBaseView):
