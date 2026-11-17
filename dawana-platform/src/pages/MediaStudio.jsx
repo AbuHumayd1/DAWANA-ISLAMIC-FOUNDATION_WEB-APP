@@ -1,8 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus } from '../services/mediaStudioApi'
 import './MediaStudio.css'
+
+const COMPOSER_FIELDS = {
+  photos: [{ name: 'caption', label: 'Caption', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  videos: [{ name: 'caption', label: 'Title / caption', required: true }, { name: 'alt_text', label: 'Thumbnail description', required: true }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
+  recordings: [{ name: 'title', label: 'Recording title', required: true }, { name: 'lecturer', label: 'Lecturer' }, { name: 'description', label: 'Description' }, { name: 'audio', label: 'Audio recording', file: true, accept: 'audio/mpeg,audio/mp4,audio/wav,audio/ogg', required: true }],
+  flyers: [{ name: 'title', label: 'Official flyer title', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'image', label: 'Flyer artwork', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description', required: true }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
+  lecturers: [{ name: 'name', label: 'Lecturer name', required: true }, { name: 'designation', label: 'Designation' }, { name: 'biography', label: 'Biography', required: true }, { name: 'alt_text', label: 'Portrait description', required: true }, { name: 'photograph', label: 'Lecturer portrait', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  activities: [{ name: 'title', label: 'Activity title', required: true }, { name: 'category', label: 'Category', required: true }, { name: 'description', label: 'Description', required: true }, { name: 'alt_text', label: 'Photo description (if supplied)' }, { name: 'photograph', label: 'Optional activity photograph', file: true, accept: 'image/jpeg,image/png,image/webp' }],
+}
 
 const LIBRARIES = [
   { key: 'photos', name: 'Photography', count: 'Photographs & memories', icon: '📷' },
@@ -30,6 +40,10 @@ export default function MediaStudio() {
   const [loading, setLoading] = useState(false)
   const [more, setMore] = useState(false)
   const [pending, setPending] = useState(null)
+  const [uploadInfo, setUploadInfo] = useState({ enabled: false, editions: [], libraries: [] })
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [uploadBusy, setUploadBusy] = useState(false)
+  const [revision, setRevision] = useState(0)
   const menuRef = useRef(null)
   const seq = useRef(0)
   useEffect(() => {
@@ -38,6 +52,24 @@ export default function MediaStudio() {
       .catch(() => {}).finally(() => { if (mounted) setChecking(false) })
     return () => { mounted = false }
   }, [])
+  useEffect(() => {
+    if (!user) return
+    studioUploadStatus().then(setUploadInfo).catch(() => setUploadInfo({ enabled: false, editions: [], libraries: [] }))
+  }, [user])
+  useEffect(() => { setComposerOpen(false) }, [library])
+  async function upload(event) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const values = Object.fromEntries(new FormData(form))
+    setUploadBusy(true); setMessage('')
+    try {
+      await studioUpload(library, values)
+      setMessage('Media saved as a private draft. Review it before publishing.')
+      setComposerOpen(false)
+      setRevision(current => current + 1)
+    } catch (error) { setMessage(error.message) }
+    finally { setUploadBusy(false) }
+  }
   useEffect(() => {
     if (!menuOpen) return
     function outside(event) { if (!menuRef.current?.contains(event.target)) setMenuOpen(false) }
@@ -60,7 +92,7 @@ export default function MediaStudio() {
       .catch(e => { if (active && current === seq.current) { setRows([]); setMessage(e.message) } })
       .finally(() => { if (active && current === seq.current) setLoading(false) })
     return () => { active = false }
-  }, [user, library, q, state, edition])
+  }, [user, library, q, state, edition, revision])
   async function signIn(event) {
     event.preventDefault(); setLoginBusy(true); setMessage('')
     const form = new FormData(event.currentTarget)
@@ -107,7 +139,13 @@ export default function MediaStudio() {
       <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-overview-mark" aria-hidden="true">✦</div></div>
       <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{LIBRARIES.filter(x => user.libraries?.includes(x.key)).map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key ? ' active' : '')} onClick={() => { setLibrary(x.key); setQ(''); setState(''); setEdition('') }}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}</div></section>
       <section className="studio-workspace" aria-labelledby="studio-library-title">
-        <div className="studio-heading"><div><span className="studio-kicker">THE LIBRARY</span><h2 id="studio-library-title">{selected?.name}</h2><p>Browse and manage existing media securely. No file is publicly released until published.</p></div><span className="studio-library-meta">Showing up to 100 items</span></div>
+        <div className="studio-heading"><div><span className="studio-kicker">THE LIBRARY</span><h2 id="studio-library-title">{selected?.name}</h2><p>Browse and manage existing media securely. No file is publicly released until published.</p></div><div className="studio-heading-actions"><span className="studio-library-meta">Showing up to 100 items</span>{uploadInfo.enabled && uploadInfo.libraries.includes(library) && <button className="studio-create" type="button" onClick={() => setComposerOpen(open => !open)}>{composerOpen ? 'Close upload' : '+ Add media'}</button>}</div></div>
+        {composerOpen && uploadInfo.enabled && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Create a private draft</h3><p>Publishing is a separate action. Uploaded objects remain private unless explicitly released.</p></div>
+          {library !== 'lecturers' && <label>Edition<select name="edition" required defaultValue=""><option value="">Select camp edition</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>}
+          {library === 'promotions' && <><label>Promotion type<select required name="kind"><option value="introduction">Upcoming introduction</option><option value="experience">Previous participant experience</option></select></label><label>Previous source edition (for experience videos)<select name="source_edition" defaultValue=""><option value="">Not applicable</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}
+          {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}<input name={field.name} type={field.file ? 'file' : 'text'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : 2000} /></label>)}
+          <button type="submit" disabled={uploadBusy}>{uploadBusy ? 'Validating and uploading…' : 'Save private draft'}</button>
+        </form>}
         <div className="studio-filters"><label>Search<input aria-label="Search media" placeholder="Search titles and captions" value={q} onChange={e => setQ(e.target.value)} /></label>
           <label>Publication status<select aria-label="Filter publication status" value={state} onChange={e => setState(e.target.value)}><option value="">All statuses</option><option value="draft">Draft</option><option value="review">Review</option><option value="published">Published</option></select></label>
           {!['lecturers'].includes(library) && <label>Camp edition ID<input aria-label="Filter edition" inputMode="numeric" placeholder="All editions" value={edition} onChange={e => setEdition(e.target.value.replace(/[^0-9]/g,''))}/></label>}
@@ -119,7 +157,7 @@ export default function MediaStudio() {
         </article>)}</div> : <div className="studio-state"><strong>No media records match this view.</strong><p>Use the filters to find existing items. New uploads and the full unified media composer will be enabled after private storage activation and validation.</p></div>}
         {more && <p className="studio-pagination">More than 100 items match this view. Narrow your search to see more specific results.</p>}
       </section>
-      <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. Private R2 activation and new uploads remain disabled until the owner approves the production storage cutover.</p></aside>
+      <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>
     </main>
   </div>
 }
