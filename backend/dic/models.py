@@ -1558,3 +1558,6 @@ from .fulfillment_models import CamperFulfillmentJob  # noqa: E402,F401
 from .order_lifecycle_models import OrderExpiryPolicy, OrderExpiry, PaymentResolution  # noqa: E402,F401
 
 from .camp_release_models import LectureRecording, CertificateRelease, ParticipationCertificate  # noqa: E402,F401
+
+# Unified Foundation Media Studio catalogue (separate from DIC legacy media source rows).
+from .studio_models import StudioAsset, StudioPlacement  # noqa: E402,F401
