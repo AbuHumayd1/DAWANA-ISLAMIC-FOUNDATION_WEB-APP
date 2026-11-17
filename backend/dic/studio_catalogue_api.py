@@ -27,6 +27,14 @@ def require_placement_publisher(user):
         raise PermissionDenied('Studio destination publishing permission required.')
 
 
+def require_source_view(user, asset):
+    if asset.source_kind not in LIBRARIES:
+        raise NotFound('Unknown media source.')
+    code = LIBRARIES[asset.source_kind][1]
+    if not (user.is_superuser or user.has_perm('dic.view_' + code)):
+        raise PermissionDenied('This media source is not accessible to your staff role.')
+
+
 def source_for(asset):
     if asset.source_kind not in LIBRARIES:
         raise ValidationError('Unsupported source type.')
@@ -74,7 +82,8 @@ class StudioAssetsView(StudioView):
     def get(self, request):
         require_catalogue(request.user)
         records = StudioAsset.objects.prefetch_related('placements').order_by('-created_at')[:101]
-        results = [summary(item) for item in records[:100]]
+        results = [summary(item) for item in records[:100]
+                   if request.user.is_superuser or request.user.has_perm('dic.view_' + LIBRARIES[item.source_kind][1])]
         return self.nocache({'assets': results, 'has_more': len(records) > 100,
                              'destinations': [{'key': k, 'name': v} for k, v in DESTINATIONS],
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_studio_placements'))})
@@ -117,6 +126,7 @@ class StudioAssetDetailView(StudioView):
             raise ValidationError({'detail': 'Only descriptive catalogue metadata can be edited.'})
         with transaction.atomic():
             asset = get_object_or_404(StudioAsset.objects.select_for_update(), pk=asset_id)
+            require_source_view(request.user, asset)
             for key, value in request.data.items():
                 field = StudioAsset._meta.get_field(key)
                 maximum = field.max_length or 5000
@@ -136,6 +146,7 @@ class StudioAssetDetailView(StudioView):
             raise ValidationError({'action': 'Choose archive or restore.'})
         with transaction.atomic():
             asset = get_object_or_404(StudioAsset.objects.select_for_update(), pk=asset_id)
+            require_source_view(request.user, asset)
             if request.data['action'] == 'archive':
                 asset.archived_at = timezone.now()
                 StudioPlacement.objects.filter(asset=asset).update(
@@ -162,6 +173,7 @@ class StudioPlacementView(StudioView):
         edition_id = int(edition_id) if edition_id is not None else None
         with transaction.atomic():
             asset = get_object_or_404(StudioAsset.objects.select_for_update(), pk=asset_id)
+            require_source_view(request.user, asset)
             if destination not in SUPPORTED_DESTINATIONS[asset.source_kind]:
                 raise ValidationError({'destination': 'Destination not permitted for this media type.'})
             source = source_for(asset)
