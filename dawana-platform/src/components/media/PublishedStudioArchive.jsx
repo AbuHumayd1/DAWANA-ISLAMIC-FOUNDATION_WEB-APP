@@ -3,6 +3,16 @@ import { backendUrl } from '../services/productionContract'
 import { Container } from '../components/layout/SiteChrome'
 import './PublishedStudioArchive.css'
 
+function approvedVideoLink(value) {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' &&
+      ['www.youtube-nocookie.com', 'player.vimeo.com'].includes(parsed.hostname) &&
+      !parsed.username && !parsed.password && !parsed.hash && !parsed.port
+      ? parsed.href : ''
+  } catch { return '' }
+}
+
 /** Public only: the backend checks both current source publication and destination. */
 export default function PublishedStudioArchive({ destination = 'foundation_archive' }) {
   const [items, setItems] = useState([])
@@ -28,12 +38,13 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   return <section className="published-studio-archive" aria-labelledby="published-studio-title"><Container>
     <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id="published-studio-title">{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
     <div className="published-studio-grid">{items.map((item, i) => <article key={item.url + i} className="published-studio-card">
-      {['photos', 'flyers', 'promotions', 'activities'].includes(item.source_kind) && <div className="published-studio-visual">
+      {['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
       </div>}
       <div className="published-studio-content"><span>{item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}
-      <a href={backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{item.source_kind === 'promotions' ? 'Watch publication' : 'View publication'}</a></div>
+      {item.source_kind !== 'videos' || approvedVideoLink(item.embed_url) ?
+        <a href={item.source_kind === 'videos' ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</div>
   </Container></section>
 }
