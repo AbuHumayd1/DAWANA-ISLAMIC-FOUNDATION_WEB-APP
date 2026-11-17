@@ -14,6 +14,7 @@ SOURCE_KINDS = (
     ('photos', 'Photographs'), ('videos', 'Videos'), ('recordings', 'Lecture audio'),
     ('flyers', 'Flyers'), ('promotions', 'Promotions'), ('lecturers', 'Lecturers'),
     ('activities', 'Activities'), ('appearances', 'Lecturer appearances'),
+    ('hosted', 'Hosted video and livestream'),
 )
 DESTINATIONS = (
     ('foundation_archive', 'Foundation media archive'),
@@ -27,6 +28,7 @@ DESTINATIONS = (
 SUPPORTED_DESTINATIONS = {
     'photos': frozenset(('foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing')),
     'videos': frozenset(('foundation_archive', 'foundation_home', 'dic_landing')),
+    'hosted': frozenset(('foundation_archive', 'foundation_home', 'dic_landing', 'dic_resources')),
     'recordings': frozenset(('dic_resources', 'camper_resources')),
     'flyers': frozenset(('foundation_archive', 'dic_landing')),
     'promotions': frozenset(('foundation_archive', 'foundation_home', 'dic_landing')),
