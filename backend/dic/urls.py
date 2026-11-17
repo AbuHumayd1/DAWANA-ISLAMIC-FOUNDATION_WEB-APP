@@ -21,6 +21,8 @@ from .operations_api import (
     OperationsLogoutView,
     OperationsMeView,
     OperationsHouseView,
+    OperationsHousingJobsView,
+    OperationsHousingRetryView,
     OperationsParticipantDetailView,
     OperationsParticipantListView,
     OperationsPaymentListView,
@@ -168,6 +170,8 @@ urlpatterns = [
         OperationsHouseView.as_view(),
         name="operations-houses",
     ),
+    path("operations/housing/jobs/", OperationsHousingJobsView.as_view(), name="operations-housing-jobs"),
+    path("operations/housing/jobs/<int:job_id>/retry/", OperationsHousingRetryView.as_view(), name="operations-housing-retry"),
     path(
         "operations/activity/",
         OperationsActivityView.as_view(),
