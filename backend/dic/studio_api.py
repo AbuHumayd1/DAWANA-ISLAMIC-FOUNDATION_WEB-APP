@@ -27,6 +27,7 @@ from .memory_models import CampPhotograph, CampVideo
 from .promo_models import PromoVideo, CampFlyer
 from .showcase_models import Lecturer, LecturerAppearance, CampActivity
 from .camp_release_models import LectureRecording
+from .studio_hosted_models import StudioHostedVideo
 from .models import DICAdminAuditEvent, CampEdition
 
 def revoke_studio_placements(kind, source_id):
@@ -43,6 +44,7 @@ def revoke_studio_placements(kind, source_id):
 LIBRARIES = {
     'photos': (CampPhotograph, 'campphotograph', 'caption'),
     'videos': (CampVideo, 'campvideo', 'caption'),
+    'hosted': (StudioHostedVideo, 'studiohostedvideo', 'title'),
     'recordings': (LectureRecording, 'lecturerecording', 'title'),
     'flyers': (CampFlyer, 'campflyer', 'title'),
     'promotions': (PromoVideo, 'promovideo', 'title'),
@@ -235,6 +237,7 @@ class StudioPublicationView(StudioView):
 EDIT_FIELDS = {
     'photos': ('caption', 'alt_text', 'featured', 'display_order'),
     'videos': ('caption', 'alt_text', 'lecturer', 'description', 'featured', 'display_order'),
+    'hosted': ('title', 'lecturer', 'description'),
     'recordings': ('title', 'lecturer', 'description'),
     'flyers': ('title', 'alt_text', 'featured', 'display_order'),
     'promotions': ('title', 'description', 'alt_text', 'featured', 'display_order'),
