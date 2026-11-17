@@ -17,7 +17,7 @@ test('selection projects one camper consistently without retaining previous hous
   assert.equal(select(orders,'BOOKING:2').participant.name,'Camper Two')
   const first=render('BOOKING:1'),second=render('BOOKING:2')
   assert.match(first,/House One/);assert.match(first,/>Checked in</)
-  assert.match(second,/Not yet assigned/);assert.match(second,/Not checked in/)
+  assert.match(second,/Awaiting house allocation/);assert.match(second,/Not checked in/)
   assert.doesNotMatch(second,/House One|DIC-ONE|background-color/)
   assert.match(second,/disabled=""/)
 })
