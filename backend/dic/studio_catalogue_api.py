@@ -235,7 +235,7 @@ class PublicStudioPlacementsView(APIView):
 
     def get(self, request):
         destination = request.query_params.get('destination', 'foundation_archive')
-        public = {'foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing'}
+        public = {'foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing', 'dic_resources'}
         if destination not in public:
             raise NotFound()
         placements = StudioPlacement.objects.filter(
@@ -245,7 +245,7 @@ class PublicStudioPlacementsView(APIView):
         for placement in placements:
             if placement.edition_id and not placement.edition.is_active:
                 continue
-            source = source_for(placement.asset)
+            # DIC resources is public for hosted video only; lecture audio is private.\n            if destination == 'dic_resources' and placement.asset.source_kind != 'hosted':\n                continue\n            source = source_for(placement.asset)
             url = published_url(placement.asset, source)
             if url:
                 item = {'title': placement.asset.title, 'description': placement.asset.description,
