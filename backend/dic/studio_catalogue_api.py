@@ -56,6 +56,10 @@ def published_url(asset, source):
         return None
     if asset.source_kind == 'photos':
         return reverse('dic:memory-image', args=[source.pk])
+    if asset.source_kind == 'hosted':
+        # URLs are validated and normalized by video_source before publication.
+        from .video_providers import video_source
+        return video_source(source.video_url)['embed_url']
     if asset.source_kind == 'videos':
         # Publicly approved hosted videos have a server-served thumbnail.
         # Uploaded recordings stay on the camper-entitlement endpoint.
@@ -247,6 +251,8 @@ class PublicStudioPlacementsView(APIView):
                 item = {'title': placement.asset.title, 'description': placement.asset.description,
                         'source_kind': placement.asset.source_kind, 'url': url,
                         'album': placement.asset.album}
+                if placement.asset.source_kind == 'hosted':
+                    item['embed_url'] = url
                 if placement.asset.source_kind == 'videos':
                     from .video_providers import video_source
                     item['embed_url'] = video_source(source.video_url)['embed_url']
