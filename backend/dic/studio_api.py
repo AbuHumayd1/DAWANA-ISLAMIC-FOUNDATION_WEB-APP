@@ -171,7 +171,8 @@ class StudioLibraryView(StudioView):
                          'edition': getattr(item, 'edition_id', None),
                          'updated_at': getattr(item, 'updated_at', None),
                          'featured': bool(getattr(item, 'featured', False)),
-                         'preview_url': preview_route(item) if preview_route else None})
+                         'preview_url': preview_route(item) if preview_route else None,
+                         'metadata': {name: getattr(item, name) for name in EDIT_FIELDS.get(kind, ())}})
         return self.nocache({'library': kind, 'items': rows, 'limit': 100,
                              'has_more': queryset[:101].count() > 100,
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename))})
@@ -210,6 +211,17 @@ class StudioPublicationView(StudioView):
 
 
 # Existing, schema-backed editorial media types; no generic arbitrary-key upload.
+# Safe metadata only: no object keys, owner-only settings or media re-association.
+EDIT_FIELDS = {
+    'photos': ('caption', 'alt_text', 'featured', 'display_order'),
+    'videos': ('caption', 'alt_text', 'lecturer', 'description', 'featured', 'display_order'),
+    'recordings': ('title', 'lecturer', 'description'),
+    'flyers': ('title', 'alt_text', 'featured', 'display_order'),
+    'promotions': ('title', 'description', 'alt_text', 'featured', 'display_order'),
+    'lecturers': ('name', 'designation', 'biography', 'alt_text'),
+    'activities': ('title', 'description', 'category', 'featured', 'display_order'),
+}
+
 UPLOAD_FIELDS = {
     'photos': ('edition', 'caption', 'alt_text', 'photograph'),
     'videos': ('edition', 'caption', 'alt_text', 'thumbnail', 'recording_file', 'lecturer', 'description'),
@@ -268,3 +280,51 @@ class StudioUploadView(StudioView):
             DICAdminAuditEvent.objects.create(actor=request.user, action='studio_media_draft_uploaded',
                 target_type=model.__name__, target_id=str(item.pk), details={'library': kind})
         return self.nocache({'id': item.pk, 'state': getattr(item, 'state', 'reference')}, status=201)
+
+
+class StudioMetadataView(StudioView):
+    """Update approved metadata only, withdrawing publication before any public edit."""
+    def patch(self, request, kind, pk):
+        from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
+        from django.core.exceptions import ValidationError as ModelValidationError
+        if kind not in EDIT_FIELDS:
+            raise NotFound('Unknown editable media library.')
+        model, codename, _ = LIBRARIES[kind]
+        if not (request.user.is_superuser or request.user.has_perm('dic.change_' + codename)):
+            raise PermissionDenied('Media editing permission required.')
+        if not isinstance(request.data, dict) or not request.data:
+            raise ValidationError({'detail': 'Choose media fields to change.'})
+        if not set(request.data).issubset(EDIT_FIELDS[kind]):
+            raise ValidationError({'detail': 'Only approved descriptive metadata can be edited.'})
+        with transaction.atomic():
+            item = model.objects.select_for_update().filter(pk=pk).first()
+            if not item:
+                raise NotFound('Media item does not exist.')
+            old_state = getattr(item, 'state', 'reference')
+            if hasattr(item, 'state') and item.state == 'published':
+                item.state = 'draft'
+            for name, value in request.data.items():
+                field = model._meta.get_field(name)
+                if field.get_internal_type() == 'BooleanField':
+                    if not isinstance(value, bool):
+                        raise ValidationError({name: 'Choose true or false.'})
+                elif field.get_internal_type() == 'PositiveIntegerField':
+                    if type(value) is not int or value < 0 or value > 1000000:
+                        raise ValidationError({name: 'Choose a nonnegative display order.'})
+                elif not isinstance(value, str):
+                    raise ValidationError({name: 'Provide text.'})
+                setattr(item, name, value)
+            try:
+                item.full_clean()
+                if hasattr(item, 'state'):
+                    item.save(actor=request.user)
+                else:
+                    item.save()
+            except ModelValidationError as error:
+                raise ValidationError({'detail': error.messages}) from error
+            DICAdminAuditEvent.objects.create(actor=request.user, action='studio_media_metadata_updated',
+                target_type=model.__name__, target_id=str(item.pk),
+                details={'library': kind, 'fields': sorted(request.data), 'previous_state': old_state,
+                         'resulting_state': getattr(item, 'state', 'reference')})
+        return self.nocache({'id': item.pk, 'state': getattr(item, 'state', 'reference'),
+                             'metadata': {name: getattr(item, name) for name in EDIT_FIELDS[kind]}})
