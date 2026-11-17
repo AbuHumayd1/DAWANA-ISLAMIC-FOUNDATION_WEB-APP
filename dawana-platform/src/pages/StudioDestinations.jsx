@@ -23,7 +23,7 @@ const choices = {
 }
 const scoped = (dest) => dest.startsWith('dic_') || dest === 'camper_resources'
 
-export default function StudioDestinations({ user, editions, library, sourceLinkRefresh }) {
+export default function StudioDestinations({ user, editions, library, sourceLinkRefresh, focusAsset }) {
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -31,6 +31,7 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [showArchive, setShowArchive] = useState(false)
+  const [catalogueSearch, setCatalogueSearch] = useState('')
   const [linkId, setLinkId] = useState('')
   const [linkKind, setLinkKind] = useState(library)
   const [revision, setRevision] = useState(0)
@@ -43,6 +44,8 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   const [eventName, setEventName] = useState('')
   const [description, setDescription] = useState('')
   const current = items.find(item => item.id === selected)
+  const filteredItems = items.filter(item => (showArchive || !item.archived) &&
+    (!catalogueSearch || [item.title, item.source_kind, item.album, item.programme, item.campaign, item.event].some(value => String(value || '').toLowerCase().includes(catalogueSearch.toLowerCase().trim()))))
   const selectedChoices = choices[current?.source_kind] || []
   useEffect(() => {
     if (selectedChoices.length && !selectedChoices.includes(destination)) {
@@ -63,6 +66,7 @@ export default function StudioDestinations({ user, editions, library, sourceLink
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [revision, page, sourceLinkRefresh])
+  useEffect(() => { if (focusAsset && items.some(item => item.id === focusAsset)) setSelected(focusAsset) }, [focusAsset, items])
   useEffect(() => {
     if (!current) return
     setAlbum(current.album || '')
@@ -101,7 +105,7 @@ export default function StudioDestinations({ user, editions, library, sourceLink
     if (scoped(destination) && !edition) { setMessage('Choose the exact camp edition.'); return }
     await run(() => studioPlacement(current.id, destination, event.nativeEvent.submitter?.value || 'draft', scoped(destination) ? edition : null))
   }
-  return <section className="studio-destinations" aria-labelledby="destinations-heading">
+  return <section id="studio-publishing" className="studio-destinations" aria-labelledby="destinations-heading">
     <header className="studio-destinations-head"><div><span className="studio-kicker">ONE ASSET · MANY DESTINATIONS</span><h2 id="destinations-heading">Foundation publishing</h2><p>Connect existing media once, organize it, and independently choose where its approved content appears.</p></div><span>Private asset catalogue</span></header>
     {message && <p role="status" className="studio-notice">{message}</p>}
     <form className="studio-link" onSubmit={link}><strong>Link an existing media item</strong>
@@ -111,14 +115,15 @@ export default function StudioDestinations({ user, editions, library, sourceLink
     </form>
     <div className="studio-catalogue-body">
       <div className="studio-linked-list"><div className="studio-linked-title"><strong>Linked media ({items.length})</strong><label><input type="checkbox" checked={showArchive} onChange={e => setShowArchive(e.target.checked)} />Show archived</label></div>
-        {loading ? <p>Loading catalogue…</p> : items.filter(x => showArchive || !x.archived).length ? items.filter(x => showArchive || !x.archived).map(item =>
+        <label className="studio-catalogue-search"><span>Find in loaded catalogue</span><input type="search" aria-label="Search loaded catalogue" placeholder="Title, album or programme…" value={catalogueSearch} onChange={event => setCatalogueSearch(event.target.value)} /></label>
+        {loading && page === 1 ? <p>Loading catalogue…</p> : filteredItems.length ? filteredItems.map(item =>
           <button type="button" className={selected === item.id ? 'studio-linked-item selected' : 'studio-linked-item'} key={item.id} onClick={() => setSelected(item.id)}><span>{item.source_kind}</span><strong>{item.title}</strong><small>{item.archived ? 'Archived' : item.destinations?.filter(p => p.state === 'published').length + ' published destinations'}</small></button>)
           : <p className="studio-empty-linked">No assets linked yet. Link an existing media record to organize and distribute it.</p>}
         {!loading && hasMore && <button type="button" className="studio-loadmore" onClick={() => setPage(n => n + 1)}>Load more assets</button>}
       </div>
       <div className="studio-destination-detail">
         {!current ? <div className="studio-destination-empty"><strong>Select a linked asset</strong><p>Its metadata and destination publication controls will appear here.</p></div> : <>
-          <div className="studio-destination-asset"><span className="studio-kicker">{current.source_kind.toUpperCase()}</span><h3>{current.title}</h3><p>Asset ID: {current.id}</p></div>
+          <div className="studio-destination-asset"><span className="studio-kicker">{current.source_kind.toUpperCase()} · PUBLISHING STUDIO</span><h3>{current.title}</h3><p>Catalogue reference: {current.id}</p><p className="studio-asset-publishing-hint">Step 1: publish the original media in its library. Step 2: select where it should appear below. You can withdraw any destination without affecting others.</p></div>
           <form className="studio-catalogue-edit" onSubmit={e => { e.preventDefault();run(() => studioAssetMetadata(current.id,{album,campaign,programme,event:eventName,description})) }}>
             <strong>Organize this asset</strong><div className="studio-catalogue-fields"><label>Album<input maxLength="150" value={album} onChange={e=>setAlbum(e.target.value)}/></label><label>Campaign<input maxLength="150" value={campaign} onChange={e=>setCampaign(e.target.value)}/></label><label>Programme<input maxLength="150" value={programme} onChange={e=>setProgramme(e.target.value)}/></label><label>Event<input maxLength="150" value={eventName} onChange={e=>setEventName(e.target.value)}/></label></div><label>Description<textarea maxLength="5000" value={description} onChange={e=>setDescription(e.target.value)}/></label><button type="submit" disabled={busy}>Save organization</button>
           </form>
