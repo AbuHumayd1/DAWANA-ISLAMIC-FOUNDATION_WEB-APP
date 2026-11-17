@@ -388,7 +388,7 @@ def _apply_verified_transaction(attempt_id, provider_data):
                     enqueue_housing(order)
             except Exception:
                 import logging
-                logging.getLogger(__name__).exception(
+                logging.getLogger(__name__).warning(
                     'Housing enqueue failed; payment evidence is unaffected.')
             from .fulfillment import enqueue_verified
             enqueue_verified(order, attempt)
