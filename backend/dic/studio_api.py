@@ -29,6 +29,17 @@ from .showcase_models import Lecturer, LecturerAppearance, CampActivity
 from .camp_release_models import LectureRecording
 from .models import DICAdminAuditEvent, CampEdition
 
+def revoke_studio_placements(kind, source_id):
+    """Explicit withdrawal or public content edits revoke every prior placement.
+
+    A later source re-publication must never silently reinstate old destinations.
+    """
+    from .studio_models import StudioPlacement
+    return StudioPlacement.objects.filter(
+        asset__source_kind=kind, asset__source_id=source_id,
+        state='published').update(state='withdrawn', published_at=None, published_by=None)
+
+
 LIBRARIES = {
     'photos': (CampPhotograph, 'campphotograph', 'caption'),
     'videos': (CampVideo, 'campvideo', 'caption'),
@@ -202,6 +213,8 @@ class StudioPublicationView(StudioView):
             try:
                 item.full_clean()
                 item.save(actor=request.user)
+                if action == 'withdraw':
+                    revoke_studio_placements(kind, item.pk)
             except ModelValidationError as error:
                 raise ValidationError({'detail': error.messages}) from error
             DICAdminAuditEvent.objects.create(
@@ -319,6 +332,8 @@ class StudioMetadataView(StudioView):
                 item.full_clean()
                 if hasattr(item, 'state'):
                     item.save(actor=request.user)
+                    if old_state == 'published':
+                        revoke_studio_placements(kind, item.pk)
                 else:
                     item.save()
             except ModelValidationError as error:
