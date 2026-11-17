@@ -219,6 +219,8 @@ REST_FRAMEWORK = {
 }
 
 
+# Independent owner-controlled Studio upload cutover: always disabled by default.
+DIC_MEDIA_STUDIO_UPLOADS_ENABLED = env.bool('DIC_MEDIA_STUDIO_UPLOADS_ENABLED', default=False)
 # Uploads remain disabled outside development until private object storage is verified.
 DIC_MEMORY_STORAGE = env("DIC_MEMORY_STORAGE", default="local" if DEBUG else "disabled")
 DIC_MEMORY_S3_BUCKET = env("DIC_MEMORY_S3_BUCKET", default="")
