@@ -21,6 +21,7 @@ EXCLUDED = {
 def remove_unmodified_excluded_drafts(apps, schema_editor):
     Edition = apps.get_model("dic", "CampEdition")
     Timetable = apps.get_model("dic", "TimetableEntry")
+    Audit = apps.get_model("dic", "DICAdminAuditEvent")
     db = schema_editor.connection.alias
     edition = Edition.objects.using(db).filter(
         year=2026, camp_start_date=date(2026, 12, 23),
@@ -28,9 +29,10 @@ def remove_unmodified_excluded_drafts(apps, schema_editor):
     ).first()
     if edition is None:
         return
+    removed = []
     for source_key, (day, description) in EXCLUDED.items():
         # Exact-match guarding preserves modified, published and unrelated rows.
-        Timetable.objects.using(db).filter(
+        count, _ = Timetable.objects.using(db).filter(
             edition_id=edition.pk,
             timetable_type="activities",
             source_key=source_key,
@@ -51,6 +53,17 @@ def remove_unmodified_excluded_drafts(apps, schema_editor):
             location="",
             instructions="",
         ).delete()
+        if count:
+            removed.append(source_key)
+    if removed:
+        Audit.objects.using(db).create(
+            actor_id=None,
+            action="dic2026_excluded_programme_drafts_pruned",
+            target_type="CampEdition",
+            target_id=str(edition.pk),
+            details={"source_keys": removed, "reason": "Owner-excluded Individual Millionaire Challenges",
+                     "status": "draft-only exact-match cleanup"},
+        )
 
 
 class Migration(migrations.Migration):
