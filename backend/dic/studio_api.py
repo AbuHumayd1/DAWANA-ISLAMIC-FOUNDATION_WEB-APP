@@ -5,6 +5,7 @@ It deliberately reuses existing models and session/CSRF infrastructure.
 """
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.db import transaction
+from django.urls import reverse
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.utils.cache import patch_cache_control
@@ -146,6 +147,17 @@ class StudioLibraryView(StudioView):
             if not any(f.name == 'edition' for f in model._meta.fields):
                 raise ValidationError({'edition': 'This library does not use camp editions.'})
             queryset = queryset.filter(edition_id=int(edition))
+        preview_route = {
+            'photos': lambda item: reverse('dic:memory-image', args=[item.pk]) + '?preview=1',
+            'videos': lambda item: reverse('dic:video-thumbnail', args=[item.pk]) + '?preview=1' if item.thumbnail else None,
+            'flyers': lambda item: reverse('dic:official-flyer', args=[item.pk]) + '?preview=1',
+            'promotions': lambda item: reverse('dic:promo-poster', args=[item.pk]) + '?preview=1',
+            'lecturers': lambda item: reverse('dic:showcase-image', args=['identity', item.pk]) if item.photograph else None,
+            'appearances': lambda item: reverse('dic:showcase-image', args=['lecturer', item.pk]) + '?preview=1' if item.lecturer.photograph else None,
+            'activities': lambda item: reverse('dic:showcase-image', args=['activity', item.pk]) + '?preview=1' if item.photograph else None,
+        }.get(kind)
+        if kind == 'appearances':
+            queryset = queryset.select_related('lecturer')
         rows = []
         for item in queryset[:101]:
             if len(rows) == 100:
@@ -154,7 +166,8 @@ class StudioLibraryView(StudioView):
             rows.append({'id': item.pk, 'title': label, 'state': getattr(item, 'state', 'reference'),
                          'edition': getattr(item, 'edition_id', None),
                          'updated_at': getattr(item, 'updated_at', None),
-                         'featured': bool(getattr(item, 'featured', False))})
+                         'featured': bool(getattr(item, 'featured', False)),
+                         'preview_url': preview_route(item) if preview_route else None})
         return self.nocache({'library': kind, 'items': rows, 'limit': 100,
                              'has_more': queryset[:101].count() > 100,
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename))})
