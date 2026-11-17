@@ -62,15 +62,31 @@ export default function MediaStudio() {
   async function upload(event) {
     event.preventDefault()
     const form = event.currentTarget
-    const values = Object.fromEntries(new FormData(form))
+    const formData = new FormData(form)
+    const values = Object.fromEntries(formData)
+    const photos = library === 'photos' ? formData.getAll('photograph').filter(file => file instanceof File && file.name && file.size) : []
+    if (library === 'photos' && photos.length > 20) {
+      setMessage('Select up to 20 photographs per batch.'); return
+    }
     setUploadBusy(true); setMessage('')
+    let saved = 0
     try {
-      await studioUpload(library, values)
-      setMessage('Media saved as a private draft. Review it before publishing.')
+      if (photos.length > 1) {
+        for (const photo of photos) {
+          await studioUpload(library, { ...values, photograph: photo })
+          saved += 1
+        }
+      } else {
+        await studioUpload(library, values)
+        saved = 1
+      }
+      setMessage(`${saved} media item${saved === 1 ? '' : 's'} saved as private drafts. Review before publishing.`)
       setComposerOpen(false)
-      setRevision(current => current + 1)
-    } catch (error) { setMessage(error.message) }
-    finally { setUploadBusy(false) }
+    } catch (error) { setMessage(saved ? `${saved} items saved; remaining uploads stopped: ${error.message}` : error.message) }
+    finally {
+      if (saved) setRevision(current => current + 1)
+      setUploadBusy(false)
+    }
   }
   useEffect(() => {
     if (!menuOpen) return
@@ -163,7 +179,7 @@ export default function MediaStudio() {
         {composerOpen && uploadInfo.enabled && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Create a private draft</h3><p>Publishing is a separate action. Uploaded objects remain private unless explicitly released.</p></div>
           {library !== 'lecturers' && <label>Edition<select name="edition" required defaultValue=""><option value="">Select camp edition</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>}
           {library === 'promotions' && <><label>Promotion type<select required name="kind"><option value="introduction">Upcoming introduction</option><option value="experience">Previous participant experience</option></select></label><label>Previous source edition (for experience videos)<select name="source_edition" defaultValue=""><option value="">Not applicable</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}
-          {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}<input name={field.name} type={field.file ? 'file' : 'text'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : 2000} /></label>)}
+          {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}<input name={field.name} type={field.file ? 'file' : 'text'} multiple={library === 'photos' && field.name === 'photograph'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : 2000} /></label>)}
           <button type="submit" disabled={uploadBusy}>{uploadBusy ? 'Validating and uploading…' : 'Save private draft'}</button>
         </form>}
         <div className="studio-filters"><label>Search<input aria-label="Search media" placeholder="Search titles and captions" value={q} onChange={e => setQ(e.target.value)} /></label>
