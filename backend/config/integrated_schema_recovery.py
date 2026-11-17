@@ -118,7 +118,11 @@ def graph(executor, pinned=True):
     allowed = frozenset((TARGET,) + successors)
     require(all((m.app_label, m.name) in allowed for m, backwards in full_plan),
             'UNRELATED_OR_MISSING_PENDING_PLAN')
-    plan = executor.migration_plan([TARGET])
+    # Django plans a reverse migration when the historical 0042 target is
+    # requested after newer successors have already been applied. 0042 is
+    # already present in that case: the recovery plan is empty, not a rollback.
+    # The full leaf plan above still rejects real pending backwards steps.
+    plan = [] if TARGET in loader.applied_migrations else executor.migration_plan([TARGET])
     require(not any(backwards for _, backwards in plan), 'BACKWARD_PLAN_REJECTED')
     target = loader.graph.nodes[TARGET]
     if pinned:
