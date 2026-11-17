@@ -28,6 +28,7 @@ from .promo_models import PromoVideo, CampFlyer
 from .showcase_models import Lecturer, LecturerAppearance, CampActivity
 from .camp_release_models import LectureRecording
 from .studio_hosted_models import StudioHostedVideo
+from .video_providers import video_source
 from .models import DICAdminAuditEvent, CampEdition
 
 def revoke_studio_placements(kind, source_id):
@@ -191,6 +192,7 @@ class StudioLibraryView(StudioView):
                          'updated_at': getattr(item, 'updated_at', None),
                          'featured': bool(getattr(item, 'featured', False)),
                          'preview_url': preview_route(item) if preview_route else None,
+                         'player_url': video_source(item.video_url)['embed_url'] if kind == 'hosted' else None,
                          'metadata': {name: getattr(item, name) for name in EDIT_FIELDS.get(kind, ())}})
         return self.nocache({'library': kind, 'items': rows, 'limit': 30, 'page': page,
                              'has_more': len(records) > 30,
