@@ -108,3 +108,24 @@ class ProductionInspectionTests(TestCase):
         self.assertFalse(data['housing_activation']['ready'])
         self.assertTrue(any('lacks can_process_housing_queue' in x for x in data['housing_activation']['blockers']))
         self.assertFalse(data['housing_activation']['blockers'] == [])
+
+    def test_activation_preflight_ready_only_with_current_approval_and_authorized_actor(self):
+        from django.test import override_settings
+        from .management.commands.initialize_dic2026_release import initialize
+        from .allocation import allocation_configuration_fingerprint
+        from django.utils import timezone
+        initialize(self.edition, self.owner)
+        self.edition.refresh_from_db()
+        self.edition.allocation_strategy = 'balanced'
+        self.edition.allocation_strategy_approved_at = timezone.now()
+        self.edition.allocation_strategy_approved_by = self.owner
+        self.edition.allocation_strategy_approval_note = 'Committee housing approval.'
+        self.edition.save()
+        self.edition.allocation_approved_configuration = allocation_configuration_fingerprint(self.edition)
+        self.edition.save(update_fields=['allocation_approved_configuration'])
+        self.client.force_login(self.owner)
+        with override_settings(DAWANA_WEBSITE_ONLY=False, DIC_AUTOMATION_ACTOR_ID=self.owner.pk):
+            ready = self.client.get(self.path).json()['housing_activation']
+        self.assertTrue(ready['ready'], ready['blockers'])
+        self.assertEqual(ready['blockers'], [])
+        self.assertEqual(House.objects.filter(edition=self.edition).count(), 8)
