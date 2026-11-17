@@ -115,8 +115,8 @@ class TimetablePolicyTests(SimpleTestCase):
         queryset.order_by.return_value.values_list.side_effect = [
             Mock(distinct=Mock(return_value=[(9, 'food')])),
             Mock(distinct=Mock(return_value=[date(2026, 12, 23)]))]
-        rows = [Mock(date=date(2026, 12, 23), start_time=None, end_time=None),
-                Mock(date=date(2026, 12, 23), start_time=None, end_time=None)]
+        rows = [Mock(date=date(2026, 12, 23), start_time=None, end_time=None, certainty='confirmed'),
+                Mock(date=date(2026, 12, 23), start_time=None, end_time=None, certainty='confirmed')]
         with patch('dic.timetable_services.CampEdition.objects'), patch('dic.timetable_services.TimetableEntry.objects') as entries, patch('dic.timetable_services.DICAdminAuditEvent.objects') as audit:
             entries.select_for_update.return_value.filter.return_value = rows
             self.assertEqual(publish_days.__wrapped__(user, queryset, True), 2)
@@ -185,3 +185,35 @@ class TimetablePolicyTests(SimpleTestCase):
             response = admin.day_preview(APIRequestFactory().get('/'), 1)
             self.assertNotIn(b'<script>', response.content)
             self.assertIn(b'&lt;script&gt;', response.content)
+
+    def test_publication_rejects_unspecified_and_proposed_before_writes(self):
+        from .timetable_services import publish_days
+        from .timetable_models import TimetableEntry
+        from unittest.mock import patch, Mock
+        from datetime import date, time
+        actor = Mock(is_active=True, is_staff=True)
+        actor.has_perm.return_value = True
+        queryset = Mock()
+        queryset.order_by.return_value.values_list.side_effect = [
+            Mock(distinct=Mock(return_value=[(9, 'activities')])),
+            Mock(distinct=Mock(return_value=[date(2026, 12, 24)])),
+        ]
+        rows = [
+            Mock(date=date(2026, 12, 24), certainty='confirmed'),
+            Mock(date=date(2026, 12, 24), certainty='unspecified'),
+        ]
+        with patch('dic.timetable_services.CampEdition.objects'), patch('dic.timetable_services.TimetableEntry.objects') as entries, patch('dic.timetable_services.DICAdminAuditEvent.objects') as audit:
+            entries.select_for_update.return_value.filter.return_value = rows
+            with self.assertRaisesMessage(ValidationError, 'unconfirmed entries'):
+                publish_days.__wrapped__(actor, queryset, True)
+            for row in rows:
+                row.save.assert_not_called()
+            audit.create.assert_not_called()
+            rows[1].certainty = 'proposed'
+            queryset.order_by.return_value.values_list.side_effect = [
+                Mock(distinct=Mock(return_value=[(9, 'activities')])),
+                Mock(distinct=Mock(return_value=[date(2026, 12, 24)])),
+            ]
+            with self.assertRaisesMessage(ValidationError, 'unconfirmed entries'):
+                publish_days.__wrapped__(actor, queryset, True)
+            audit.create.assert_not_called()

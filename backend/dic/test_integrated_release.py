@@ -87,6 +87,12 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         thursday=TimetableEntry.objects.filter(date=date(2026,12,31),timetable_type='activities')
         self.assertEqual(thursday.get(time_label='After Asr').title,'Evening of Gratitude')
         self.assertIn('Campus Challenge',thursday.get(time_label='After Isha').description)
+        # Imported activities are not all committee-confirmed: publishing
+        # must fail closed until the entire date is explicitly approved.
+        with self.assertRaises(ValidationError):
+            publish_days(self.owner, monday, True)
+        self.assertFalse(monday.filter(status='published').exists())
+        monday.update(certainty='confirmed')  # Synthetic committee approval in disposable CI only.
         publish_days(self.owner,monday,True)
         self.assertTrue(monday.filter(status='published').exists())
 
@@ -108,7 +114,11 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
 
     def test_published_timetable_scoped_to_gender_and_lagos_midnight(self):
         initialize(self.edition,self.owner)
-        publish_days(self.owner,TimetableEntry.objects.filter(date=date(2026,12,28),timetable_type='activities'),True)
+        monday=TimetableEntry.objects.filter(date=date(2026,12,28),timetable_type='activities')
+        with self.assertRaises(ValidationError):
+            publish_days(self.owner,monday,True)
+        monday.update(certainty='confirmed')  # Test-only approval, never production data.
+        publish_days(self.owner,monday,True)
         client,_=self.login()
         path=reverse('dic:participant-timetables')
         from .models import ParticipantPortalGrant
