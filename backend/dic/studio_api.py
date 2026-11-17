@@ -27,7 +27,7 @@ from .memory_models import CampPhotograph, CampVideo
 from .promo_models import PromoVideo, CampFlyer
 from .showcase_models import Lecturer, LecturerAppearance, CampActivity
 from .camp_release_models import LectureRecording
-from .models import DICAdminAuditEvent
+from .models import DICAdminAuditEvent, CampEdition
 
 LIBRARIES = {
     'photos': (CampPhotograph, 'campphotograph', 'caption'),
@@ -240,7 +240,8 @@ class StudioUploadView(StudioView):
     parser_classes = (MultiPartParser, FormParser)
 
     def get(self, request):
-        return self.nocache({'enabled': upload_enabled(), 'libraries': list(UPLOAD_FIELDS)})
+        return self.nocache({'enabled': upload_enabled(), 'libraries': list(UPLOAD_FIELDS),
+                             'editions': list(CampEdition.objects.order_by('-year').values('id', 'name', 'year')[:30])})
 
     def post(self, request):
         from rest_framework.exceptions import PermissionDenied, ValidationError
