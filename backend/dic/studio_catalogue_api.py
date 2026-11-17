@@ -247,7 +247,10 @@ class PublicStudioPlacementsView(APIView):
         for placement in placements:
             if placement.edition_id and not placement.edition.is_active:
                 continue
-            # DIC resources is public for hosted video only; lecture audio is private.\n            if destination == 'dic_resources' and placement.asset.source_kind != 'hosted':\n                continue\n            source = source_for(placement.asset)
+            # DIC resources is public for hosted video only; lecture audio is private.
+            if destination == 'dic_resources' and placement.asset.source_kind != 'hosted':
+                continue
+            source = source_for(placement.asset)
             url = published_url(placement.asset, source)
             if url:
                 item = {'title': placement.asset.title, 'description': placement.asset.description,
