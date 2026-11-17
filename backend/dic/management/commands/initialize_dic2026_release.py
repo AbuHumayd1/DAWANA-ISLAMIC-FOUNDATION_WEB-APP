@@ -36,7 +36,7 @@ def canonical(value):
                   .encode('ascii', 'ignore').decode().lower())
 
 
-def approved_houses():
+def approved_houses(edition):
     """One authoritative identity, badge and capacity source for the edition."""
     rows = approved_2026_houses()
     keys = [canonical(row['name']) for row in rows]
@@ -45,7 +45,7 @@ def approved_houses():
             or sum(row['gender'] == 'male' for row in rows) != 4
             or sum(row['gender'] == 'female' for row in rows) != 4):
         raise CommandError('The approved house inventory must contain four unique houses per sex.')
-    limit = house_capacity_limit(type('EditionYear', (), {'year': 2026})())
+    limit = house_capacity_limit(edition)
     for row in rows:
         if (row['capacity'] != limit or row['purpose'] != 'participants'
                 or row['status'] != 'active'
@@ -57,7 +57,7 @@ def approved_houses():
 
 def _populate_houses(edition, actor):
     """Reconcile only provably matching identities; never overwrite staff edits."""
-    rows = approved_houses()
+    rows = approved_houses(edition)
     existing = list(House.objects.select_for_update().filter(
         edition=edition, purpose='participants'))
     wanted = {canonical(row['name']): row for row in rows}
