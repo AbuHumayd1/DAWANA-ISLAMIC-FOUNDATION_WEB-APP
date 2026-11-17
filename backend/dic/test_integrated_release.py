@@ -90,6 +90,23 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         publish_days(self.owner,monday,True)
         self.assertTrue(monday.filter(status='published').exists())
 
+    def test_camper_housing_refresh_is_optional_and_awaiting_does_not_block_portal(self):
+        from django.urls import reverse
+        client, _ = self.login()
+        with override_settings(DIC_AUTOMATION_ACTOR_ID=0, DAWANA_WEBSITE_ONLY=False):
+            refreshed = client.post(reverse('dic:participant-housing-refresh'), {},
+                                    content_type='application/json')
+            self.assertEqual(refreshed.status_code, 200, refreshed.content)
+            self.assertEqual(refreshed.json()['housing'], 'awaiting_or_updated')
+        visible = client.get(reverse('dic:participant-enrollments'))
+        self.assertEqual(visible.status_code, 200, visible.content)
+        campers = [person for order in visible.json()['orders']
+                   for person in order['participants']]
+        self.assertTrue(campers)
+        self.assertIn('housing', campers[0])
+        self.assertEqual(campers[0]['housing']['status'], 'awaiting')
+        self.assertEqual(campers[0]['housing']['message'], 'Awaiting house allocation')
+
     def test_published_timetable_scoped_to_gender_and_lagos_midnight(self):
         initialize(self.edition,self.owner)
         publish_days(self.owner,TimetableEntry.objects.filter(date=date(2026,12,28),timetable_type='activities'),True)
