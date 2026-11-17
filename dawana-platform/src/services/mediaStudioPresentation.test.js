@@ -61,3 +61,18 @@ test('public site and DIC landing consume only explicitly published destination 
   assert.match(gallery, /foundation_archive/)
   assert.doesNotMatch(gallery, /camper_resources/)
 })
+
+test('YouTube live and recorded links are a separate R2-independent bulk workflow', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  const api = read('./mediaStudioApi.js')
+  const pub = read('../components/media/PublishedStudioArchive.jsx')
+  const dic = read('../pages/DIC.jsx')
+  assert.match(studio, /key: 'hosted'/)
+  assert.match(studio, /studioHostedLinks\(entries\)/)
+  assert.match(studio, /25 YouTube\/Vimeo links|25 links per batch/)
+  assert.match(studio, /No file upload or R2 storage required/)
+  assert.match(api, /\/hosted-links\//)
+  assert.match(pub, /approvedVideoLink\(row.embed_url\)/)
+  assert.match(pub, /Play YouTube video or livestream/)
+  assert.match(dic, /<PublishedStudioArchive destination="dic_resources"/)
+})
