@@ -39,7 +39,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         from .house_configuration import approved_2026_houses
         from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
         first = initialize(self.edition, self.owner)
-        self.assertEqual(first, 182)
+        self.assertEqual(first, 180)
         houses = list(House.objects.filter(edition=self.edition))
         self.assertEqual(len(houses), 8)
         self.assertEqual(sum(row.capacity for row in houses), 240)
@@ -54,6 +54,50 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         existing.refresh_from_db()
         self.assertEqual(existing.eligibility_notes, 'Staff-customized description')
         self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), first)
+        self.assertFalse(TimetableEntry.objects.filter(edition=self.edition,description__icontains='Millionaire').exists())
+        self.assertTrue(TimetableEntry.objects.filter(edition=self.edition,date=date(2026,12,31),title='Explanation of Ahsanul Akhlaq',certainty='confirmed').exists())
+        self.assertTrue(TimetableEntry.objects.filter(edition=self.edition,timetable_type='food',date=date(2026,12,23),meal='lunch').exists())
+
+    def test_excluded_game_migration_changes_only_exact_untouched_drafts(self):
+        from django.apps import apps
+        from django.db import connection
+        from importlib import import_module
+        reconcile = import_module(
+            'dic.migrations.0043_exclude_dic2026_millionaire_drafts'
+        ).remove_unmodified_excluded_drafts
+        excluded = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,24), day_number=2,
+            timetable_type='activities', source_key='dic2026:activities:2:13',
+            description='Individual Millionaire- Challenge: Ta’lim & Tahdheeb',
+            time_label='17:00–18:30', start_time=time(17), end_time=time(18,30),
+            display_order=13, certainty='unspecified',
+            modified_by=self.owner)
+        edited = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,25), day_number=3,
+            timetable_type='activities', source_key='dic2026:activities:3:13',
+            description='Staff-edited alternative: still under review',
+            time_label='17:00–18:30', start_time=time(17), end_time=time(18,30),
+            display_order=13, certainty='unspecified',
+            modified_by=self.owner)
+        food = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,23), day_number=1,
+            timetable_type='food', meal='lunch',
+            source_key='dic2026:food:1:0', description='Officials’ lunch',
+            time_label='Lunch', certainty='confirmed',
+            modified_by=self.owner)
+        from types import SimpleNamespace
+        editor = SimpleNamespace(connection=connection)
+        reconcile(apps, editor)
+        reconcile(apps, editor)
+        self.assertFalse(TimetableEntry.objects.filter(pk=excluded.pk).exists())
+        self.assertTrue(TimetableEntry.objects.filter(pk=edited.pk).exists())
+        self.assertTrue(TimetableEntry.objects.filter(pk=food.pk).exists())
+        receipts = DICAdminAuditEvent.objects.filter(
+            action='dic2026_excluded_programme_drafts_pruned',
+            target_id=str(self.edition.pk))
+        self.assertEqual(receipts.count(), 1)
+        self.assertEqual(receipts.get().details['source_keys'],
+                         ['dic2026:activities:2:13'])
 
     def test_legacy_unconfigured_matching_house_is_completed_without_renaming(self):
         from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
@@ -95,6 +139,31 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         monday.update(certainty='confirmed')  # Synthetic committee approval in disposable CI only.
         publish_days(self.owner,monday,True)
         self.assertTrue(monday.filter(status='published').exists())
+
+    def test_camper_api_shows_published_food_but_hides_unconfirmed_activities(self):
+        from .models import ParticipantPortalGrant
+        client, _ = self.login()
+        ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
+        food = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,23), day_number=1,
+            timetable_type='food', meal='lunch', description='Officials lunch',
+            time_label='Lunch', certainty='confirmed', modified_by=self.owner)
+        TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,23), day_number=1,
+            timetable_type='activities', description='Unconfirmed activity',
+            time_label='19:00-20:00', certainty='unspecified',
+            modified_by=self.owner)
+        self.assertEqual(
+            publish_days(self.owner, TimetableEntry.objects.filter(pk=food.pk), True), 1)
+        path=reverse('dic:participant-timetables')
+        food_response=client.get(path, {
+            'item_id':self.item.pk, 'type':'food','date':'2026-12-23'})
+        self.assertEqual(food_response.status_code,200,food_response.content)
+        self.assertEqual(food_response.json()['entries'][0]['description'],'Officials lunch')
+        programme_response=client.get(path, {
+            'item_id':self.item.pk, 'type':'activities','date':'2026-12-23'})
+        self.assertEqual(programme_response.status_code,200,programme_response.content)
+        self.assertEqual(programme_response.json()['entries'],[])
 
     def test_camper_housing_refresh_is_optional_and_awaiting_does_not_block_portal(self):
         from django.urls import reverse

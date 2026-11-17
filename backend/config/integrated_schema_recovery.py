@@ -98,7 +98,15 @@ def graph(executor, pinned=True):
     require(not (set(loader.applied_migrations) - set(loader.graph.nodes) - set(loader.replacements)),
             'UNKNOWN_RECORDED_MIGRATIONS')
     require(TARGET in loader.graph.nodes, 'TARGET_MISSING')
-    plan = executor.migration_plan(loader.graph.leaf_nodes())
+    # The historical, explicitly approved 0042 recovery MUST remain pinned to
+    # 0042 even after later migrations are introduced. The release's normal
+    # migration runner handles later migrations independently.
+    full_plan = executor.migration_plan(loader.graph.leaf_nodes())
+    require(not any(backwards for _, backwards in full_plan), 'BACKWARD_PLAN_REJECTED')
+    allowed_followup = ('dic', '0043_exclude_dic2026_millionaire_drafts')
+    require(all((m.app_label, m.name) in (TARGET, allowed_followup)
+                for m, backwards in full_plan), 'UNRELATED_OR_MISSING_PENDING_PLAN')
+    plan = executor.migration_plan([TARGET])
     require(not any(backwards for _, backwards in plan), 'BACKWARD_PLAN_REJECTED')
     target = loader.graph.nodes[TARGET]
     if pinned:
