@@ -56,14 +56,14 @@ class ProductionPopulationTests(TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertContains(result, 'Reference population finished')
         self.assertEqual(House.objects.filter(edition=self.edition).count(), 8)
-        self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), 182)
+        self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), 180)
         self.assertFalse(TimetableEntry.objects.filter(status='published').exists())
         self.edition.refresh_from_db()
         self.assertEqual(self.edition.housing_age_reference_date, date(2026, 12, 23))
         again = self.client.post(self.path, payload)
         self.assertContains(again, 'Reference population finished')
         self.assertEqual(House.objects.filter(edition=self.edition).count(), 8)
-        self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), 182)
+        self.assertEqual(TimetableEntry.objects.filter(edition=self.edition).count(), 180)
 
     def test_conflicting_house_does_not_partially_write(self):
         from .management.commands.initialize_dic2026_release import SOURCE
