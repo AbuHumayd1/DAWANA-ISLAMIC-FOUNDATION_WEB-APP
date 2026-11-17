@@ -568,3 +568,15 @@ a.ops-metric-card:hover { transform:translateY(-2px); border-color:var(--line); 
 .ops-registration-tab[aria-current="page"] { background: #fff; border-color: #176447; color: #104c36; box-shadow: 0 2px 5px #163c2814; }
 .ops-registration-tab:focus-visible { outline: 3px solid #a4660b; outline-offset: 3px; }
 @media (max-width: 480px) { .ops-registration-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ops-registration-tab { padding: .7rem; } }
+
+/* Compact supervised housing review. Never obscure the paid booking status. */
+.ops-housing-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: .65rem;
+  min-width: 230px;
+}
+.ops-housing-review-controls .ops-form-field { flex: 1 1 180px; min-width: 0; }
+.ops-housing-review-controls .ops-form-field input { width: 100%; min-width: 0; }
+.ops-housing-review-controls .ops-button { min-height: 42px; white-space: nowrap; }
