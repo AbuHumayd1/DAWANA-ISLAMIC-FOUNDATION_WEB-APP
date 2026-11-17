@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StudioDestinations from './StudioDestinations'
 
@@ -123,6 +123,15 @@ export default function MediaStudio() {
     try { await studioLogout(); setUser(null); setRows([]); setMenuOpen(false) }
     catch (error) { setMessage(error.message) }
   }
+  async function addToFoundation(item) {
+    setPending(item.id); setMessage('')
+    try {
+      const result = await studioLinkAsset(library, item.id)
+      setRevision(current => current + 1)
+      setMessage(result.created ? 'Media linked to the Foundation catalogue. Choose publication destinations below.' : 'Already linked to the Foundation catalogue. Manage destinations below.')
+    } catch (error) { setMessage(error.message) }
+    finally { setPending(null) }
+  }
   async function saveMetadata(event, item) {
     event.preventDefault()
     setPending(item.id); setMessage('')
@@ -190,12 +199,12 @@ export default function MediaStudio() {
         {message && <p className="studio-notice" role="status">{message}</p>}
         {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className="studio-item" key={item.id}>
           <div className="studio-art">{item.preview_url ? <img src={backendUrl(item.preview_url)} loading="lazy" alt={item.title} onError={(event) => { event.currentTarget.hidden = true }} /> : <span aria-hidden="true">{selected?.icon}</span>}<small>Asset #{item.id}</small></div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && ['photos','videos','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{user.owner || user.libraries?.includes(library) ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && ['photos','videos','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
           {editing === item.id && <form className="studio-edit-form" onSubmit={event => saveMetadata(event, item)}><strong>Editorial details</strong>{Object.entries(item.metadata || {}).map(([name,value]) => <label key={name}>{name.replaceAll('_',' ')}{typeof value === 'boolean' ? <input name={name} type="checkbox" defaultChecked={value} /> : <input name={name} type={typeof value === 'number' ? 'number' : 'text'} min={typeof value === 'number' ? 0 : undefined} maxLength={typeof value === 'number' ? undefined : 5000} defaultValue={value ?? ''} />}</label>)}<button type="submit" disabled={pending !== null}>Save changes</button></form>}</div>
         </article>)}</div> : <div className="studio-state"><strong>No media records match this view.</strong><p>Use the filters to find existing items. New uploads and the full unified media composer will be enabled after private storage activation and validation.</p></div>}
         {more && <p className="studio-pagination">More than 100 items match this view. Narrow your search to see more specific results.</p>}
       </section>
-      {user.owner || user.libraries?.length ? <StudioDestinations user={user} editions={uploadInfo.editions} library={library} /> : null}
+      {user.owner || user.libraries?.length ? <StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} /> : null}
       <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>
     </main>
   </div>
