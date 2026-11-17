@@ -573,13 +573,39 @@ function PaymentTable({ rows, count }) {
 function HousesPage() {
   const [page, setPage] = useState(1)
   const { data, loading, error, retry } = useData(`/houses/?page=${page}`)
+  const { data: reviews, retry: reloadReviews } = useData('/housing/jobs/')
+  const [retryingJob, setRetryingJob] = useState(null)
+  const [retryError, setRetryError] = useState('')
   const allocations = data?.allocations?.results || []
+  const retryHousing = async (job) => {
+    const reason = window.prompt('Reason for retrying this housing allocation (5–500 characters):')
+    if (reason === null) return
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      setRetryError('Please provide a review reason between 5 and 500 characters.')
+      return
+    }
+    setRetryError('')
+    setRetryingJob(job.id)
+    try {
+      await postOperationsData(`/housing/jobs/${job.id}/retry/`, { reason: reason.trim() })
+      reloadReviews()
+      retry()
+    } catch (failure) {
+      setRetryError(failure.message || 'Could not queue housing retry.')
+    } finally {
+      setRetryingJob(null)
+    }
+  }
   if (loading) return <><PageHeading eyebrow="Camp readiness" title="House allocation" description="See houses and participant assignments. Changes are made by authorised housing staff." /><LoadingState /></>
   return <>
     <PageHeading eyebrow="Camp readiness" title="House allocation" description="See houses and participant assignments. Changes are made by authorised housing staff." />
     {error ? <ErrorState error={error} onRetry={retry} /> : <>
       {data.allocations.pages > 1 && <Pagination page={data.allocations.page} pages={data.allocations.pages} onChange={setPage} />}
       <div className="ops-summary-strip"><div><span>Eligible unallocated participants</span><strong>{formatNumber(data.eligible_unallocated)}</strong></div><div><span>Configured houses</span><strong>{formatNumber(data.houses.length)}</strong></div><div><span>Recorded allocation history</span><strong>{formatNumber(data.allocations.count || 0)}</strong></div></div>
+      <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">SUPERVISOR REVIEW</span><h2>Awaiting house allocation</h2><p>Unresolved allocations do not affect verified payments or Camper Portal access.</p></div></div>
+        {retryError && <p className="ops-form-error" role="alert">{retryError}</p>}
+        {(reviews?.jobs || []).length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Participant</th><th>Status</th><th>Staff review details</th><th>Action</th></tr></thead><tbody>{reviews.jobs.map(job => <tr key={job.id}><td>{job.participant}</td><td><StatusPill value={job.state} /></td><td>{job.reason || 'Review needed'}</td><td>{reviews.can_retry ? <button type="button" className="ops-button ops-button-secondary" disabled={retryingJob !== null} onClick={() => retryHousing(job)}>{retryingJob === job.id ? 'Queuing…' : 'Retry with reason'}</button> : 'Housing supervisor required'}</td></tr>)}</tbody></table></div> : <p>No held or failed housing cases require staff review.</p>}
+      </section>
       <section className="ops-house-grid">{data.houses.length ? data.houses.map((house) => <article className="ops-house-card" key={house.id}><span className="ops-house-icon" style={{ border: house.badge_colour && /^#[0-9a-fA-F]{6}$/.test(house.badge_colour) ? `3px solid ${house.badge_colour}` : undefined }}><Icon name="home" /></span><div><h2>{house.name}</h2><p>{statusLabel(house.gender)} <span>·</span> {statusLabel(house.status)}</p></div><strong>{formatNumber(house.allocated_count)}<small>{house.capacity ? ` / ${house.capacity}` : ' assigned'}</small></strong></article>) : <div className="ops-panel"><EmptyState title="No houses configured" detail="House names and capacities are managed by authorized administrators." /></div>}</section>
       <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ALLOCATION HISTORY</span><h2>Participant assignments</h2></div></div>{allocations.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Participant</th><th>House</th><th>Status</th><th>Assigned</th><th>Eligibility</th></tr></thead><tbody>{allocations.map((item, index) => <tr key={`${item.participant_id}-${index}`}><td>{item.participant}</td><td>{item.house}</td><td><StatusPill value={item.status} /></td><td>{formatDate(item.allocated_at, { timeStyle: 'short' })}</td><td><StatusPill value={item.verified_eligible ? 'Verified paid' : 'Review required'} positive={item.verified_eligible} /></td></tr>)}</tbody></table></div> : <EmptyState title="No allocations recorded" detail="There are no house assignments for this edition yet." />}</section>
     </>}
