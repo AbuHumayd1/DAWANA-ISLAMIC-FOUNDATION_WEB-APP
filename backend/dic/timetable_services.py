@@ -53,10 +53,19 @@ def publish_days(user, queryset, publish):
     days = list(queryset.order_by().values_list('date', flat=True).distinct())
     rows = list(TimetableEntry.objects.select_for_update().filter(edition_id=edition_id,
         timetable_type=kind, date__in=days))
+    if publish and kind == 'activities':
+        # A complete-day publication is not an approval of an imported
+        # committee-review draft. In particular, DIC 2026 has 144
+        # unspecified activities, including two excluded games.
+        # Refuse the ENTIRE operation rather than silently publish them or
+        # partially publish a day that staff can no longer edit.
+        if any(r.certainty != 'confirmed' for r in rows):
+            raise ValidationError(
+                'Activities include unconfirmed entries on the selected days. '
+                'Review and confirm or remove every activity in each day before publishing.'
+            )
     for day in days:
         validate_day([r for r in rows if r.date == day])
-    if publish:
-        rows=[r for r in rows if r.certainty != 'proposed']
     now = timezone.now()
     for row in rows:
         row.status = 'published' if publish else 'draft'
