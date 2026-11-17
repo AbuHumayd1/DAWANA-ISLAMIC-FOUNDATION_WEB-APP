@@ -61,7 +61,7 @@ from .feedback_api import (CamperFeedbackOptionsView,CamperFeedbackSubmitView,Ca
 
 from .participant_api import (
     portal_csrf, PortalOptionsView, PortalChallengeView, PortalVerifyView, PortalMeView,
-    PortalLogoutView, PortalEnrollmentsView, PortalIDView, StaffEnrollmentView, StaffIDView,
+    PortalLogoutView, PortalEnrollmentsView, PortalHousingRefreshView, PortalIDView, StaffEnrollmentView, StaffIDView,
 )
 
 urlpatterns = [
@@ -108,6 +108,7 @@ urlpatterns = [
     path("participant/auth/me/", PortalMeView.as_view(), name="participant-me"),
     path("participant/auth/logout/", PortalLogoutView.as_view(), name="participant-logout"),
     path("participant/enrollments/", PortalEnrollmentsView.as_view(), name="participant-enrollments"),
+    path("participant/housing/refresh/", PortalHousingRefreshView.as_view(), name="participant-housing-refresh"),
     path("participant/enrollments/<uuid:enrollment_id>/id/", PortalIDView.as_view(), name="participant-id"),
     path("operations/enrollments/", StaffEnrollmentView.as_view(), name="operations-enrollments"),
     path("operations/enrollments/<uuid:enrollment_id>/id/", StaffIDView.as_view(), name="operations-enrollment-id"),
