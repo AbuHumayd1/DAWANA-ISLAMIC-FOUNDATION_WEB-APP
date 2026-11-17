@@ -41,7 +41,7 @@ test('home never relabels a future published programme as today or exposes draft
 
 test('programme preview preserves approved labels, context, escaping and current markers', () => {
   const html = render(home.ProgrammePreview, { data: { ...schedule, current: 3 } })
-  for (const label of ['09:00', '&lt;Approved activity&gt;', 'Approved venue', 'Bring your notebook', 'Proposed', 'Happening now']) assert.ok(html.includes(label))
+  for (const label of ['09:00', '&lt;Approved activity&gt;', 'Approved venue', 'Bring your notebook', 'Schedule subject to change', 'Happening now']) assert.ok(html.includes(label))
   assert.doesNotMatch(html, /<Approved activity>/)
 })
 
