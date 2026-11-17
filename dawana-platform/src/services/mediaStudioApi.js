@@ -54,3 +54,5 @@ export async function studioUpload(library, fields) {
   })
   return readApiResponse(response)
 }
+
+export const studioEdit = (library, id, metadata) => studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/metadata/`, { method: 'PATCH', body: metadata })
