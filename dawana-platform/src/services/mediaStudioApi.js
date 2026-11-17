@@ -39,3 +39,18 @@ export const studioLibrary = ({ library, q, state, edition }) => {
 }
 export const studioPublish = (library, id, action) =>
   studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/publication/`, { method: 'POST', body: { action } })
+
+export const studioUploadStatus = () => studioRequest('/uploads/')
+export async function studioUpload(library, fields) {
+  if (!csrf) await token()
+  const body = new FormData()
+  body.append('library', library)
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined && value !== null && value !== '') body.append(key, value)
+  }
+  const response = await fetch(base + '/uploads/', {
+    method: 'POST', body, credentials: 'include', cache: 'no-store',
+    headers: { 'X-CSRFToken': csrf },
+  })
+  return readApiResponse(response)
+}
