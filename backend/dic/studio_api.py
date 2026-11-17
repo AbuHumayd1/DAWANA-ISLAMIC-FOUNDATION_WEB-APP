@@ -173,10 +173,16 @@ class StudioLibraryView(StudioView):
         }.get(kind)
         if kind == 'appearances':
             queryset = queryset.select_related('lecturer')
+        raw_page = request.query_params.get('page', '1')
+        if not raw_page.isascii() or not raw_page.isdigit() or len(raw_page) > 3:
+            raise ValidationError({'page': 'Choose a valid library page.'})
+        page = int(raw_page)
+        if not 1 <= page <= 100:
+            raise ValidationError({'page': 'Library page out of range.'})
+        offset = (page - 1) * 30
+        records = list(queryset[offset:offset + 31])
         rows = []
-        for item in queryset[:101]:
-            if len(rows) == 100:
-                break
+        for item in records[:30]:
             label = str(getattr(item, title, '') or item)
             rows.append({'id': item.pk, 'title': label, 'state': getattr(item, 'state', 'reference'),
                          'edition': getattr(item, 'edition_id', None),
@@ -184,8 +190,8 @@ class StudioLibraryView(StudioView):
                          'featured': bool(getattr(item, 'featured', False)),
                          'preview_url': preview_route(item) if preview_route else None,
                          'metadata': {name: getattr(item, name) for name in EDIT_FIELDS.get(kind, ())}})
-        return self.nocache({'library': kind, 'items': rows, 'limit': 100,
-                             'has_more': queryset[:101].count() > 100,
+        return self.nocache({'library': kind, 'items': rows, 'limit': 30, 'page': page,
+                             'has_more': len(records) > 30,
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename)),
                              'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename))})
 
