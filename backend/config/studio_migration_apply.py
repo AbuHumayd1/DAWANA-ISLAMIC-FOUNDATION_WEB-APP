@@ -68,7 +68,7 @@ def apply_approved_migrations():
         pending = tuple((m.app_label, m.name) for m, backwards in plan)
         require(pending == ALLOWED and all(not backwards for _, backwards in plan),
                 "UNEXPECTED_PENDING_MIGRATIONS")
-        ops = {name: m.operations for m, _ in plan for app, name in [(m.app_label, m.name)]}
+        ops = {m.name: m.operations for m, _ in plan}
         require(
             len(ops[ALLOWED[0][1]]) == 1
             and type(ops[ALLOWED[0][1]][0]) is RunPython
@@ -100,14 +100,9 @@ def apply_approved_migrations():
             ct, _ = ContentType.objects.get_or_create(
                 app_label="dic", model=model._meta.model_name)
             definitions = [
-                (code % {"model_name": model._meta.model_name},
-                 name % {"verbose_name": str(model._meta.verbose_name)})
-                for code, name in model._meta.default_permissions and (
-                    ("add_%(model_name)s", "Can add %(verbose_name)s"),
-                    ("change_%(model_name)s", "Can change %(verbose_name)s"),
-                    ("delete_%(model_name)s", "Can delete %(verbose_name)s"),
-                    ("view_%(model_name)s", "Can view %(verbose_name)s"),
-                ) or ()
+                (f"{action}_{model._meta.model_name}",
+                 f"Can {action} {model._meta.verbose_name}")
+                for action in model._meta.default_permissions
             ]
             definitions.extend(model._meta.permissions)
             for codename, label in definitions:
