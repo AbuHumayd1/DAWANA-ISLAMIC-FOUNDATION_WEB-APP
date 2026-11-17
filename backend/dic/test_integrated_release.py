@@ -311,6 +311,32 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             row.state='draft';row.save(actor=self.owner)
             self.assertEqual(client.get(url,{'item_id':self.item.pk}).status_code,404)
 
+    def test_foundation_studio_operator_can_edit_and_publish_without_second_reviewer(self):
+        # Role creation is explicit; no existing account is enrolled automatically.
+        call_command('initialize_dic_committee_roles', apply=True, approved_by=self.owner.username)
+        from django.contrib.auth.models import Group
+        media = get_user_model().objects.create_user(
+            'foundation-studio-operator', password='synthetic', is_staff=True)
+        media.groups.add(Group.objects.get(name='DAWANA Media Studio Personnel'))
+        self.assertTrue(media.has_perm('dic.add_campphotograph'))
+        self.assertTrue(media.has_perm('dic.publish_campphotograph'))
+        self.assertTrue(media.has_perm('dic.add_campflyer'))
+        self.assertTrue(media.has_perm('dic.publish_campflyer'))
+        self.assertTrue(media.has_perm('dic.add_promovideo'))
+        self.assertTrue(media.has_perm('dic.publish_promovideo'))
+        self.assertTrue(media.has_perm('dic.add_lecturerecording'))
+        self.assertTrue(media.has_perm('dic.publish_lecturerecording'))
+        self.assertFalse(media.is_superuser)
+        self.assertFalse(media.has_perm('dic.can_view_dic_finance'))
+        self.assertFalse(media.has_perm('dic.delete_registrationorder'))
+        item = LectureRecording.objects.create(
+            edition=self.edition, title='Synthetic Studio audio',
+            audio='camp-recordings/synthetic.mp3')
+        item.state = 'published'
+        item.save(actor=media)
+        self.assertEqual(item.state, 'published')
+        self.assertEqual(item.published_by_id, media.pk)
+
     def test_media_editor_admin_forms_render_without_private_object_urls(self):
         call_command('initialize_dic_committee_roles',apply=True,approved_by=self.owner.username)
         from django.contrib.auth.models import Group
