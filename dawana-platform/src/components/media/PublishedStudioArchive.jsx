@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { backendUrl } from '../../services/productionContract'
 import { Container } from '../layout/SiteChrome'
 import './PublishedStudioArchive.css'
@@ -15,11 +15,14 @@ function approvedVideoLink(value) {
 
 /** Public only: the backend checks both current source publication and destination. */
 export default function PublishedStudioArchive({ destination = 'foundation_archive' }) {
+  const headingId = useId()
   const [items, setItems] = useState([])
   const [state, setState] = useState('loading')
   const [activeEmbed, setActiveEmbed] = useState('')
   useEffect(() => {
     const controller = new AbortController()
+    setActiveEmbed('')
+    setState('loading')
     const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
     fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}`, {
       credentials: 'omit', cache: 'no-store', signal: controller.signal,
@@ -37,8 +40,8 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
     return () => controller.abort()
   }, [destination])
   if (state !== 'ready' || !items.length) return null
-  return <section className="published-studio-archive" aria-labelledby="published-studio-title"><Container>
-    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id="published-studio-title">{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
+  return <section className="published-studio-archive" aria-labelledby={headingId}><Container>
+    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id={headingId}>{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
     <div className="published-studio-grid">{items.map((item, i) => <article key={item.url + i} className="published-studio-card">
       {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <div className="published-studio-visual published-studio-video">
         {activeEmbed === item.url ? <iframe title={item.title} src={approvedVideoLink(item.embed_url)} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /> :
