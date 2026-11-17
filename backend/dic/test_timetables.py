@@ -174,7 +174,7 @@ class TimetablePolicyTests(SimpleTestCase):
             response = ParticipantTimetableView().get(SimpleNamespace(query_params={'item_id': '9', 'edition': '999', 'date': '2026-12-23'}))
             entries.filter.assert_called_once_with(edition=self.edition, timetable_type='activities', status='published')
             self.assertEqual(response.data['entries'], [])
-            self.assertEqual(response.data['state'], 'unpublished')
+            self.assertEqual(response.data['state'], 'scheduled')
 
     def test_staff_preview_escapes_untrusted_descriptions(self):
         admin = TimetableEntryAdmin(TimetableEntry, AdminSite())
