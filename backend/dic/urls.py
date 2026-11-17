@@ -334,3 +334,13 @@ urlpatterns += [
     path('studio/library/<str:kind>/<int:pk>/metadata/', StudioMetadataView.as_view(), name='studio-metadata'),
     path('studio/library/<str:kind>/<int:pk>/publication/', StudioPublicationView.as_view(), name='studio-publication'),
 ]
+
+# Unified DAWANA Media Studio catalogue and safe publication destinations.
+from .studio_catalogue_api import (StudioAssetsView, StudioAssetDetailView,
+    StudioPlacementView, PublicStudioPlacementsView)
+urlpatterns += [
+    path('studio/assets/', StudioAssetsView.as_view(), name='studio-assets'),
+    path('studio/assets/<uuid:asset_id>/', StudioAssetDetailView.as_view(), name='studio-asset-detail'),
+    path('studio/assets/<uuid:asset_id>/placements/', StudioPlacementView.as_view(), name='studio-placements'),
+    path('studio/public-placements/', PublicStudioPlacementsView.as_view(), name='studio-public-placements'),
+]
