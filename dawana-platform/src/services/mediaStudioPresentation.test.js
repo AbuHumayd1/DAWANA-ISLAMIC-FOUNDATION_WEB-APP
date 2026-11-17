@@ -47,3 +47,17 @@ test('Foundation publishing panel remains in the standalone Studio and uses scop
   assert.match(api, /\/assets\//)
   assert.doesNotMatch(panel, /r2\.cloudflarestorage\.com|AWS_ACCESS|\/admin\//)
 })
+
+test('public site and DIC landing consume only explicitly published destination feed', () => {
+  const home = read('../pages/Home.jsx')
+  const dic = read('../pages/DIC.jsx')
+  const media = read('../pages/Media.jsx')
+  const gallery = read('../components/media/PublishedStudioArchive.jsx')
+  assert.match(home, /<PublishedStudioArchive destination="foundation_home"/)
+  assert.match(dic, /<PublishedStudioArchive destination="dic_landing"/)
+  assert.match(media, /<PublishedStudioArchive\s*\/>/)
+  assert.match(gallery, /public-placements/)
+  assert.match(gallery, /credentials: 'omit'/)
+  assert.match(gallery, /foundation_archive/)
+  assert.doesNotMatch(gallery, /camper_resources/)
+})
