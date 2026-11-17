@@ -18,6 +18,17 @@ from dic.house_configuration import approved_2026_houses, house_capacity_limit
 
 SOURCE = Path(__file__).resolve().parents[2] / 'data/dic2026_approved_release.json'
 HOUSING_REFERENCE_DATE = date(2026, 12, 23)
+# Preserve stable keys created by prior approved release commands.
+LEGACY_KEYS = {
+    'ukkashahibnmihsan': 'ukkashah',
+    'albaraibnmalik': 'bara',
+    'abdullahibnummmaktum': 'abdullah',
+    'usaydibnhudayr': 'usayd',
+    'nusaybahbintkab': 'nusaybah',
+    'asmabintyazid': 'asma',
+    'ummsulaym': 'sulaym',
+    'alshifabintabdullah': 'shifa',
+}
 
 
 def canonical(value):
@@ -30,6 +41,7 @@ def approved_houses():
     rows = approved_2026_houses()
     keys = [canonical(row['name']) for row in rows]
     if (len(rows) != 8 or len(set(keys)) != 8
+            or set(keys) != set(LEGACY_KEYS)
             or sum(row['gender'] == 'male' for row in rows) != 4
             or sum(row['gender'] == 'female' for row in rows) != 4):
         raise CommandError('The approved house inventory must contain four unique houses per sex.')
@@ -68,7 +80,7 @@ def _populate_houses(edition, actor):
                 or house.eligibility_rules
                 or house.capacity not in (None, row['capacity'])
                 or house.badge_colour not in ('', row['badge_colour'])
-                or (house.canonical_key and house.canonical_key != key)):
+                or (house.canonical_key and house.canonical_key != LEGACY_KEYS[key])):
             raise CommandError('Existing house configuration differs from the approved inventory; review in Admin.')
         if ((house.capacity is None or not house.badge_colour)
                 and HouseAllocation.objects.filter(house=house, status='allocated').exists()):
@@ -81,7 +93,7 @@ def _populate_houses(edition, actor):
         house = mapped.get(key)
         if house is None:
             House.objects.create(
-                edition=edition, canonical_key=key, name=row['name'],
+                edition=edition, canonical_key=LEGACY_KEYS[key], name=row['name'],
                 gender=row['gender'], purpose='participants', status='active',
                 capacity=row['capacity'], badge_colour=row['badge_colour'],
                 eligibility_notes=('Arabic: ' + row['arabic_name'] +
@@ -92,7 +104,7 @@ def _populate_houses(edition, actor):
         else:
             updates = {}
             if not house.canonical_key:
-                updates['canonical_key'] = key
+                updates['canonical_key'] = LEGACY_KEYS[key]
             if house.capacity is None:
                 updates['capacity'] = row['capacity']
             if not house.badge_colour:
