@@ -3,7 +3,7 @@
 Already published meals and administrator-edited records are never touched.
 Unconfirmed competition and other programme entries remain drafts pending review.
 """
-from datetime import date
+from datetime import date, time
 from django.db import migrations
 
 EXCLUDED = {
@@ -41,6 +41,15 @@ def remove_unmodified_excluded_drafts(apps, schema_editor):
             certainty="unspecified",
             gender="all",
             audience="all",
+            start_time=time(17, 0),
+            end_time=time(18, 30),
+            time_label="17:00–18:30",
+            display_order=13,
+            day_number=2 if day.day == 24 else 3,
+            lecturer="",
+            meal="",
+            location="",
+            instructions="",
         ).delete()
 
 
