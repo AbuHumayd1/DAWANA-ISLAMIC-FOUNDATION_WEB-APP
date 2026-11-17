@@ -8,6 +8,8 @@ class Migration(migrations.Migration):
     dependencies = [
         ('dic', '0044_studio_catalogue_placements'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+    operations = [
         migrations.AlterField(
             model_name='studioasset', name='source_kind',
             field=models.CharField(max_length=24, choices=[
@@ -16,8 +18,6 @@ class Migration(migrations.Migration):
                 ('activities', 'Activities'), ('appearances', 'Lecturer appearances'),
                 ('hosted', 'Hosted video and livestream')]),
         ),
-    ]
-    operations = [
         migrations.CreateModel(
             name='StudioHostedVideo',
             fields=[
