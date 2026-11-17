@@ -83,9 +83,10 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             source_key='dic2026:food:1:0', description='Officials’ lunch',
             time_label='Lunch', certainty='confirmed',
             modified_by=self.owner)
-        with connection.schema_editor(atomic=False) as editor:
-            reconcile(apps, editor)
-            reconcile(apps, editor)
+        from types import SimpleNamespace
+        editor = SimpleNamespace(connection=connection)
+        reconcile(apps, editor)
+        reconcile(apps, editor)
         self.assertFalse(TimetableEntry.objects.filter(pk=excluded.pk).exists())
         self.assertTrue(TimetableEntry.objects.filter(pk=edited.pk).exists())
         self.assertTrue(TimetableEntry.objects.filter(pk=food.pk).exists())
