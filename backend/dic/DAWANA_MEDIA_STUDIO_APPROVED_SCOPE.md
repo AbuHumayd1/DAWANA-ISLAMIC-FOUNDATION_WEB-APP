@@ -66,5 +66,10 @@
 - No duplicate media upload to reach multiple destinations.
 - No invented content, speaker verification, captions, external videos or media programme associations.
 
-## 5. Current milestone progress
-This contract records approved decisions, existing reusable code and missing components; the full Media Studio portal, service, asset-placement model, and production R2 cutover are **not yet implemented** merely by adding this file. Actual code commits and verification are tracked separately.
+## 5. Current milestone progress (draft PR #46)
+
+**Implemented in this draft branch, not on production:** isolated `/media-studio` login using shared DAWANA staff authentication and CSRF, unrestricted system-superuser Studio access, a distinct media-team permission group (no default access to other DIC operations), desktop/mobile/dark responsive studio, footer Media Studio Login link, searchable and filtered per-model media catalogues, authenticated private thumbnail previews, owner-gated upload composer (including bounded sequential bulk photo upload), metadata editing that withdraws previously published assets, directly authorized publish/withdraw actions and audit receipts, synthetic backend tests and static frontend tests.
+
+**Outstanding before milestone completion:** unified Foundation asset catalogue and reusable placement model, destinations across website/DIC/portal with per-placement publication and revocation, real gallery/album organizational UX, destination publishing and archive controls, full rich editing including file replacement/recording previews, contextual lecturer/activity metadata flows, large-library pagination, private R2 storage approval/credentials/connectivity/backup restoration and final live access/upload acceptance, fully passing current CI, merge and production deploy. The existing models remain edition-scoped; do not claim cross-Foundation reuse is already complete. There is no R2 activation change in this PR.
+
+**Release policy:** Do not merge/deploy until the relevant current-HEAD CI passes and owner explicitly approves the release and R2 activation separately. The deployed live code and data remain unchanged while this branch is in draft.
