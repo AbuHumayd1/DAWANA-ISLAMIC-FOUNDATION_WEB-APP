@@ -323,7 +323,7 @@ urlpatterns += [
 ]
 
 # Foundation-wide DAWANA Media Studio staff routes (separate from DIC Operations).
-from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, studio_csrf
+from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, StudioMetadataView, studio_csrf
 urlpatterns += [
     path('studio/auth/csrf/', studio_csrf, name='studio-csrf'),
     path('studio/auth/login/', StudioLoginView.as_view(), name='studio-login'),
@@ -331,5 +331,6 @@ urlpatterns += [
     path('studio/auth/logout/', StudioLogoutView.as_view(), name='studio-logout'),
     path('studio/library/', StudioLibraryView.as_view(), name='studio-library'),
     path('studio/uploads/', StudioUploadView.as_view(), name='studio-uploads'),
+    path('studio/library/<str:kind>/<int:pk>/metadata/', StudioMetadataView.as_view(), name='studio-metadata'),
     path('studio/library/<str:kind>/<int:pk>/publication/', StudioPublicationView.as_view(), name='studio-publication'),
 ]
