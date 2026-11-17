@@ -4,6 +4,9 @@ This API never exposes private object keys, bucket details or draft media URLs.
 It deliberately reuses existing models and session/CSRF infrastructure.
 """
 from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.conf import settings
+from django import forms
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.urls import reverse
 from django.http import JsonResponse
@@ -14,6 +17,7 @@ from django.views.decorators.http import require_GET
 from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -203,3 +207,66 @@ class StudioPublicationView(StudioView):
                 target_type=model.__name__, target_id=str(item.pk),
                 details={'library': kind})
         return self.nocache({'id': item.pk, 'state': item.state})
+
+
+# Existing, schema-backed editorial media types; no generic arbitrary-key upload.
+UPLOAD_FIELDS = {
+    'photos': ('edition', 'caption', 'alt_text', 'photograph'),
+    'videos': ('edition', 'caption', 'alt_text', 'thumbnail', 'recording_file', 'lecturer', 'description'),
+    'recordings': ('edition', 'title', 'lecturer', 'description', 'audio'),
+    'flyers': ('edition', 'title', 'alt_text', 'image'),
+    'promotions': ('edition', 'kind', 'source_edition', 'title', 'description', 'poster', 'video', 'alt_text'),
+    'lecturers': ('name', 'photograph', 'alt_text', 'biography', 'designation'),
+    'activities': ('edition', 'title', 'description', 'category', 'photograph', 'alt_text'),
+}
+
+
+def upload_enabled():
+    """Feature is closed unless the owner explicitly enables production uploads."""
+    if not getattr(settings, 'DIC_MEDIA_STUDIO_UPLOADS_ENABLED', False):
+        return False
+    if not getattr(settings, 'DIC_PRODUCTION_STORAGE', False) or getattr(settings, 'DIC_MEMORY_STORAGE', '') != 's3':
+        return False
+    try:
+        from .memory_storage import private_memory_storage
+        private_memory_storage._backend()  # Validates production R2 configuration; no network.
+    except ImproperlyConfigured:
+        return False
+    return True
+
+
+class StudioUploadView(StudioView):
+    """Uploads save as drafts. They cannot self-publish or supply arbitrary file keys."""
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get(self, request):
+        return self.nocache({'enabled': upload_enabled(), 'libraries': list(UPLOAD_FIELDS)})
+
+    def post(self, request):
+        from rest_framework.exceptions import PermissionDenied, ValidationError
+        if not upload_enabled():
+            return self.nocache({'detail': 'Media uploads await owner-approved R2 activation.'},
+                                status=503)
+        kind = request.data.get('library', '')
+        if kind not in UPLOAD_FIELDS:
+            raise ValidationError({'library': 'Choose a supported upload library.'})
+        model, codename, _ = LIBRARIES[kind]
+        if not request.user.is_superuser and not request.user.has_perm('dic.add_' + codename):
+            raise PermissionDenied('Permission to create media is required.')
+        class UploadForm(forms.ModelForm):
+            class Meta:
+                model = LIBRARIES[kind][0]
+                fields = UPLOAD_FIELDS[kind]
+        form = UploadForm(request.data, request.FILES)
+        if not form.is_valid():
+            return self.nocache({'errors': {key: list(values) for key, values in form.errors.items()}},
+                                status=400)
+        with transaction.atomic():
+            item = form.save(commit=False)
+            if hasattr(item, 'state'):
+                item.state = 'draft'
+            item.save(actor=request.user) if hasattr(item, 'state') else item.save()
+            form.save_m2m()
+            DICAdminAuditEvent.objects.create(actor=request.user, action='studio_media_draft_uploaded',
+                target_type=model.__name__, target_id=str(item.pk), details={'library': kind})
+        return self.nocache({'id': item.pk, 'state': getattr(item, 'state', 'reference')}, status=201)
