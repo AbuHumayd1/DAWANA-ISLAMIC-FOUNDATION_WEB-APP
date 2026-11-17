@@ -13,7 +13,7 @@ ROLES={
  'DIC Media Publishers':BASE+['dic.view_campphotograph','dic.change_campphotograph','dic.publish_campphotograph','dic.view_campvideo','dic.change_campvideo','dic.publish_campvideo','dic.view_lecturerecording','dic.change_lecturerecording','dic.publish_lecturerecording'],
  # A single media professional manages routine editing AND publishing directly.
  # Assignments remain owner-controlled; no grants to any existing account.
- 'DAWANA Media Studio Personnel':BASE+[
+ 'DAWANA Media Studio Personnel':[
      'dic.view_campphotograph','dic.add_campphotograph','dic.change_campphotograph','dic.publish_campphotograph',
      'dic.view_campvideo','dic.add_campvideo','dic.change_campvideo','dic.publish_campvideo',
      'dic.view_lecturerecording','dic.add_lecturerecording','dic.change_lecturerecording','dic.publish_lecturerecording',
