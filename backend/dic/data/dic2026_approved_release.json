@@ -12,7 +12,10 @@
   "notes": [
     "Both sources imported as draft. Activities document marked committee review.",
     "Day 6 committee amendments supersede sports (proposed) and optional House Millionaire Challenge.",
-    "Owner master revisions override previous December 28/31 entries. No brothers after-Asr activity is approved."
+    "Owner master revisions override previous December 28/31 entries. No brothers after-Asr activity is approved.",
+    "Owner excluded all Individual Millionaire Challenges from the DIC 2026 initial release (24 and 25 Dec); no replacement activity is inferred.",
+    "23 Dec officials' lunch and 31 Dec 11:00-13:00 Explanation of Ahsanul Akhlaq are owner-confirmed; retain unchanged.",
+    "Family Challenge sessions and 21:00-22:00 Qur'an Competition entries are unconfirmed pending reconciliation against 09:00-10:00 owner-approved daily competition time; do not publish these as confirmed."
   ],
   "entries": [
     {
@@ -325,23 +328,6 @@
       "timetable_type": "activities",
       "date": "2026-12-24",
       "day_number": 2,
-      "start_time": "17:00",
-      "end_time": "18:30",
-      "time_label": "17:00–18:30",
-      "description": "Individual Millionaire- Challenge: Ta’lim & Tahdheeb",
-      "certainty": "unspecified",
-      "display_order": 13,
-      "source_key": "dic2026:activities:2:13",
-      "title": "",
-      "lecturer": "",
-      "audience": "all",
-      "gender": "all",
-      "meal": ""
-    },
-    {
-      "timetable_type": "activities",
-      "date": "2026-12-24",
-      "day_number": 2,
       "start_time": "18:30",
       "end_time": "19:15",
       "time_label": "18:30–19:15",
@@ -621,23 +607,6 @@
       "certainty": "unspecified",
       "display_order": 12,
       "source_key": "dic2026:activities:3:12",
-      "title": "",
-      "lecturer": "",
-      "audience": "all",
-      "gender": "all",
-      "meal": ""
-    },
-    {
-      "timetable_type": "activities",
-      "date": "2026-12-25",
-      "day_number": 3,
-      "start_time": "17:00",
-      "end_time": "18:30",
-      "time_label": "17:00–18:30",
-      "description": "Individual Millionaire- Challenge: Da’wah Youth & Adults",
-      "certainty": "unspecified",
-      "display_order": 13,
-      "source_key": "dic2026:activities:3:13",
       "title": "",
       "lecturer": "",
       "audience": "all",
