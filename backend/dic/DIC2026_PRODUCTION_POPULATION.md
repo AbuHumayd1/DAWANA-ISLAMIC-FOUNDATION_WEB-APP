@@ -70,16 +70,37 @@ overcapacity. The canonical configuration fingerprint must be explicitly
 approved by a housing supervisor; changing houses/date invalidates an old
 fingerprint. Do **not** fabricate this approval as part of population.
 
-The existing durable housing queue receives eligible verified-paid
-registrations from settlement, and existing operations can discover historic
-unallocated verified-paid registrations. It only processes when the Render
-worker is actually configured and running with the existing authorised
-automation actor and enabled background-processing configuration. Check
-worker health and run a bounded first cycle; verify completed/held/failed
-jobs and log/audit evidence without disclosing private participant data.
-A missing guardian, pending review, conflicting assignment, unpaid order or
-full house must be **held**, not force-allocated. Complimentary tutors remain
-outside the participant housing process.
+The existing durable housing queue receives eligible verified-paid registrations
+from settlement. **No dedicated Render worker or Docker service is required for
+this release.** The existing Render Django backend now offers an authenticated,
+CSRF-protected **POST** at `/api/v1/dic/participant/housing/refresh/`.
+The Camper Portal loads normally and sends this optional request separately;
+the request may claim and process **one pending job belonging to that camper's
+verified-paid booking**. It does not process unrelated campers. A missing
+housing job can be restored from independently verified paid evidence.
+
+Housing enablement still requires the existing positive
+`DIC_AUTOMATION_ACTOR_ID` setting on Render's Django service, identifying
+an active staff automation actor with both housing processing and allocation
+permissions; and a separately approved housing configuration fingerprint.
+This is an application setting, **not** a new Render service.
+
+For any failed/held assignment, the Camper Portal shows only
+**"Awaiting house allocation"**. No internal staff reason is shown. The
+Operations Portal House Allocation page lists held/failed cases and lets
+authorized housing supervisors retry with a recorded reason. Each new portal
+refresh can process the retried job; there are no automatic retries of
+supervisor-held work. Payment verification, verified settlement, Camper
+Portal login, Digital IDs and existing check-in are not dependent on the
+housing result. Housing enqueue failures are isolated in their own database
+savepoint; they do not reverse verified payment.
+
+**Limitations:** No constantly running worker means a camper's allocation is
+attempted when the authenticated Camper Portal sends its housing refresh
+request (or when authorized staff process outstanding jobs). It is not a
+guaranteed immediate push immediately following a Paystack webhook. This
+deliberately trades background latency for zero additional hosting cost.
+
 
 ## Timetable publication is also separate
 
