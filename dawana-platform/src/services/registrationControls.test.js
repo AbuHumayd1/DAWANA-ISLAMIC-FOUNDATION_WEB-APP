@@ -69,18 +69,30 @@ test('DOB wheel is portaled outside form stacking contexts for iPhone Safari', (
 })
 
 
-test('DOB has a compact iPhone wheel with independent manual touch dragging', () => {
+test('DOB wheel is kinetic, cylindrical and floating rather than a flat bottom sheet', () => {
   const component = fs.readFileSync(new URL('../components/dic/DateField.jsx', import.meta.url), 'utf8')
   const css = fs.readFileSync(new URL('../components/dic/DateField.css', import.meta.url), 'utf8')
-  for (const event of ['onTouchStart={touchStart}', 'onTouchMove={touchMove}', 'onTouchEnd={touchEnd}', 'onTouchCancel={touchEnd}']) {
-    assert.ok(component.includes(event), event)
-  }
-  assert.match(component, /ref\.current\.scrollTop = drag\.current\.top - delta/)
-  assert.match(component, /if \(drag\.current\) return/)
-  assert.match(component, /const ROW_HEIGHT=36/)
-  assert.match(component, /Math\.round\(element\.scrollTop \/ ROW_HEIGHT\)/)
-  assert.match(css, /height:108px; padding:36px 0; overflow-y:auto/)
-  assert.match(css, /touch-action:none/)
-  assert.match(css, /\.dic-wheel-list\.is-dragging \{ scroll-snap-type:none/)
-  assert.match(css, /max-height:min\(75dvh,480px\)/)
+  assert.match(component, /const ROW_HEIGHT=44/)
+  assert.match(component, /role="listbox"/)
+  assert.match(component, /onScroll=\{scrolling\}/)
+  assert.match(component, /requestAnimationFrame\(paint\)/)
+  assert.match(component, /scrollTo\(\{ top: index \* ROW_HEIGHT, behavior: 'auto' \}\)/)
+  assert.match(component, /rotateX\(/)
+  assert.match(component, /Math\.round\(scroller\.scrollTop \/ ROW_HEIGHT\)/)
+  assert.match(component, /onKeyDown=\{keyDown\}/)
+  assert.match(css, /height:220px; padding:88px 0; overflow-y:auto/)
+  assert.match(css, /touch-action:pan-y/)
+  assert.match(css, /-webkit-overflow-scrolling:touch/)
+  assert.match(css, /perspective:430px/)
+  assert.match(css, /backdrop-filter:blur\(14px\)/)
+  assert.match(css, /align-items:center; justify-content:center; padding:14px/)
+  assert.doesNotMatch(component, /onTouchMove=\{touchMove\}/)
 })
+
+test('Participant sign-in primary actions stay tappable while becoming sleek', () => {
+  const css = fs.readFileSync(new URL('../pages/ParticipantPortal.css',import.meta.url), 'utf8')
+  assert.match(css,/width:min\(100%,264px\); justify-self:center/)
+  assert.match(css,/min-height:48px; border-radius:999px/)
+  assert.match(css,/\.cp-route \.cp-auth \.cp-password-field button \{[^}]*min-height:44px/)
+})
+

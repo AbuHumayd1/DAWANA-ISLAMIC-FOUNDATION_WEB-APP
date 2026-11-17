@@ -137,3 +137,29 @@
  .cp-route .cp-auth .cp-auth-panel-header { margin-bottom:18px; }
 }
 @media(prefers-reduced-motion:reduce) { .cp-route .cp-auth .cp-account-login form input:not([type=checkbox]) { transition:none; } }
+
+/* Refine primary and secondary controls without shrinking mobile tap targets. */
+.cp-route .cp-auth .cp-account-login form fieldset > .button {
+ width:min(100%,264px); justify-self:center; padding:11px 30px;
+ min-height:48px; border-radius:999px; box-shadow:0 5px 14px #1748311a;
+ transition:background-color .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+.cp-route .cp-auth .cp-account-login form fieldset > .button:active:not(:disabled) {
+ transform:scale(.985); box-shadow:0 2px 8px #17483115;
+}
+.cp-route .cp-auth .cp-password-field button {
+ border-radius:999px; min-width:62px; min-height:44px;
+ padding:0 13px; font-size:.79rem; font-weight:650;
+}
+.cp-route .cp-auth .cp-account-login .cp-recovery-link {
+ max-width:100%; width:fit-content; justify-self:center;
+ padding:9px 14px; border-radius:999px; text-align:center;
+}
+.cp-route .cp-auth .cp-login-choices button,
+.cp-route .cp-auth .portal-id-actions button,
+.cp-route .cp-auth #cp-booking-verification > .button {
+ border-radius:999px; min-height:44px; padding-inline:20px;
+}
+@media(prefers-reduced-motion:reduce) {
+ .cp-route .cp-auth .cp-account-login form fieldset > .button { transition:none; }
+}

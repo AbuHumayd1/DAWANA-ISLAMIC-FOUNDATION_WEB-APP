@@ -5,61 +5,87 @@ import { wheelClamp, wheelChoices, wheelISO, wheelParts } from './dateWheel'
 import './DateField.css'
 
 const monthNames = Array.from({ length:12 }, (_,i) => new Intl.DateTimeFormat('en-GB',{month:'long'}).format(new Date(2000,i,1)))
-const ROW_HEIGHT=36
+const ROW_HEIGHT=44
+const WHEEL_RADIUS=86
 
 function WheelColumn({ label, items, value, onChange, text }) {
   const ref = React.useRef(null)
-  const timer = React.useRef(null)
-  const drag = React.useRef(null)
+  const settleTimer = React.useRef(null)
+  const raf = React.useRef(null)
+  const moving = React.useRef(false)
   const selectedIndex = items.indexOf(value)
-  // One centred item with an item above and below it. Keep DOM scroll and
-  // React selection synchronized, without resetting an active finger drag.
-  React.useLayoutEffect(() => {
-    if (ref.current && selectedIndex >= 0 && !drag.current) {
-      ref.current.scrollTop = selectedIndex * ROW_HEIGHT
-    }
-  }, [selectedIndex])
-  React.useEffect(() => () => clearTimeout(timer.current), [])
 
-  const settle = (element) => {
-    clearTimeout(timer.current)
-    const index = Math.max(0, Math.min(items.length - 1, Math.round(element.scrollTop / ROW_HEIGHT)))
-    if (items[index] !== undefined) {
-      element.scrollTop = index * ROW_HEIGHT
-      if (items[index] !== value) onChange(items[index])
+  // Update the visible faces directly to maintain 60fps during native iOS
+  // momentum scrolling. No per-frame React renders of 2,000+ year options.
+  const paint = React.useCallback(() => {
+    const scroller = ref.current
+    if (!scroller) return
+    const position = scroller.scrollTop / ROW_HEIGHT
+    const children = scroller.querySelectorAll('.dic-wheel-option')
+    const centre = Math.round(position)
+    for (let i = Math.max(0, centre - 5); i <= Math.min(items.length - 1, centre + 5); i++) {
+      const face = children[i]
+      if (!face) continue
+      const distance = i - position
+      const angle = Math.max(-82, Math.min(82, distance * 24))
+      face.style.transform = `rotateX(${-angle}deg) translateZ(${Math.cos(angle * Math.PI / 180) * 3}px)`
+      face.style.opacity = String(Math.max(.14, 1 - Math.abs(distance) * .22))
     }
+  }, [items.length])
+
+  React.useLayoutEffect(() => {
+    const scroller = ref.current
+    if (!scroller || selectedIndex < 0 || moving.current) return
+    scroller.scrollTop = selectedIndex * ROW_HEIGHT
+    paint()
+  }, [selectedIndex, paint])
+
+  React.useEffect(() => () => {
+    clearTimeout(settleTimer.current)
+    if (raf.current !== null) cancelAnimationFrame(raf.current)
+  }, [])
+
+  const settle = () => {
+    const scroller = ref.current
+    if (!scroller) return
+    moving.current = false
+    const index = Math.max(0, Math.min(items.length - 1, Math.round(scroller.scrollTop / ROW_HEIGHT)))
+    // Snap even if the browser does not implement CSS scroll snapping.
+    scroller.scrollTo({ top: index * ROW_HEIGHT, behavior: 'auto' })
+    paint()
+    if (items[index] !== undefined && items[index] !== value) onChange(items[index])
   }
-  const onScroll = event => {
-    if (drag.current) return
-    const element = event.currentTarget
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => settle(element), 120)
+  const scrolling = () => {
+    moving.current = true
+    if (raf.current !== null) cancelAnimationFrame(raf.current)
+    raf.current = requestAnimationFrame(paint)
+    clearTimeout(settleTimer.current)
+    settleTimer.current = setTimeout(settle, 180)
   }
-  // iOS Safari sometimes gives the surrounding bottom sheet the gesture.
-  // Drive the visible wheel directly under the finger as a fallback.
-  const touchStart = event => {
-    clearTimeout(timer.current)
-    drag.current = { y: event.touches[0].clientY, top: ref.current.scrollTop }
-    ref.current.classList.add('is-dragging')
+  const chooseIndex = index => {
+    clearTimeout(settleTimer.current)
+    moving.current = false
+    if (ref.current) ref.current.scrollTo({ top:index * ROW_HEIGHT, behavior:'smooth' })
+    if (items[index] !== value) onChange(items[index])
   }
-  const touchMove = event => {
-    if (!drag.current) return
-    const delta = event.touches[0].clientY - drag.current.y
-    ref.current.scrollTop = drag.current.top - delta
-    if (event.cancelable) event.preventDefault()
-  }
-  const touchEnd = () => {
-    if (!drag.current) return
-    drag.current = null
-    ref.current.classList.remove('is-dragging')
-    settle(ref.current)
+  const keyDown = event => {
+    if (!['ArrowUp','ArrowDown','Home','End'].includes(event.key)) return
+    event.preventDefault()
+    const current = Math.max(0, items.indexOf(value))
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+      : Math.max(0, Math.min(items.length - 1, current + (event.key === 'ArrowDown' ? 1 : -1)))
+    chooseIndex(next)
   }
   return <div className="dic-wheel-column">
     <span className="dic-wheel-heading">{label}</span>
-    <div className="dic-wheel-list" ref={ref} role="group" aria-label={`Scroll ${label.toLowerCase()}`}
-      onScroll={onScroll} onTouchStart={touchStart} onTouchMove={touchMove} onTouchEnd={touchEnd} onTouchCancel={touchEnd}>
-      {items.map(item => <button type="button" key={item} className={value === item ? 'is-selected' : ''}
-        aria-pressed={value === item} onClick={() => onChange(item)}>{text(item)}</button>)}
+    <div className="dic-wheel-list" ref={ref} role="listbox" tabIndex={0} aria-label={`Choose ${label.toLowerCase()}`}
+      aria-activedescendant={`dic-wheel-${label}-${value}`} onScroll={scrolling} onKeyDown={keyDown}
+      onWheel={event => { if (event.deltaY) moving.current = true }}>
+      {items.map((item,index) => <button type="button" key={item}
+        id={`dic-wheel-${label}-${item}`}
+        role="option" aria-selected={value === item}
+        className={`dic-wheel-option ${value === item ? 'is-selected' : ''}`}
+        onClick={() => chooseIndex(index)}>{text(item)}</button>)}
     </div>
   </div>
 }
