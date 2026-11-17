@@ -23,3 +23,33 @@
 @media(prefers-color-scheme:dark){.studio-edit-form{background:#1d3023;border-color:#405a46}.studio-edit-form label{color:#c7dccd}.studio-edit-form input{background:#15251c;border-color:#436049;color:#e4f0e7}}
 
 .studio-hosted-composer .studio-hosted-lines{grid-column:1/-1}.studio-hosted-composer textarea{border:1px solid #cfdccc;border-radius:9px;padding:12px;background:#fff;color:#23432d;font:inherit;font-size:13px;resize:vertical;min-height:100px;width:100%}@media(prefers-color-scheme:dark){.studio-hosted-composer textarea{background:#1a2b20;color:#e6efe8;border-color:#4a6853}}
+
+
+/* Premium media-first collection presentation. All controls remain visible on touch. */
+.studio-collection,.studio-item,.studio-destinations{transition:box-shadow .2s ease,border-color .2s ease,transform .2s ease}
+.studio-collection:focus-visible,.studio-item button:focus-visible,.studio-preview-dialog button:focus-visible{outline:3px solid #c19b4b;outline-offset:3px}
+.studio-item:hover{box-shadow:0 16px 35px rgba(21,61,42,.12);transform:translateY(-2px)}
+.studio-art{position:relative;isolation:isolate;overflow:hidden}
+.studio-art-available{background:linear-gradient(145deg,#173f32,#4d7251)}
+.studio-art .studio-preview-trigger{display:flex;align-items:center;justify-content:center;position:absolute;inset:0;border:0;cursor:pointer;background:transparent;padding:0;overflow:hidden;color:#fff;width:100%;height:100%}
+.studio-art .studio-preview-trigger img{width:100%;height:100%;object-fit:cover;transition:transform .25s ease}
+.studio-art .studio-preview-trigger:hover img{transform:scale(1.035)}
+.studio-art .studio-preview-trigger>span:not(.studio-play-icon){position:absolute;right:12px;bottom:36px;border-radius:40px;background:rgba(15,46,31,.85);font-size:11px;font-weight:750;padding:8px 11px;color:#fff}
+.studio-art .studio-play-trigger{background:radial-gradient(ellipse at 55% 15%,#56775e 0%,#1b4536 70%)!important;flex-direction:column;gap:12px}
+.studio-art .studio-play-icon{font-size:35px;width:76px;height:76px;border-radius:50%;display:grid;place-items:center;color:#fff;border:1px solid #ffffff70;background:#ffffff19;box-shadow:0 6px 25px #0c2e2570}
+.studio-art .studio-play-trigger strong{font-size:12px;font-weight:750;color:#fff}
+.studio-art .studio-art-placeholder{font-size:46px}
+.studio-art>small{z-index:2;pointer-events:none}
+.studio-preview-overlay{position:fixed;inset:0;z-index:1000;background:#0b1e19de;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.studio-preview-dialog{width:min(920px,100%);max-height:92vh;overflow:auto;background:#fff;color:#153c2a;border-radius:20px;padding:20px;box-shadow:0 28px 90px #0006}
+.studio-preview-dialog header{display:flex;justify-content:space-between;align-items:start;gap:18px;margin-bottom:15px}
+.studio-preview-dialog h2{font:normal clamp(20px,3vw,29px)/1.2 Georgia,serif;margin:6px 0;overflow-wrap:anywhere}
+.studio-preview-dialog header button{border:1px solid #e2e8df;color:#184d34;border-radius:10px;background:#f5f8f4;padding:11px 15px;cursor:pointer;flex-shrink:0}
+.studio-preview-dialog>img{display:block;width:100%;height:auto;max-height:70vh;object-fit:contain;border-radius:12px;background:#ebf2ec}
+.studio-preview-video{aspect-ratio:16/9;width:100%;background:#08261c;border-radius:12px;overflow:hidden}
+.studio-preview-video iframe{border:0;width:100%;height:100%;display:block}
+.studio-preview-dialog p{color:#687d6d;font-size:12px}
+.studio-preview-dialog a{display:inline-block;margin:8px 0;color:#166545;font-weight:750}
+@media(max-width:650px){.studio-item:hover{transform:none}.studio-preview-overlay{padding:9px}.studio-preview-dialog{padding:12px;border-radius:14px}.studio-preview-dialog header{padding:4px}}
+@media(prefers-reduced-motion:reduce){.studio-collection,.studio-item,.studio-art .studio-preview-trigger img{transition:none!important}.studio-item:hover{transform:none}}
+@media(prefers-color-scheme:dark){.studio-preview-dialog{background:#14281d;color:#ecf5ee}.studio-preview-dialog header button{background:#243b2a;border-color:#44634d;color:#ecf5ee}.studio-preview-dialog p{color:#bfd0c2}.studio-preview-dialog a{color:#b4dcb9}}
