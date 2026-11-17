@@ -321,3 +321,14 @@ urlpatterns += [
     path('ids/cards/<uuid:enrollment_id>/', card_view, name='id-card'),
     path('ids/verify/', verify_view, name='verify-id'),
 ]
+
+# Foundation-wide DAWANA Media Studio staff routes (separate from DIC Operations).
+from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, studio_csrf
+urlpatterns += [
+    path('studio/auth/csrf/', studio_csrf, name='studio-csrf'),
+    path('studio/auth/login/', StudioLoginView.as_view(), name='studio-login'),
+    path('studio/auth/me/', StudioMeView.as_view(), name='studio-me'),
+    path('studio/auth/logout/', StudioLogoutView.as_view(), name='studio-logout'),
+    path('studio/library/', StudioLibraryView.as_view(), name='studio-library'),
+    path('studio/library/<str:kind>/<int:pk>/publication/', StudioPublicationView.as_view(), name='studio-publication'),
+]
