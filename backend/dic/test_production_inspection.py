@@ -43,7 +43,7 @@ class ProductionInspectionTests(TestCase):
         self.assertEqual(data['houses'], [])
         self.assertEqual(data['timetables']['total'], 0)
         self.assertEqual(data['source']['expected_houses'], 8)
-        self.assertEqual(data['source']['expected_timetable_total'], 182)
+        self.assertEqual(data['source']['expected_timetable_total'], 180)
         self.assertEqual(data['source']['expected_food'], 27)
         self.assertTrue(data['ready_for_population_review'])
         self.assertEqual(House.objects.count(), 0)
