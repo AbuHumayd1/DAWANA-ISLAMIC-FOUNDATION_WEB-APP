@@ -140,6 +140,21 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         publish_days(self.owner,monday,True)
         self.assertTrue(monday.filter(status='published').exists())
 
+    def test_superuser_can_release_2026_provisional_programme_without_changing_certainty(self):
+        initialize(self.edition, self.owner)
+        candidates=TimetableEntry.objects.filter(edition=self.edition, timetable_type='activities')
+        self.assertEqual(candidates.count(),153)
+        # Historical generic publication must remain fail-closed.
+        with self.assertRaises(ValidationError):
+            publish_days(self.owner,candidates,True)
+        self.assertEqual(publish_days(self.owner,candidates,True,allow_provisional=True),153)
+        self.assertEqual(candidates.filter(status='published').count(),153)
+        self.assertEqual(candidates.filter(certainty='unspecified').count(),142)
+        receipt=DICAdminAuditEvent.objects.filter(action='timetable_published',
+            target_type='CampEdition',target_id=str(self.edition.pk)).latest('pk')
+        self.assertTrue(receipt.details['owner_authorized_provisional_release'])
+        self.assertEqual(receipt.details['remaining_unspecified'],142)
+
     def test_camper_api_calendar_gates_published_food_and_activities(self):
         from .models import ParticipantPortalGrant
         client, _ = self.login()
