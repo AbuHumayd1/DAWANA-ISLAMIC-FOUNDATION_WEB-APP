@@ -58,6 +58,38 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertTrue(TimetableEntry.objects.filter(edition=self.edition,date=date(2026,12,31),title='Explanation of Ahsanul Akhlaq',certainty='confirmed').exists())
         self.assertTrue(TimetableEntry.objects.filter(edition=self.edition,timetable_type='food',date=date(2026,12,23),meal='lunch').exists())
 
+    def test_excluded_game_migration_changes_only_exact_untouched_drafts(self):
+        from django.apps import apps
+        from django.db import connection
+        from importlib import import_module
+        reconcile = import_module(
+            'dic.migrations.0043_exclude_dic2026_millionaire_drafts'
+        ).remove_unmodified_excluded_drafts
+        excluded = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,24), day_number=2,
+            timetable_type='activities', source_key='dic2026:activities:2:13',
+            description='Individual Millionaire- Challenge: Ta’lim & Tahdheeb',
+            time_label='17:00–18:30', certainty='unspecified',
+            modified_by=self.owner)
+        edited = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,25), day_number=3,
+            timetable_type='activities', source_key='dic2026:activities:3:13',
+            description='Staff-edited alternative: still under review',
+            time_label='17:00–18:30', certainty='unspecified',
+            modified_by=self.owner)
+        food = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,23), day_number=1,
+            timetable_type='food', meal='lunch',
+            source_key='dic2026:food:1:0', description='Officials’ lunch',
+            time_label='Lunch', certainty='confirmed',
+            modified_by=self.owner)
+        with connection.schema_editor(atomic=False) as editor:
+            reconcile(apps, editor)
+            reconcile(apps, editor)
+        self.assertFalse(TimetableEntry.objects.filter(pk=excluded.pk).exists())
+        self.assertTrue(TimetableEntry.objects.filter(pk=edited.pk).exists())
+        self.assertTrue(TimetableEntry.objects.filter(pk=food.pk).exists())
+
     def test_legacy_unconfigured_matching_house_is_completed_without_renaming(self):
         from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
         from .house_configuration import approved_2026_houses
