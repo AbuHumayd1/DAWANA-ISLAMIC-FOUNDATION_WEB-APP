@@ -92,6 +92,12 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertFalse(TimetableEntry.objects.filter(pk=excluded.pk).exists())
         self.assertTrue(TimetableEntry.objects.filter(pk=edited.pk).exists())
         self.assertTrue(TimetableEntry.objects.filter(pk=food.pk).exists())
+        receipts = DICAdminAuditEvent.objects.filter(
+            action='dic2026_excluded_programme_drafts_pruned',
+            target_id=str(self.edition.pk))
+        self.assertEqual(receipts.count(), 1)
+        self.assertEqual(receipts.get().details['source_keys'],
+                         ['dic2026:activities:2:13'])
 
     def test_legacy_unconfigured_matching_house_is_completed_without_renaming(self):
         from .management.commands.initialize_dic2026_release import LEGACY_KEYS, canonical
