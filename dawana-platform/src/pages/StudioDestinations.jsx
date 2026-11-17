@@ -18,6 +18,7 @@ const choices = {
   promotions: ['foundation_archive', 'foundation_home', 'dic_landing'],
   lecturers: ['foundation_archive', 'dic_landing'],
   activities: ['foundation_archive', 'dic_landing'],
+  appearances: ['foundation_archive', 'dic_landing'],
 }
 const scoped = (dest) => dest.startsWith('dic_') || dest === 'camper_resources'
 
