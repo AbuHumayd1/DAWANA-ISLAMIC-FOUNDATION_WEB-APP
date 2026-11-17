@@ -116,7 +116,7 @@ class TimetablePolicyTests(SimpleTestCase):
             Mock(distinct=Mock(return_value=[(9, 'food')])),
             Mock(distinct=Mock(return_value=[date(2026, 12, 23)]))]
         rows = [Mock(date=date(2026, 12, 23), start_time=None, end_time=None, certainty='confirmed'),
-                Mock(date=date(2026, 12, 23), start_time=None, end_time=None)]
+                Mock(date=date(2026, 12, 23), start_time=None, end_time=None, certainty='confirmed')]
         with patch('dic.timetable_services.CampEdition.objects'), patch('dic.timetable_services.TimetableEntry.objects') as entries, patch('dic.timetable_services.DICAdminAuditEvent.objects') as audit:
             entries.select_for_update.return_value.filter.return_value = rows
             self.assertEqual(publish_days.__wrapped__(user, queryset, True), 2)
