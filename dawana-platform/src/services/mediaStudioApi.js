@@ -68,3 +68,5 @@ export const studioPlacement = (id, destination, action, edition = null) =>
   studioRequest(`/assets/${encodeURIComponent(id)}/placements/`, {
     method: 'POST', body: { destination, action, edition },
   })
+
+export const studioHostedLinks = (items) => studioRequest('/hosted-links/', { method: 'POST', body: { items } })
