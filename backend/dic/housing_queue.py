@@ -106,3 +106,32 @@ def retry(job_id, actor, reason):
     job.save()
     audit(actor, 'housing_job_retried', job, {'before': before, 'after': 'pending', 'reason': reason})
 
+
+
+@transaction.atomic
+def claim_for_participants(edition_id, participant_ids, actor):
+    """Claim at most one PENDING housing job in the authenticated booking scope.
+
+    Never claim held, failed or completed work from a camper request.
+    Existing staff release decisions remain held for explicit supervisor retry.
+    """
+    permitted(actor, 'can_process_housing_queue')
+    ids = list(participant_ids)
+    if not ids or len(ids) > 20:
+        return None
+    job = (HousingJob.objects.select_for_update(skip_locked=True)
+           .filter(edition_id=edition_id, participant_id__in=ids, state='pending')
+           .filter(Q(retry_at__isnull=True) | Q(retry_at__lte=timezone.now()))
+           .order_by('created_at', 'pk').first())
+    if job is None:
+        return None
+    job.state = 'processing'
+    job.claimed_at = timezone.now()
+    job.claim_token = uuid.uuid4()
+    job.attempts += 1
+    job.reason = ''
+    job.save()
+    audit(actor, 'housing_job_claimed', job,
+          {'before': 'pending', 'after': 'processing', 'attempt': job.attempts,
+           'source': 'authenticated_portal_refresh'})
+    return job.pk, job.claim_token
