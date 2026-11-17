@@ -102,6 +102,25 @@ class StudioAccessTests(TestCase):
         self.assertEqual(record.state, 'draft')
         self.assertEqual(record.published_by_id, None)
 
+    def test_studio_editor_cannot_modify_edition_or_sensitive_source_fields(self):
+        self.client.force_login(self.operator)
+        edition = CampEdition.objects.create(name='Editorial Synthetic', year=2035,
+            camp_start_date='2035-12-23', camp_end_date='2036-01-01')
+        from dic.showcase_models import CampActivity
+        item = CampActivity.objects.create(edition=edition, title='Camp panel',
+                                           category='Lecture', description='Approved')
+        token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
+        url = reverse('dic:studio-metadata', args=['activities', item.pk])
+        invalid = self.client.patch(url, {'edition': 1}, content_type='application/json',
+                                    HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(invalid.status_code, 400)
+        response = self.client.patch(url, {'title': 'Revised camp panel'}, content_type='application/json',
+                                     HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 200, response.content)
+        item.refresh_from_db()
+        self.assertEqual(item.title, 'Revised camp panel')
+        self.assertEqual(item.edition_id, edition.pk)
+
     @override_settings(DIC_MEDIA_STUDIO_UPLOADS_ENABLED=False)
     def test_uploads_fail_closed_without_explicit_owner_r2_activation(self):
         self.client.force_login(self.owner)
