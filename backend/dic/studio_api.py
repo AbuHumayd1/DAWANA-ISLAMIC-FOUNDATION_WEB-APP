@@ -68,6 +68,8 @@ def profile(user):
     return {'display_name': user.get_full_name() or user.get_username(),
             'username': user.get_username(),
             'owner': bool(user.is_superuser),
+            'can_manage_catalogue': bool(user.is_superuser or user.has_perm('dic.manage_studio_assets')),
+            'can_publish_destinations': bool(user.is_superuser or user.has_perm('dic.publish_studio_placements')),
             'libraries': [key for key, (_, model, _) in LIBRARIES.items()
                           if user.is_superuser or user.has_perm('dic.view_' + model)],
             'can_publish': {key: bool(user.is_superuser or user.has_perm('dic.publish_' + model))
