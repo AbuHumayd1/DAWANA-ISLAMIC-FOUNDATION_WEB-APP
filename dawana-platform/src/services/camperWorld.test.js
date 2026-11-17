@@ -53,13 +53,11 @@ test('programme keeps publication gates and prioritizes current/upcoming cards w
   assert.doesNotMatch(render(home.ProgrammePreview,{data:{...schedule,state:'unpublished'}}),/Activity 3/)
 })
 
-test('timetable has distinct activity/meal buttons with secondary controls in a closed disclosure', () => {
+test('timetable offers activity/meal tabs but no manual date, print or programme options', () => {
   const html = render(timetable,{item:1,initialType:'food'})
   assert.match(html, /aria-label="Timetable type"/)
   assert.match(html, /aria-pressed="true"[^>]*>.*Food Timetable/s)
-  assert.match(html, /<details class="cw-day-tools"><summary>Programme options/)
-  assert.match(html, /Print this day/); assert.match(html,/Refresh/)
-  assert.doesNotMatch(html, /<details class="cw-day-tools" open/)
+  assert.doesNotMatch(html, /Programme options|Print this day|Today \/ next published|cw-date-navigator/)
 })
 
 test('Me keeps participant details while settings and session controls live in their own view', () => {
