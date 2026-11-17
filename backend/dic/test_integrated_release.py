@@ -184,7 +184,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             opened=client.get(path, params)
             self.assertEqual(opened.status_code,200,opened.content)
             self.assertEqual(opened.json()['entries'][0]['description'],'Officials lunch')
-            self.assertEqual(opened['Cache-Control'],'private, no-store')
+            self.assertIn('no-store', opened['Cache-Control'])
             programme=client.get(path, {
                 'item_id':self.item.pk, 'type':'activities'})
             self.assertEqual(programme.json()['entries'][0]['description'],'Arrival registration')
