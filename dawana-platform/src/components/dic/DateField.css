@@ -94,3 +94,87 @@ body > .dic-wheel-backdrop .dic-wheel-actions button { min-height:40px; font-siz
   padding:14px 16px max(16px,env(safe-area-inset-bottom));
  }
 }
+
+/* iOS-inspired kinetic cylinder: five visible rows, curved wheel faces,
+   restrained glass highlight and a floating sheet, not a bottom drawer. */
+body > .dic-wheel-backdrop {
+ align-items:center; justify-content:center;
+ padding:16px; background:rgba(5,23,19,.46);
+ backdrop-filter:blur(12px) saturate(1.15);
+ -webkit-backdrop-filter:blur(12px) saturate(1.15);
+}
+body > .dic-wheel-backdrop > .dic-wheel-dialog {
+ width:min(100%,408px); max-width:408px; max-height:min(82dvh,580px);
+ padding:22px 22px 20px; border-radius:28px;
+ border:1px solid rgba(255,255,255,.68);
+ background:linear-gradient(155deg,rgba(255,255,255,.97),rgba(236,245,237,.95));
+ color:#163a2b; box-shadow:0 30px 90px #071f1a50, inset 0 1px 0 #fff;
+ overflow:hidden;
+}
+body > .dic-wheel-backdrop .dic-wheel-title { margin-bottom:20px; }
+body > .dic-wheel-backdrop .dic-wheel-title h2 { font-size:1.28rem; color:#193d2d; }
+body > .dic-wheel-backdrop .dic-wheel-kicker { color:#69806d; font-size:.69rem; }
+body > .dic-wheel-backdrop .dic-wheel-close {
+ width:40px; height:40px; border-radius:50%; background:#f2f6f0;
+ border:1px solid #d7e2d6; color:#214735;
+}
+body > .dic-wheel-backdrop .dic-wheel-columns {
+ grid-template-columns:.82fr 1.45fr .92fr; gap:6px;
+}
+body > .dic-wheel-backdrop .dic-wheel-heading {
+ height:26px; font-size:.75rem; font-weight:700; color:#65786d;
+}
+body > .dic-wheel-backdrop .dic-wheel-frame { isolation:isolate; }
+body > .dic-wheel-backdrop .dic-wheel-list {
+ box-sizing:border-box; height:220px; padding:88px 0; overflow-y:auto;
+ overflow-x:hidden; scroll-snap-type:y mandatory; scroll-padding-block:88px;
+ scrollbar-width:none; overscroll-behavior:contain; touch-action:pan-y;
+ -webkit-overflow-scrolling:touch; perspective:430px;
+ perspective-origin:center center; transform-style:preserve-3d;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 23%,#000 77%,transparent 100%);
+ mask-image:linear-gradient(to bottom,transparent 0%,#000 23%,#000 77%,transparent 100%);
+}
+body > .dic-wheel-backdrop .dic-wheel-list button.dic-wheel-option {
+ display:flex; align-items:center; justify-content:center;
+ height:44px; min-height:44px; padding:0 3px;
+ font-size:1.05rem; line-height:1; letter-spacing:-.025em;
+ font-weight:550; color:#2e5340;
+ opacity:.4; scroll-snap-align:center;
+ transform-origin:center center; backface-visibility:hidden;
+ will-change:transform,opacity; transition:none;
+ background:transparent; border:0;
+}
+body > .dic-wheel-backdrop .dic-wheel-list button.dic-wheel-option.is-selected {
+ color:#133c29; font-weight:750;
+}
+body > .dic-wheel-backdrop .dic-wheel-selection {
+ top:calc(26px + 88px); height:44px; left:0; right:0;
+ border:1px solid rgba(255,255,255,.85); border-radius:14px;
+ background:linear-gradient(130deg,rgba(255,255,255,.6),rgba(193,218,196,.55));
+ box-shadow:0 2px 14px #183c2a14, inset 0 1px 0 #fff;
+ backdrop-filter:blur(14px) saturate(1.25);
+ -webkit-backdrop-filter:blur(14px) saturate(1.25);
+}
+body > .dic-wheel-backdrop .dic-wheel-preview {
+ margin:16px 0; font-size:.91rem; font-weight:600; color:#244b36;
+}
+body > .dic-wheel-backdrop .dic-wheel-actions { gap:10px; }
+body > .dic-wheel-backdrop .dic-wheel-actions button {
+ min-height:46px; font-size:.91rem; padding:10px; border-radius:15px;
+ background:#f0f4ed; color:#234a36; border:1px solid #d5e2d7;
+}
+body > .dic-wheel-backdrop .dic-wheel-actions .dic-wheel-done {
+ color:#fff; background:#195539; border-color:#195539;
+}
+@media(max-width:600px) {
+ body > .dic-wheel-backdrop { align-items:center; justify-content:center; padding:14px; }
+ body > .dic-wheel-backdrop > .dic-wheel-dialog {
+  flex:0 1 auto; width:min(100%,400px); max-width:400px; border-radius:26px;
+  padding:20px 16px max(20px,env(safe-area-inset-bottom));
+ }
+ body > .dic-wheel-backdrop .dic-wheel-list { height:220px; padding:88px 0; touch-action:pan-y; }
+ body > .dic-wheel-backdrop .dic-wheel-list button.dic-wheel-option { font-size:1rem; height:44px; min-height:44px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ body > .dic-wheel-backdrop .dic-wheel-list button.dic-wheel-option { transform:none!important; }
+}
