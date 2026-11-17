@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% block title %}DIC 2026 production population{% endblock %}
+{% block content %}
+<main style="max-width:780px">
+  <h1>DIC 2026 — controlled population</h1>
+  <p>This works within the existing Render Django service. Nothing runs automatically on deployment.</p>
+  {% if result %}<div class="messagelist"><div class="success">{{ result }}</div></div>{% endif %}
+  {% if error %}<div class="messagelist"><div class="error">{{ error }}</div></div>{% endif %}
+  <fieldset class="module aligned">
+    <h2>Production preview (read-only)</h2>
+    <p><strong>Database:</strong> <code>{{ database_name }}</code></p>
+    <p><strong>Edition:</strong> {% if edition %}{{ edition.name }} (ID {{ edition.pk }}), {{ edition.camp_start_date }} to {{ edition.camp_end_date }}{% else %}Missing{% endif %}</p>
+    <p><strong>Houses currently in database:</strong> {{ house_count|default_if_none:"unavailable" }} (expected: {{ expected_houses }})</p>
+    <p><strong>Timetable records currently in database:</strong> {{ timetable_count|default_if_none:"unavailable" }} (approved source: {{ expected_entries }} entries)</p>
+    <p><strong>Seed SHA-256:</strong> <code style="overflow-wrap:anywhere">{{ source_sha256 }}</code></p>
+    <p>The command refuses incompatible house identities, dates or incomplete occupied houses and preserves registrations, payments, check-ins and existing edits. Timetables remain drafts. House allocation is not activated.</p>
+  </fieldset>
+  {% if edition and not error %}
+    <fieldset class="module aligned">
+      <h2>Populate approved reference data</h2>
+      <p>Confirm only after reviewing the edition, database and source checksum shown above. This will write approved missing reference records; existing payment and participant data are not reset.</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="edition_id" value="{{ edition.pk }}">
+        <input type="hidden" name="database_name" value="{{ database_name }}">
+        <input type="hidden" name="source_sha256" value="{{ source_sha256 }}">
+        <label for="confirm">Type <strong>{{ confirmation }}</strong> to approve:</label>
+        <input id="confirm" name="confirmation" required autocomplete="off" style="width:240px;max-width:100%;margin:8px">
+        <p><button type="submit" class="default">Populate DIC 2026</button></p>
+      </form>
+    </fieldset>
+  {% endif %}
+  <p><a href="{% url 'dic2026_production_inspection' %}">Open detailed read-only inspection</a></p>
+</main>
+{% endblock %}
