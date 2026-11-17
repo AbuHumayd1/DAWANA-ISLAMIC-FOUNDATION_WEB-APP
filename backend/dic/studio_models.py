@@ -13,7 +13,7 @@ from django.db.models import Q
 SOURCE_KINDS = (
     ('photos', 'Photographs'), ('videos', 'Videos'), ('recordings', 'Lecture audio'),
     ('flyers', 'Flyers'), ('promotions', 'Promotions'), ('lecturers', 'Lecturers'),
-    ('activities', 'Activities'),
+    ('activities', 'Activities'), ('appearances', 'Lecturer appearances'),
 )
 DESTINATIONS = (
     ('foundation_archive', 'Foundation media archive'),
@@ -32,6 +32,7 @@ SUPPORTED_DESTINATIONS = {
     'promotions': frozenset(('foundation_archive', 'foundation_home', 'dic_landing')),
     'lecturers': frozenset(('foundation_archive', 'dic_landing')),
     'activities': frozenset(('foundation_archive', 'dic_landing')),
+    'appearances': frozenset(('foundation_archive', 'dic_landing')),
 }
 
 
