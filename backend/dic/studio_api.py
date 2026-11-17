@@ -353,3 +353,42 @@ class StudioMetadataView(StudioView):
                          'resulting_state': getattr(item, 'state', 'reference')})
         return self.nocache({'id': item.pk, 'state': getattr(item, 'state', 'reference'),
                              'metadata': {name: getattr(item, name) for name in EDIT_FIELDS[kind]}})
+
+
+class StudioHostedLinksView(StudioView):
+    """Create link-only YouTube/Vimeo draft records; no R2 setup or binary upload needed."""
+    def post(self, request):
+        from rest_framework.exceptions import PermissionDenied, ValidationError
+        from .studio_models import StudioAsset
+        if not (request.user.is_superuser or request.user.has_perm('dic.add_studiohostedvideo')):
+            raise PermissionDenied('Media link creation permission required.')
+        if not isinstance(request.data, dict):
+            raise ValidationError({'detail': 'Supply video links and editorial details.'})
+        entries = request.data.get('items', [])
+        if not isinstance(entries, list) or not 1 <= len(entries) <= 25:
+            raise ValidationError({'items': 'Supply between 1 and 25 hosted videos.'})
+        allowed = {'title', 'video_url', 'lecturer', 'description', 'edition'}
+        prepared = []
+        Form = modelform_factory(StudioHostedVideo, fields=tuple(allowed))
+        for index, values in enumerate(entries):
+            if not isinstance(values, dict) or not set(values).issubset(allowed):
+                raise ValidationError({'items': {str(index): 'Unsupported video fields.'}})
+            form = Form(values)
+            if not form.is_valid():
+                raise ValidationError({'items': {str(index): form.errors.get_json_data()}})
+            prepared.append(form)
+        with transaction.atomic():
+            output = []
+            for form in prepared:
+                record = form.save(commit=False)
+                record.state = 'draft'
+                record.save()
+                asset = StudioAsset.objects.create(
+                    source_kind='hosted', source_id=record.pk,
+                    title=record.title, description=record.description, created_by=request.user)
+                DICAdminAuditEvent.objects.create(
+                    actor=request.user, action='studio_hosted_link_created',
+                    target_type='StudioAsset', target_id=str(asset.pk),
+                    details={'source_id': record.pk, 'provider': 'validated', 'state': 'draft'})
+                output.append({'id': record.pk, 'asset_id': str(asset.pk), 'state': 'draft'})
+        return self.nocache({'items': output}, status=201)
