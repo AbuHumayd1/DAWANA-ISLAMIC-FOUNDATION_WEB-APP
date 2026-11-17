@@ -14,6 +14,24 @@ from .media_delivery import safe_media,media_headers
 from .camp_content import audience_rows
 
 
+def studio_audio_visible(row, edition):
+    """Linked Studio recordings require an active camper destination.
+
+    Unlinked legacy recordings retain their pre-existing release policy.
+    Entitlement to a camper is still required by PortalView and scoped_item.
+    """
+    from .studio_models import StudioAsset, StudioPlacement
+    source = StudioAsset.objects.filter(source_kind='recordings', source_id=row.pk).first()
+    if source is None:
+        return True
+    if source.archived_at is not None:
+        return False
+    return StudioPlacement.objects.filter(
+        asset=source, destination='camper_resources', edition=edition,
+        state='published', published_at__isnull=False,
+    ).exists()
+
+
 def scoped_item(request):
     try:return portal_item(request,int(request.query_params.get('item_id','')))
     except (ValueError,TypeError):raise ValidationError('Choose an authorized camper.') from None
@@ -23,7 +41,11 @@ class CamperResourcesView(PortalView):
     def get(self,request):
         item=scoped_item(request)
         def data(row,kind):
-            if row.session_id and not audience_rows(type(row.session).objects.filter(pk=row.session_id,status='published'),item.participant,item.order.edition).exists():return None
+            if kind == 'audio' and not studio_audio_visible(row, item.order.edition): return None
+            if kind == 'audio' and not studio_audio_visible(row, item.order.edition):
+            from django.http import Http404
+            raise Http404
+        if row.session_id and not audience_rows(type(row.session).objects.filter(pk=row.session_id,status='published'),item.participant,item.order.edition).exists():return None
             return dict(id=row.pk,kind=kind,title=row.title if kind=='audio' else row.caption,
                 description=row.description,lecturer=row.lecturer,session=row.session.title or row.session.description if row.session else '',
                 url=reverse('dic:camper-recording',args=[kind,row.pk])+'?item_id='+str(item.pk))
