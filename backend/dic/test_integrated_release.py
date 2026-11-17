@@ -132,6 +132,31 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         publish_days(self.owner,monday,True)
         self.assertTrue(monday.filter(status='published').exists())
 
+    def test_camper_api_shows_published_food_but_hides_unconfirmed_activities(self):
+        from .models import ParticipantPortalGrant
+        client, _ = self.login()
+        ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
+        food = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,23), day_number=1,
+            timetable_type='food', meal='lunch', description='Officials lunch',
+            time_label='Lunch', certainty='confirmed', modified_by=self.owner)
+        TimetableEntry.objects.create(
+            edition=self.edition, date=date(2026,12,23), day_number=1,
+            timetable_type='activities', description='Unconfirmed activity',
+            time_label='19:00-20:00', certainty='unspecified',
+            modified_by=self.owner)
+        self.assertEqual(
+            publish_days(self.owner, TimetableEntry.objects.filter(pk=food.pk), True), 1)
+        path=reverse('dic:participant-timetables')
+        food_response=client.get(path, {
+            'item_id':self.item.pk, 'type':'food','date':'2026-12-23'})
+        self.assertEqual(food_response.status_code,200,food_response.content)
+        self.assertEqual(food_response.json()['entries'][0]['description'],'Officials lunch')
+        programme_response=client.get(path, {
+            'item_id':self.item.pk, 'type':'activities','date':'2026-12-23'})
+        self.assertEqual(programme_response.status_code,200,programme_response.content)
+        self.assertEqual(programme_response.json()['entries'],[])
+
     def test_camper_housing_refresh_is_optional_and_awaiting_does_not_block_portal(self):
         from django.urls import reverse
         client, _ = self.login()
