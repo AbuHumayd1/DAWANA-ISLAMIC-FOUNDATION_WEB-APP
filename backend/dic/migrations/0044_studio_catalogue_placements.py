@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ('source_kind', models.CharField(max_length=24, choices=[
                     ('photos', 'Photographs'), ('videos', 'Videos'), ('recordings', 'Lecture audio'),
                     ('flyers', 'Flyers'), ('promotions', 'Promotions'), ('lecturers', 'Lecturers'),
-                    ('activities', 'Activities')])),
+                    ('activities', 'Activities'), ('appearances', 'Lecturer appearances')])),
                 ('source_id', models.PositiveBigIntegerField()),
                 ('title', models.CharField(max_length=300)),
                 ('description', models.TextField(blank=True, max_length=5000)),
