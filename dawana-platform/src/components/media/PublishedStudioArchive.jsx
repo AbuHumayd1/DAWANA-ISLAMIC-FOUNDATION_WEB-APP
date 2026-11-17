@@ -10,7 +10,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   useEffect(() => {
     const controller = new AbortController()
     const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
-    fetch(`${api}/dic/studio/public-placements/?destination=foundation_archive`, {
+    fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}`, {
       credentials: 'omit', cache: 'no-store', signal: controller.signal,
     }).then(async response => {
       if (!response.ok) throw new Error('Archive unavailable')
@@ -26,7 +26,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   }, [destination])
   if (state !== 'ready' || !items.length) return null
   return <section className="published-studio-archive" aria-labelledby="published-studio-title"><Container>
-    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id="published-studio-title">destination === 'foundation_home' ? 'Featured Foundation stories' : 'From the DAWANA media library'</h2><p>Approved media shared by our Foundation team.</p></div>
+    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id="published-studio-title">{destination === 'foundation_home' ? 'Featured Foundation stories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
     <div className="published-studio-grid">{items.map((item, i) => <article key={item.url + i} className="published-studio-card">
       {['photos', 'flyers', 'promotions', 'activities'].includes(item.source_kind) && <div className="published-studio-visual">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
