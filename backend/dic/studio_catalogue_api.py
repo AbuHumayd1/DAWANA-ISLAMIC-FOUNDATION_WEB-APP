@@ -119,7 +119,8 @@ class StudioAssetDetailView(StudioView):
             asset = get_object_or_404(StudioAsset.objects.select_for_update(), pk=asset_id)
             for key, value in request.data.items():
                 field = StudioAsset._meta.get_field(key)
-                if not isinstance(value, str) or len(value) > field.max_length if field.max_length else not isinstance(value, str) or len(value) > 5000:
+                maximum = field.max_length or 5000
+                if not isinstance(value, str) or len(value) > maximum:
                     raise ValidationError({key: 'Invalid or oversized text.'})
                 setattr(asset, key, value)
             asset.full_clean()
