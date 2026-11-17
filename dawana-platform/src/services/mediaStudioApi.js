@@ -30,8 +30,8 @@ export async function studioLogout() {
   await studioRequest('/auth/logout/', { method: 'POST' })
   csrf = undefined
 }
-export const studioLibrary = ({ library, q, state, edition }) => {
-  const params = new URLSearchParams({ library })
+export const studioLibrary = ({ library, q, state, edition, page = 1 }) => {
+  const params = new URLSearchParams({ library, page: String(page) })
   if (q) params.set('q', q)
   if (state) params.set('state', state)
   if (edition) params.set('edition', edition)
