@@ -27,6 +27,53 @@ EXPECTED_START = date(2026, 12, 23)
 EXPECTED_END = date(2027, 1, 1)
 
 
+
+def housing_activation_preflight(edition):
+    """Read-only gate matching the actual workerless housing entry point.
+
+    Report only booleans and safe operator-facing reasons; never expose actor
+    identifiers, secrets, individual campers, payment references or fingerprints.
+    """
+    from django.conf import settings
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import PermissionDenied, ValidationError
+    from .allocation import AllocationError, allocation_configuration_fingerprint
+    from .housing_service import permitted, validate_inventory
+
+    blockers = []
+    if getattr(settings, 'DAWANA_WEBSITE_ONLY', False):
+        blockers.append('Full application mode is not enabled.')
+    actor_id = getattr(settings, 'DIC_AUTOMATION_ACTOR_ID', 0)
+    if type(actor_id) is not int or actor_id <= 0:
+        blockers.append('Housing automation actor is not configured.')
+    else:
+        actor = get_user_model().objects.filter(
+            pk=actor_id, is_active=True, is_staff=True
+        ).first()
+        if actor is None:
+            blockers.append('Housing automation actor is not active staff.')
+        else:
+            for permission in ('can_process_housing_queue', 'can_allocate_participants'):
+                try:
+                    permitted(actor, permission)
+                except PermissionDenied:
+                    blockers.append('Housing automation actor lacks ' + permission + '.')
+    if edition.allocation_strategy != 'balanced':
+        blockers.append('Select the balanced housing strategy.')
+    if not (edition.allocation_strategy_approved_at
+            and edition.allocation_strategy_approved_by_id
+            and edition.allocation_strategy_approval_note.strip()):
+        blockers.append('Committee housing approval has not been recorded.')
+    if not edition.allocation_approved_configuration or (
+        edition.allocation_approved_configuration != allocation_configuration_fingerprint(edition)
+    ):
+        blockers.append('Current housing configuration fingerprint is not approved.')
+    try:
+        validate_inventory(edition)
+    except (ValidationError, AllocationError):
+        blockers.append('Housing inventory or existing allocations require supervisor review.')
+    return {'ready': not blockers, 'blockers': blockers, 'mode': 'read_only'}
+
 def production_inspection(request):
     """Superuser-only GET. Runs SELECTs only; never attempts an initialization."""
     if request.method != 'GET':
@@ -58,6 +105,7 @@ def production_inspection(request):
             'population_receipt': False,
             'issues': [],
             'ready_for_population_review': False,
+            'housing_activation': None,
         }
         issues = result['issues']
         if edition is None:
@@ -139,6 +187,7 @@ def production_inspection(request):
             ).exists()
             result['certificate_configuration_exists'] = CertificateRelease.objects.filter(edition=edition).exists()
             result['ready_for_population_review'] = not issues
+            result['housing_activation'] = housing_activation_preflight(edition)
         response = JsonResponse(result, json_dumps_params={'indent': 2, 'ensure_ascii': False})
     patch_cache_control(response, no_store=True)
     response['Pragma'] = 'no-cache'

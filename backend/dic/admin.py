@@ -584,21 +584,6 @@ class CampEditionAdmin(admin.ModelAdmin):
             except (AllocationError, ValueError) as exc:
                 self.message_user(request, str(exc), level=messages.ERROR)
             else:
-                current = HouseAllocation.objects.filter(
-                    participant_id=allocation.participant_id,
-                    edition_id=allocation.edition_id,
-                    status=HouseAllocation.Status.ALLOCATED,
-                ).first()
-                _record_admin_event(
-                    request,
-                    "allocation_reassigned",
-                    "HouseAllocation",
-                    current.pk if current else allocation.pk,
-                    {
-                        "previous_allocation_id": allocation.pk,
-                        "reason": reason[:500],
-                    },
-                )
                 self.message_user(
                     request,
                     f"Allocated {len(allocated)} paid participant(s).",

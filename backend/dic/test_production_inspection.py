@@ -70,3 +70,62 @@ class ProductionInspectionTests(TestCase):
         self.assertEqual(response.status_code, 405)
         self.assertFalse(House.objects.exists())
         self.assertFalse(TimetableEntry.objects.exists())
+
+    def test_activation_preflight_is_read_only_and_reports_missing_gates(self):
+        from django.test import override_settings
+        self.client.force_login(self.owner)
+        with override_settings(DAWANA_WEBSITE_ONLY=False, DIC_AUTOMATION_ACTOR_ID=0):
+            response = self.client.get(self.path)
+        self.assertEqual(response.status_code, 200)
+        status = response.json()['housing_activation']
+        self.assertFalse(status['ready'])
+        self.assertEqual(status['mode'], 'read_only')
+        self.assertIn('Housing automation actor is not configured.', status['blockers'])
+        self.assertIn('Select the balanced housing strategy.', status['blockers'])
+        self.assertFalse(DICAdminAuditEvent.objects.exists())
+        self.edition.refresh_from_db()
+        self.assertEqual(self.edition.allocation_strategy, 'disabled')
+
+    def test_activation_preflight_checks_actor_permissions_without_writes(self):
+        from django.test import override_settings
+        from .management.commands.initialize_dic2026_release import initialize
+        from .allocation import allocation_configuration_fingerprint
+        from django.utils import timezone
+        initialize(self.edition, self.owner)
+        self.edition.refresh_from_db()
+        self.edition.allocation_strategy = 'balanced'
+        self.edition.allocation_strategy_approved_at = timezone.now()
+        self.edition.allocation_strategy_approved_by = self.owner
+        self.edition.allocation_strategy_approval_note = 'Reviewed configuration.'
+        self.edition.save()
+        self.edition.allocation_approved_configuration = allocation_configuration_fingerprint(self.edition)
+        self.edition.save(update_fields=['allocation_approved_configuration'])
+        actor = get_user_model().objects.create_user(
+            username='housing-unprivileged-actor', is_staff=True, password='synthetic')
+        self.client.force_login(self.owner)
+        with override_settings(DAWANA_WEBSITE_ONLY=False, DIC_AUTOMATION_ACTOR_ID=actor.pk):
+            data = self.client.get(self.path).json()
+        self.assertFalse(data['housing_activation']['ready'])
+        self.assertTrue(any('lacks can_process_housing_queue' in x for x in data['housing_activation']['blockers']))
+        self.assertFalse(data['housing_activation']['blockers'] == [])
+
+    def test_activation_preflight_ready_only_with_current_approval_and_authorized_actor(self):
+        from django.test import override_settings
+        from .management.commands.initialize_dic2026_release import initialize
+        from .allocation import allocation_configuration_fingerprint
+        from django.utils import timezone
+        initialize(self.edition, self.owner)
+        self.edition.refresh_from_db()
+        self.edition.allocation_strategy = 'balanced'
+        self.edition.allocation_strategy_approved_at = timezone.now()
+        self.edition.allocation_strategy_approved_by = self.owner
+        self.edition.allocation_strategy_approval_note = 'Committee housing approval.'
+        self.edition.save()
+        self.edition.allocation_approved_configuration = allocation_configuration_fingerprint(self.edition)
+        self.edition.save(update_fields=['allocation_approved_configuration'])
+        self.client.force_login(self.owner)
+        with override_settings(DAWANA_WEBSITE_ONLY=False, DIC_AUTOMATION_ACTOR_ID=self.owner.pk):
+            ready = self.client.get(self.path).json()['housing_activation']
+        self.assertTrue(ready['ready'], ready['blockers'])
+        self.assertEqual(ready['blockers'], [])
+        self.assertEqual(House.objects.filter(edition=self.edition).count(), 8)
