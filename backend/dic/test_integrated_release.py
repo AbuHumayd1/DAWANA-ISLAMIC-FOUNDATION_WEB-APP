@@ -69,13 +69,15 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             edition=self.edition, date=date(2026,12,24), day_number=2,
             timetable_type='activities', source_key='dic2026:activities:2:13',
             description='Individual Millionaire- Challenge: Ta’lim & Tahdheeb',
-            time_label='17:00–18:30', certainty='unspecified',
+            time_label='17:00–18:30', start_time=time(17), end_time=time(18,30),
+            display_order=13, certainty='unspecified',
             modified_by=self.owner)
         edited = TimetableEntry.objects.create(
             edition=self.edition, date=date(2026,12,25), day_number=3,
             timetable_type='activities', source_key='dic2026:activities:3:13',
             description='Staff-edited alternative: still under review',
-            time_label='17:00–18:30', certainty='unspecified',
+            time_label='17:00–18:30', start_time=time(17), end_time=time(18,30),
+            display_order=13, certainty='unspecified',
             modified_by=self.owner)
         food = TimetableEntry.objects.create(
             edition=self.edition, date=date(2026,12,23), day_number=1,
