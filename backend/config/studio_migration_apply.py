@@ -90,6 +90,30 @@ def apply_approved_migrations():
             all(node in refreshed.loader.applied_migrations for node in ALLOWED)
             and not refreshed.migration_plan(refreshed.loader.graph.leaf_nodes()),
             "SCHEMA_NOT_FULLY_APPLIED")
+        # The separate build never invokes Django's post_migrate signal.
+        # Create only Studio content types / permissions, never assign roles.
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+        from dic.studio_models import StudioAsset, StudioPlacement
+        from dic.studio_hosted_models import StudioHostedVideo
+        for model in (StudioAsset, StudioPlacement, StudioHostedVideo):
+            ct, _ = ContentType.objects.get_or_create(
+                app_label="dic", model=model._meta.model_name)
+            definitions = [
+                (code % {"model_name": model._meta.model_name},
+                 name % {"verbose_name": str(model._meta.verbose_name)})
+                for code, name in model._meta.default_permissions and (
+                    ("add_%(model_name)s", "Can add %(verbose_name)s"),
+                    ("change_%(model_name)s", "Can change %(verbose_name)s"),
+                    ("delete_%(model_name)s", "Can delete %(verbose_name)s"),
+                    ("view_%(model_name)s", "Can view %(verbose_name)s"),
+                ) or ()
+            ]
+            definitions.extend(model._meta.permissions)
+            for codename, label in definitions:
+                Permission.objects.get_or_create(
+                    content_type=ct, codename=codename,
+                    defaults={"name": label})
         # This transaction commits all 3 steps together, or rolls back on error.
     print("[studio-migration] APPLIED_EXACT_PLAN=" + APPROVED_PLAN_SHA256)
     print("[studio-migration] MIGRATIONS_0043_0044_0045_RECORDED")
