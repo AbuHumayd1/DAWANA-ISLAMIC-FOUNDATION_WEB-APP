@@ -115,7 +115,7 @@ class TimetablePolicyTests(SimpleTestCase):
         queryset.order_by.return_value.values_list.side_effect = [
             Mock(distinct=Mock(return_value=[(9, 'food')])),
             Mock(distinct=Mock(return_value=[date(2026, 12, 23)]))]
-        rows = [Mock(date=date(2026, 12, 23), start_time=None, end_time=None),
+        rows = [Mock(date=date(2026, 12, 23), start_time=None, end_time=None, certainty='confirmed'),
                 Mock(date=date(2026, 12, 23), start_time=None, end_time=None)]
         with patch('dic.timetable_services.CampEdition.objects'), patch('dic.timetable_services.TimetableEntry.objects') as entries, patch('dic.timetable_services.DICAdminAuditEvent.objects') as audit:
             entries.select_for_update.return_value.filter.return_value = rows
@@ -186,7 +186,7 @@ class TimetablePolicyTests(SimpleTestCase):
             self.assertNotIn(b'<script>', response.content)
             self.assertIn(b'&lt;script&gt;', response.content)
 
-    def test_activity_publication_rejects_unspecified_and_proposed_before_writes(self):
+    def test_publication_rejects_unspecified_and_proposed_before_writes(self):
         from .timetable_services import publish_days
         from .timetable_models import TimetableEntry
         from unittest.mock import patch, Mock
