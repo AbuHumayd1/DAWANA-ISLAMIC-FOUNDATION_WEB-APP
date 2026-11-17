@@ -42,18 +42,19 @@ class SettlementFollowupTests(APITestCase):
         self.order.refresh_from_db()
         self.assertNotEqual(self.order.payment_status, 'paid')
 
-    def test_interrupted_handoff_can_repeat_verification_without_losing_work(self):
+    def test_housing_enqueue_failure_cannot_reverse_verified_payment(self):
         attempt = self.create_pending_attempt()
         evidence = self.provider_result(attempt.reference)
         with patch('dic.payment_followups.HousingJob.objects.get_or_create', side_effect=OperationalError('synthetic')):
-            with self.assertRaises(OperationalError):
-                _apply_verified_transaction(attempt.pk, evidence)
-        self.order.refresh_from_db()
-        self.assertNotEqual(self.order.payment_status, 'paid')
-        _apply_verified_transaction(attempt.pk, evidence)
+            _apply_verified_transaction(attempt.pk, evidence)
         self.order.refresh_from_db()
         self.assertEqual(self.order.payment_status, 'paid')
-        self.assertEqual(HousingJob.objects.count(), 1)
+        self.assertEqual(self.order.status, 'confirmed')
+        self.assertEqual(HousingJob.objects.count(), 0)
+        # A repeated Paystack notification must remain a safe paid replay;
+        # the independent authorised portal housing process can repair handoff.
+        _apply_verified_transaction(attempt.pk, evidence)
+        self.assertEqual(self.order.payment_status, 'paid')
 
     def test_housing_policy_delay_does_not_reverse_settlement(self):
         from django.contrib.auth import get_user_model
@@ -95,3 +96,19 @@ class HousingRetryTests(HousingFixtures, TestCase):
         self.assertIsNone(claim(self.edition.pk, self.actor))
         HousingJob.objects.filter(pk=job_id).update(retry_at=timezone.now()-timedelta(seconds=1))
         self.assertEqual(process_claim(*claim(self.edition.pk, self.actor), self.actor), 'completed')
+
+    def test_failed_portal_housing_refresh_keeps_verified_payment_intact(self):
+        from django.conf import settings
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+        from dic.housing_self_service import process_authorized_housing
+        attempt = self.create_pending_attempt()
+        evidence = self.provider_result(attempt.reference)
+        _apply_verified_transaction(attempt.pk, evidence)
+        actor = get_user_model().objects.create_superuser('housing-portal-actor', 'actor@example.test', 'synthetic')
+        with override_settings(DAWANA_WEBSITE_ONLY=False, DIC_AUTOMATION_ACTOR_ID=actor.pk):
+            with patch('dic.housing_self_service.require_automation', side_effect=OperationalError('synthetic private failure')):
+                self.assertEqual(process_authorized_housing([self.order]), 'awaiting')
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.payment_status, 'paid')
+        self.assertEqual(self.order.status, 'confirmed')
