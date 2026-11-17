@@ -1181,7 +1181,23 @@ class OperationsHousingRetryView(OperationsBaseView):
             retry(job_id, request.user, reason.strip())
         except AllocationError as exc:
             raise ValidationError({'housing': str(exc)}) from exc
-        return Response({'state': 'pending', 'message': 'Housing retry queued for processing.'})
+        # No paid worker needed: Operations can process the supervised retry
+        # immediately, outside settlement and after the retry is committed.
+        state = 'pending'
+        try:
+            from .housing_service import require_automation
+            from .housing_queue import claim_for_participants, process_claim
+            require_automation(edition)
+            participant_id = HousingJob.objects.values_list('participant_id', flat=True).get(pk=job_id)
+            claimed = claim_for_participants(edition.pk, [participant_id], request.user)
+            if claimed:
+                state = process_claim(*claimed, request.user)
+        except Exception:
+            # A housing failure must not disturb staff login or financial data.
+            state = 'pending'
+        return Response({'state': state,
+                         'message': 'Housing assigned.' if state == 'completed'
+                         else 'Housing remains awaiting allocation; review the case if needed.'})
 
 
 class OperationsActivityView(OperationsBaseView):
