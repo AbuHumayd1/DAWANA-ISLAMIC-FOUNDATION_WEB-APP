@@ -101,3 +101,16 @@ Implemented as a separate additive `StudioHostedVideo` canonical link record and
 3. Public destination selection does not bypass original edition, publication or provider validation.
 4. One authorized media operator may publish directly; system superuser is owner of all staff/admin portals but **not automatically of camper portal identities**.
 5. Every source or destination release, archive and withdrawal must be auditable and revocable.
+
+
+### Premium workspace refinement — November 17, 2026
+
+The Media Studio development branch now includes a further media-first editorial presentation pass:
+- Responsive photographic cards with larger thumbnails, clearer draft/published badges, direct source publication, and concise collection statistics.
+- Staff-authorized full image preview, click-to-load safe YouTube/Vimeo embed preview, visible external-watch alternative, Escape/close controls and reduced-motion support. No provider is loaded until the operator explicitly opens a video preview.
+- Search within loaded destination catalogue records by title, collection, campaign, event, album or programme; selection is preserved after an automatic link focus. Destination publication remains individually controlled.
+- Owner/staff capability flags for catalogue organization and destination publishing, so read-only operators do not see unauthorized creation/publishing controls.
+- Multiple public destination sections use distinct accessible headings; provider withdrawal hides previously published hosted embeds instead of creating public server errors.
+- Private R2 upload activation remains disabled. This phase introduces no required Render worker, no payment change, no migration changes, and no live publishing by itself.
+
+**Release gates remain:** CI all-green on the final commit, actual mobile and desktop visual/keyboard review, published-versus-draft authorization acceptance, and owner-controlled deployment. Premium UI implementation does not imply production deployment.
