@@ -31,6 +31,11 @@ def json_snapshot(rows):
 
 
 def members_for(participant, edition, strict=True):
+    # DIC 2026 houses are assigned to each verified-paid camper independently.
+    # Guardian relationships may be recorded for separate safeguarding/access
+    # workflows, but neither their presence nor their approval controls housing.
+    if edition.year == 2026:
+        return [participant]
     relations = GuardianRelationship.objects.filter(edition=edition, status__in=['pending', 'approved'])
     child_link = relations.filter(child=participant).select_related('guardian').first()
     if child_link:
