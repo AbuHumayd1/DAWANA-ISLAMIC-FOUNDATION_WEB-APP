@@ -8,6 +8,14 @@ class Migration(migrations.Migration):
     dependencies = [
         ('dic', '0044_studio_catalogue_placements'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        migrations.AlterField(
+            model_name='studioasset', name='source_kind',
+            field=models.CharField(max_length=24, choices=[
+                ('photos', 'Photographs'), ('videos', 'Videos'), ('recordings', 'Lecture audio'),
+                ('flyers', 'Flyers'), ('promotions', 'Promotions'), ('lecturers', 'Lecturers'),
+                ('activities', 'Activities'), ('appearances', 'Lecturer appearances'),
+                ('hosted', 'Hosted video and livestream')]),
+        ),
     ]
     operations = [
         migrations.CreateModel(
