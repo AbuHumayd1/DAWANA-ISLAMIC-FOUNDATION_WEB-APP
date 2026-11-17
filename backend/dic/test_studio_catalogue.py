@@ -114,6 +114,29 @@ class StudioCatalogueTests(TestCase):
             self.assertEqual(StudioPlacement.objects.get(asset_id=asset_id).state, 'withdrawn')
             self.assertTrue(DICAdminAuditEvent.objects.filter(action='studio_asset_archive').exists())
 
+    def test_linked_recording_requires_current_camper_placement_even_if_source_stays_published(self):
+        from dic.camp_release_models import LectureRecording
+        from dic.camp_release_api import studio_audio_visible
+        audio = LectureRecording.objects.create(
+            edition=self.edition, title='Synthetic studio lecture',
+            audio='camp-recordings/not-a-real-upload.mp3')
+        audio.state = 'published'
+        audio.save(actor=self.operator)
+        self.assertTrue(studio_audio_visible(audio, self.edition))  # Legacy unlinked content preserved.
+        asset_id = self.post('studio-assets', {
+            'source_kind': 'recordings', 'source_id': audio.pk}).json()['asset']['id']
+        self.assertFalse(studio_audio_visible(audio, self.edition))
+        published = self.post('studio-placements', {
+            'destination': 'camper_resources', 'edition': self.edition.pk,
+            'action': 'publish'}, args=[asset_id])
+        self.assertEqual(published.status_code, 200, published.content)
+        self.assertTrue(studio_audio_visible(audio, self.edition))
+        self.post('studio-placements', {'destination': 'camper_resources',
+            'edition': self.edition.pk, 'action': 'withdraw'}, args=[asset_id])
+        self.assertFalse(studio_audio_visible(audio, self.edition))
+        self.assertEqual(self.client.get(reverse('dic:studio-public-placements'),
+                         {'destination': 'camper_resources'}).status_code, 404)
+
     def test_unprivileged_studio_viewer_cannot_link_or_publish(self):
         viewer = get_user_model().objects.create_user('catalogue-viewer', password='synthetic', is_staff=True)
         viewer.user_permissions.add(Permission.objects.get(
