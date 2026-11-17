@@ -94,10 +94,20 @@ def summary(asset):
 class StudioAssetsView(StudioView):
     def get(self, request):
         require_catalogue(request.user)
-        records = StudioAsset.objects.prefetch_related('placements').order_by('-created_at')[:101]
-        results = [summary(item) for item in records[:100]
-                   if request.user.is_superuser or request.user.has_perm('dic.view_' + LIBRARIES[item.source_kind][1])]
-        return self.nocache({'assets': results, 'has_more': len(records) > 100,
+        raw_page = request.query_params.get('page', '1')
+        if not raw_page.isascii() or not raw_page.isdigit() or not 1 <= len(raw_page) <= 3:
+            raise ValidationError({'page': 'Choose a valid catalogue page.'})
+        page = int(raw_page)
+        if not 1 <= page <= 100:
+            raise ValidationError({'page': 'Catalogue page out of range.'})
+        allowed = [kind for kind, (_, codename, _) in LIBRARIES.items()
+                   if request.user.is_superuser or request.user.has_perm('dic.view_' + codename)]
+        offset = (page - 1) * 30
+        records = list(StudioAsset.objects.filter(source_kind__in=allowed)
+                       .prefetch_related('placements')
+                       .order_by('-created_at', '-pk')[offset:offset + 31])
+        results = [summary(item) for item in records[:30]]
+        return self.nocache({'assets': results, 'page': page, 'has_more': len(records) > 30,
                              'destinations': [{'key': k, 'name': v} for k, v in DESTINATIONS],
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_studio_placements'))})
 
