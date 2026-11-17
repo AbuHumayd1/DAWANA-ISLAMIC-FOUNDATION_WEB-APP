@@ -246,6 +246,16 @@ class PortalLogoutView(PortalView):
         return response
 
 
+class PortalHousingRefreshView(PortalView):
+    """Optional best-effort POST. The participant portal never depends on it."""
+
+    def post(self, request):
+        grant = authorized_grant(request)
+        from .housing_self_service import process_authorized_housing
+        process_authorized_housing(scoped_orders(grant))
+        return Response({'housing': 'awaiting_or_updated'})
+
+
 class PortalEnrollmentsView(PortalView):
     def get(self, request):
         grant = authorized_grant(request)
@@ -264,6 +274,9 @@ class PortalEnrollmentsView(PortalView):
                 summary['class_assignment'] = class_assignment(order.registration_basis, item.participant_id, order.edition)
                 from .portal_dashboard import camper_operations_summary
                 summary.update(camper_operations_summary(item.participant_id,order.edition))
+                from .housing_self_service import housing_public_state
+                summary['housing'] = housing_public_state(
+                    item.participant_id, order.edition, bool(summary.get('house_assignment')))
                 from .fulfillment import portal_status
                 summary['fulfillment'] = portal_status(order)
                 participants.append(summary)
