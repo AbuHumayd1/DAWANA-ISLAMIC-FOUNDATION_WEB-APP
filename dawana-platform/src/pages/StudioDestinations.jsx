@@ -22,7 +22,7 @@ const choices = {
 }
 const scoped = (dest) => dest.startsWith('dic_') || dest === 'camper_resources'
 
-export default function StudioDestinations({ user, editions, library }) {
+export default function StudioDestinations({ user, editions, library, sourceLinkRefresh }) {
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -61,7 +61,7 @@ export default function StudioDestinations({ user, editions, library }) {
     }).catch(error => { if (active) setMessage(error.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [revision, page])
+  }, [revision, page, sourceLinkRefresh])
   useEffect(() => {
     if (!current) return
     setAlbum(current.album || '')
