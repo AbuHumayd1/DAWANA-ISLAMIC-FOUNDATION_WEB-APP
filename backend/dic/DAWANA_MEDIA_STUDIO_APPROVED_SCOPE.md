@@ -79,6 +79,14 @@
 - Withdrawal of a source or an edit to an already published source revokes all linked Studio destination approvals so that source republishing cannot silently resurrect an old public placement.
 - Disposable/synthetic tests for media team roles, public/private boundaries, migration-compatible catalogue operations, independent placement withdrawal, cross-edition rejection, archive, source linking idempotency and camper-resource gating. No staging/demo/production dataset used.
 
+### High-priority YouTube livestream and bulk URL publishing (17 Nov 2026)
+
+**Explicit owner requirement:** The Foundation media team may run **many simultaneous or successive YouTube live broadcasts** and need only paste their live/video links into Media Studio, then make those broadcasts accessible in the selected website location. The workflow must never require uploading duplicate MP4s or a thumbnail, activating R2, paying for a background worker, accessing Django Admin or waiting for a second human publisher.
+
+Implemented as a separate additive `StudioHostedVideo` canonical link record and migration `0045_studio_hosted_video`: verified YouTube live/normal/Shorts links or approved Vimeo links; bulk paste **1–25 title | URL rows per request** with unlimited subsequent batches; optional common lecturer, description and edition; atomic draft creation plus automatic catalogue linkage; subsequent independent source/destination publication and revocation, secured by existing media operator permissions and audit logs. Public Foundation home/archive and DIC landing/resources use approved embeddable playback links. On-site player opens only after the visitor clicks, with a validated external video alternative. YouTube itself hosts and delivers live/replay content; DAWANA does not ingest or restream video bytes, and cannot guarantee a broadcast is live or embeddable if YouTube settings prevent it.
+
+**Hosting provider security:** The existing strict `DIC_VIDEO_APPROVED_PROVIDERS` configuration must include `youtube` (and `vimeo` if desired) at release; no public provider is silently enabled in production. This is independent of the disabled R2 upload switch.
+
 ### Still outstanding or blocked until explicit owner release approval
 
 - GitHub Actions verification against the **latest feature-branch commit**; do not infer a passing run from an earlier revision. Fix any new failures before merging.
