@@ -41,14 +41,18 @@ class CamperResourcesView(PortalView):
     def get(self,request):
         item=scoped_item(request)
         def data(row,kind):
-            if kind == 'audio' and not studio_audio_visible(row, item.order.edition): return None
             if kind == 'audio' and not studio_audio_visible(row, item.order.edition):
-            from django.http import Http404
-            raise Http404
-        if row.session_id and not audience_rows(type(row.session).objects.filter(pk=row.session_id,status='published'),item.participant,item.order.edition).exists():return None
-            return dict(id=row.pk,kind=kind,title=row.title if kind=='audio' else row.caption,
-                description=row.description,lecturer=row.lecturer,session=row.session.title or row.session.description if row.session else '',
-                url=reverse('dic:camper-recording',args=[kind,row.pk])+'?item_id='+str(item.pk))
+                return None
+            if row.session_id and not audience_rows(
+                    type(row.session).objects.filter(pk=row.session_id, status='published'),
+                    item.participant, item.order.edition).exists():
+                return None
+            return dict(
+                id=row.pk, kind=kind, title=row.title if kind=='audio' else row.caption,
+                description=row.description, lecturer=row.lecturer,
+                session=(row.session.title or row.session.description) if row.session else '',
+                url=reverse('dic:camper-recording', args=[kind,row.pk])+'?item_id='+str(item.pk),
+            )
         records=[]
         for model,kind in [(LectureRecording,'audio'),(CampVideo,'video')]:
             query=model.objects.filter(edition=item.order.edition,state='published',published_at__isnull=False).select_related('session')
@@ -74,6 +78,9 @@ class CamperRecordingView(PortalView):
         item=scoped_item(request)
         model=LectureRecording if kind=='audio' else CampVideo
         row=get_object_or_404(model,pk=pk,edition=item.order.edition,state='published',published_at__isnull=False)
+        if kind == 'audio' and not studio_audio_visible(row, item.order.edition):
+            from django.http import Http404
+            raise Http404
         if row.session_id and not audience_rows(type(row.session).objects.filter(pk=row.session_id,status='published'),item.participant,item.order.edition).exists():
             from django.http import Http404
             raise Http404
