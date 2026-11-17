@@ -161,7 +161,20 @@ class StudioCatalogueTests(TestCase):
             self.assertEqual(page_one.status_code, 200, page_one.content)
             self.assertEqual(len(page_one.json()['items']), 30)
             self.assertTrue(page_one.json()['has_more'])
-            self.assertNotIn('memories/', str(page_one.content))
+            # A staff-authorized, ID-based preview route is intentional.
+            # The response must never reveal a private storage object name,
+            # credential, presigned key or bucket endpoint.
+            self.assertEqual(len(page_one.json()['items']), 30)
+            self.assertTrue(all(item['preview_url'].startswith('/api/v1/dic/memories/')
+                                and item['preview_url'].endswith('/image/?preview=1')
+                                for item in page_one.json()['items']))
+            stored_name = CampPhotograph.objects.first().photograph.name
+            self.assertNotIn(stored_name, page_one.content.decode())
+            self.assertNotIn('r2.cloudflarestorage.com', page_one.content.decode())
+            anonymous = Client()
+            preview = page_one.json()['items'][0]['preview_url']
+            self.assertEqual(anonymous.get(preview).status_code, 404)
+            self.assertEqual(self.client.get(preview).status_code, 200)
             page_two = self.client.get(reverse('dic:studio-library'), {
                 'library': 'photos', 'page': 2})
             self.assertEqual(len(page_two.json()['items']), 2)
