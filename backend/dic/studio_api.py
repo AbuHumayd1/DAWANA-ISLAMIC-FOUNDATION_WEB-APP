@@ -137,6 +137,15 @@ class StudioLogoutView(StudioView):
         return self.nocache({}, status=204)
 
 
+def safe_studio_player(url):
+    """Never leak unapproved host links; a withdrawn provider should not break inventory."""
+    from django.core.exceptions import ValidationError
+    try:
+        return video_source(url)['embed_url']
+    except ValidationError:
+        return None
+
+
 class StudioLibraryView(StudioView):
     def get(self, request):
         from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -192,7 +201,7 @@ class StudioLibraryView(StudioView):
                          'updated_at': getattr(item, 'updated_at', None),
                          'featured': bool(getattr(item, 'featured', False)),
                          'preview_url': preview_route(item) if preview_route else None,
-                         'player_url': video_source(item.video_url)['embed_url'] if kind == 'hosted' else None,
+                         'player_url': safe_studio_player(item.video_url) if kind == 'hosted' else None,
                          'metadata': {name: getattr(item, name) for name in EDIT_FIELDS.get(kind, ())}})
         return self.nocache({'library': kind, 'items': rows, 'limit': 30, 'page': page,
                              'has_more': len(records) > 30,
