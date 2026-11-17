@@ -5,7 +5,7 @@ It deliberately reuses existing models and session/CSRF infrastructure.
 """
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.conf import settings
-from django import forms
+from django.forms import modelform_factory
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.urls import reverse
@@ -253,10 +253,7 @@ class StudioUploadView(StudioView):
         model, codename, _ = LIBRARIES[kind]
         if not request.user.is_superuser and not request.user.has_perm('dic.add_' + codename):
             raise PermissionDenied('Permission to create media is required.')
-        class UploadForm(forms.ModelForm):
-            class Meta:
-                model = LIBRARIES[kind][0]
-                fields = UPLOAD_FIELDS[kind]
+        UploadForm = modelform_factory(model, fields=UPLOAD_FIELDS[kind])
         form = UploadForm(request.data, request.FILES)
         if not form.is_valid():
             return self.nocache({'errors': {key: list(values) for key, values in form.errors.items()}},
