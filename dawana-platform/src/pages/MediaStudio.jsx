@@ -69,7 +69,7 @@ export default function MediaStudio() {
   useEffect(() => { setComposerOpen(false) }, [library])
   async function addHostedLinks(event) {
     event.preventDefault()
-    const lines = hostedLinks.split(/\\r?\\n/).map(line => line.trim()).filter(Boolean)
+    const lines = hostedLinks.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
     if (!lines.length || lines.length > 25) {
       setMessage('Provide between 1 and 25 YouTube/Vimeo links per batch.'); return
     }
