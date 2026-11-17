@@ -82,21 +82,6 @@ class SettlementFollowupTests(APITestCase):
         self.assertTrue(PortalAccountBooking.objects.filter(account=account, order=self.order).exists())
 
 
-
-class HousingRetryTests(HousingFixtures, TestCase):
-    def setUp(self):
-        self.initialize()
-
-    def test_transient_failure_is_delayed_and_policy_hold_is_not_reset(self):
-        self.participant()
-        discover(self.edition.pk, self.actor)
-        job_id, token = claim(self.edition.pk, self.actor)
-        with patch('dic.housing_queue.allocate_batch', side_effect=OperationalError('private connection details')):
-            self.assertEqual(process_claim(job_id, token, self.actor), 'pending')
-        self.assertIsNone(claim(self.edition.pk, self.actor))
-        HousingJob.objects.filter(pk=job_id).update(retry_at=timezone.now()-timedelta(seconds=1))
-        self.assertEqual(process_claim(*claim(self.edition.pk, self.actor), self.actor), 'completed')
-
     def test_failed_portal_housing_refresh_keeps_verified_payment_intact(self):
         from django.conf import settings
         from django.contrib.auth import get_user_model
@@ -112,3 +97,19 @@ class HousingRetryTests(HousingFixtures, TestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.payment_status, 'paid')
         self.assertEqual(self.order.status, 'confirmed')
+
+
+
+class HousingRetryTests(HousingFixtures, TestCase):
+    def setUp(self):
+        self.initialize()
+
+    def test_transient_failure_is_delayed_and_policy_hold_is_not_reset(self):
+        self.participant()
+        discover(self.edition.pk, self.actor)
+        job_id, token = claim(self.edition.pk, self.actor)
+        with patch('dic.housing_queue.allocate_batch', side_effect=OperationalError('private connection details')):
+            self.assertEqual(process_claim(job_id, token, self.actor), 'pending')
+        self.assertIsNone(claim(self.edition.pk, self.actor))
+        HousingJob.objects.filter(pk=job_id).update(retry_at=timezone.now()-timedelta(seconds=1))
+        self.assertEqual(process_claim(*claim(self.edition.pk, self.actor), self.actor), 'completed')
