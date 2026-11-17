@@ -94,8 +94,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         from django.urls import reverse
         client, _ = self.login()
         with override_settings(DIC_AUTOMATION_ACTOR_ID=0, DAWANA_WEBSITE_ONLY=False):
-            refreshed = client.post(reverse('dic:participant-housing-refresh'), {},
-                                    content_type='application/json')
+            refreshed = self.post(client, 'participant-housing-refresh', {})
             self.assertEqual(refreshed.status_code, 200, refreshed.content)
             self.assertEqual(refreshed.json()['housing'], 'awaiting_or_updated')
         visible = client.get(reverse('dic:participant-enrollments'))
