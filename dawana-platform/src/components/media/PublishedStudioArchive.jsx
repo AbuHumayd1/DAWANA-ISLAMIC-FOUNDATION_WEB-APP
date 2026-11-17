@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { backendUrl } from '../services/productionContract'
-import { Container } from '../components/layout/SiteChrome'
+import { backendUrl } from '../../services/productionContract'
+import { Container } from '../layout/SiteChrome'
 import './PublishedStudioArchive.css'
 
 function approvedVideoLink(value) {
