@@ -3,9 +3,21 @@ from django.conf import settings
 from django.urls import include, path
 
 from dic.operations import operations_dashboard
+from dic.production_inspection import production_inspection
+from dic.production_population import production_population
 
 
 urlpatterns = [
+    path(
+        "admin/dic/production-populate/",
+        admin.site.admin_view(production_population),
+        name="dic2026_production_population",
+    ),
+    path(
+        "admin/dic/production-inspection/",
+        admin.site.admin_view(production_inspection),
+        name="dic2026_production_inspection",
+    ),
     path(
         "admin/dic/operations/",
         admin.site.admin_view(operations_dashboard),
