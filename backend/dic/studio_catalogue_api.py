@@ -57,8 +57,17 @@ def published_url(asset, source):
     if asset.source_kind == 'photos':
         return reverse('dic:memory-image', args=[source.pk])
     if asset.source_kind == 'videos':
-        # External embeds only; uploaded camp videos remain camper-scoped.
-        return reverse('dic:video-playback', args=[source.pk]) if source.video_url and not source.recording_file else None
+        # Publicly approved hosted videos have a server-served thumbnail.
+        # Uploaded recordings stay on the camper-entitlement endpoint.
+        if source.video_url and not source.recording_file and source.thumbnail:
+            from .video_providers import video_source
+            from django.core.exceptions import ValidationError as ModelValidationError
+            try:
+                video_source(source.video_url)
+                return reverse('dic:video-thumbnail', args=[source.pk])
+            except ModelValidationError:
+                return None
+        return None
     if asset.source_kind == 'flyers':
         return reverse('dic:official-flyer', args=[source.pk]) if source.edition.is_active else None
     if asset.source_kind == 'promotions':
@@ -225,9 +234,13 @@ class PublicStudioPlacementsView(APIView):
             source = source_for(placement.asset)
             url = published_url(placement.asset, source)
             if url:
-                rows.append({'title': placement.asset.title, 'description': placement.asset.description,
-                             'source_kind': placement.asset.source_kind, 'url': url,
-                             'album': placement.asset.album})
+                item = {'title': placement.asset.title, 'description': placement.asset.description,
+                        'source_kind': placement.asset.source_kind, 'url': url,
+                        'album': placement.asset.album}
+                if placement.asset.source_kind == 'videos':
+                    from .video_providers import video_source
+                    item['embed_url'] = video_source(source.video_url)['embed_url']
+                rows.append(item)
         response = Response({'items': rows})
         response['Cache-Control'] = 'public, max-age=0, must-revalidate'
         return response
