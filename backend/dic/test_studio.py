@@ -2,7 +2,10 @@
 grants; no storage credentials or media objects leave the bounded inventory."""
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
+from pathlib import Path
+import tempfile
+import wave
 from django.urls import reverse
 from dic.camp_release_models import LectureRecording
 from dic.models import CampEdition
@@ -75,14 +78,26 @@ class StudioAccessTests(TestCase):
         self.assertNotIn('r2.cloudflarestorage.com', str(body))
         token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
         endpoint = reverse('dic:studio-publication', args=['recordings', record.pk])
-        response = self.client.post(endpoint, {'action': 'publish'},
-                                    content_type='application/json', HTTP_X_CSRFTOKEN=token)
-        self.assertEqual(response.status_code, 200, response.content)
-        record.refresh_from_db()
-        self.assertEqual(record.state, 'published')
-        self.assertEqual(record.published_by_id, self.operator.pk)
-        self.assertEqual(self.client.post(endpoint, {'action': 'withdraw'},
-                                         content_type='application/json', HTTP_X_CSRFTOKEN=token).status_code, 200)
+        with tempfile.TemporaryDirectory() as root, override_settings(
+                DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            folder = Path(root) / 'camp-recordings'
+            folder.mkdir()
+            with wave.open(str(folder / 'private-secret.wav'), 'wb') as audio:
+                audio.setnchannels(1)
+                audio.setsampwidth(2)
+                audio.setframerate(8000)
+                audio.writeframes(b'\\x00\\x00' * 800)
+            record.audio = 'camp-recordings/private-secret.wav'
+            record.save(update_fields=['audio'])
+            response = self.client.post(endpoint, {'action': 'publish'},
+                                        content_type='application/json', HTTP_X_CSRFTOKEN=token)
+            self.assertEqual(response.status_code, 200, response.content)
+            record.refresh_from_db()
+            self.assertEqual(record.state, 'published')
+            self.assertEqual(record.published_by_id, self.operator.pk)
+            response = self.client.post(endpoint, {'action': 'withdraw'},
+                                        content_type='application/json', HTTP_X_CSRFTOKEN=token)
+            self.assertEqual(response.status_code, 200, response.content)
         record.refresh_from_db()
         self.assertEqual(record.state, 'draft')
         self.assertEqual(record.published_by_id, None)
