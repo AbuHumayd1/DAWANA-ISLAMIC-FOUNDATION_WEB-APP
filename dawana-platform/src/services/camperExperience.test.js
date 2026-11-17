@@ -148,3 +148,14 @@ test('shell has safe-area space, no scrolling trap and disables generic site chr
   const shell = fs.readFileSync(new URL('../components/layout/SiteChrome.jsx', import.meta.url), 'utf8')
   assert.match(shell, /<main className="cp-route">\{children\}<\/main>/)
 })
+
+test('iPhone Safari tab preview and browser tabs use DAWANA instead of the Vite starter icon', () => {
+  const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
+  const logo = fs.readFileSync(new URL('../../public/dawana-official-logo.png', import.meta.url))
+  assert.ok(logo.length > 1000)
+  for (const relation of ['icon', 'shortcut icon', 'apple-touch-icon']) {
+    assert.match(html, new RegExp('<link rel="' + relation + '"[^>]+href="/dawana-official-logo\\.png\\?v=20261117"'))
+  }
+  assert.match(html, /apple-mobile-web-app-title" content="DAWANA"/)
+  assert.doesNotMatch(html, /vite\\.svg|vite\\.png|favicon\\.ico/i)
+})
