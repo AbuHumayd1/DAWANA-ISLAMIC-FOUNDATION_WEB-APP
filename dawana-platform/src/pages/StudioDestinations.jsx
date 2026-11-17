@@ -21,7 +21,7 @@ const choices = {
 }
 const scoped = (dest) => dest.startsWith('dic_') || dest === 'camper_resources'
 
-export default function StudioDestinations({ user, editions, library, records }) {
+export default function StudioDestinations({ user, editions, library }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
