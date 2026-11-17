@@ -77,7 +77,12 @@ def validate_occupant(participant, edition, house):
             house.reserve_authorized_at and house.reserve_authorized_by_id and house.reserve_authorization_reason.strip())):
         raise ValidationError('House is inactive or reserve has not been authorised with a supervisor and reason.')
     age = age_on(participant, edition)
-    if age <= 5:
+    if edition.year == 2026:
+        # DIC 2026: age informs balancing, not a guardian-approval gate.
+        # Every camper is assigned to a sex-appropriate participant house.
+        if participant.sex.lower() != house.gender:
+            raise ValidationError('Participant does not match the selected house designation.')
+    elif age <= 5:
         relation = GuardianRelationship.objects.filter(edition=edition, child=participant, status='approved').select_related('guardian').first()
         if not relation:
             raise ValidationError('Dependent child requires an approved female guardian; hold for review.')
