@@ -57,9 +57,13 @@ def published_url(asset, source):
     if asset.source_kind == 'photos':
         return reverse('dic:memory-image', args=[source.pk])
     if asset.source_kind == 'hosted':
-        # URLs are validated and normalized by video_source before publication.
+        # Treat disallowed/withdrawn providers as absent, never a public 500.
         from .video_providers import video_source
-        return video_source(source.video_url)['embed_url']
+        from django.core.exceptions import ValidationError as ModelValidationError
+        try:
+            return video_source(source.video_url)['embed_url']
+        except ModelValidationError:
+            return None
     if asset.source_kind == 'videos':
         # Publicly approved hosted videos have a server-served thumbnail.
         # Uploaded recordings stay on the camper-entitlement endpoint.
