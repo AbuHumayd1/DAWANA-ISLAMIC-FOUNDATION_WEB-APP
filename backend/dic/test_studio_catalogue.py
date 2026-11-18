@@ -191,6 +191,34 @@ class StudioCatalogueTests(TestCase):
             self.assertEqual(anonymous.get(reverse('dic:studio-public-placements'),
                                       {'destination': 'foundation_archive'}).json()['items'], [])
 
+    def test_session_linked_camper_audio_cannot_be_published_to_public_archive(self):
+        from datetime import date, time
+        from dic.models import TimetableEntry
+        from dic.camp_release_models import LectureRecording
+        private_session = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2038, 12, 24), day_number=2,
+            timetable_type='activities', source_key='synthetic:private:session',
+            description='Camper-specific session', time_label='10 AM',
+            start_time=time(10), end_time=time(11), display_order=1,
+            modified_by=self.owner)
+        audio = LectureRecording.objects.create(
+            edition=self.edition, session=private_session,
+            title='Restricted audio', audio='camp-recordings/private.mp3')
+        audio.state = 'published'
+        audio.save(actor=self.operator)
+        asset_id = self.post('studio-assets', {
+            'source_kind': 'recordings', 'source_id': audio.pk}).json()['asset']['id']
+        denied = self.post('studio-placements', {
+            'destination': 'foundation_archive', 'action': 'publish'}, args=[asset_id])
+        self.assertEqual(denied.status_code, 400, denied.content)
+        allowed = self.post('studio-placements', {
+            'destination': 'camper_resources', 'edition': self.edition.pk,
+            'action': 'publish'}, args=[asset_id])
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+        self.assertEqual(Client().get(reverse('dic:studio-public-audio', args=[asset_id])).status_code, 404)
+        self.assertEqual(Client().get(reverse('dic:studio-public-placements'),
+                           {'destination': 'foundation_archive'}).json()['items'], [])
+
     def test_catalogue_pages_are_bounded_and_source_permission_filtered(self):
         for n in range(32):
             StudioAsset.objects.create(
