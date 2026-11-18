@@ -128,3 +128,13 @@ test('public album navigation is derived only from published destination feed', 
   assert.match(gallery, /visibleItems\.map/)
   assert.doesNotMatch(gallery, /r2\.cloudflarestorage\.com/)
 })
+
+test('public archive paging retries its current page and does not accept private destination data', () => {
+  const gallery = read('../components/media/PublishedStudioArchive.jsx')
+  assert.match(gallery, /page=\$\{page\}/)
+  assert.match(gallery, /data\.has_more === true/)
+  assert.match(gallery, /pageError \? setRetry\(n => n \+ 1\) : setPage\(n => n \+ 1\)/)
+  assert.match(gallery, /disabled=\{loadingMore \|\| page >= 100\}/)
+  assert.match(gallery, /credentials: 'omit'/)
+  assert.doesNotMatch(gallery, /camper_resources/)
+})
