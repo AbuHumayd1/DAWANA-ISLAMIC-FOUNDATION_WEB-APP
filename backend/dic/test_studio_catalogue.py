@@ -78,6 +78,17 @@ class StudioCatalogueTests(TestCase):
             photo.save(actor=self.operator)
             self.assertEqual(len(self.client.get(public_url, {'destination': 'foundation_archive'}).json()['items']), 0)
 
+    def test_public_archive_page_is_bounded_and_private_destination_is_not_enumerable(self):
+        url = reverse('dic:studio-public-placements')
+        first = self.client.get(url, {'destination': 'foundation_archive', 'page': 1})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()['items'], [])
+        self.assertEqual(first.json()['page'], 1)
+        self.assertFalse(first.json()['has_more'])
+        self.assertEqual(self.client.get(url, {'destination': 'foundation_archive', 'page': 101}).status_code, 400)
+        self.assertEqual(self.client.get(url, {'destination': 'foundation_archive', 'page': '1 OR 1=1'}).status_code, 400)
+        self.assertEqual(self.client.get(url, {'destination': 'camper_resources', 'page': 1}).status_code, 404)
+
     def test_edition_boundary_and_no_camper_public_metadata(self):
         with TemporaryDirectory() as root, override_settings(
             DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
