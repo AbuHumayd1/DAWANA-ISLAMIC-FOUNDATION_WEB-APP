@@ -54,9 +54,10 @@ class CamperResourcesView(PortalView):
                 url=reverse('dic:camper-recording', args=[kind,row.pk])+'?item_id='+str(item.pk),
             )
         records=[]
-        for model,kind in [(LectureRecording,'audio'),(CampVideo,'video')]:
+        # Camper Portal resources are audio-only; public DIC videos live in the
+        # separately moderated Foundation Media archive.
+        for model,kind in [(LectureRecording,'audio')]:
             query=model.objects.filter(edition=item.order.edition,state='published',published_at__isnull=False).select_related('session')
-            if kind=='video':query=query.exclude(recording_file='')
             for row in query[:100]:
                 value=data(row,kind)
                 if value:records.append(value)
