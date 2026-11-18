@@ -82,6 +82,7 @@ export default function Media() {
   const selectedCollection = COLLECTIONS.find(row => row.id === selected)
   const collectionItems = items.filter(row => matches(row, selected))
     .filter(row => format === 'all' || format === 'videos' && isVideo(row) || format === 'audio' && isAudio(row))
+  const visualItems = items.filter(row => ['photos', 'flyers', 'activities', 'appearances'].includes(row.source_kind))
   return <div className="public-page media-page media-clean-page">
     <PageHero eyebrow="Foundation Media" title="Media Library" description="Lectures, reminders and programme recordings — organised in one simple archive."/>
     <section className="media-clean-section"><Container>
@@ -104,6 +105,12 @@ export default function Media() {
         {status === 'error' && items.length > 0 && <p role="alert">Could not load more media. Please retry.</p>}
         {hasMore && <button className="media-clean-more" type="button" disabled={status === 'loading'} onClick={() => setPage(value => value + 1)}>{status === 'loading' ? 'Loading…' : 'Load more media'}</button>}
       </div>
+      {visualItems.length > 0 && <section className="media-clean-visuals" aria-label="Published photographs and visuals">
+        <div className="media-clean-results-header"><div><span className="eyebrow">Photography</span><h2>Foundation visual archive</h2><p>Only officially published photographs and visual materials.</p></div></div>
+        <div className="media-clean-visual-grid">{visualItems.map((item, index) => <a key={item.url + index} href={backendUrl(item.url)} target="_blank" rel="noopener noreferrer">
+          <img src={backendUrl(item.url)} loading="lazy" alt={item.title}/><span>{item.title}</span>
+        </a>)}</div>
+      </section>}
     </Container></section>
   </div>
 }
