@@ -103,3 +103,22 @@ test('refined styles cover tablet and small mobile without body scroll locking o
   assert.match(css, /\.ops-filter-actions > button { flex:1 1 130px/)
   assert.doesNotMatch(css, /body\s*{[^}]*overflow\s*:\s*hidden/)
 })
+
+test('Operations overview distinguishes attempted registrations from confirmed eligible campers', () => {
+  const backend = fs.readFileSync(new URL('../../../backend/dic/operations_api.py', import.meta.url), 'utf8')
+  const ui = fs.readFileSync(new URL('../pages/Operations.jsx', import.meta.url), 'utf8')
+  assert.match(backend, /confirmed_participants = campsite_metrics\(edition\)\['eligible_participants'\]/)
+  assert.match(ui, /title="Confirmed campers" value=\{metrics\.confirmed_participants\}/)
+  assert.match(ui, /title="Registration attempts" value=\{metrics\.participants\}/)
+  assert.match(ui, /max-width: 900px/)
+})
+
+
+test('registration-count cards explain eligibility without calling attempts attendance', () => {
+  const ui = fs.readFileSync(new URL('../pages/Operations.jsx', import.meta.url), 'utf8')
+  assert.ok(ui.indexOf('title="Confirmed campers"') < ui.indexOf('title="Registration attempts"'))
+  assert.match(ui, /className="ops-count-explanation"/)
+  assert.match(ui, /Registration attempts by category/)
+  assert.match(ui, /Registration attempt activity/)
+  assert.doesNotMatch(ui, /title="Individual participants" value=\{metrics\.participants\}/)
+})

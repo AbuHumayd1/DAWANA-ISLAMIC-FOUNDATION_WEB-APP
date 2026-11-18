@@ -106,3 +106,19 @@ test('feedback styling uses component scope, responsive rating grids and readabl
   const luminance=hex=>hex.match(/../g).map(v=>parseInt(v,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0)
   for(const bg of ['e6efdf','f5e8d2','e9e2f3','f5edce'])for(const fg of ['092f23','526458'])assert.ok((luminance(bg)+.05)/(luminance(fg)+.05)>=4.5)
 })
+
+
+test('camper feedback retains the portal shell, single-camper auto-selection and URL-backed care channels', () => {
+  const page = fs.readFileSync(new URL('../pages/CamperFeedback.jsx', import.meta.url), 'utf8')
+  const chrome = fs.readFileSync(new URL('../components/layout/SiteChrome.jsx', import.meta.url), 'utf8')
+  const entry = fs.readFileSync(new URL('../main.jsx', import.meta.url), 'utf8')
+  assert.match(page, /const \[params,setParams\]=useSearchParams\(\)/)
+  assert.match(page, /const channel = \['daily','final','welfare','history'\]\.includes\(params\.get\('channel'\)\)/)
+  assert.match(page, /updated\.set\('channel',next\)/)
+  assert.match(page, /data\.items\.length > 1 \? <CamperSelect/)
+  assert.match(page, /items\?\.length === 1\) setItemId/)
+  assert.match(page, /className="cf-portal-bottom"/)
+  assert.match(page, /className="camper-feedback-shell"/)
+  assert.match(chrome, /feedback\(\?:\\\/\|\$\)/)
+  assert.match(entry, /import '\.\/theme-polish\.css'[\s\S]*PremiumPlatformRefinement\.css/)
+})

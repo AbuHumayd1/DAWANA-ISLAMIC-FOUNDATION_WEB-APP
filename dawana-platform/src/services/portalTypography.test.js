@@ -27,8 +27,9 @@ test('portal uses shared font tokens with a restrained heading scale and consist
   assert.doesNotMatch(css, /letter-spacing:\s*-[.\d]|font-size:\s*(?:2\.6|4\.2)rem/)
 })
 
-test('public chrome is excluded only for the participant route, not unrelated pages', () => {
+test('public chrome is excluded for authenticated participant and feedback routes', () => {
   const source = read('../components/layout/SiteChrome.jsx')
-  assert.ok(source.includes("if (/^\\/dic\\/participant(?:\\/|$)/.test(location.pathname)) return <main className=\"cp-route\">{children}</main>"))
+  assert.match(source, /participant\(\?:\\\/\|\$\)\|feedback/)
+  assert.match(source, /<main className="cp-route">\{children\}<\/main>/)
   assert.match(source, /return <><Navbar \/><main>\{children\}<\/main><Footer \/><\/>/)
 })

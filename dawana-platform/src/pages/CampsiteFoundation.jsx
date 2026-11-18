@@ -22,8 +22,8 @@ export function PlannedCampsiteModule({ moduleKey, user }) {
 }
 
 const metricDefinitions = [
-  ['registered_participants', 'Registered participants', 'All registration records'],
-  ['eligible_participants', 'Verified eligible participants', 'Payment and ID checks passed'],
+  ['eligible_participants', 'Verified eligible campers', 'Confirmed payments or authorized tutors; entitlement checks passed'],
+  ['registered_participants', 'Active registration attempts', 'Includes unpaid attempts; not confirmed camp registrations'],
   ['awaiting_payment_verification', 'Awaiting verification', 'Registration or payment pending'],
   ['assigned_participants', 'Assigned to houses', 'Recorded house assignments'],
   ['awaiting_house_assignment', 'Awaiting a house', 'Eligible, without an assignment'],

@@ -30,9 +30,9 @@ const faqGroups = [
     title: 'Darul Islam Camp',
     questions: [
       { id: 'what-is-dic', question: 'What is Darul Islam Camp (DIC)?', answer: <>DIC is a Foundation initiative that brings participants together for Islamic learning, spiritual development, youth engagement, reflection, and community interaction. Visit the <Link to="/dic">DIC page</Link> for camp information.</> },
-      { id: 'register-dic', question: 'How can I register for DIC?', answer: <>Use the registration option on the <Link to="/dic">DIC page</Link>. The process includes participant details, a registration summary, checkout, payment, and confirmation. Camp dates, venue, and fee will be announced.</> },
+      { id: 'register-dic', question: 'How can I register for DIC?', answer: <>Use the registration option on the <Link to="/dic">DIC page</Link>. The process includes participant details, a registration summary, checkout, payment, and confirmation. Camp dates, venue and approved registration categories are available through the current DIC information and registration pages.</> },
       { id: 'multiple-dic', question: 'Can more than one participant be registered for DIC?', answer: <>Yes. Each participant has an individual registration, and multiple participant registrations can be grouped at checkout.</> },
-      { id: 'dic-lectures', question: 'Where can I find DIC lectures?', answer: <>Visit the <Link to="/media?category=dic-lectures">DIC Lectures section in Media</Link>. Lecture content will be added when verified materials are available.</> },
+      { id: 'dic-lectures', question: 'Where can I find DIC lectures?', answer: <>Visit the <Link to="/media?collection=dic">DIC Lectures section in Media</Link>. Lecture content will be added when verified materials are available.</> },
     ],
   },
   {
@@ -58,7 +58,7 @@ const faqGroups = [
     title: 'Media',
     questions: [
       { id: 'learning-content', question: 'Where can I find Dawana’s Islamic educational content?', answer: <>Visit the <Link to="/media">Media Center</Link> for educational content and learning resources. Materials will be listed as they become available.</> },
-      { id: 'ramadan-tafseer', question: 'Where can I find Ramadan Tafseer materials?', answer: <>The <Link to="/media">Media Center</Link> includes a Ramadan Tafseer archive area. Recordings and notes will be added when verified materials are available.</> },
+      { id: 'ramadan-tafseer', question: 'Where can I find Ramadan Tafseer materials?', answer: <>The <Link to="/media?collection=ramadan">Ramadan Tafseer collection</Link> in the Media Library includes an archive area. Recordings and notes will be added when verified materials are available.</> },
     ],
   },
   {

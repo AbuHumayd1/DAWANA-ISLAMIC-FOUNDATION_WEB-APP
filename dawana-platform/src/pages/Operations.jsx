@@ -233,8 +233,9 @@ function OperationsShell({ user, onLogout }) {
   const location = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
-    const toggle = document.querySelector('.ops-menu-toggle')
-    if (toggle?.getAttribute('aria-expanded') === 'true') toggle.click()
+    // Preserve the officer's desktop sidebar choice between pages.
+    // Only dismiss the navigation overlay on smaller screens.
+    if (window.matchMedia('(max-width: 900px)').matches) setMenuOpen(false)
   }, [location.pathname])
   useEffect(() => {
     const closeOnEscape = (event) => {
@@ -293,19 +294,21 @@ function DashboardPage() {
       {edition && <div className="ops-edition-banner"><span className="ops-banner-mark"><Icon name="home" /></span><div><strong>{edition.name}</strong><span>{formatDate(edition.camp_start_date)} – {formatDate(edition.camp_end_date)} <b>·</b> {edition.venue}</span></div><span className="ops-edition-status">Registration {statusLabel(edition.registration_status)}</span></div>}
       {activity && <p role="status">{activity}</p>}
       <section className="ops-metric-grid" aria-label="Registration metrics">
-        <MetricCard title="Registration orders" value={metrics.orders} note="Parent or guardian checkouts" icon="clipboard" to="/dic/operations/registrations" />
-        <MetricCard title="Individual participants" value={metrics.participants} note="Participants in active registrations" icon="users" tone="gold" to="/dic/operations/participants" />
+        <MetricCard title="Confirmed campers" value={metrics.confirmed_participants} note="Verified payment or authorized complimentary tutor" icon="users" tone="green" to="/dic/operations/participants" />
+        <MetricCard title="Registration orders" value={metrics.orders} note="Submitted checkouts, including unpaid attempts" icon="clipboard" to="/dic/operations/registrations" />
+        <MetricCard title="Registration attempts" value={metrics.participants} note="Includes unpaid records — not confirmed campers" icon="clipboard" tone="amber" to="/dic/operations/participants" />
         <MetricCard title="Verified paid orders" value={metrics.verified_paid_orders} note={`${paidRate}% of all orders`} icon="card" tone="green" to="/dic/operations/registrations?payment_status=paid" />
-        <MetricCard title="Paid participants" value={metrics.verified_paid_participants} note="Payment verified by provider" icon="users" tone="green" to="/dic/operations/participants?payment_status=paid" />
+        <MetricCard title="Paid-order participants" value={metrics.verified_paid_participants} note="Distinct people in paid orders with successful attempts; separate from eligibility" icon="users" tone="green" to="/dic/operations/participants?payment_status=paid" />
         <MetricCard title="Pending / unpaid" value={metrics.pending_unpaid_orders} note="Orders awaiting payment" icon="card" tone="amber" to="/dic/operations/registrations?payment_status=pending" />
         <MetricCard title="Repricing required" value={metrics.requiring_repricing} note="Needs explicit updated-price acceptance" icon="activity" tone="amber" to="/dic/operations/registrations?requiring_repricing=true" />
         {metrics.reconciliation_cases !== null && <MetricCard title="Reconciliation cases" value={metrics.reconciliation_cases} note="Finance review required" icon="alert" tone="red" to="/dic/operations/payments?status=reconcile" />}
         <MetricCard title="Eligible, unallocated" value={metrics.eligible_unallocated_participants} note="Verified participants without a house" icon="home" tone="gold" to="/dic/operations/houses" />
       </section>
+      <p className="ops-count-explanation">Confirmed campers excludes abandoned, pending, failed and expired attempts. Registration attempts and category activity are retained for follow-up; neither figure represents physical arrivals.</p>
       <label className="ops-filter">Activity period <select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option></select></label>
       <section className="ops-chart-grid">
-        <article className="ops-panel ops-activity-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">LAST {period} DAYS</span><h2>Registration activity</h2></div><Link to="/dic/operations/registrations" className="ops-text-link">All registrations <Icon name="arrow" /></Link></div><ActivityChart rows={data.registration_activity} /></article>
-        <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">EDITION BREAKDOWN</span><h2>Participants by category</h2></div></div><BarList rows={data.category_distribution.map((row) => ({ label: row.category_name_snapshot, value: row.participants }))} empty="Category details will appear once registrations begin." /></article>
+        <article className="ops-panel ops-activity-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">LAST {period} DAYS</span><h2>Registration attempt activity</h2></div><Link to="/dic/operations/registrations" className="ops-text-link">All registrations <Icon name="arrow" /></Link></div><ActivityChart rows={data.registration_activity} /></article>
+        <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">EDITION BREAKDOWN</span><h2>Registration attempts by category</h2></div></div><BarList rows={data.category_distribution.map((row) => ({ label: row.category_name_snapshot, value: row.participants }))} empty="Category details will appear once registrations begin." /></article>
         <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">VERIFICATION</span><h2>Payment status</h2></div></div><StatusDistribution rows={data.payment_distribution} total={metrics.orders} /></article>
         <article className="ops-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">CAMP READINESS</span><h2>House allocations</h2></div><Link to="/dic/operations/houses" className="ops-text-link">View houses <Icon name="arrow" /></Link></div><BarList rows={data.house_distribution.map((row) => ({ label: row.name, value: row.allocated_count, meta: row.capacity ? `of ${row.capacity}` : 'participants' }))} empty="No houses are configured for this edition." /></article>
       </section>

@@ -7,12 +7,13 @@ import { MemoryRouter } from 'react-router-dom'
 import postcss from 'postcss'
 import fs from 'node:fs'
 
-let server, experience, timetable, home
+let server, experience, timetable, home, approvedActivities
 before(async () => {
   server = await createServer({ configFile:false, server:{middlewareMode:true,hmr:false,ws:false}, appType:'custom' })
   experience = await server.ssrLoadModule('/src/components/dic/CamperExperience.jsx')
   timetable = (await server.ssrLoadModule('/src/components/dic/CamperTimetables.jsx')).default
   home = await server.ssrLoadModule('/src/components/dic/CamperHome.jsx')
+  approvedActivities = (await server.ssrLoadModule('/src/components/dic/CamperApprovedActivities.jsx')).default
 })
 after(async () => { await server?.close() })
 const p = { registration_item_id:1, name:'Example Camper', category:'Example category', eligibility:{eligible:true,code:'verified_paid'},
@@ -72,7 +73,8 @@ test('Me keeps participant details while settings and session controls live in t
 test('Explore keeps every care channel and approved activity link in colorful grouped destinations', () => {
   const html = render(experience.ExperienceContent,{tab:'explore',participant:p,order})
   for(const channel of ['daily','welfare','history','final']) assert.ok(html.includes(`/dic/feedback?channel=${channel}`))
-  assert.match(html,/href="\/dic#showcase-activities-title"/)
+  assert.match(html, /<button type="button" class="cw-discover-card cp-tone-coral"/)
+  assert.doesNotMatch(html, /href="\/dic#showcase-activities-title"/)
   assert.match(html,/cw-discover-grid/); assert.match(html,/Camp announcements/)
 })
 
@@ -84,4 +86,16 @@ test('all new visual rules are portal-scoped and pastel surfaces have readable d
   for(const background of ['d9eddf','ffe5b7','e5ddf7','d7eaf5','f9d9ce','f7e9ad']) {
     for(const foreground of ['092f23','42564a','526458']) assert.ok((luminance(background)+.05)/(luminance(foreground)+.05)>=4.5)
   }
+})
+
+test('approved activities stay within Camper Explore and use only the moderated public showcase', () => {
+  const html = render(experience.ExperienceContent,{tab:'activities',participant:p,order,onNavigate() {}})
+  assert.match(html,/Approved camp activities/)
+  assert.match(html,/Loading approved camp activities/)
+  assert.doesNotMatch(html,/href="\/dic#showcase-activities-title"/)
+  const source=fs.readFileSync(new URL('../components/dic/CamperApprovedActivities.jsx',import.meta.url),'utf8')
+  assert.match(source,/\/dic\/showcase\//)
+  assert.match(source,/credentials: 'omit'/)
+  assert.match(source,/Array\.isArray\(result\.activities\)/)
+  assert.equal(approvedActivities instanceof Function,true)
 })

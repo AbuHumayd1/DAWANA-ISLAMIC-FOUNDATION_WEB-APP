@@ -1,9 +1,8 @@
-name: Native ZevCloud deployment checks (no production access)
+name: Archived ZevCloud native verification (manual only)
+# Historic provider-specific test. Current production is Render API + Cloudflare SPA.
+# Preserve for explicit manual archival verification; never gate normal PRs or main.
 on:
-  pull_request:
   workflow_dispatch:
-  push:
-    branches: [main]
 permissions:
   contents: read
 jobs:

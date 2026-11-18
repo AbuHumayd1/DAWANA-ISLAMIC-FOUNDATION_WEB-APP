@@ -774,6 +774,11 @@ class OperationsDashboardView(OperationsBaseView):
             .order_by("day")
         )
         registered_participants = items.values("participant_id").distinct().count()
+        # A submitted/unpaid form is an attempt, never a confirmed camper.
+        # Reuse the established entitlement guard so verified payment evidence,
+        # authorized complimentary tutors, and source restrictions stay intact.
+        from .campsite_api import campsite_metrics
+        confirmed_participants = campsite_metrics(edition)['eligible_participants'] if edition else 0
         active_allocated_participants = active_allocations.values("participant_id").distinct().count()
         eligible_unallocated = (
             unallocated_paid_participants(edition).filter(pk__in=items.values("participant_id")).count() if edition else 0
@@ -805,6 +810,7 @@ class OperationsDashboardView(OperationsBaseView):
                 "metrics": {
                     "orders": orders.count(),
                     "participants": registered_participants,
+                    "confirmed_participants": confirmed_participants,
                     "verified_paid_orders": verified_orders.count(),
                     "verified_paid_participants": items.filter(
                         order__in=verified_orders.values("pk")
