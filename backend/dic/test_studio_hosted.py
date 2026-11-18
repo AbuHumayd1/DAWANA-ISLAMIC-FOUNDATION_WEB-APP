@@ -95,6 +95,33 @@ class HostedLinkPublishingTests(TestCase):
         self.assertEqual(StudioHostedVideo.objects.count(), 0)
         self.assertEqual(StudioAsset.objects.count(), 0)
 
+    def test_provider_disabled_returns_clear_error_and_does_not_save_record(self):
+        with override_settings(DIC_VIDEO_APPROVED_PROVIDERS=[]):
+            status = self.client.get(reverse('dic:studio-uploads'))
+            self.assertEqual(status.status_code, 200)
+            self.assertEqual(status.json()['approved_providers'], [])
+            response = self.submit('studio-hosted-links', {'items': [{
+                'title': 'Test talk',
+                'video_url': 'https://youtu.be/abcDEFG1234?si=testsharetoken',
+            }]})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Video 1', response.json()['detail'])
+        self.assertIn('Video link', response.json()['detail'])
+        self.assertIn('not been approved', response.json()['detail'])
+        self.assertEqual(StudioHostedVideo.objects.count(), 0)
+
+    def test_mobile_share_link_accepted_when_provider_is_enabled(self):
+        status = self.client.get(reverse('dic:studio-uploads'))
+        self.assertEqual(status.status_code, 200)
+        self.assertEqual(status.json()['approved_providers'], ['youtube', 'vimeo'])
+        response = self.submit('studio-hosted-links', {'items': [{
+            'title': 'Shared lecture',
+            'video_url': 'https://youtu.be/abcDEFG1234?si=testsharetoken',
+            'lecturer': 'Example lecturer',
+        }]})
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(StudioHostedVideo.objects.count(), 1)
+
     def test_public_dic_resources_show_approved_link_but_not_private_audio(self):
         response = self.submit('studio-hosted-links', {'items': [
             {'title': 'Public stream', 'video_url': 'https://youtu.be/abcDEFG1234',
