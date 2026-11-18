@@ -53,7 +53,7 @@ function StudioPublishChoices({choices, selected, setSelected, authorized}) {
   if (!authorized) return null
   return <fieldset className="studio-publish-choices">
     <legend>Where should this appear?</legend>
-    <p>Choose one or more places. Only authorized published content will be visible.</p>
+    <p>Select the <strong>Foundation media archive</strong> to show this under All Videos or All Audio and its chosen collection on /media. Select other destinations only when needed. Camper Portal audio stays private.</p>
     <div className="studio-publish-options">{choices.map(([key, name]) =>
       <label key={key}><input type="checkbox" checked={selected.includes(key)} onChange={event =>
         setSelected(previous => event.target.checked
@@ -148,7 +148,7 @@ export default function MediaStudio() {
   }, [user])
   useEffect(() => {
     setComposerOpen(false); setPreview(null); setEditing(null)
-    setPublishDestinations([])
+    setPublishDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : [])
     setItemToPublish(null); setItemDestinations([]); setItemEdition('')
   }, [library])
   useEffect(() => {
@@ -565,7 +565,7 @@ export default function MediaStudio() {
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
             <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
           </div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations([]); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory(MEDIA_CATEGORIES.some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : []); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory(MEDIA_CATEGORIES.some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
           {itemToPublish === item.id && <div className="studio-item-publisher">
             <strong>Where should “{item.title}” appear?</strong>
              {['hosted','videos','recordings'].includes(library) && <><MediaCategoryInput value={itemMediaCategory} onChange={setItemMediaCategory} audio={library === 'recordings'}/>
