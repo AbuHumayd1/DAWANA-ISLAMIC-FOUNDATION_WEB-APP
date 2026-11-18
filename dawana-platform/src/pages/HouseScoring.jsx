@@ -134,7 +134,7 @@ export default function HouseScoring({ user, mode = 'house' }) {
           {correction?.edition === data.edition.id && user.permissions.correct_scores && mode === 'history' && <ReversalForm key={correction.entry.id} entry={correction.entry} busy={busy} onCancel={() => setCorrection(null)} onSave={(id, payload) => save(payload, id)} />}
           {mode === 'history' && <section className="ops-panel"><h2>Scoring ledger and corrections</h2><ScoreHistory rows={data.history} canCorrect={user.permissions.correct_scores} busy={busy} onReverse={entry => setCorrection({ edition: data.edition.id, entry })} />
             {data.count > 0 && <div className="checkin-pagination"><button className="ops-button ops-button-secondary" disabled={busy || page <= 1} onClick={() => changePage(data.edition.id, page-1)}>Previous</button><span>Page {page} of {Math.ceil(data.count / data.page_size)} · {data.count} entries</span><button className="ops-button ops-button-secondary" disabled={busy || page * data.page_size >= data.count} onClick={() => changePage(data.edition.id, page+1)}>Next</button></div>}
-          </section>
+          </section>}
         </> : <section className="ops-panel"><p>No camp edition configured. Ask an administrator to review camp setup.</p></section>}
       </>}
   </>
