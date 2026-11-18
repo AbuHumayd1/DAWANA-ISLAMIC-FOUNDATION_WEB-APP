@@ -202,6 +202,8 @@ class DICOperationsPortalTests(TestCase):
         self.assertEqual(response.json()["metrics"]["participants"], 3)
         self.assertEqual(response.json()["metrics"]["verified_paid_orders"], 1)
         self.assertEqual(response.json()["metrics"]["verified_paid_participants"], 2)
+        self.assertEqual(response.json()["metrics"]["confirmed_participants"], 2)
+        # The abandoned order must remain a separate attempt, not a confirmed camper.
         self.assertEqual(response.json()["edition"]["registration_status"], "draft")
 
     def test_operations_and_export_grants_do_not_replace_record_view_authority(self):

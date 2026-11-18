@@ -233,8 +233,9 @@ function OperationsShell({ user, onLogout }) {
   const location = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
-    const toggle = document.querySelector('.ops-menu-toggle')
-    if (toggle?.getAttribute('aria-expanded') === 'true') toggle.click()
+    // Preserve the officer's desktop sidebar choice between pages.
+    // Only dismiss the navigation overlay on smaller screens.
+    if (window.matchMedia('(max-width: 900px)').matches) setMenuOpen(false)
   }, [location.pathname])
   useEffect(() => {
     const closeOnEscape = (event) => {
