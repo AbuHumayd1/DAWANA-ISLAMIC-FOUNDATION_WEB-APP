@@ -136,6 +136,43 @@ class StudioAccessTests(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('r2.cloudflarestorage.com', str(response.content))
 
+    def test_private_preview_is_streamed_only_to_authorized_studio_staff(self):
+        self.client.force_login(self.operator)
+        edition = CampEdition.objects.create(
+            name='Studio private preview', year=2034,
+            camp_start_date='2034-12-23', camp_end_date='2035-01-01')
+        with tempfile.TemporaryDirectory() as root, override_settings(
+                DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            folder = Path(root) / 'camp-recordings'
+            folder.mkdir()
+            (folder / 'staff-preview.mp3').write_bytes(b'ID3synthetic-audio')
+            recording = LectureRecording.objects.create(
+                edition=edition, title='Private draft preview',
+                audio='camp-recordings/staff-preview.mp3')
+            url = reverse('dic:studio-private-preview', args=['recordings', recording.pk])
+            listing = self.client.get(reverse('dic:studio-library'), {'library': 'recordings'})
+            self.assertEqual(listing.status_code, 200)
+            self.assertEqual(listing.json()['items'][0]['preview_url'], url)
+            self.assertNotIn('staff-preview.mp3', str(listing.content))
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response['Content-Type'], 'audio/mpeg')
+            self.assertEqual(response['Cache-Control'], 'private, no-store')
+            self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
+            response.close()
+            download = self.client.get(url + '?download=1')
+            self.assertEqual(download.status_code, 200)
+            self.assertIn('attachment', download['Content-Disposition'])
+            download.close()
+            self.assertEqual(self.client.get(reverse(
+                'dic:studio-private-preview', args=['photos', recording.pk])).status_code, 404)
+            outsider = Client()
+            self.assertIn(outsider.get(url).status_code, (401, 403))
+            other = get_user_model().objects.create_user(
+                'unrelated-staff', password='synthetic', is_staff=True)
+            outsider.force_login(other)
+            self.assertEqual(outsider.get(url).status_code, 403)
+
     def test_nonpublisher_cannot_publish_even_if_can_view(self):
         viewer = get_user_model().objects.create_user('studio-viewer', password='synthetic', is_staff=True)
         viewer.user_permissions.add(Permission.objects.get(
