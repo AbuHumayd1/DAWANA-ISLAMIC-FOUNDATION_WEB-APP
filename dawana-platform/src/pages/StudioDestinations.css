@@ -11,3 +11,7 @@
 .studio-linked-item:hover{border-color:#95b49c}
 .studio-linked-item:focus-visible,.studio-placement-editor button:focus-visible{outline:3px solid #c19b4b;outline-offset:2px}
 @media(prefers-color-scheme:dark){.studio-catalogue-search input{background:#1a3023;color:#eef7ed;border-color:#426049}.studio-asset-publishing-hint{background:#213b2a;color:#c6e4ca!important}}
+
+.studio-catalogue-filters{display:grid;grid-template-columns:minmax(0,1fr);gap:4px}
+.studio-catalogue-filters select{width:100%;min-width:0;padding:11px 12px;border:1px solid #ccddcf;border-radius:10px;background:#fff;color:#274633;font:inherit;font-size:13px}
+@media(prefers-color-scheme:dark){.studio-catalogue-filters select{background:#1a3023;color:#eef7ed;border-color:#426049}}
