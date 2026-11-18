@@ -108,14 +108,41 @@ class StudioAssetsView(StudioView):
         page = int(raw_page)
         if not 1 <= page <= 100:
             raise ValidationError({'page': 'Catalogue page out of range.'})
+        from django.db.models import Q
         allowed = [kind for kind, (_, codename, _) in LIBRARIES.items()
                    if request.user.is_superuser or request.user.has_perm('dic.view_' + codename)]
+        kind = request.query_params.get('kind', '')
+        term = request.query_params.get('q', '').strip()
+        album = request.query_params.get('album', '').strip()
+        if kind and kind not in allowed:
+            raise PermissionDenied('This media collection is not accessible to your staff role.')
+        if len(term) > 100 or len(album) > 150:
+            raise ValidationError({'filters': 'Search or album filter is too long.'})
+        if album and kind != 'photos':
+            raise ValidationError({'album': 'Select the photography collection before filtering albums.'})
+        queryset = StudioAsset.objects.filter(source_kind__in=allowed)
+        if kind:
+            queryset = queryset.filter(source_kind=kind)
+        if album:
+            queryset = queryset.filter(album=album)
+        if term:
+            queryset = queryset.filter(
+                Q(title__icontains=term) | Q(album__icontains=term) |
+                Q(campaign__icontains=term) | Q(programme__icontains=term) |
+                Q(event__icontains=term))
+        # Album navigation is server-filtered, never limited to the loaded page.
+        # Only names visible to the requesting media role can be returned.
+        albums = []
+        if kind == 'photos':
+            albums = list(StudioAsset.objects.filter(source_kind='photos', source_kind__in=allowed)
+                          .exclude(album='').order_by('album')
+                          .values_list('album', flat=True).distinct()[:100])
         offset = (page - 1) * 30
-        records = list(StudioAsset.objects.filter(source_kind__in=allowed)
-                       .prefetch_related('placements')
+        records = list(queryset.prefetch_related('placements')
                        .order_by('-created_at', '-pk')[offset:offset + 31])
         results = [summary(item) for item in records[:30]]
         return self.nocache({'assets': results, 'page': page, 'has_more': len(records) > 30,
+                             'albums': albums,
                              'destinations': [{'key': k, 'name': v} for k, v in DESTINATIONS],
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_studio_placements'))})
 
