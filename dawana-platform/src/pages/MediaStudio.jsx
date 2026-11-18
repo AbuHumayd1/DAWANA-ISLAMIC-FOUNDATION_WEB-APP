@@ -489,7 +489,17 @@ export default function MediaStudio() {
       <div className="studio-account"><StudioAppearanceButton /><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={signOut}>Sign out</button></div>
     </header>
     <main className="studio-main">
-      <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-overview-mark" aria-hidden="true">✦</div></div>
+      <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-hero-art" aria-hidden="true">
+          <div className="studio-hero-halo" />
+          <svg className="studio-hero-trails" viewBox="0 0 420 260" fill="none" preserveAspectRatio="xMidYMid meet">
+            <path className="studio-hero-trail studio-hero-trail-one" d="M18 172C100 164 86 46 208 58S332 172 405 92" />
+            <path className="studio-hero-trail studio-hero-trail-two" d="M24 208C108 234 155 140 224 144S322 222 397 158" />
+          </svg>
+          <div className="studio-hero-frame studio-hero-frame-back"><span className="studio-hero-frame-top"><i /><i /><i /></span><span className="studio-hero-frame-landscape"><b /><em /></span></div>
+          <div className="studio-hero-frame studio-hero-frame-front"><span className="studio-hero-frame-top"><i /><i /><i /></span><span className="studio-hero-play"><svg viewBox="0 0 32 32" fill="none"><path d="M11 7.5L25 16 11 24.5V7.5Z" fill="currentColor" /></svg></span><span className="studio-hero-frame-caption"><i /><i /></span></div>
+          <div className="studio-hero-audio"><span className="studio-hero-audio-disc"><svg viewBox="0 0 24 24" fill="none"><path d="M9 4v11.5a3.5 3.5 0 1 1-2-3.16V7l10-2v8.5a3.5 3.5 0 1 1-2-3.16V3L9 4Z" fill="currentColor" /></svg></span><span className="studio-hero-wave">{Array.from({ length: 16 }, (_, i) => <i key={i} style={{ '--bar': i % 5, '--phase': i % 7 }} />)}</span></div>
+          <span className="studio-hero-signal studio-hero-signal-one" /><span className="studio-hero-signal studio-hero-signal-two" />
+        </div></div>
       <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{showCollections.map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key || x.key === 'videos' && library === 'hosted' || x.key === 'lecturers' && library === 'appearances' ? ' active' : '')} onClick={() => selectCollection(x.key)}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}</div></section>
       <section id="studio-library" className="studio-workspace" aria-labelledby="studio-library-title">
         <div className="studio-heading"><div><span className="studio-kicker">YOUR COLLECTION</span><h2 id="studio-library-title">{displayName}</h2><p>Start by adding something new, or browse items already saved here.</p></div><span className="studio-library-meta">{rows.length} loaded · {publishedInView} published · {draftsInView} drafts</span></div>
