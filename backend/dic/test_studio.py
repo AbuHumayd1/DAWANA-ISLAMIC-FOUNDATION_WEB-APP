@@ -159,14 +159,19 @@ class StudioAccessTests(TestCase):
             self.assertEqual(response['Content-Type'], 'audio/mpeg')
             self.assertEqual(response['Cache-Control'], 'private, no-store')
             self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
-            # FileResponse.close() emits request_finished, closing the test
-            # transaction's PostgreSQL connection while TestCase is still active.
-            # Close only the opened fixture stream in this transactional test.
-            response.file_to_stream.close()
+            self.assertEqual(b''.join(response.streaming_content), b'ID3synthetic-audio')
+            # FileResponse.close() emits request_finished, which closes Django's
+            # active TestCase PostgreSQL transaction. The response may also have
+            # been wrapped by middleware, leaving file_to_stream as None.
+            # Close only its registered underlying stream resources.
+            for close_stream in response._resource_closers:
+                close_stream()
             download = self.client.get(url + '?download=1')
             self.assertEqual(download.status_code, 200)
             self.assertIn('attachment', download['Content-Disposition'])
-            download.file_to_stream.close()
+            self.assertEqual(b''.join(download.streaming_content), b'ID3synthetic-audio')
+            for close_stream in download._resource_closers:
+                close_stream()
             self.assertEqual(self.client.get(reverse(
                 'dic:studio-private-preview', args=['photos', recording.pk])).status_code, 404)
             outsider = Client()
