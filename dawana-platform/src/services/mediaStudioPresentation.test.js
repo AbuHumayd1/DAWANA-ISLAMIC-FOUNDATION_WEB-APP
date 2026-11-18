@@ -267,7 +267,7 @@ test('public Media page has six real collections, no legacy placeholder catalogu
   for (const label of ['All Videos','All Audio','Darul Islam Camp','Ramadan Tafseer','Short Videos','Other Programmes'])
     assert.ok(media.includes(label))
   assert.doesNotMatch(media, /mediaItems = \[|MediaGrid\(|To be announced|Featured media content to be added/)
-  assert.match(media, /'foundation_archive'/)
+  assert.match(media, /destination=foundation_archive/)
   assert.match(media, /'recordings'/)
   assert.match(media, /Download audio/)
   assert.match(backend, /PublicStudioAudioView/)
