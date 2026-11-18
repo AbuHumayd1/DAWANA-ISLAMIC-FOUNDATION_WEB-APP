@@ -186,3 +186,45 @@
 :root[data-theme="dark"] .studio-hosted-mode button{background:#244131;border-color:#587862;color:#e4f5e7}
 :root[data-theme="dark"] .studio-hosted-mode button[aria-pressed="true"]{background:#397854;border-color:#80b391;color:#fff}
 :root[data-theme="dark"] .studio-hosted-lines small{color:#bcd3c3}
+
+
+/* Two-step creation and publishing, using only approved source/destination models. */
+.studio-media-mode{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 2px}
+.studio-media-mode button{cursor:pointer;border:1px solid #bcd6c3;border-radius:11px;padding:12px 16px;background:#f3f7f0;color:#24513b;font-size:13px;font-weight:750}
+.studio-media-mode button[aria-pressed="true"]{background:#1d6545;border-color:#1d6545;color:#fff}
+.studio-publish-choices{grid-column:1/-1;border:1px solid #c9dec9;border-radius:13px;padding:16px;margin:4px 0;background:#f0f7ef;min-width:0}
+.studio-publish-choices legend{padding:0 6px;color:#20523b;font-size:14px;font-weight:800}
+.studio-publish-choices p{margin:0 0 12px;line-height:1.55;font-size:12px;color:#516e56}
+.studio-publish-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.studio-publish-options label{min-width:0;display:flex!important;flex-direction:row!important;align-items:center;gap:9px!important;border:1px solid #d3e3d4;padding:10px 12px;border-radius:9px;background:#fff;color:#284a35;font-size:12px!important;cursor:pointer;line-height:1.4}
+.studio-publish-options input[type=checkbox]{width:17px;height:17px;flex-shrink:0;accent-color:#1d6545}
+.studio-submit-actions{grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.studio-submit-actions button{border-radius:10px;padding:12px 18px;cursor:pointer;font-size:13px;font-weight:750}
+.studio-submit-actions button[value=draft]{background:#e9eee6;border:1px solid #b8c9b9;color:#284d35}
+.studio-submit-actions button[value=publish]{background:#1c6746;border:1px solid #1c6746;color:#fff}
+.studio-submit-actions button:disabled{opacity:.52;cursor:not-allowed}
+.studio-item-publisher{padding:15px;margin-top:14px;background:#f3f8f1;border:1px solid #cbdcc9;border-radius:11px;display:flex;flex-direction:column;gap:12px}
+.studio-item-publisher>strong{font-size:14px;color:#255239;overflow-wrap:anywhere}
+.studio-item-publisher .studio-publish-choices{width:100%;padding:12px}
+.studio-item-publisher>label{font-size:12px;font-weight:700;display:flex;flex-direction:column;gap:7px}
+.studio-item-publisher select{min-height:44px;padding:10px;border:1px solid #c1d6c7;border-radius:9px;background:#fff;color:#24503a}
+.studio-item-publisher>button{border:0;background:#1b6342;color:white;border-radius:10px;padding:13px;font-weight:750;cursor:pointer}
+.studio-item-publisher>button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:640px){
+ .studio-media-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .studio-media-mode button{white-space:normal;padding:11px 8px;font-size:11px;line-height:1.4}
+ .studio-publish-options{grid-template-columns:1fr}
+ .studio-publish-choices{padding:13px}
+ .studio-submit-actions button{flex:1 1 130px;min-height:46px}
+}
+:root[data-theme="dark"] .studio-media-mode button{background:#233e2d;border-color:#4d6f56;color:#e2f2e6}
+:root[data-theme="dark"] .studio-media-mode button[aria-pressed="true"]{background:#397e59;border-color:#82b390;color:#fff}
+:root[data-theme="dark"] .studio-publish-choices{background:#203a2a;border-color:#51745a}
+:root[data-theme="dark"] .studio-publish-choices legend,
+:root[data-theme="dark"] .studio-item-publisher>strong{color:#e2f2e5}
+:root[data-theme="dark"] .studio-publish-choices p{color:#bdd5c3}
+:root[data-theme="dark"] .studio-publish-options label{background:#1b3022;border-color:#4b6d54;color:#dfefe3}
+:root[data-theme="dark"] .studio-submit-actions button[value=draft]{background:#294332;border-color:#55735e;color:#e6f5e9}
+:root[data-theme="dark"] .studio-submit-actions button[value=publish]{background:#347b53;color:#fff}
+:root[data-theme="dark"] .studio-item-publisher{background:#1d3224;border-color:#486b51}
+:root[data-theme="dark"] .studio-item-publisher select{background:#1c3023;border-color:#4e7058;color:#e4f2e8}
