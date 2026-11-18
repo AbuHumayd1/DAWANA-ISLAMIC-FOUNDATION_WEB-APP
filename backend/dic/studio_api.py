@@ -328,7 +328,11 @@ class StudioUploadView(StudioView):
     parser_classes = (MultiPartParser, FormParser)
 
     def get(self, request):
+        # Non-secret capability information: do not show a working hosted-link form
+        # when production has not enabled any approved video providers.
+        providers = getattr(settings, 'DIC_VIDEO_APPROVED_PROVIDERS', [])
         return self.nocache({'enabled': upload_enabled(), 'libraries': list(UPLOAD_FIELDS),
+                             'approved_providers': [name for name in ('youtube', 'vimeo') if name in providers],
                              'editions': list(CampEdition.objects.order_by('-year').values('id', 'name', 'year')[:30])})
 
     def post(self, request):
@@ -428,7 +432,14 @@ class StudioHostedLinksView(StudioView):
                 raise ValidationError({'items': {str(index): 'Unsupported video fields.'}})
             form = Form(values)
             if not form.is_valid():
-                raise ValidationError({'items': {str(index): form.errors.get_json_data()}})
+                # The nested Django errors were previously rendered as the generic
+                # "Request failed (400)". Return safe, actionable field validation.
+                messages = []
+                for field, errors in form.errors.items():
+                    label = {'video_url': 'Video link', 'title': 'Title',
+                             'edition': 'Camp edition', '__all__': 'Video'}.get(field, field.replace('_', ' ').capitalize())
+                    messages.extend(f'{label}: {error}' for error in errors)
+                raise ValidationError({'detail': f'Video {index + 1}: ' + ' '.join(messages)})
             prepared.append(form)
         with transaction.atomic():
             output = []
