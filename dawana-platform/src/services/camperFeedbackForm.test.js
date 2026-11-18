@@ -116,7 +116,7 @@ test('camper feedback retains the portal shell, single-camper auto-selection and
   assert.match(page, /const channel = \['daily','final','welfare','history'\]\.includes\(params\.get\('channel'\)\)/)
   assert.match(page, /updated\.set\('channel',next\)/)
   assert.match(page, /data\.items\.length > 1 \? <CamperSelect/)
-  assert.match(page, /data\.items\.length === 1\) setItemId/)
+  assert.match(page, /items\?\.length === 1\) setItemId/)
   assert.match(page, /className="cf-portal-bottom"/)
   assert.match(page, /className="camper-feedback-shell"/)
   assert.match(chrome, /feedback\(\?:\\\/\|\$\)/)
