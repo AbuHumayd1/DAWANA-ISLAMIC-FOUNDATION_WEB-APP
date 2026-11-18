@@ -33,6 +33,9 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   const [busy, setBusy] = useState(false)
   const [showArchive, setShowArchive] = useState(false)
   const [catalogueSearch, setCatalogueSearch] = useState('')
+  const [collectionFilter, setCollectionFilter] = useState('')
+  const [albumFilter, setAlbumFilter] = useState('')
+  const [availableAlbums, setAvailableAlbums] = useState([])
   const [linkId, setLinkId] = useState('')
   const [linkKind, setLinkKind] = useState(library)
   const [revision, setRevision] = useState(0)
@@ -45,8 +48,7 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   const [eventName, setEventName] = useState('')
   const [description, setDescription] = useState('')
   const current = items.find(item => item.id === selected)
-  const filteredItems = items.filter(item => (showArchive || !item.archived) &&
-    (!catalogueSearch || [item.title, item.source_kind, item.album, item.programme, item.campaign, item.event].some(value => String(value || '').toLowerCase().includes(catalogueSearch.toLowerCase().trim()))))
+  const filteredItems = items.filter(item => showArchive || !item.archived)
   const selectedChoices = choices[current?.source_kind] || []
   useEffect(() => {
     if (selectedChoices.length && !selectedChoices.includes(destination)) {
@@ -57,16 +59,17 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   useEffect(() => {
     let active = true
     setLoading(true)
-    studioAssets(page).then(response => {
+    studioAssets(page, { kind: collectionFilter, q: catalogueSearch, album: albumFilter }).then(response => {
       if (!active) return
       setHasMore(Boolean(response.has_more))
+      setAvailableAlbums(response.albums || [])
       setItems(previous => page === 1 ? (response.assets || []) :
         [...previous.filter(item => !(response.assets || []).some(next => next.id === item.id)), ...(response.assets || [])])
       if (page === 1) setSelected(current => response.assets?.some(item => item.id === current) ? current : '')
     }).catch(error => { if (active) setMessage(error.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [revision, page, sourceLinkRefresh])
+  }, [revision, page, sourceLinkRefresh, collectionFilter, catalogueSearch, albumFilter])
   useEffect(() => {
     if (focusAsset && focusAsset !== handledFocus.current && items.some(item => item.id === focusAsset)) {
       handledFocus.current = focusAsset
@@ -122,9 +125,9 @@ export default function StudioDestinations({ user, editions, library, sourceLink
     </form>
     <div className="studio-catalogue-body">
       <div className="studio-linked-list"><div className="studio-linked-title"><strong>Linked media ({items.length})</strong><label><input type="checkbox" checked={showArchive} onChange={e => setShowArchive(e.target.checked)} />Show archived</label></div>
-        <label className="studio-catalogue-search"><span>Find in loaded catalogue</span><input type="search" aria-label="Search loaded catalogue" placeholder="Title, album or programme…" value={catalogueSearch} onChange={event => setCatalogueSearch(event.target.value)} /></label>
+        <div className="studio-catalogue-filters"><label className="studio-catalogue-search"><span>Collection</span><select aria-label="Filter catalogue collection" value={collectionFilter} onChange={event => {setPage(1);setCollectionFilter(event.target.value);setAlbumFilter('')}}><option value="">All permitted collections</option>{Object.keys(choices).filter(x=>user.libraries?.includes(x)).map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><label className="studio-catalogue-search"><span>Search entire catalogue</span><input type="search" aria-label="Search full catalogue" placeholder="Title, album or programme…" maxLength="100" value={catalogueSearch} onChange={event => {setPage(1);setCatalogueSearch(event.target.value)}} /></label>{collectionFilter === 'photos' && <label className="studio-catalogue-search"><span>Photo album</span><select aria-label="Filter photography by album" value={albumFilter} onChange={event => {setPage(1);setAlbumFilter(event.target.value)}}><option value="">All albums</option>{availableAlbums.map(name=><option key={name} value={name}>{name}</option>)}</select></label>}</div>
         {loading && page === 1 ? <p>Loading catalogue…</p> : filteredItems.length ? filteredItems.map(item =>
-          <button type="button" className={selected === item.id ? 'studio-linked-item selected' : 'studio-linked-item'} key={item.id} onClick={() => setSelected(item.id)}><span>{item.source_kind}</span><strong>{item.title}</strong><small>{item.archived ? 'Archived' : item.destinations?.filter(p => p.state === 'published').length + ' published destinations'}</small></button>)
+          <button type="button" className={selected === item.id ? 'studio-linked-item selected' : 'studio-linked-item'} key={item.id} onClick={() => setSelected(item.id)}><span>{item.source_kind}{item.album ? ` · ${item.album}` : ''}</span><strong>{item.title}</strong><small>{item.archived ? 'Archived' : item.destinations?.filter(p => p.state === 'published').length + ' published destinations'}</small></button>)
           : <p className="studio-empty-linked">No assets linked yet. Link an existing media record to organize and distribute it.</p>}
         {!loading && hasMore && <button type="button" className="studio-loadmore" onClick={() => setPage(n => n + 1)}>Load more assets</button>}
       </div>
