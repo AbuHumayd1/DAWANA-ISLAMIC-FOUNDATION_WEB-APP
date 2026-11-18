@@ -41,3 +41,12 @@
 :root[data-theme=dark] .media-clean-collections button small{color:#c4d6c8}
 :root[data-theme=dark] .media-collection-entry-copy a{color:#b1e1bc}
 :root[data-theme=dark] .media-collection-audio{background:#294837}
+
+
+.media-clean-visuals{margin-top:44px;border-top:1px solid #d5e0d5;padding-top:30px}
+.media-clean-visual-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.media-clean-visual-grid a{display:block;overflow:hidden;border:1px solid #d2e0d3;border-radius:13px;background:#fff;text-decoration:none;color:#24543d}
+.media-clean-visual-grid img{display:block;aspect-ratio:4/3;width:100%;object-fit:cover}
+.media-clean-visual-grid span{display:block;padding:12px 14px;font-size:13px;font-weight:700;line-height:1.4}
+@media(max-width:760px){.media-clean-visual-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.media-clean-visuals{margin-top:30px}.media-clean-visual-grid span{padding:10px;font-size:12px}}
+:root[data-theme=dark] .media-clean-visual-grid a{background:#203127;border-color:#3d5a47;color:#e3f0e6}
