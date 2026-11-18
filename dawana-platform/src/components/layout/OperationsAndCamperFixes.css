@@ -68,3 +68,25 @@
  .cp-route .cw-feedback-page .cf-back-link{font-size:.8rem}
 }
 @media(prefers-reduced-motion:reduce){.cp-route .cw-discover-card,.cp-route .cf-channel-nav button{transition:none!important}}
+
+/* Explore is an editorial feature plus two quick destinations, not four competing banners. */
+.cp-route .cw-discover-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.cp-route .cw-discover-grid .cw-discover-card.is-featured{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;column-gap:14px;row-gap:6px;background:#194b36;color:#fff;border-color:#194b36;padding:20px 22px}
+.cp-route .cw-discover-grid .cw-discover-card.is-featured>svg{grid-column:1;grid-row:1/4;color:#f6d68a;width:42px;height:42px}
+.cp-route .cw-discover-grid .cw-discover-card.is-featured :is(h2,p,.cp-kicker){grid-column:2;color:#fff}
+.cp-route .cw-discover-grid .cw-discover-card.is-featured .cp-kicker{color:#f3d38a;font-size:.7rem}
+.cp-route .cw-discover-grid .cw-discover-card.is-featured h2{font-size:clamp(1.15rem,3vw,1.6rem);margin:0}
+.cp-route .cw-discover-grid .cw-discover-card.is-featured p{max-width:45ch;color:#e8f0e9}
+.cp-route .cw-discover-grid .cw-discover-card:not(.is-featured){background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:18px}
+.cp-route .cw-discover-grid .cw-discover-card:not(.is-featured) svg{color:var(--brand-solid)}
+.cp-route .cw-discover-grid .cw-discover-card:not(.is-featured) h2{color:var(--heading)}
+.cp-route .cw-discover-grid .cw-discover-card:not(.is-featured) p{color:var(--text-muted)}
+.cp-route .cw-discover-grid button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+@media(max-width:699px){
+ .cp-route .cw-discover-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .cp-route .cw-discover-grid .cw-discover-card.is-featured{padding:16px 13px;column-gap:10px}
+ .cp-route .cw-discover-grid .cw-discover-card.is-featured>svg{width:34px;height:34px}
+ .cp-route .cw-discover-grid .cw-discover-card.is-featured h2{font-size:1.1rem}
+ .cp-route .cw-discover-grid .cw-discover-card:not(.is-featured){padding:14px 11px}
+ .ops-app .score-leaderboard col:nth-child(3),.ops-app .score-leaderboard col:nth-child(4){display:none}
+}
