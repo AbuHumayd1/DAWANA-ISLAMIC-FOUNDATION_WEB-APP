@@ -97,7 +97,7 @@ export default function MediaStudio() {
   const [itemToPublish, setItemToPublish] = useState(null)
   const [itemDestinations, setItemDestinations] = useState([])
   const [itemEdition, setItemEdition] = useState('')
-  const [uploadInfo, setUploadInfo] = useState({ enabled: false, editions: [], libraries: [] })
+  const [uploadInfo, setUploadInfo] = useState({ enabled: false, editions: [], libraries: [], approved_providers: null })
   const [composerOpen, setComposerOpen] = useState(false)
   const [uploadBusy, setUploadBusy] = useState(false)
   const [revision, setRevision] = useState(0)
@@ -131,7 +131,7 @@ export default function MediaStudio() {
   }, [])
   useEffect(() => {
     if (!user) return
-    studioUploadStatus().then(setUploadInfo).catch(() => setUploadInfo({ enabled: false, editions: [], libraries: [] }))
+    studioUploadStatus().then(setUploadInfo).catch(() => setUploadInfo({ enabled: false, editions: [], libraries: [], approved_providers: null }))
   }, [user])
   useEffect(() => {
     setComposerOpen(false); setPreview(null); setEditing(null)
@@ -191,6 +191,10 @@ export default function MediaStudio() {
   async function addHostedLinks(event) {
     event.preventDefault()
     const action = event.nativeEvent.submitter?.value === 'publish' ? 'publish' : 'draft'
+    if (Array.isArray(uploadInfo.approved_providers) && uploadInfo.approved_providers.length === 0) {
+      setMessage('YouTube and Vimeo links are not enabled on the production server. An administrator needs to configure the approved video providers before you can save a link.')
+      return
+    }
     const lines = hostedMode === 'single'
       ? [`${hostedTitle.trim()} | ${hostedUrl.trim()}`]
       : hostedLinks.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
@@ -292,11 +296,9 @@ export default function MediaStudio() {
   }
   useEffect(() => {
     if (!menuOpen) return
-    function outside(event) { if (!menuRef.current?.contains(event.target)) setMenuOpen(false) }
     function escape(event) { if (event.key === 'Escape') setMenuOpen(false) }
-    document.addEventListener('pointerdown', outside)
     document.addEventListener('keydown', escape)
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape) }
+    return () => document.removeEventListener('keydown', escape)
   }, [menuOpen])
   useEffect(() => {
     if (!user) return
@@ -417,6 +419,7 @@ export default function MediaStudio() {
   const publishedInView = rows.filter(item => item.state === 'published').length
   const draftsInView = rows.filter(item => item.state === 'draft').length
   const isHosted = library === 'hosted'
+  const hostedProviderDisabled = isHosted && Array.isArray(uploadInfo.approved_providers) && uploadInfo.approved_providers.length === 0
   const hasUploadForm = Boolean(COMPOSER_FIELDS[library])
   const canUploadFiles = hasUploadForm && uploadInfo.enabled && uploadInfo.libraries.includes(library) && canCreate
   const canPublishImmediately = canPublish && user.can_manage_catalogue && user.can_publish_destinations
@@ -430,7 +433,9 @@ export default function MediaStudio() {
     lecturers: 'lecturer profiles', activities: 'activities',
   })[library]
   return <div className="studio-app">
-    <header className="studio-top"><div className="studio-nav-wrapper" ref={menuRef}><button className="studio-hamburger" aria-label="Toggle Studio navigation" aria-expanded={menuOpen} aria-controls="studio-menu" onClick={() => setMenuOpen(value => !value)}>☰</button>
+    <header className="studio-top">
+      {menuOpen && <button className="studio-menu-backdrop" type="button" aria-label="Close Media Studio navigation" onClick={() => setMenuOpen(false)} />}
+      <div className="studio-nav-wrapper" ref={menuRef}><button className="studio-hamburger" aria-label={menuOpen ? 'Close Studio navigation' : 'Open Studio navigation'} aria-expanded={menuOpen} aria-controls="studio-menu" onClick={() => setMenuOpen(value => !value)}>{menuOpen ? '✕' : '☰'}</button>
       {menuOpen && <nav id="studio-menu" className="studio-popnav" aria-label="Media Studio sections">
         <strong>Media collections</strong>
         {showCollections.map(x => <button type="button" key={x.key} onClick={() => selectCollection(x.key)} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
@@ -460,6 +465,7 @@ export default function MediaStudio() {
               : hasUploadForm
                 ? 'Choose a file, enter its details, then save a draft or publish to the selected website sections.'
                 : 'Appearance records come from existing lecturer and programme information. Browse existing records below.'}</p>
+            {hostedProviderDisabled && <p className="studio-upload-pending" role="alert">YouTube and Vimeo links are currently disabled in production. Please ask the administrator to enable approved video providers on Render. Your form details will stay here.</p>}
             {hasUploadForm && !canUploadFiles && <p className="studio-upload-pending" role="note">
               {canCreate ? 'File uploads are not active yet. The Foundation must first approve and connect private R2 storage. Existing records can still be viewed and managed.' : 'Your staff role cannot upload files to this collection.'}
             </p>}
@@ -487,8 +493,8 @@ export default function MediaStudio() {
           <label className="studio-hosted-lines">Description for these entries (optional)<textarea rows={2} value={hostedDescription} onChange={e => setHostedDescription(e.target.value)} maxLength={5000}/></label>
           <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} />
           <div className="studio-submit-actions">
-            <button type="submit" value="draft" disabled={uploadBusy}>{uploadBusy ? 'Saving…' : 'Save Draft'}</button>
-            {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || !selectedDestinations.length || selectionNeedsEdition && !hostedEdition}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
+            <button type="submit" value="draft" disabled={uploadBusy || hostedProviderDisabled}>{uploadBusy ? 'Saving…' : 'Save Draft'}</button>
+            {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || hostedProviderDisabled || !selectedDestinations.length || selectionNeedsEdition && !hostedEdition}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
           </div>
         </form>}
         {composerOpen && canUploadFiles && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Add {displayName}</h3><p>Your files are kept private while saving. Publish Now is available only to authorized staff with a selected destination.</p></div>
