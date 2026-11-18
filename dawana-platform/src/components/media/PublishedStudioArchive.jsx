@@ -1,8 +1,20 @@
 import { useEffect, useId, useState } from 'react'
 import { backendUrl } from '../../services/productionContract'
+import { hostedVideoThumbnail } from '../../services/hostedVideoThumbnail'
 import { Container } from '../layout/SiteChrome'
 import './PublishedStudioArchive.css'
 
+function HostedVideoCover({item, active, onPlay, embed}) {
+  const [failed, setFailed] = useState(false)
+  const thumbnail = hostedVideoThumbnail(embed)
+  return <div className="published-studio-visual published-studio-video">
+    {active ? <iframe title={item.title} src={embed} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/> :
+      <button className="published-studio-video-cover" type="button" onClick={onPlay} aria-label={`Play ${item.title} on this page`}>
+        {thumbnail && !failed && <img src={thumbnail} alt="" loading="lazy" onError={() => setFailed(true)} referrerPolicy="no-referrer" />}
+        <span className="published-studio-play" aria-hidden="true">▶</span><span className="published-studio-video-action">Play video</span>
+      </button>}
+  </div>
+}
 function approvedVideoLink(value) {
   try {
     const parsed = new URL(value)
@@ -58,10 +70,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
     <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id={headingId}>{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
     {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
     <div className="published-studio-grid">{visibleItems.map((item, i) => <article key={item.url + i} className="published-studio-card">
-      {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <div className="published-studio-visual published-studio-video">
-        {activeEmbed === item.url ? <iframe title={item.title} src={approvedVideoLink(item.embed_url)} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /> :
-          <button type="button" onClick={() => setActiveEmbed(item.url)} aria-label={`Play ${item.title} on this page`}><span aria-hidden="true">▶</span>Play YouTube video or livestream</button>}
-      </div> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual">
+      {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <HostedVideoCover item={item} embed={approvedVideoLink(item.embed_url)} active={activeEmbed === item.url} onPlay={() => setActiveEmbed(item.url)} /> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
       </div>}
