@@ -14,7 +14,7 @@ export default function ActivityAwardForm({ edition, busy, canCorrect, onSave, m
     getOperationsData(activityScoringPath(edition), { signal: controller.signal }).then(result => {
       if (controller.signal.aborted) return
       setOptions(result)
-      setValues(current => ({ ...current, date: result.start_date > campToday() ? result.start_date : (current.date < result.start_date || current.date > result.end_date ? campToday() : current.date) }))
+      setValues(current => ({ ...current, date: result.start_date > campToday() ? result.start_date : current.date < result.start_date ? result.start_date : current.date > result.end_date ? result.end_date : current.date }))
     }).catch(failure => { if (!controller.signal.aborted) setError(failure.message) })
     return () => controller.abort()
   }, [edition, refresh])
@@ -48,13 +48,13 @@ export default function ActivityAwardForm({ edition, busy, canCorrect, onSave, m
         {options.members.length ? <ul>{options.members.map(member => <li key={member.id}><span>{member.name}</span><small>{member.house_name} · Checked in and allocated</small></li>)}</ul> : <p role="status">No campers currently meet all scoring requirements. Verify payment, check-in, house allocation and registration eligibility in Operations.</p>}
       </div>}
       {beforeCamp && <p role="status" className="score-policy-note">Camp activity awards open on {options.start_date} (Africa/Lagos). Existing early check-ins and house allocations remain valid, but no points can be entered before camp begins.</p>}
-      <form className="score-form" onSubmit={submit}><fieldset disabled={busy || beforeCamp || !options.storage_ready || !options.ready}>
+      <form className="score-form" onSubmit={submit}><fieldset disabled={busy}>
         {mode === 'individual' && <label>Eligible camper<select required value={values.participant} onChange={event => change('participant',event.target.value)}><option value="">Choose a checked-in camper</option>{options.members.map(row => <option key={row.id} value={row.id}>{row.name} · {row.house_name}</option>)}</select></label>}
         <label>Approved activity<select required value={values.activity} onChange={event => { setValues(current => ({ ...empty(), date: current.date, participant: current.participant, activity: event.target.value })); reference.current = null }}>
           <option value="">Choose an approved {mode === 'individual' ? 'individual' : 'collective'} activity</option>
           {activities.map(row => <option key={row.code} value={row.code}>{row.code} · {row.name} (+{row.points})</option>)}
         </select></label>
-        <label>Camp-local activity date<input type="date" required min={options.start_date} max={options.end_date < campToday() ? options.end_date : campToday()} value={values.date} onChange={event => change('date', event.target.value)} /></label>
+        <label>Camp-local activity date<input type="date" disabled={beforeCamp} required min={options.start_date} max={options.end_date < campToday() ? options.end_date : campToday()} value={values.date} onChange={event => change('date', event.target.value)} /></label>
         {rule && <>
           <p className="score-wide">Award: <strong>{rule.points} points</strong>{rule.threshold && ` · Required participation: ${rule.threshold}%`}{rule.cap_bucket && ` · Separate daily ${rule.cap_bucket} cap: 10`}{rule.frequency === 'once' && ' · Once per camper this edition; verified prerequisites required.'}</p>
           {collective ? <label>House<select required value={values.house} onChange={event => setValues(current => ({ ...current, house: event.target.value, attendees: [], exemptions: {} }))}><option value="">Choose a house</option>{options.houses.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
@@ -78,7 +78,7 @@ export default function ActivityAwardForm({ edition, busy, canCorrect, onSave, m
           </div>}
           <label className="score-wide">Verification evidence / note<textarea required={collective || rule.frequency === 'target'} maxLength={600} rows={3} value={values.note} onChange={event => change('note', event.target.value)} /></label>
           <label className="score-wide activity-check"><input type="checkbox" required checked={values.verified} onChange={event => change('verified', event.target.checked)} />I have verified completion, the approved target or official result, and any documented exemptions.</label>
-          <button className="ops-button ops-button-primary" disabled={!options.ready || !options.storage_ready}>Record verified award</button>
+          <button className="ops-button ops-button-primary" disabled={beforeCamp || !options.ready || !options.storage_ready}>Record verified award</button>
         </>}
       </fieldset></form>
     </>}
