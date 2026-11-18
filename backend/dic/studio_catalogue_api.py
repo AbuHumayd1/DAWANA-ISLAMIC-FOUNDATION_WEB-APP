@@ -310,7 +310,8 @@ class PublicStudioPlacementsView(APIView):
                             placement.asset.source_kind in ('recordings', 'videos', 'hosted', 'promotions')
                             else None),
                         'source_kind': placement.asset.source_kind, 'url': url,
-                        'album': placement.asset.album}
+                        'album': placement.asset.album,
+                        'lecturer': str(getattr(source, 'lecturer', '') or '')[:200]}
                 if placement.asset.source_kind == 'hosted':
                     item['embed_url'] = url
                 if placement.asset.source_kind == 'videos':
