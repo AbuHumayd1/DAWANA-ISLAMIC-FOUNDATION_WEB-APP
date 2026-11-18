@@ -73,7 +73,7 @@ test('Me keeps participant details while settings and session controls live in t
 test('Explore keeps every care channel and approved activity link in colorful grouped destinations', () => {
   const html = render(experience.ExperienceContent,{tab:'explore',participant:p,order})
   for(const channel of ['daily','welfare','history','final']) assert.ok(html.includes(`/dic/feedback?channel=${channel}`))
-  assert.match(html, /<button type="button" class="cw-discover-card cp-tone-coral"/)
+  assert.match(html, /<button type="button" class="cw-discover-card cp-tone-coral is-featured"/)
   assert.doesNotMatch(html, /href="\/dic#showcase-activities-title"/)
   assert.match(html,/cw-discover-grid/); assert.match(html,/Camp announcements/)
 })
