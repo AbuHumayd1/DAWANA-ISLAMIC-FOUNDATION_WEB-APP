@@ -124,3 +124,25 @@ test('registration-count cards explain eligibility without calling attempts atte
   assert.match(ui, /Registration attempt activity/)
   assert.doesNotMatch(ui, /title="Individual participants" value=\{metrics\.participants\}/)
 })
+
+test('new scoring workspaces retain permission gates and never create a separate scoring ledger', () => {
+  const source = fs.readFileSync(new URL('../pages/Operations.jsx', import.meta.url), 'utf8')
+  const scoring = fs.readFileSync(new URL('../pages/HouseScoring.jsx', import.meta.url), 'utf8')
+  const form = fs.readFileSync(new URL('../components/operations/ActivityAwardForm.jsx', import.meta.url), 'utf8')
+  const menu = render(Nav, { user })
+  for (const route of ['/individual-scoring','/scoring','/scoring-history']) {
+    assert.match(source, new RegExp('path="' + route.slice(1) + '"'))
+    assert.ok(menu.includes('href="/dic/operations' + route + '"'))
+  }
+  assert.match(source, /<HouseScoring user=\{user\} mode="individual"/)
+  assert.match(source, /<HouseScoring user=\{user\} mode="history"/)
+  assert.match(scoring, /mode === 'individual' && <p className="score-policy-note"/)
+  assert.match(scoring, /mode === 'history' && <section className="ops-panel"/)
+  assert.match(form, /Eligible checked-in campers/)
+  assert.match(form, /options\.members\.map\(member =>/)
+  assert.match(form, /disabled=\{beforeCamp \|\| !options\.ready \|\| !options\.storage_ready\}/)
+  assert.match(form, /activityScoringPath\(edition\)/)
+  assert.match(scoring, /activityScoringPath\(data\.edition\.id\)/)
+  assert.doesNotMatch(source, /import MediaManagement from/)
+  assert.match(source, /path="media-management" element=\{<Navigate to="\/media-studio" replace/)
+})
