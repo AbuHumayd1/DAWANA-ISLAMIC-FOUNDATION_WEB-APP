@@ -6,6 +6,7 @@ import GlobalErrorBoundary from './components/GlobalErrorBoundary.js'
 import './theme-polish.css'
 // Cross-application refinements load after legacy theme styles.
 import './components/layout/PremiumPlatformRefinement.css'
+import './components/layout/OperationsAndCamperFixes.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
