@@ -202,6 +202,13 @@ class PopulatedRecovery(TransactionTestCase):
                 cursor.execute('SELECT '+','.join(self.connection.ops.quote_name(c) for c in columns)+
                                ' FROM '+self.connection.ops.quote_name(table)+' ORDER BY 1')
                 self.assertEqual(cursor.fetchall(),rows,table)
+        # Historical 0042 recovery is intentionally scoped to 0042. The
+        # deployment readiness guard instead validates the CURRENT complete
+        # ORM schema (including approved 0043–0045 successors). Apply those
+        # successors only inside this disposable test database before checking
+        # full-release readiness; never relax production's fail-closed guard.
+        current = self.factory(self.connection)
+        current.migrate(current.loader.graph.leaf_nodes())
         self.assertEqual(readiness(self.connection,transaction,self.factory,self.expected,self.commit)['status'],
                          'DEPLOYMENT_SCHEMA_READY_READ_ONLY')
         from dic.models import House,CampVideo,LectureRecording,ParticipationCertificate,CertificateRelease

@@ -1,0 +1,128 @@
+# DAWANA MEDIA STUDIO — APPROVED PRODUCT CONTRACT AND IMPLEMENTATION MAP
+
+**Status:** Resume after DIC 2026 production population, housing and timetable release. This is a Foundation-wide product, **not** a DIC-only media-management tab. This file is a requirements contract and source audit, not authorization to activate production storage or grant permissions.
+
+## 1. Binding decisions from the 16–17 November Media Studio conversation
+
+1. **Dedicated, visually independent Media Studio portal:** its own workspace and route, not the existing `/dic/operations/media-management` three-card link directory and not ordinary Django Admin. Share the existing DAWANA platform, sign-in/session infrastructure, backend and private R2 storage; do not create a disconnected product or duplicate accounts.
+2. **Foundation-wide, indefinitely reusable:** publish across the DAWANA Foundation public site and media archive, DIC landing pages for 2026 and future camp editions, memory/gallery destinations, and eligible Camper Portal content. **Upload once, organise by programme/campaign/event/edition, then publish to one or more destinations** without repeat uploading.
+3. **Portal entry point and owner entitlement:** The dedicated media team login is at `/media-studio` on the existing DAWANA website, not at `/dic/operations` and not behind a public media gallery. Place a small, professional `Media Studio Login` link in the existing website footer alongside `Operations Portal` and `Admin Login`; it must not be prominent on public landing content. Existing signed-in staff reuse their DAWANA credentials. **The owner/system administrator (Django superuser) has unrestricted access to every staff/administrative portal including Media Studio, Operations Portal, and Django Admin, irrespective of ordinary media-role membership**, but the separate Camper Portal does not gain automatic access from superuser status. Enforce the exception in backend authorization and client navigation; do not rely solely on hiding links.
+3. **One capable media operator can complete the job:** authorised media personnel can upload, enter metadata, preview, save draft, publish directly, edit, withdraw and archive. **No mandatory reviewer, dual approval chain or up-and-down authorization** for routine media work. Backend must authorize each action; owners retain high-level administration and audit oversight; operators are not blanket superusers.
+4. **Rich library scope:** official flyers and promotional artwork; short promotional MP4 videos with poster/thumbnail; photos (single and bulk), captions, accessibility descriptions, organised albums/galleries; camp/programme videos (private MP4 uploads and validated YouTube/Vimeo links); lecture audio with title, lecturer, session/edition, listening and authorized download; lecturer profiles with portrait, biography, designations and appearances; activities with descriptions and photographs. Treat public foundation content and editions as first-class destinations.
+5. **Premium and polished interface:** media-first previews/real thumbnails, elegant typography, sensible information density, purposeful restrained motion, balanced spacing and legible contrast (including dark mode), clear **camera icon for photographs and microphone icon for recordings**, compact responsive cards, excellent mobile layout, search, category/edition/status/destination filtering and bulk actions, accessible one-click publish/withdraw/archive. Use a polished **hamburger navigation** that closes on outside tap or Escape, adequate navigation-to-card spacing and no oversized Account Settings card. **All Open/manage actions must operate within Studio, not redirect to Django Admin.** Avoid technical data-entry-only UI, oversized sidebar, cramped cards, inconsistent headers or clashing nested scroll.
+6. **Permanent media lifecycle:** upload/save → preview → direct publish → revise/withdraw → archive, with audit receipts, safe replacement and retention policy. Archives should not be publicly delivered. No deletion or irreversible clean-up without approved retention and backup controls. Edits that change public material must not cause unwanted continued public delivery.
+7. **Security and storage:** preserve two **private** production Cloudflare R2 boundaries: `dawana-production-media` for editorial files and `dawana-production-private` for participant-sensitive objects. No public bucket URLs. Django-mediated authorization for private drafts, identity-scoped recordings/participant content, downloads and delivery. Validate type, MIME/codec, file size, path/key, length, input and provider URLs; enforce copyright and lecturer/speaker permissions; protect against IDOR, guessed URLs, path traversal, oversized file and malicious uploads. Store durable objects in R2 rather than Render ephemeral disk. Only activate R2 after owner-approved credentials, provider/storage verification, backup/restore and production safety checks.
+8. **Destinations and safeguards:** site public archive/gallery and landing content, DIC memories/landing and future editions, programme/lecture resources, camper streaming/download for published authorized recordings. The same stored asset can appear in multiple approved placements; a withdrawal must remove visibility everywhere that placement was published, preserving unaffected placements as explicitly intended.
+9. **Operational preferences:** implement production-first with disposable/synthetic CI only; preserve current payments, housing, portal identity and DIC 2026 published timetables; no staging/demo/local DB project; no new billable Render worker. Cloudflare frontend is checked manually. Do not merge/deploy or alter production R2 without owner's explicit authorization.
+
+## 2. Observed repository baseline (source checked on current main)
+
+| Capability | Existing source | Gap against the approved contract |
+|---|---|---|
+| Staff authentication | `dawana-platform/src/services/operationsApi.js`; `backend/dic/operations_api.py` | Login/session reusable, but currently operations-themed and requires the DIC operations permission; Foundation media-only role must not be forced into other DIC functions |
+| Existing media page | `dawana-platform/src/pages/MediaManagement.jsx` & CSS | Three links to Django Admin, inside Operations; **not** approved dedicated premium Media Studio |
+| Editorial photos, gallery tags | `dic/memory_models.py`, `memory_admin.py`, `memory_views.py` | Camp-edition scoped; not unified cross-Foundation catalogue or bulk upload; distinct change/publication permissions |
+| Videos | `dic/memory_models.py`, video provider services | Uploaded clips and hosted video validation supported in model; unified listing/placements/Studio actions missing |
+| Flyers/promotional MP4 | `dic/promo_models.py`, `promo_admin.py` | Strict edition-specific limits (1 official published flyer, 3 prior-experience + 2 intro promo videos), no generic Foundation placement model |
+| Lecturer/activity records | `dic/showcase_models.py`, related admins/views | Edition appearances require separate verification evidence; direct media publication should not bypass factual speaker-participation verification |
+| Lecture recordings | `dic/camp_release_models.py`, `camp_release_admin.py`, `camp_release_api.py` | File/media delivery exists; unified media library, compact metadata flows and destinations missing |
+| User groups | `dic/staff_roles.py` | Current `DIC Media Editors` and `DIC Media Publishers` are distinct role groups. Add a **single least-privilege unified Studio operator role**, without escalating old group members or removing audit |
+| Secure storage | `dic/storage_configuration.py`, `memory_storage.py`, `recording_storage.py` | Two-bucket validation exists; actual production configuration/activation and backup/restore readiness must be checked, never inferred |
+| General placement catalogue | No reusable Foundation-wide media asset/destination model located in audited source | Needed for uploads reused across website, programmes, editions, archives and Camper Portal |
+| Studio management API | Existing DIC-specific views and admin models | Need authenticated permissioned listing/search/filters, creation/upload, multi-destination publish/unpublish, safe bulk actions, metadata update and audited archive endpoints |
+
+**Do not mistake tests on existing DIC-specific models for full Media Studio acceptance.** Do not remove or weaken old media publisher permissions; route each new workflow through existing authorization, audit and delivery constraints.
+
+## 3. Intended architecture and staged delivery inside one milestone
+
+### A. Foundation media catalogue and destinations
+- Build a reusable editorial asset record with unique stable key, type, title, caption/description/alt text, creator, timestamps, provenance/consent and media location metadata. Associate optional edition, programme, campaign, event, lecturer, session and gallery/album.
+- Model per-destination placements with draft/published/withdrawn/archived states; enforce destination-specific limits (official DIC flyer and promo slots), audience authorization, and edition requirements. Reuse one object file; no public raw R2 URL or automatic redistribution of private participant media.
+- Existing legacy DIC models remain valid. Use additive migration and source-compatible adapters; never silently convert/delete existing records. No migration/apply in normal web build/start.
+
+### B. Media Studio service and permissions
+- Shared authenticated staff session, separate Studio authorization: Studio reader/editor/publisher scopes; unified media operator gets create/edit/publish/withdraw/archive capabilities without a second reviewer. Supervisory tasks (storage activation, credentials, destructive retention, role grants) remain owner-only.
+- All operations server-enforced, CSRF/session-safe, no web storage access from the client. A draft preview must require staff view permission; published public content may be delivered through existing controlled publication routes; Camper Portal download requires participant entitlement.
+- Audit media upload, metadata change, publication, withdrawal, destination change, archive, and backup-safe deletion, with user, asset, placement and prior/new state.
+- Protect and test source reference, ID, edition/audience boundary, duplicate uploads, accepted codecs, maximum sizes, XSS, unsafe external URLs and partial bulk failures.
+
+### C. Polished dedicated interface
+- Dedicated `/media-studio` route with its own branded, responsive navigation and sign-in experience using shared auth. Overview dashboard, upload composer (bulk photo support), visual library grids, file type tabs, fast filters/search, details drawer/editor, destination chooser and publication controls.
+- Section cards: Flyers & artwork; Promotions; Photography & galleries; Videos & external embeds; Lecture audio; Lecturers; Activities; Archive. Include thumbnails, state, media type, publication destinations and source programme/edition.
+- Explicitly show storage-not-configured states; do not expose fake working upload or publish buttons. Subtle loading, empty, error/retry states; dark mode; accessible labels and keyboard navigation; no Camera/Mic ambiguity.
+
+### D. Acceptance and production activation
+- Test each asset type from valid and invalid upload to authenticated preview, publish at correct public/private destination, withdraw/archive and re-check after revocation.
+- Test responsive mobile, dark mode, no layout overflow, bulk uploads, search, cross-edition reuse, destination-specific publication limits, current and archived dates, lecturer verification boundary.
+- Keep payments, check-in, housing, 180 published DIC timetable entries, enrolment access and private camper media unaffected.
+- Confirm backend R2 credentials and bucket setup **without exposing secret values**, verify ownership/backups/restoration, activate only by explicit owner action and release deploy with clean relevant CI. Cloudflare frontend verified manually after merge/deploy.
+
+## 4. Never silently reintroduce rejected designs
+- Not a DIC-only or Operations sidebar media links page.
+- No compulsory multiple-person editorial approval queue or reviewer/publisher chain.
+- No broad staff superuser accounts as a substitute for scoped permission.
+- No public R2 links or direct unauthenticated private draft/lecture downloads.
+- No presumed production R2 activation, automatic data deletion or local/staging detour.
+- No duplicate media upload to reach multiple destinations.
+- No invented content, speaker verification, captions, external videos or media programme associations.
+
+## 5. Development progress — draft PR #46 (not merged)
+
+### Implemented and committed on the feature branch
+
+- Standalone `/media-studio` portal with shared staff login, independent scoped authorization, responsive mobile and dark mode, footer entry, owner/superuser access, secure preview and existing media-model library browsing.
+- Eight legacy media collections; metadata editing, audited direct source publishing/withdrawal, upload composer and bounded batch photography. Upload switch `DIC_MEDIA_STUDIO_UPLOADS_ENABLED` defaults **false**; private R2 storage and credentials still require separate approval.
+- New additive migration `0044_studio_catalogue_placements` introducing Foundation-wide `StudioAsset` index and `StudioPlacement` per-destination records. Source objects and private R2 bytes are **not copied**. One legacy media source may be linked once and used in multiple destinations. No automatic content publication or migration of pre-existing media.
+- Foundation media archive, home, DIC landing, DIC memories, DIC resource and Camper Portal resource placement types, strictly typed allowlists; draft/publish/withdraw with audit; metadata including album, campaign, programme and event; archive/restore with all placement withdrawals.
+- Public Foundation archive and home and DIC landing consume only live, previously published media. Public archive API checks both source and placement and never exposes unpublished drafts or private audio/object keys. Validated hosted video links use private-friendly YouTube/Vimeo embed hosts; original uploaded videos and lecture recordings remain camper-scope only.
+- Linked lecture audio is visible to eligible Camper Portal users only while the same edition has an active `camper_resources` placement. Existing **unlinked** recordings retain their established release behavior. The ordinary participant entitlement/session authorization is still the controlling gate; no admin backdoor to camper accounts.
+- Withdrawal of a source or an edit to an already published source revokes all linked Studio destination approvals so that source republishing cannot silently resurrect an old public placement.
+- Disposable/synthetic tests for media team roles, public/private boundaries, migration-compatible catalogue operations, independent placement withdrawal, cross-edition rejection, archive, source linking idempotency and camper-resource gating. No staging/demo/production dataset used.
+
+### High-priority YouTube livestream and bulk URL publishing (17 Nov 2026)
+
+**Explicit owner requirement:** The Foundation media team may run **many simultaneous or successive YouTube live broadcasts** and need only paste their live/video links into Media Studio, then make those broadcasts accessible in the selected website location. The workflow must never require uploading duplicate MP4s or a thumbnail, activating R2, paying for a background worker, accessing Django Admin or waiting for a second human publisher.
+
+Implemented as a separate additive `StudioHostedVideo` canonical link record and migration `0045_studio_hosted_video`: verified YouTube live/normal/Shorts links or approved Vimeo links; bulk paste **1–25 title | URL rows per request** with unlimited subsequent batches; optional common lecturer, description and edition; atomic draft creation plus automatic catalogue linkage; subsequent independent source/destination publication and revocation, secured by existing media operator permissions and audit logs. Public Foundation home/archive and DIC landing/resources use approved embeddable playback links. On-site player opens only after the visitor clicks, with a validated external video alternative. YouTube itself hosts and delivers live/replay content; DAWANA does not ingest or restream video bytes, and cannot guarantee a broadcast is live or embeddable if YouTube settings prevent it.
+
+**Hosting provider security:** The existing strict `DIC_VIDEO_APPROVED_PROVIDERS` configuration must include `youtube` (and `vimeo` if desired) at release; no public provider is silently enabled in production. This is independent of the disabled R2 upload switch.
+
+### Still outstanding or blocked until explicit owner release approval
+
+- GitHub Actions verification against the **latest feature-branch commit**; do not infer a passing run from an earlier revision. Fix any new failures before merging.
+- Real Cloudflare R2 credentials, storage bucket connectivity, access rules and backup/restore acceptance; the upload switch stays disabled. Do not enable storage implicitly.
+- Rich album/gallery browsing and high-volume pagination, file replacement, private audio/video player previews, finalized download UX, and direct public delivery of recorded lectures outside entitled Camper Portal (if separately approved). Existing DIC photo gallery is still legacy source-driven; destination-specific selective display integration needs its own acceptance review.
+- Approval/release stage: owner confirms migration `0043` reconciliation and `0044` production application, then merge and manual Render and Cloudflare deploy. No production changes are authorized by this draft work alone.
+
+### Non-negotiable safety invariants
+
+1. Verified payments, house assignments, registration and the 180 published camp timetable entries are untouched.
+2. Never publicly expose R2 URLs, participant portraits or scoped lecture recordings.
+3. Public destination selection does not bypass original edition, publication or provider validation.
+4. One authorized media operator may publish directly; system superuser is owner of all staff/admin portals but **not automatically of camper portal identities**.
+5. Every source or destination release, archive and withdrawal must be auditable and revocable.
+
+
+### Premium workspace refinement — November 17, 2026
+
+The Media Studio development branch now includes a further media-first editorial presentation pass:
+- Responsive photographic cards with larger thumbnails, clearer draft/published badges, direct source publication, and concise collection statistics.
+- Staff-authorized full image preview, click-to-load safe YouTube/Vimeo embed preview, visible external-watch alternative, Escape/close controls and reduced-motion support. No provider is loaded until the operator explicitly opens a video preview.
+- Search within loaded destination catalogue records by title, collection, campaign, event, album or programme; selection is preserved after an automatic link focus. Destination publication remains individually controlled.
+- Owner/staff capability flags for catalogue organization and destination publishing, so read-only operators do not see unauthorized creation/publishing controls.
+- Multiple public destination sections use distinct accessible headings; provider withdrawal hides previously published hosted embeds instead of creating public server errors.
+- Private R2 upload activation remains disabled. This phase introduces no required Render worker, no payment change, no migration changes, and no live publishing by itself.
+
+**Release gates remain:** CI all-green on the final commit, actual mobile and desktop visual/keyboard review, published-versus-draft authorization acceptance, and owner-controlled deployment. Premium UI implementation does not imply production deployment.
+
+
+### Acceptance completion pass — 18 November 2026 (feature branch only)
+
+Following the owner-requested acceptance review, the feature branch adds:
+- Server-filtered Foundation catalogue search across title, album, campaign, programme and event, with collection-scoped pagination and a permission-filtered photography album selector. Search now covers the stored catalogue rather than only the loaded cards.
+- A bounded 20-item, same-collection multi-destination publish/withdraw workflow in Studio. Every asset still passes through the pre-existing individually authorized and audited placement endpoint; failures are reported per item and never silently retried. No new broad permissions or database migration.
+- Accessible public photo album navigation populated only from the already published, source-validated Foundation/DIC destination feed, never from private draft files.
+- Dedicated authenticated Media Studio staff-only preview/download for existing private lecture audio and uploaded video. The preview endpoint requires the precise library view permission and streams through existing protected storage; no object key, R2 URL or participant-entitlement bypass is returned to the public.
+- Synthetic backend and frontend regression coverage for album permission boundaries, protected staff previews, gallery navigation, and bounded batch controls.
+
+**Release gate still applies:** These changes are source commits, not proof of completed acceptance. The final feature-branch GitHub Actions run must pass; real credentialed browser playback and responsive/keyboard inspection must be performed against a permitted release, and production R2 bucket verification, retention/replacement approvals and actual upload activation remain owner-controlled. Never enable `DIC_MEDIA_STUDIO_UPLOADS_ENABLED` or auto-deploy, merge PR #46, or change production storage as a side effect of the acceptance work. The ordinary backend must retain schema guards for already recorded migrations 0043–0045. No changes are made to payments, registration, 8 houses, or 180 DIC programme records.

@@ -321,3 +321,28 @@ urlpatterns += [
     path('ids/cards/<uuid:enrollment_id>/', card_view, name='id-card'),
     path('ids/verify/', verify_view, name='verify-id'),
 ]
+
+# Foundation-wide DAWANA Media Studio staff routes (separate from DIC Operations).
+from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, StudioMetadataView, StudioHostedLinksView, StudioPrivatePreviewView, studio_csrf
+urlpatterns += [
+    path('studio/auth/csrf/', studio_csrf, name='studio-csrf'),
+    path('studio/auth/login/', StudioLoginView.as_view(), name='studio-login'),
+    path('studio/auth/me/', StudioMeView.as_view(), name='studio-me'),
+    path('studio/auth/logout/', StudioLogoutView.as_view(), name='studio-logout'),
+    path('studio/library/', StudioLibraryView.as_view(), name='studio-library'),
+    path('studio/library/<str:kind>/<int:pk>/private-preview/', StudioPrivatePreviewView.as_view(), name='studio-private-preview'),
+    path('studio/uploads/', StudioUploadView.as_view(), name='studio-uploads'),
+    path('studio/hosted-links/', StudioHostedLinksView.as_view(), name='studio-hosted-links'),
+    path('studio/library/<str:kind>/<int:pk>/metadata/', StudioMetadataView.as_view(), name='studio-metadata'),
+    path('studio/library/<str:kind>/<int:pk>/publication/', StudioPublicationView.as_view(), name='studio-publication'),
+]
+
+# Unified DAWANA Media Studio catalogue and safe publication destinations.
+from .studio_catalogue_api import (StudioAssetsView, StudioAssetDetailView,
+    StudioPlacementView, PublicStudioPlacementsView)
+urlpatterns += [
+    path('studio/assets/', StudioAssetsView.as_view(), name='studio-assets'),
+    path('studio/assets/<uuid:asset_id>/', StudioAssetDetailView.as_view(), name='studio-asset-detail'),
+    path('studio/assets/<uuid:asset_id>/placements/', StudioPlacementView.as_view(), name='studio-placements'),
+    path('studio/public-placements/', PublicStudioPlacementsView.as_view(), name='studio-public-placements'),
+]

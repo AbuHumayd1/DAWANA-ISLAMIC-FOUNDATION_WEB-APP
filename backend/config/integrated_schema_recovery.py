@@ -103,10 +103,26 @@ def graph(executor, pinned=True):
     # migration runner handles later migrations independently.
     full_plan = executor.migration_plan(loader.graph.leaf_nodes())
     require(not any(backwards for _, backwards in full_plan), 'BACKWARD_PLAN_REJECTED')
-    allowed_followup = ('dic', '0043_exclude_dic2026_millionaire_drafts')
-    require(all((m.app_label, m.name) in (TARGET, allowed_followup)
-                for m, backwards in full_plan), 'UNRELATED_OR_MISSING_PENDING_PLAN')
-    plan = executor.migration_plan([TARGET])
+    # Exact approved additive successors are excluded from the 0042 recovery
+    # operation itself. Reject any unrelated pending migration, changed
+    # successor dependency, or backwards step rather than relaxing the guard.
+    successors = (
+        ('dic', '0043_exclude_dic2026_millionaire_drafts'),
+        ('dic', '0044_studio_catalogue_placements'),
+        ('dic', '0045_studio_hosted_video'),
+    )
+    for previous, current in zip((TARGET,) + successors, successors):
+        if current in loader.graph.nodes:
+            require(previous in loader.graph.nodes[current].dependencies,
+                    'UNRELATED_OR_MISSING_PENDING_PLAN')
+    allowed = frozenset((TARGET,) + successors)
+    require(all((m.app_label, m.name) in allowed for m, backwards in full_plan),
+            'UNRELATED_OR_MISSING_PENDING_PLAN')
+    # Django plans a reverse migration when the historical 0042 target is
+    # requested after newer successors have already been applied. 0042 is
+    # already present in that case: the recovery plan is empty, not a rollback.
+    # The full leaf plan above still rejects real pending backwards steps.
+    plan = [] if TARGET in loader.applied_migrations else executor.migration_plan([TARGET])
     require(not any(backwards for _, backwards in plan), 'BACKWARD_PLAN_REJECTED')
     target = loader.graph.nodes[TARGET]
     if pinned:

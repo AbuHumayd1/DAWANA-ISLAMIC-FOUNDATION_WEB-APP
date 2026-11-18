@@ -23,7 +23,7 @@ def video_source(value):
                 values = parse_qs(url.query, keep_blank_values=True).get("v", [])
                 video_id = values[0] if len(values) == 1 else None
             else:
-                match = re.fullmatch(r"/(?:embed|shorts)/([A-Za-z0-9_-]{11})/?", url.path)
+                match = re.fullmatch(r"/(?:embed|shorts|live)/([A-Za-z0-9_-]{11})/?", url.path)
                 video_id = match.group(1) if match else None
             if not video_id or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
                 raise ValueError

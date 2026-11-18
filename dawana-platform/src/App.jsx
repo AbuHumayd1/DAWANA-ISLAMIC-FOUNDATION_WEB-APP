@@ -12,12 +12,13 @@ import Contact from './pages/Contact'
 import FAQ from './pages/FAQ'
 import Donate from './pages/Donate'
 import Operations from './pages/Operations'
+import MediaStudio from './pages/MediaStudio'
 import ParticipantPortal from './pages/ParticipantPortal'
 import CamperFeedback from './pages/CamperFeedback'
 import './App.css'
 
 function App() {
-  return <BrowserRouter><Routes><Route path="/dic/operations/*" element={<Operations />} /><Route path="*" element={<PublicApplication />} /></Routes></BrowserRouter>
+  return <BrowserRouter><Routes><Route path="/dic/operations/*" element={<Operations />} /><Route path="/media-studio/*" element={<MediaStudio />} /><Route path="*" element={<PublicApplication />} /></Routes></BrowserRouter>
 }
 
 function PublicApplication() {

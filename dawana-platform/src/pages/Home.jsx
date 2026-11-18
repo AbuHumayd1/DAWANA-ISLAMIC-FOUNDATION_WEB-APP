@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
+import PublishedStudioArchive from '../components/media/PublishedStudioArchive'
 import './HomeHero.css'
 import './HomeMobileCards.css'
 
@@ -35,6 +36,8 @@ function Home() {
     <section className="section events-section" id="events"><Container><SectionHeading eyebrow="Time-specific gatherings" title="Upcoming Events"><Link className="button button-small" to="/events">View Events <Arrow /></Link></SectionHeading><div className="event-empty"><div className="event-badge"><span>▣</span><strong>MONTHLY</strong></div><div><div className="tag-row"><span className="tag-gold">Recurring Da&apos;wah Activity</span></div><h3>Monthly Da&apos;wah Seminar</h3><p>A recurring Da&apos;wah activity of Da&apos;wãnã Islamic Foundation. Details to be announced.</p></div><Link className="button button-pale" to="/events">View Events <Arrow /></Link></div></Container></section>
 
     <section className="section media-section" id="media"><Container><SectionHeading eyebrow="Knowledge library" title="Learn. Listen. Watch."><Link className="button button-small" to="/media">Explore Media <Arrow /></Link></SectionHeading><div className="media-feature"><div className="tag-row"><span>Featured Audio Treatise</span><span className="tag-gold">54 Minutes · Scholarly Archive</span></div><h3>Foundations of Islamic Tarbiyah in the Contemporary Age</h3><p>An in-depth exposition on preserving spiritual sincerity, ethical fortitude, and wholesome family devotion amidst modern societal distractions. Available as high-fidelity audio stream and downloadable reference notes.</p><div className="preview-meta"><span>◉ &nbsp; Audio Lecture &amp; Syllabus</span><span>⇩ &nbsp; Study Text Available</span></div></div></Container></section>
+
+    <PublishedStudioArchive destination="foundation_home" />
 
     <section className="impact-band"><Container><span className="eyebrow gold-eyebrow">Impact / community</span><h2>Knowledge That Transforms.<br /><em>Service That Matters.</em></h2><p>When beneficial knowledge is shared and lived, it becomes a source of strength for individuals, families and communities.</p></Container></section>
 

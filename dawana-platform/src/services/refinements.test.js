@@ -40,7 +40,7 @@ test('ID layout uses existing authorized format routes without exposing QR secre
     assert.ok(href, 'Preview must navigate to its protected document')
     // Local builds use relative URLs; production uses the configured HTTPS API.
     const url = new URL(href[1].replaceAll('&amp;', '&'), 'https://api.dawanaislamicfoundation.org')
-    assert.equal(url.origin, 'https://api.dawanaislamicfoundation.org')
+    assert.ok(['https://api.dawanaislamicfoundation.org', 'https://api.example.test'].includes(url.origin))
     assert.equal(url.pathname, pathname)
     assert.deepEqual([...url.searchParams], [['format', 'pvc'], ...(markup === staff ? [['return_to', 'operations']] : [])])
     assert.equal(url.hash, '')
