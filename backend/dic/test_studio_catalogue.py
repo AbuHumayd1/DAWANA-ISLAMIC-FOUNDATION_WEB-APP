@@ -2,6 +2,7 @@
 
 No production media, real R2 account or camper identity is referenced.
 """
+from datetime import date
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from PIL import Image
@@ -28,7 +29,7 @@ class StudioCatalogueTests(TestCase):
                 content_type__app_label=app, codename=code))
         self.operator.groups.add(group)
         self.edition = CampEdition.objects.create(name='Synthetic Edition 2038', year=2038,
-            camp_start_date='2038-12-23', camp_end_date='2039-01-01', is_active=True)
+            camp_start_date=date(2038, 12, 23), camp_end_date=date(2039, 1, 1), is_active=True)
         self.client = Client(enforce_csrf_checks=True)
         self.client.force_login(self.operator)
         self.csrf = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
