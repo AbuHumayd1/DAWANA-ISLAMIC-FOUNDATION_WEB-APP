@@ -101,3 +101,12 @@
   .ops-app .ops-body{grid-template-columns:clamp(220px,18vw,264px) minmax(0,1fr)}
   .ops-app .ops-body.navigation-collapsed{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Home sections contain verified actionable summaries, not duplicate route controls. */
+.home-page .home-media-note{color:var(--text-muted);max-width:650px;line-height:1.6}
+.home-page .home-donation-note{padding:clamp(24px,4vw,40px) 0;background:var(--panel-green)}
+.home-page .home-donation-note .container{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
+.home-page .home-donation-note .eyebrow{width:100%}
+.home-page .home-donation-note p{max-width:620px;margin:0;color:var(--text-main);font-size:.92rem;line-height:1.6}
+.home-page .home-donation-note .text-link{font-size:.9rem;white-space:nowrap}
+@media(max-width:700px){.home-page .home-donation-note .container{display:block}.home-page .home-donation-note .text-link{display:inline-flex;margin-top:10px}.home-page .hero-meta{grid-template-columns:repeat(2,minmax(0,1fr))}}
