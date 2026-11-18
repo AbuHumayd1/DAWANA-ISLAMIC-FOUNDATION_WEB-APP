@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import AppearanceControls from './AppearanceControls'
 import { backendUrl } from '../../services/productionContract'
-import './PremiumPlatformRefinement.css'
 
 import { navigation, primaryNavigation, secondaryNavigation, isNavigationActive } from '../../services/publicNavigation'
 
