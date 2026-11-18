@@ -114,3 +114,15 @@ The Media Studio development branch now includes a further media-first editorial
 - Private R2 upload activation remains disabled. This phase introduces no required Render worker, no payment change, no migration changes, and no live publishing by itself.
 
 **Release gates remain:** CI all-green on the final commit, actual mobile and desktop visual/keyboard review, published-versus-draft authorization acceptance, and owner-controlled deployment. Premium UI implementation does not imply production deployment.
+
+
+### Acceptance completion pass — 18 November 2026 (feature branch only)
+
+Following the owner-requested acceptance review, the feature branch adds:
+- Server-filtered Foundation catalogue search across title, album, campaign, programme and event, with collection-scoped pagination and a permission-filtered photography album selector. Search now covers the stored catalogue rather than only the loaded cards.
+- A bounded 20-item, same-collection multi-destination publish/withdraw workflow in Studio. Every asset still passes through the pre-existing individually authorized and audited placement endpoint; failures are reported per item and never silently retried. No new broad permissions or database migration.
+- Accessible public photo album navigation populated only from the already published, source-validated Foundation/DIC destination feed, never from private draft files.
+- Dedicated authenticated Media Studio staff-only preview/download for existing private lecture audio and uploaded video. The preview endpoint requires the precise library view permission and streams through existing protected storage; no object key, R2 URL or participant-entitlement bypass is returned to the public.
+- Synthetic backend and frontend regression coverage for album permission boundaries, protected staff previews, gallery navigation, and bounded batch controls.
+
+**Release gate still applies:** These changes are source commits, not proof of completed acceptance. The final feature-branch GitHub Actions run must pass; real credentialed browser playback and responsive/keyboard inspection must be performed against a permitted release, and production R2 bucket verification, retention/replacement approvals and actual upload activation remain owner-controlled. Never enable `DIC_MEDIA_STUDIO_UPLOADS_ENABLED` or auto-deploy, merge PR #46, or change production storage as a side effect of the acceptance work. The ordinary backend must retain schema guards for already recorded migrations 0043–0045. No changes are made to payments, registration, 8 houses, or 180 DIC programme records.
