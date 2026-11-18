@@ -185,3 +185,18 @@ test('collection cards lead to an obvious create-first workflow without bypassin
   assert.match(publishing, /You do not need to enter an ID manually/)
   assert.match(publishing, /Add to Foundation catalogue/)
 })
+
+
+test('simple video entry requires no technical title pipe URL syntax for one video', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  assert.match(studio, /const \[hostedMode, setHostedMode\] = useState\('single'\)/)
+  assert.match(studio, /hostedMode === 'single'/)
+  assert.match(studio, /Video title<input required/)
+  assert.match(studio, /YouTube or Vimeo link<input required type="url"/)
+  assert.match(studio, /One video<\/button>/)
+  assert.match(studio, /Several videos<\/button>/)
+  assert.match(studio, /hostedLinks\.split/)
+  assert.match(studio, /studioHostedLinks\(entries\)/)
+  assert.match(studio, /setHostedTitle\(''\)/)
+  assert.match(studio, /setHostedUrl\(''\)/)
+})
