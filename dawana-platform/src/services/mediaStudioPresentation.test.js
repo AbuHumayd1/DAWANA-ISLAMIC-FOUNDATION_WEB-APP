@@ -24,7 +24,7 @@ test('studio operates within its own workspace, without Django Admin redirects',
   assert.match(ui, /studioUpload\(/)
   assert.match(ui, /user\.owner/)
   assert.match(ui, /Escape/)
-  assert.match(ui, /pointerdown/)
+  assert.match(ui, /studio-menu-backdrop/)
   assert.match(api, /credentials: 'include'/)
   assert.match(api, /'X-CSRFToken'/)
 })
