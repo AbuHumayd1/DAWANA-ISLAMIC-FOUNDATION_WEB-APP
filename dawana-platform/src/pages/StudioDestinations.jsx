@@ -36,6 +36,10 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   const [collectionFilter, setCollectionFilter] = useState('')
   const [albumFilter, setAlbumFilter] = useState('')
   const [availableAlbums, setAvailableAlbums] = useState([])
+  const [batchIds, setBatchIds] = useState([])
+  const [batchDestination, setBatchDestination] = useState('')
+  const [batchEdition, setBatchEdition] = useState('')
+  const [batchAction, setBatchAction] = useState('publish')
   const [linkId, setLinkId] = useState('')
   const [linkKind, setLinkKind] = useState(library)
   const [revision, setRevision] = useState(0)
@@ -50,6 +54,9 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   const current = items.find(item => item.id === selected)
   const filteredItems = items.filter(item => showArchive || !item.archived)
   const selectedChoices = choices[current?.source_kind] || []
+  const batchAssets = items.filter(item => batchIds.includes(item.id))
+  const batchKind = batchAssets[0]?.source_kind
+  const batchChoices = choices[batchKind] || []
   useEffect(() => {
     if (selectedChoices.length && !selectedChoices.includes(destination)) {
       setDestination(selectedChoices[0])
@@ -78,6 +85,11 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   }, [focusAsset, items])
   useEffect(() => { if (choices[library]) setLinkKind(library) }, [library])
   useEffect(() => {
+    if (batchChoices.length && !batchChoices.includes(batchDestination)) {
+      setBatchDestination(batchChoices[0]); setBatchEdition('')
+    }
+  }, [batchKind, batchDestination])
+  useEffect(() => {
     if (!current) return
     setAlbum(current.album || '')
     setCampaign(current.campaign || '')
@@ -103,6 +115,34 @@ export default function StudioDestinations({ user, editions, library, sourceLink
     } catch (error) { setMessage(error.message) }
     finally { setBusy(false) }
   }
+  function toggleBatch(item, enabled) {
+    setBatchIds(previous => {
+      if (!enabled) return previous.filter(id => id !== item.id)
+      const first = items.find(row => row.id === previous[0])
+      if (first && first.source_kind !== item.source_kind) return previous
+      if (previous.length >= 20) { setMessage('Bulk actions are limited to 20 assets per batch.'); return previous }
+      return [...previous, item.id]
+    })
+  }
+  async function applyBatch(event) {
+    event.preventDefault()
+    if (!user.can_publish_destinations || !batchAssets.length || batchAssets.length > 20) return
+    if (scoped(batchDestination) && !batchEdition) { setMessage('Choose a camp edition for this batch.'); return }
+    setBusy(true); setMessage('')
+    let completed = 0
+    const failures = []
+    for (const asset of batchAssets) {
+      try {
+        await studioPlacement(asset.id, batchDestination, batchAction,
+          scoped(batchDestination) ? batchEdition : null)
+        completed++
+      } catch (error) { failures.push(`${asset.title}: ${error.message}`) }
+    }
+    setBatchIds([])
+    setRevision(n => n + 1)
+    setMessage(`${completed}/${batchAssets.length} assets ${batchAction === 'publish' ? 'published' : 'withdrawn'} for the selected destination.${failures.length ? ' Unchanged: ' + failures.slice(0, 5).join('; ') + (failures.length > 5 ? '; and additional failures' : '') : ''}`)
+    setBusy(false)
+  }
   async function link(event) {
     event.preventDefault()
     if (!/^[1-9]\d*$/.test(String(linkId))) { setMessage('Choose a valid media ID.'); return }
@@ -127,9 +167,10 @@ export default function StudioDestinations({ user, editions, library, sourceLink
       <div className="studio-linked-list"><div className="studio-linked-title"><strong>Linked media ({items.length})</strong><label><input type="checkbox" checked={showArchive} onChange={e => setShowArchive(e.target.checked)} />Show archived</label></div>
         <div className="studio-catalogue-filters"><label className="studio-catalogue-search"><span>Collection</span><select aria-label="Filter catalogue collection" value={collectionFilter} onChange={event => {setPage(1);setCollectionFilter(event.target.value);setAlbumFilter('')}}><option value="">All permitted collections</option>{Object.keys(choices).filter(x=>user.libraries?.includes(x)).map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><label className="studio-catalogue-search"><span>Search entire catalogue</span><input type="search" aria-label="Search full catalogue" placeholder="Title, album or programme…" maxLength="100" value={catalogueSearch} onChange={event => {setPage(1);setCatalogueSearch(event.target.value)}} /></label>{collectionFilter === 'photos' && <label className="studio-catalogue-search"><span>Photo album</span><select aria-label="Filter photography by album" value={albumFilter} onChange={event => {setPage(1);setAlbumFilter(event.target.value)}}><option value="">All albums</option>{availableAlbums.map(name=><option key={name} value={name}>{name}</option>)}</select></label>}</div>
         {loading && page === 1 ? <p>Loading catalogue…</p> : filteredItems.length ? filteredItems.map(item =>
-          <button type="button" className={selected === item.id ? 'studio-linked-item selected' : 'studio-linked-item'} key={item.id} onClick={() => setSelected(item.id)}><span>{item.source_kind}{item.album ? ` · ${item.album}` : ''}</span><strong>{item.title}</strong><small>{item.archived ? 'Archived' : item.destinations?.filter(p => p.state === 'published').length + ' published destinations'}</small></button>)
+          <div key={item.id} className="studio-linked-row">{user.can_publish_destinations && <input type="checkbox" aria-label={`Select ${item.title} for bulk publication`} checked={batchIds.includes(item.id)} disabled={busy || (batchKind && batchKind !== item.source_kind && !batchIds.includes(item.id))} onChange={event => toggleBatch(item, event.target.checked)} />}<button type="button" className={selected === item.id ? 'studio-linked-item selected' : 'studio-linked-item'} onClick={() => setSelected(item.id)}><span>{item.source_kind}{item.album ? ` · ${item.album}` : ''}</span><strong>{item.title}</strong><small>{item.archived ? 'Archived' : item.destinations?.filter(p => p.state === 'published').length + ' published destinations'}</small></button></div>)
           : <p className="studio-empty-linked">No assets linked yet. Link an existing media record to organize and distribute it.</p>}
         {!loading && hasMore && <button type="button" className="studio-loadmore" onClick={() => setPage(n => n + 1)}>Load more assets</button>}
+        {user.can_publish_destinations && batchIds.length > 0 && <form className="studio-bulk-actions" onSubmit={applyBatch}><strong>Batch destination action · {batchIds.length} selected {batchKind}</strong><p>Only assets in the same collection can be selected. Each source must already be published. Failed items stay unchanged and are reported individually; there is no automatic retry.</p><label>Destination<select value={batchDestination} onChange={event => {setBatchDestination(event.target.value);setBatchEdition('')}}>{batchChoices.map(value=><option value={value} key={value}>{destinationNames[value]}</option>)}</select></label>{scoped(batchDestination) && <label>Edition<select required value={batchEdition} onChange={event => setBatchEdition(event.target.value)}><option value="">Choose edition</option>{editions.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}<label>Action<select value={batchAction} onChange={event => setBatchAction(event.target.value)}><option value="publish">Publish destination</option><option value="withdraw">Withdraw destination</option></select></label><button disabled={busy || !batchDestination} type="submit">{busy ? 'Processing assets…' : `Apply ${batchAction} to ${batchIds.length} selected`}</button><button type="button" disabled={busy} onClick={() => setBatchIds([])}>Clear selection</button></form>}
       </div>
       <div className="studio-destination-detail">
         {!current ? <div className="studio-destination-empty"><strong>Select a linked asset</strong><p>Its metadata and destination publication controls will appear here.</p></div> : <>
