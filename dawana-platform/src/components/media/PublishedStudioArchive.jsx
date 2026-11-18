@@ -23,10 +23,13 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [pageError, setPageError] = useState(false)
-  useEffect(() => { setPage(1); setItems([]) }, [destination])
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [retry, setRetry] = useState(0)
+  useEffect(() => { setPage(1); setItems([]); setHasMore(false); setState('loading') }, [destination])
   useEffect(() => {
     const controller = new AbortController()
     if (page === 1) { setActiveEmbed(''); setActiveAlbum(''); setState('loading') }
+    else setLoadingMore(true)
     setPageError(false)
     const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
     fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}&page=${page}`, {
@@ -43,9 +46,10 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
       setItems(previous => page === 1 ? accepted : [...previous, ...accepted])
       setHasMore(data.has_more === true && page < 100)
       setState('ready')
-    }).catch(error => { if (error.name !== 'AbortError') { if (page === 1) setState('unavailable'); else setPageError(true) } })
+      setLoadingMore(false)
+    }).catch(error => { if (error.name !== 'AbortError') { if (page === 1) setState('unavailable'); else setPageError(true); setLoadingMore(false) } })
     return () => controller.abort()
-  }, [destination, page])
+  }, [destination, page, retry])
   if (state !== 'ready' || (!items.length && !hasMore)) return null
   const albums = [...new Set(items.filter(item => item.source_kind === 'photos' && item.album).map(item => item.album))].sort()
   const visibleItems = activeAlbum ? items.filter(item => item.source_kind === 'photos' && item.album === activeAlbum) : items
@@ -66,6 +70,6 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
         <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</div>
     {pageError && <p role="alert">Could not load more publications. You can retry.</p>}
-    {hasMore && <button type="button" className="published-studio-load-more" onClick={() => setPage(n => n + 1)} disabled={page >= 100}>Load more approved media</button>}
+    {hasMore && <button type="button" className="published-studio-load-more" onClick={() => pageError ? setRetry(n => n + 1) : setPage(n => n + 1)} disabled={loadingMore || page >= 100}>{loadingMore ? 'Loading approved media…' : pageError ? 'Retry this page' : 'Load more approved media'}</button>}
   </Container></section>
 }
