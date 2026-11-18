@@ -57,7 +57,13 @@ export async function studioUpload(library, fields) {
 
 export const studioEdit = (library, id, metadata) => studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/metadata/`, { method: 'PATCH', body: metadata })
 
-export const studioAssets = (page = 1) => studioRequest(`/assets/?page=${encodeURIComponent(page)}`)
+export const studioAssets = (page = 1, { kind = '', q = '', album = '' } = {}) => {
+  const params = new URLSearchParams({ page: String(page) })
+  if (kind) params.set('kind', kind)
+  if (q) params.set('q', q)
+  if (album) params.set('album', album)
+  return studioRequest('/assets/?' + params.toString())
+}
 export const studioLinkAsset = (source_kind, source_id) =>
   studioRequest('/assets/', { method: 'POST', body: { source_kind, source_id } })
 export const studioAssetMetadata = (id, fields) =>
