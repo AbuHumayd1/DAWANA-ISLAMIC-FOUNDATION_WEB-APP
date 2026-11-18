@@ -228,3 +228,12 @@
 :root[data-theme="dark"] .studio-submit-actions button[value=publish]{background:#347b53;color:#fff}
 :root[data-theme="dark"] .studio-item-publisher{background:#1d3224;border-color:#486b51}
 :root[data-theme="dark"] .studio-item-publisher select{background:#1c3023;border-color:#4e7058;color:#e4f2e8}
+
+
+.studio-advanced-publishing{margin-top:24px;border:1px solid #d4e4d6;border-radius:16px;background:#f7faf6;padding:0 18px}
+.studio-advanced-publishing>summary{cursor:pointer;color:#2e5a3e;padding:17px 0;font-size:13px;font-weight:750}
+.studio-advanced-publishing .studio-destinations{margin:0 0 18px}
+.studio-advanced-publishing>summary:focus-visible{outline:3px solid #c8a35b;outline-offset:3px}
+@media(max-width:640px){.studio-advanced-publishing{padding-inline:12px}}
+:root[data-theme="dark"] .studio-advanced-publishing{background:#17291e;border-color:#3c5843}
+:root[data-theme="dark"] .studio-advanced-publishing>summary{color:#cfe5d4}
