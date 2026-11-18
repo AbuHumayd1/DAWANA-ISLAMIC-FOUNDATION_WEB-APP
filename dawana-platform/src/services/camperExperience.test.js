@@ -120,7 +120,8 @@ test('house arena preserves server ranks, tied/negative scores and highlights on
 
 test('camp screen offers real links and only supplied matching edition details', () => {
   const empty = content('camp')
-  assert.match(empty, /href="\/dic#showcase-activities-title"/)
+  assert.match(empty, /<button type="button" class="cw-discover-card cp-tone-coral"/)
+  assert.doesNotMatch(empty, /href="\/dic#showcase-activities-title"/)
   assert.match(empty, /Feedback &amp; care/)
   assert.match(empty, /Camp announcements/)
   assert.doesNotMatch(empty, /23 Dec|Faisal/)

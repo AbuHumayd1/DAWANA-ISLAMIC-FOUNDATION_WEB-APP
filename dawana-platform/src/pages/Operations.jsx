@@ -294,6 +294,7 @@ function DashboardPage() {
       {activity && <p role="status">{activity}</p>}
       <section className="ops-metric-grid" aria-label="Registration metrics">
         <MetricCard title="Registration orders" value={metrics.orders} note="Parent or guardian checkouts" icon="clipboard" to="/dic/operations/registrations" />
+        <MetricCard title="Confirmed campers" value={metrics.confirmed_participants} note="Verified payments and authorized tutors; eligibility confirmed" icon="users" tone="green" to="/dic/operations/participants" />
         <MetricCard title="Registration attempts" value={metrics.participants} note="Includes unpaid records — not confirmed campers" icon="clipboard" tone="amber" to="/dic/operations/participants" />
         <MetricCard title="Verified paid orders" value={metrics.verified_paid_orders} note={`${paidRate}% of all orders`} icon="card" tone="green" to="/dic/operations/registrations?payment_status=paid" />
         <MetricCard title="Verified paid campers" value={metrics.verified_paid_participants} note="Distinct campers with provider-verified payment" icon="users" tone="green" to="/dic/operations/participants?payment_status=paid" />

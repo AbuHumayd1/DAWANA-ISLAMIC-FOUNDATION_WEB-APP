@@ -46,3 +46,33 @@
 :root[data-theme="dark"] .cf-portal-bar,:root[data-theme="dark"] .cf-portal-bottom{background:#182c20;border-color:#425848;color:#e8f1e9}
 :root[data-theme="dark"] .cf-portal-bottom a,:root[data-theme="dark"] .cf-single-camper{color:#e8f1e9}
 :root[data-theme="dark"] .cf-single-camper span{color:#b8cebe}
+
+/* Editorial hierarchy shared across the public site and Campsite Operations,
+   retaining readable functional type, protected Camper and existing Studio styling. */
+:root{--premium-heading-serif:Georgia,"Times New Roman",serif;--premium-section-gap:clamp(28px,5vw,64px)}
+.home-page .section-heading h2,.home-page .who-copy h2,.home-page .projects-section h2,
+.public-page .public-hero h1,.public-page .section-heading h2,
+.ops-app .ops-page-heading h1{font-family:var(--premium-heading-serif);font-weight:500;letter-spacing:-.018em}
+.ops-app .ops-page-heading h1{font-size:clamp(1.7rem,3vw,2.4rem)}
+@media(max-width:700px){
+  .home-page .section-heading h2,.home-page .who-copy h2{font-size:clamp(1.55rem,6vw,2.25rem);line-height:1.18}
+  .home-page .section-heading p,.home-page .who-copy p,.home-page .program-content p,.home-page .project-card p{font-size:clamp(.86rem,3.4vw,1rem);line-height:1.55}
+  .home-page .section-heading{margin-bottom:15px}
+  .home-page .area-card .card-number{font-size:.8rem}
+  .home-page .area-card h3{font-size:clamp(1.05rem,4.1vw,1.3rem);line-height:1.22}
+  .home-page .area-card p{font-size:.84rem;line-height:1.45}
+  .home-page .program-feature,.home-page .project-card,.home-page .event-empty,.home-page .media-feature{margin-top:12px}
+  .home-page .program-content,.home-page .project-card,.home-page .media-feature{padding:clamp(16px,4vw,24px)}
+  .home-page .program-content h3,.home-page .project-card h3{font-size:clamp(1.35rem,5vw,1.8rem)}
+  .home-page .tag-row{gap:6px;flex-wrap:wrap}
+  .home-page .tag-row span{font-size:.75rem;line-height:1.35;padding:6px 9px}
+  .home-page .project-card .preview-meta{gap:9px}
+  .home-page .event-empty{padding:15px}
+  .home-page .event-empty h3{font-size:1.2rem}
+  .home-page .section-copy{margin:0 0 14px}
+  .home-page .donate-section{padding-block:18px}
+  .ops-app .ops-panel{min-width:0}
+  .ops-app .ops-page-heading p{line-height:1.5}
+  .ops-app .ops-metric-card{padding:clamp(12px,3vw,17px)}
+}
+@media(prefers-reduced-motion:reduce){.mobile-nav-links>a{transition:none!important}}
