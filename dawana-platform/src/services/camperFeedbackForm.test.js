@@ -118,7 +118,7 @@ test('camper feedback retains the portal shell, single-camper auto-selection and
   assert.match(page, /data\.items\.length > 1 \? <CamperSelect/)
   assert.match(page, /items\?\.length === 1\) setItemId/)
   assert.match(page, /className="cf-portal-bottom"/)
-  assert.match(page, /className="camper-feedback-shell"/)
+  assert.match(page, /className="camper-feedback-shell cp-experience"/)
   assert.match(chrome, /feedback\(\?:\\\/\|\$\)/)
   assert.match(entry, /import '\.\/theme-polish\.css'[\s\S]*PremiumPlatformRefinement\.css/)
 })
