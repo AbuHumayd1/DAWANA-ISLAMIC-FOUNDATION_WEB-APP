@@ -94,6 +94,9 @@ export default function MediaStudio() {
   const [loading, setLoading] = useState(false)
   const [more, setMore] = useState(false)
   const [pending, setPending] = useState(null)
+  const [itemToPublish, setItemToPublish] = useState(null)
+  const [itemDestinations, setItemDestinations] = useState([])
+  const [itemEdition, setItemEdition] = useState('')
   const [uploadInfo, setUploadInfo] = useState({ enabled: false, editions: [], libraries: [] })
   const [composerOpen, setComposerOpen] = useState(false)
   const [uploadBusy, setUploadBusy] = useState(false)
@@ -132,6 +135,7 @@ export default function MediaStudio() {
   useEffect(() => {
     setComposerOpen(false); setPreview(null); setEditing(null)
     setPublishDestinations([])
+    setItemToPublish(null); setItemDestinations([]); setItemEdition('')
   }, [library])
   useEffect(() => {
     if (!preview) return undefined
@@ -347,15 +351,42 @@ export default function MediaStudio() {
     } catch (error) { setMessage(error.message) }
     finally { setPending(null) }
   }
-  async function publish(item, action) {
+  async function publishExisting(item, action, chosen = []) {
     setPending(item.id); setMessage('')
     try {
-      const result = await studioPublish(library, item.id, action)
-      setRows(previous => previous.map(row => row.id === item.id ? { ...row, state: result.state } : row))
-      setRevision(current => current + 1)
-      setMessage(`${item.title} — ${action === 'publish' ? 'published' : 'withdrawn'}.`)
-    } catch (error) { setMessage(error.message) }
-    finally { setPending(null) }
+      if (action === 'withdraw') {
+        await studioPublish(library, item.id, 'withdraw')
+        setMessage(`${item.title} withdrawn. Previously published destinations have also been withdrawn.`)
+      } else {
+        if (!canPublishImmediately) throw new Error('Publication permission is required for this workflow.')
+        if (!chosen.length) throw new Error('Choose at least one destination.')
+        if (chosen.some(needsEdition) && !itemEdition) throw new Error('Choose the camp edition.')
+        // Publish original only if still a draft. No automatic retry on failure.
+        if (item.state !== 'published') await studioPublish(library, item.id, 'publish')
+        const {asset} = await studioLinkAsset(library, item.id)
+        if (!asset?.id) throw new Error('Could not link media to the Foundation catalogue.')
+        let completed = 0
+        for (const dest of chosen) {
+          try {
+            await studioPlacement(asset.id, dest, 'publish',
+              needsEdition(dest) ? itemEdition : null)
+            completed++
+          } catch (error) {
+            setMessage(`${item.title}: original published and ${completed} of ${chosen.length} destinations updated. ${error.message}. Review before retrying.`)
+            setRevision(v => v + 1)
+            return
+          }
+        }
+        setFocusAsset(asset.id)
+        setItemToPublish(null)
+        setItemDestinations([])
+        setMessage(`${item.title} published to ${completed} chosen destination(s).`)
+      }
+      setRevision(v => v + 1)
+    } catch (error) {
+      setMessage(`${item.title}: ${error.message}. The original may already be published; check it before retrying.`)
+      setRevision(v => v + 1)
+    } finally { setPending(null) }
   }
   if (checking) return <main className="studio-checking" aria-busy="true">Opening the secure DAWANA Media Studio…</main>
   if (!user) return <main className="studio-login"><div className="studio-login-appearance"><StudioAppearanceButton /></div><Link to="/" className="studio-back">← DAWANA Islamic Foundation</Link><section className="studio-login-card">
@@ -482,7 +513,15 @@ export default function MediaStudio() {
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
             <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
           </div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations([]); setItemEdition(item.edition ? String(item.edition) : '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          {itemToPublish === item.id && <div className="studio-item-publisher">
+            <strong>Where should “{item.title}” appear?</strong>
+            <StudioPublishChoices kind={library} choices={PUBLISH_DESTINATIONS[library] || []} selected={itemDestinations} setSelected={setItemDestinations} authorized={canPublishImmediately} />
+            {itemDestinations.some(needsEdition) && <label>Camp edition<select required value={itemEdition} onChange={event => setItemEdition(event.target.value)}>
+              <option value="">Choose edition</option>{uploadInfo.editions.map(row => <option key={row.id} value={row.id}>{row.name} ({row.year})</option>)}
+            </select></label>}
+            <button type="button" disabled={pending !== null || !itemDestinations.length || itemDestinations.some(needsEdition) && !itemEdition} onClick={() => publishExisting(item, 'publish', itemDestinations)}>{pending === item.id ? 'Publishing…' : 'Publish Now'}</button>
+          </div>}
           {editing === item.id && <form className="studio-edit-form" onSubmit={event => saveMetadata(event, item)}><strong>Editorial details</strong>{Object.entries(item.metadata || {}).map(([name,value]) => <label key={name}>{name.replaceAll('_',' ')}{typeof value === 'boolean' ? <input name={name} type="checkbox" defaultChecked={value} /> : <input name={name} type={typeof value === 'number' ? 'number' : 'text'} min={typeof value === 'number' ? 0 : undefined} maxLength={typeof value === 'number' ? undefined : 5000} defaultValue={value ?? ''} />}</label>)}<button type="submit" disabled={pending !== null}>Save changes</button></form>}</div>
         </article>)}</div> : <div className="studio-state"><strong>{q || state || edition ? 'No items match these filters.' : `No ${displayName?.toLowerCase()} saved here yet.`}</strong><p>{q || state || edition ? 'Open “Search and filter saved items” to change or clear your filters.' : isHosted ? 'Use “Add video links” above to save your first video or livestream.' : hasUploadForm ? 'When file uploads are activated, you can add new media using the upload action above. Any existing items will appear here.' : 'Speaker appearances will appear here when they are available.'}</p></div>}
         {more && <div className="studio-pagination"><button type="button" disabled={loading || page >= 100} onClick={() => setPage(current => current + 1)}>{loading ? 'Loading…' : 'Load more media'}</button></div>}
