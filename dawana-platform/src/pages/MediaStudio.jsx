@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioHostedLinks } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioHostedLinks, studioPlacement } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StudioDestinations from './StudioDestinations'
 
@@ -9,23 +9,36 @@ const COMPOSER_FIELDS = {
   photos: [{ name: 'caption', label: 'Caption', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   videos: [{ name: 'caption', label: 'Title / caption', required: true }, { name: 'alt_text', label: 'Thumbnail description', required: true }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
   recordings: [{ name: 'title', label: 'Recording title', required: true }, { name: 'lecturer', label: 'Lecturer' }, { name: 'description', label: 'Description' }, { name: 'audio', label: 'Audio recording', file: true, accept: 'audio/mpeg,audio/mp4,audio/wav,audio/ogg', required: true }],
-  flyers: [{ name: 'title', label: 'Official flyer title', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'image', label: 'Flyer artwork', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  flyers: [{ name: 'title', label: 'Official flyer title', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'image', label: 'Official camp flyer image', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description', required: true }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
   lecturers: [{ name: 'name', label: 'Lecturer name', required: true }, { name: 'designation', label: 'Designation' }, { name: 'biography', label: 'Biography', required: true }, { name: 'alt_text', label: 'Portrait description', required: true }, { name: 'photograph', label: 'Lecturer portrait', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   activities: [{ name: 'title', label: 'Activity title', required: true }, { name: 'category', label: 'Category', required: true }, { name: 'description', label: 'Description', required: true }, { name: 'alt_text', label: 'Photo description (if supplied)' }, { name: 'photograph', label: 'Optional activity photograph', file: true, accept: 'image/jpeg,image/png,image/webp' }],
 }
 
 const LIBRARIES = [
-  { key: 'photos', name: 'Photography', count: 'Photographs & memories', icon: '📷' },
-  { key: 'videos', name: 'Videos', count: 'Camp videos & footage', icon: '▸' },
-  { key: 'hosted', name: 'YouTube & Live', count: 'Paste video and livestream links', icon: '▶' },
-  { key: 'recordings', name: 'Audio recordings', count: 'Lectures & learning', icon: '🎙' },
-  { key: 'flyers', name: 'Flyers & artwork', count: 'Official visual campaigns', icon: '▧' },
-  { key: 'promotions', name: 'Promotions', count: 'Video campaigns', icon: '✦' },
-  { key: 'lecturers', name: 'Lecturers', count: 'Profiles & expertise', icon: '♙' },
-  { key: 'appearances', name: 'Appearances', count: 'Speaker programmes', icon: '◫' },
-  { key: 'activities', name: 'Activities', count: 'Events & highlights', icon: '▤' },
+  { key: 'photos', name: 'Photographs & Galleries', count: 'Camp photos and memories', icon: '📷' },
+  { key: 'videos', name: 'Videos & Livestreams', count: 'Upload videos or paste links', icon: '▶' },
+  { key: 'hosted', name: 'YouTube & Live', count: 'Hosted links', icon: '▶' },
+  { key: 'recordings', name: 'Lecture Audio', count: 'Recorded lectures', icon: '🎙' },
+  { key: 'flyers', name: 'Official Camp Flyers', count: 'Approved DIC flyers', icon: '▧' },
+  { key: 'promotions', name: 'Promotional Videos', count: 'DIC introductions and experiences', icon: '✦' },
+  { key: 'lecturers', name: 'Lecturer Profiles', count: 'Portraits and biographies', icon: '♙' },
+  { key: 'appearances', name: 'Lecturer Appearances', count: 'Existing lecturer programmes', icon: '◫' },
+  { key: 'activities', name: 'Camp Activities', count: 'Activities with optional photos', icon: '▤' },
 ]
+
+// Destinations are restricted by the existing StudioPlacement backend allow-list.
+const PUBLISH_DESTINATIONS = {
+  photos: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_memories', 'DIC memories gallery'], ['dic_landing', 'DIC landing page']],
+  videos: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_landing', 'DIC landing page']],
+  hosted: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_landing', 'DIC landing page'], ['dic_resources', 'DIC lecture resources']],
+  recordings: [['dic_resources', 'DIC lecture resources'], ['camper_resources', 'Camper Portal resources']],
+  flyers: [['foundation_archive', 'Foundation media archive'], ['dic_landing', 'DIC landing page']],
+  promotions: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_landing', 'DIC landing page']],
+  lecturers: [], appearances: [],
+  activities: [['foundation_archive', 'Foundation media archive'], ['dic_landing', 'DIC landing page']],
+}
+const needsEdition = destination => destination.startsWith('dic_') || destination === 'camper_resources'
 
 function StudioAppearanceButton() {
   const appearance = window.DawanaAppearance
@@ -71,6 +84,10 @@ export default function MediaStudio() {
   const [composerOpen, setComposerOpen] = useState(false)
   const [uploadBusy, setUploadBusy] = useState(false)
   const [revision, setRevision] = useState(0)
+  const [publishDestinations, setPublishDestinations] = useState([])
+  const [saveAction, setSaveAction] = useState('draft')
+  const [resultDetails, setResultDetails] = useState([])
+
   const menuRef = useRef(null)
   const seq = useRef(0)
   function chooseLibrary(kind) {
@@ -100,7 +117,10 @@ export default function MediaStudio() {
     if (!user) return
     studioUploadStatus().then(setUploadInfo).catch(() => setUploadInfo({ enabled: false, editions: [], libraries: [] }))
   }, [user])
-  useEffect(() => { setComposerOpen(false); setPreview(null); setEditing(null) }, [library])
+  useEffect(() => {
+    setComposerOpen(false); setPreview(null); setEditing(null)
+    setPublishDestinations([]); setSaveAction('draft')
+  }, [library])
   useEffect(() => {
     if (!preview) return undefined
     function closeOnEscape(event) { if (event.key === 'Escape') setPreview(null) }
@@ -266,6 +286,11 @@ export default function MediaStudio() {
   const isHosted = library === 'hosted'
   const hasUploadForm = Boolean(COMPOSER_FIELDS[library])
   const canUploadFiles = hasUploadForm && uploadInfo.enabled && uploadInfo.libraries.includes(library) && canCreate
+  const canPublishImmediately = canPublish && user.can_manage_catalogue && user.can_publish_destinations
+    && (PUBLISH_DESTINATIONS[library] || []).length > 0
+    && library !== 'lecturers' && library !== 'appearances'
+  const selectedDestinations = publishDestinations.filter(key => (PUBLISH_DESTINATIONS[library] || []).some(([id]) => id === key))
+  const selectionNeedsEdition = selectedDestinations.some(needsEdition)
   const uploadType = ({
     photos: 'photos', videos: 'videos', recordings: 'audio recordings',
     flyers: 'flyers', promotions: 'promotional videos',
