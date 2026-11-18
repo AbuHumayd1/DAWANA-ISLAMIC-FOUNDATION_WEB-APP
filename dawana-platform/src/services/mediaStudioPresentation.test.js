@@ -172,7 +172,7 @@ test('collection cards lead to an obvious create-first workflow without bypassin
   const publishing = read('../pages/StudioDestinations.jsx')
   assert.match(ui, /function chooseLibrary\(kind\)/)
   assert.match(ui, /document\.getElementById\('studio-library'\)\?\.scrollIntoView/)
-  assert.match(ui, /onClick=\{\(\) => chooseLibrary\(x\.key\)\}/)
+  assert.match(ui, /onClick=\{\(\) => selectCollection\(x\.key\)\}/)
   assert.match(ui, /id="studio-library"/)
   assert.match(ui, /studio-start-panel/)
   assert.match(ui, /START HERE/)
