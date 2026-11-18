@@ -50,3 +50,19 @@
 :root[data-theme="dark"] .studio-destinations .studio-catalogue-search input,
 :root[data-theme="dark"] .studio-destinations .studio-catalogue-filters select,
 :root[data-theme="dark"] .studio-destinations .studio-bulk-actions select{color:#eef7ef;background:#1d3526;border-color:#54775a}
+
+
+/* The regular workflow never requires editors to type raw database IDs. */
+.studio-publishing-onboarding{margin:22px 0 12px;border-radius:14px;padding:19px 21px;background:#eef6ef;border:1px solid #c6dec9}
+.studio-publishing-onboarding strong{font-size:15px;color:#1c5036}
+.studio-publishing-onboarding p{font-size:13px;line-height:1.7;margin:8px 0 0;color:#456a50}
+.studio-advanced-link{margin:16px 0 21px}
+.studio-advanced-link>summary{cursor:pointer;font-size:12px;font-weight:700;color:#426b4e;padding:9px 0}
+.studio-advanced-link>p{font-size:12px;line-height:1.6;color:#55715a}
+.studio-advanced-link .studio-link{margin:10px 0 16px}
+@media(max-width:600px){.studio-publishing-onboarding{padding:15px}.studio-advanced-link{margin:10px 0 16px}}
+:root[data-theme="dark"] .studio-publishing-onboarding{background:#20392a;border-color:#4d6e55}
+:root[data-theme="dark"] .studio-publishing-onboarding strong{color:#e1f2e5}
+:root[data-theme="dark"] .studio-publishing-onboarding p,
+:root[data-theme="dark"] .studio-advanced-link>summary,
+:root[data-theme="dark"] .studio-advanced-link>p{color:#bdd6c5}
