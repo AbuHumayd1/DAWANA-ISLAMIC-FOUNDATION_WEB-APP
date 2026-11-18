@@ -97,3 +97,25 @@ test('premium media studio keeps click-to-open protected previews and directly p
   assert.match(panel, /filteredItems\.map/)
   assert.match(gallery, /useId\(\)/)
 })
+
+test('Studio bulk destination publishing is bounded and reports partial failures without automatic retry', () => {
+  const panel = read('../pages/StudioDestinations.jsx')
+  assert.match(panel, /previous\.length >= 20/)
+  assert.match(panel, /batchAssets\.length > 20/)
+  assert.match(panel, /studioPlacement\(asset\.id, batchDestination, batchAction/)
+  assert.match(panel, /failures\.push/)
+  assert.match(panel, /setBatchIds\(\[\]\)/)
+  assert.doesNotMatch(panel, /Promise\.all\(batchAssets/)
+})
+
+test('private media previews reuse staff-protected backend routes, never raw R2 addresses', () => {
+  const ui = read('../pages/MediaStudio.jsx')
+  const backend = read('../../../backend/dic/studio_api.py')
+  assert.match(ui, /private-audio/)
+  assert.match(ui, /private-video/)
+  assert.match(ui, /crossOrigin="use-credentials"/)
+  assert.match(backend, /class StudioPrivatePreviewView\(StudioView\)/)
+  assert.match(backend, /has_perm\('dic\.view_' \+ code\)/)
+  assert.match(backend, /media_headers\(response, public=True\)/)
+  assert.doesNotMatch(ui, /r2\.cloudflarestorage\.com/)
+})
