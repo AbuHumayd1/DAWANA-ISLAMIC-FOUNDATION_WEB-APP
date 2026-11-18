@@ -82,6 +82,7 @@ test('premium media studio keeps click-to-open protected previews and directly p
   const styles = read('../pages/MediaStudio.css')
   const panel = read('../pages/StudioDestinations.jsx')
   const gallery = read('../components/media/PublishedStudioArchive.jsx')
+  const api = read('./mediaStudioApi.js')
   assert.match(studio, /setPreview\(\{kind: 'image'/)
   assert.match(studio, /setPreview\(\{kind: 'video'/)
   assert.match(studio, /safePlayer\(item.player_url\)/)
