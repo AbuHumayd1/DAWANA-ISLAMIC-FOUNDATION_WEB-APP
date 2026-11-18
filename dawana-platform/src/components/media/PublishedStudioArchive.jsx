@@ -20,28 +20,33 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   const [state, setState] = useState('loading')
   const [activeEmbed, setActiveEmbed] = useState('')
   const [activeAlbum, setActiveAlbum] = useState('')
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [pageError, setPageError] = useState(false)
+  useEffect(() => { setPage(1); setItems([]) }, [destination])
   useEffect(() => {
     const controller = new AbortController()
-    setActiveEmbed('')
-    setActiveAlbum('')
-    setState('loading')
+    if (page === 1) { setActiveEmbed(''); setActiveAlbum(''); setState('loading') }
+    setPageError(false)
     const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
-    fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}`, {
+    fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}&page=${page}`, {
       credentials: 'omit', cache: 'no-store', signal: controller.signal,
     }).then(async response => {
       if (!response.ok) throw new Error('Archive unavailable')
       return response.json()
     }).then(data => {
       if (!Array.isArray(data.items)) throw new Error('Archive unavailable')
-      setItems(data.items.filter(row =>
+      const accepted = data.items.filter(row =>
         typeof row.title === 'string' && typeof row.url === 'string' &&
         ((row.url.startsWith('/api/v1/dic/') && row.url.length < 400) ||
-         (row.source_kind === 'hosted' && !!approvedVideoLink(row.embed_url)))))
+         (row.source_kind === 'hosted' && !!approvedVideoLink(row.embed_url))))
+      setItems(previous => page === 1 ? accepted : [...previous, ...accepted])
+      setHasMore(data.has_more === true && page < 100)
       setState('ready')
-    }).catch(error => { if (error.name !== 'AbortError') setState('unavailable') })
+    }).catch(error => { if (error.name !== 'AbortError') { if (page === 1) setState('unavailable'); else setPageError(true) } })
     return () => controller.abort()
-  }, [destination])
-  if (state !== 'ready' || !items.length) return null
+  }, [destination, page])
+  if (state !== 'ready' || (!items.length && !hasMore)) return null
   const albums = [...new Set(items.filter(item => item.source_kind === 'photos' && item.album).map(item => item.album))].sort()
   const visibleItems = activeAlbum ? items.filter(item => item.source_kind === 'photos' && item.album === activeAlbum) : items
   const canBrowseAlbums = ['foundation_archive', 'dic_memories'].includes(destination) && albums.length > 0
@@ -60,5 +65,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
       {(item.source_kind === 'hosted' || item.source_kind !== 'videos' || approvedVideoLink(item.embed_url)) ?
         <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</div>
+    {pageError && <p role="alert">Could not load more publications. You can retry.</p>}
+    {hasMore && <button type="button" className="published-studio-load-more" onClick={() => setPage(n => n + 1)} disabled={page >= 100}>Load more approved media</button>}
   </Container></section>
 }
