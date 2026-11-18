@@ -4,6 +4,7 @@ import { backendUrl } from '../services/productionContract'
 import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StudioDestinations from './StudioDestinations'
+import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
 const COMPOSER_FIELDS = {
   photos: [{ name: 'caption', label: 'Caption', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
@@ -160,6 +161,7 @@ export default function MediaStudio() {
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [preview])
+  const [failedThumbnails, setFailedThumbnails] = useState({})
   function safePlayer(value) {
     try {
       const url = new URL(value)
@@ -564,7 +566,9 @@ export default function MediaStudio() {
           <div className={'studio-art' + (item.preview_url || item.player_url ? ' studio-art-available' : '')}>
             {item.preview_url && item.preview_url.includes('/private-preview/') ? <button className="studio-preview-trigger studio-play-trigger" type="button" onClick={() => setPreview({kind: library === 'recordings' ? 'private-audio' : 'private-video', url: backendUrl(item.preview_url), title: item.title})} aria-label={`Preview private ${item.title}`}><span className="studio-play-icon" aria-hidden="true">{library === 'recordings' ? '♫' : '▶'}</span><strong>{library === 'recordings' ? 'Listen to protected recording' : 'Preview protected video'}</strong></button>
             : item.preview_url ? <button className="studio-preview-trigger" type="button" onClick={() => setPreview({kind: 'image', url: backendUrl(item.preview_url), title: item.title})} aria-label={`Preview ${item.title}`}><img src={backendUrl(item.preview_url)} loading="lazy" alt="" onError={(event) => { event.currentTarget.hidden = true }} /><span>View image</span></button>
-            : item.player_url && safePlayer(item.player_url) ? <button className="studio-preview-trigger studio-play-trigger" type="button" onClick={() => setPreview({kind: 'video', url: safePlayer(item.player_url), title: item.title})} aria-label={`Preview ${item.title}`}><span className="studio-play-icon" aria-hidden="true">▶</span><strong>Watch or preview stream</strong></button>
+            : item.player_url && safePlayer(item.player_url) ? <button className="studio-preview-trigger studio-play-trigger studio-youtube-cover" type="button" onClick={() => setPreview({kind: 'video', url: safePlayer(item.player_url), title: item.title})} aria-label={`Preview ${item.title}`}>
+              {hostedVideoThumbnail(safePlayer(item.player_url)) && !failedThumbnails[item.id] && <img src={hostedVideoThumbnail(safePlayer(item.player_url))} loading="lazy" alt="" referrerPolicy="no-referrer" onError={() => setFailedThumbnails(old => ({...old, [item.id]: true}))}/>}
+              <span className="studio-play-icon" aria-hidden="true">▶</span><strong>Watch or preview stream</strong></button>
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
             <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
           </div>
