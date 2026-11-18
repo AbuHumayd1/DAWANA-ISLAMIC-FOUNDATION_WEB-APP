@@ -57,7 +57,7 @@ export default function Media() {
   useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
-    const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/)
+    const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
     fetch(base + '/dic/studio/public-placements/?destination=foundation_archive&page=' + page, {
       credentials: 'omit', cache: 'no-store', signal: controller.signal,
     }).then(response => {
