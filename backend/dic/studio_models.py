@@ -29,7 +29,7 @@ SUPPORTED_DESTINATIONS = {
     'photos': frozenset(('foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing')),
     'videos': frozenset(('foundation_archive', 'foundation_home', 'dic_landing')),
     'hosted': frozenset(('foundation_archive', 'foundation_home', 'dic_landing', 'dic_resources')),
-    'recordings': frozenset(('dic_resources', 'camper_resources')),
+    'recordings': frozenset(('foundation_archive', 'dic_resources', 'camper_resources')),
     'flyers': frozenset(('foundation_archive', 'dic_landing')),
     'promotions': frozenset(('foundation_archive', 'foundation_home', 'dic_landing')),
     'lecturers': frozenset(('foundation_archive', 'dic_landing')),

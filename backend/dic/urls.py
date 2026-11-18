@@ -339,10 +339,11 @@ urlpatterns += [
 
 # Unified DAWANA Media Studio catalogue and safe publication destinations.
 from .studio_catalogue_api import (StudioAssetsView, StudioAssetDetailView,
-    StudioPlacementView, PublicStudioPlacementsView)
+    StudioPlacementView, PublicStudioPlacementsView, PublicStudioAudioView)
 urlpatterns += [
     path('studio/assets/', StudioAssetsView.as_view(), name='studio-assets'),
     path('studio/assets/<uuid:asset_id>/', StudioAssetDetailView.as_view(), name='studio-asset-detail'),
     path('studio/assets/<uuid:asset_id>/placements/', StudioPlacementView.as_view(), name='studio-placements'),
     path('studio/public-placements/', PublicStudioPlacementsView.as_view(), name='studio-public-placements'),
+    path('studio/public-audio/<uuid:asset_id>/', PublicStudioAudioView.as_view(), name='studio-public-audio'),
 ]

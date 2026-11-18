@@ -196,11 +196,16 @@ class StudioLibraryView(StudioView):
             raise ValidationError({'page': 'Library page out of range.'})
         offset = (page - 1) * 30
         records = list(queryset[offset:offset + 31])
+        from .studio_models import StudioAsset
+        catalogue = {asset.source_id: asset for asset in StudioAsset.objects.filter(
+            source_kind=kind, source_id__in=[item.pk for item in records[:30]])}
         rows = []
         for item in records[:30]:
             label = str(getattr(item, title, '') or item)
             rows.append({'id': item.pk, 'title': label, 'state': getattr(item, 'state', 'reference'),
                          'edition': getattr(item, 'edition_id', None),
+                         'programme': catalogue[item.pk].programme if item.pk in catalogue else '',
+                         'event': catalogue[item.pk].event if item.pk in catalogue else '',
                          'updated_at': getattr(item, 'updated_at', None),
                          'featured': bool(getattr(item, 'featured', False)),
                          'preview_url': preview_route(item) if preview_route else None,

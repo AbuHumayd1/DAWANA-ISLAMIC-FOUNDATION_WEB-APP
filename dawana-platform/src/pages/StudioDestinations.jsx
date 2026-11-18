@@ -8,13 +8,13 @@ const destinationNames = {
   dic_memories: 'DIC memories gallery',
   dic_landing: 'DIC landing page',
   dic_resources: 'DIC lecture resources',
-  camper_resources: 'Camper Portal resources',
+  camper_resources: 'Camper Portal — private lecture audio',
 }
 const choices = {
   photos: ['foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing'],
   videos: ['foundation_archive', 'foundation_home', 'dic_landing'],
   hosted: ['foundation_archive', 'foundation_home', 'dic_landing', 'dic_resources'],
-  recordings: ['dic_resources', 'camper_resources'],
+  recordings: ['foundation_archive', 'camper_resources'],
   flyers: ['foundation_archive', 'dic_landing'],
   promotions: ['foundation_archive', 'foundation_home', 'dic_landing'],
   lecturers: ['foundation_archive', 'dic_landing'],

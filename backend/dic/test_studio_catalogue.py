@@ -2,6 +2,7 @@
 
 No production media, real R2 account or camper identity is referenced.
 """
+from datetime import date
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from PIL import Image
@@ -28,7 +29,7 @@ class StudioCatalogueTests(TestCase):
                 content_type__app_label=app, codename=code))
         self.operator.groups.add(group)
         self.edition = CampEdition.objects.create(name='Synthetic Edition 2038', year=2038,
-            camp_start_date='2038-12-23', camp_end_date='2039-01-01', is_active=True)
+            camp_start_date=date(2038, 12, 23), camp_end_date=date(2039, 1, 1), is_active=True)
         self.client = Client(enforce_csrf_checks=True)
         self.client.force_login(self.operator)
         self.csrf = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
@@ -147,6 +148,77 @@ class StudioCatalogueTests(TestCase):
         self.assertFalse(studio_audio_visible(audio, self.edition))
         self.assertEqual(self.client.get(reverse('dic:studio-public-placements'),
                          {'destination': 'camper_resources'}).status_code, 404)
+
+    def test_public_audio_requires_separate_published_archive_placement_and_withdraws(self):
+        from pathlib import Path
+        from dic.camp_release_models import LectureRecording
+        from dic.camp_release_api import studio_audio_visible
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            file_path = Path(root) / 'camp-recordings' / 'synthetic.mp3'
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_bytes(b'ID3synthetic-public-audio')
+            audio = LectureRecording.objects.create(
+                edition=self.edition, title='Synthetic released lecture',
+                audio='camp-recordings/synthetic.mp3')
+            audio.state = 'published'
+            audio.save(actor=self.operator)
+            asset_id = self.post('studio-assets', {
+                'source_kind': 'recordings', 'source_id': audio.pk}).json()['asset']['id']
+            media_url = reverse('dic:studio-public-audio', args=[asset_id])
+            anonymous = Client()
+            self.assertEqual(anonymous.get(media_url).status_code, 404)
+            self.assertFalse(studio_audio_visible(audio, self.edition))
+            edited = self.client.patch(reverse('dic:studio-asset-detail', args=[asset_id]),
+                {'programme': 'dic', 'event': ''}, content_type='application/json',
+                HTTP_X_CSRFTOKEN=self.csrf)
+            self.assertEqual(edited.status_code, 200, edited.content)
+            response = self.post('studio-placements', {
+                'destination': 'foundation_archive', 'action': 'publish'}, args=[asset_id])
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertFalse(studio_audio_visible(audio, self.edition))
+            archive = anonymous.get(reverse('dic:studio-public-placements'),
+                                    {'destination': 'foundation_archive'})
+            self.assertEqual(len(archive.json()['items']), 1)
+            self.assertEqual(archive.json()['items'][0]['programme'], 'dic')
+            self.assertEqual(archive.json()['items'][0]['url'], media_url)
+            streamed = anonymous.get(media_url + '?download=1')
+            self.assertEqual(streamed.status_code, 200)
+            self.assertIn('attachment', streamed['Content-Disposition'])
+            self.assertEqual(b''.join(streamed.streaming_content), b'ID3synthetic-public-audio')
+            self.post('studio-placements', {
+                'destination': 'foundation_archive', 'action': 'withdraw'}, args=[asset_id])
+            self.assertEqual(anonymous.get(media_url).status_code, 404)
+            self.assertEqual(anonymous.get(reverse('dic:studio-public-placements'),
+                                      {'destination': 'foundation_archive'}).json()['items'], [])
+
+    def test_session_linked_camper_audio_cannot_be_published_to_public_archive(self):
+        from datetime import date, time
+        from dic.models import TimetableEntry
+        from dic.camp_release_models import LectureRecording
+        private_session = TimetableEntry.objects.create(
+            edition=self.edition, date=date(2038, 12, 24), day_number=2,
+            timetable_type='activities', source_key='synthetic:private:session',
+            description='Camper-specific session', time_label='10 AM',
+            start_time=time(10), end_time=time(11), display_order=1,
+            modified_by=self.owner)
+        audio = LectureRecording.objects.create(
+            edition=self.edition, session=private_session,
+            title='Restricted audio', audio='camp-recordings/private.mp3')
+        audio.state = 'published'
+        audio.save(actor=self.operator)
+        asset_id = self.post('studio-assets', {
+            'source_kind': 'recordings', 'source_id': audio.pk}).json()['asset']['id']
+        denied = self.post('studio-placements', {
+            'destination': 'foundation_archive', 'action': 'publish'}, args=[asset_id])
+        self.assertEqual(denied.status_code, 400, denied.content)
+        allowed = self.post('studio-placements', {
+            'destination': 'camper_resources', 'edition': self.edition.pk,
+            'action': 'publish'}, args=[asset_id])
+        self.assertEqual(allowed.status_code, 200, allowed.content)
+        self.assertEqual(Client().get(reverse('dic:studio-public-audio', args=[asset_id])).status_code, 404)
+        self.assertEqual(Client().get(reverse('dic:studio-public-placements'),
+                           {'destination': 'foundation_archive'}).json()['items'], [])
 
     def test_catalogue_pages_are_bounded_and_source_permission_filtered(self):
         for n in range(32):
