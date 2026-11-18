@@ -40,6 +40,7 @@ function MediaEntry({item}) {
     <div className="media-collection-entry-copy">
       <span className="media-collection-type">{audio ? 'Audio recording' : 'Video'}{item.edition ? ' · ' + item.edition : ''}</span>
       <h3>{item.title}</h3>
+      {item.lecturer && <p className="media-collection-speaker">{item.lecturer}</p>}
       {item.description && <p>{item.description}</p>}
       {item.event && ['other','ramadan'].includes(item.programme) && <small>{item.event}</small>}
       {audio ? <a href={url + '?download=1'}>Download audio</a> : embed ? <a href={embed} target="_blank" rel="noopener noreferrer">Watch video</a> : null}
