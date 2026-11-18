@@ -70,6 +70,23 @@ export default function MediaStudio() {
   const [revision, setRevision] = useState(0)
   const menuRef = useRef(null)
   const seq = useRef(0)
+  function chooseLibrary(kind) {
+    setPage(1)
+    setLibrary(kind)
+    setQ('')
+    setState('')
+    setEdition('')
+    setMenuOpen(false)
+    setComposerOpen(false)
+    // A collection card should take the editor to its workspace, not just
+    // silently change a section far below the fold.
+    window.requestAnimationFrame(() => {
+      document.getElementById('studio-library')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        block: 'start',
+      })
+    })
+  }
   useEffect(() => {
     let mounted = true
     studioSession().then(v => { if (mounted) setUser(v) })
@@ -239,20 +256,49 @@ export default function MediaStudio() {
   const selected = LIBRARIES.find(x => x.key === library)
   const publishedInView = rows.filter(item => item.state === 'published').length
   const draftsInView = rows.filter(item => item.state === 'draft').length
+  const isHosted = library === 'hosted'
+  const hasUploadForm = Boolean(COMPOSER_FIELDS[library])
+  const canUploadFiles = hasUploadForm && uploadInfo.enabled && uploadInfo.libraries.includes(library) && canCreate
+  const uploadType = ({
+    photos: 'photos', videos: 'videos', recordings: 'audio recordings',
+    flyers: 'flyers', promotions: 'promotional videos',
+    lecturers: 'lecturer profiles', activities: 'activities',
+  })[library]
   return <div className="studio-app">
     <header className="studio-top"><div className="studio-nav-wrapper" ref={menuRef}><button className="studio-hamburger" aria-label="Toggle Studio navigation" aria-expanded={menuOpen} aria-controls="studio-menu" onClick={() => setMenuOpen(value => !value)}>☰</button>
       {menuOpen && <nav id="studio-menu" className="studio-popnav" aria-label="Media Studio sections">
         <strong>Media collections</strong>
-        {LIBRARIES.filter(x => user.libraries?.includes(x.key)).map(x => <button type="button" key={x.key} onClick={() => { setPage(1); setLibrary(x.key); setQ(''); setState(''); setEdition(''); setMenuOpen(false) }} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
+        {LIBRARIES.filter(x => user.libraries?.includes(x.key)).map(x => <button type="button" key={x.key} onClick={() => chooseLibrary(x.key)} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
       </nav>}</div>
       <Link to="/" className="studio-logo"><img src="/dawana-official-logo.png" alt="" /><span><strong>DAWANA</strong><small>MEDIA STUDIO</small></span></Link>
       <div className="studio-account"><StudioAppearanceButton /><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={signOut}>Sign out</button></div>
     </header>
     <main className="studio-main">
       <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-overview-mark" aria-hidden="true">✦</div></div>
-      <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{LIBRARIES.filter(x => user.libraries?.includes(x.key)).map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key ? ' active' : '')} onClick={() => { setPage(1); setLibrary(x.key); setQ(''); setState(''); setEdition('') }}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}</div></section>
-      <section className="studio-workspace" aria-labelledby="studio-library-title">
-        <div className="studio-heading"><div><span className="studio-kicker">THE LIBRARY</span><h2 id="studio-library-title">{selected?.name}</h2><p>Browse and manage existing media securely. No file is publicly released until published.</p></div><div className="studio-heading-actions"><span className="studio-library-meta">{rows.length} loaded · {publishedInView} published · {draftsInView} drafts</span>{library === 'hosted' && canCreate && <button className="studio-create" type="button" onClick={() => setComposerOpen(open => !open)}>{composerOpen ? 'Close links' : '+ Add YouTube links'}</button>}{uploadInfo.enabled && uploadInfo.libraries.includes(library) && <button className="studio-create" type="button" onClick={() => setComposerOpen(open => !open)}>{composerOpen ? 'Close upload' : '+ Add media'}</button>}</div></div>
+      <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{LIBRARIES.filter(x => user.libraries?.includes(x.key)).map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key ? ' active' : '')} onClick={() => chooseLibrary(x.key)}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}</div></section>
+      <section id="studio-library" className="studio-workspace" aria-labelledby="studio-library-title">
+        <div className="studio-heading"><div><span className="studio-kicker">YOUR COLLECTION</span><h2 id="studio-library-title">{selected?.name}</h2><p>Start by adding something new, or browse items already saved here.</p></div><span className="studio-library-meta">{rows.length} loaded · {publishedInView} published · {draftsInView} drafts</span></div>
+        <div className="studio-start-panel">
+          <div className="studio-start-copy">
+            <span className="studio-kicker">START HERE</span>
+            <h3>{isHosted ? 'Add a YouTube video or livestream' : hasUploadForm ? `Add ${uploadType}` : 'Manage speaker appearances'}</h3>
+            <p>{isHosted
+              ? 'Paste one or several YouTube/Vimeo links. Save them privately, review them, then choose where they appear.'
+              : hasUploadForm
+                ? 'Choose files from your device, add details and save them privately before publishing.'
+                : 'Appearance records come from existing lecturer and programme information. Browse existing records below.'}</p>
+            {hasUploadForm && !canUploadFiles && <p className="studio-upload-pending" role="note">
+              {canCreate ? 'File uploads are not active yet. The Foundation must first approve and connect private R2 storage. Existing records can still be viewed and managed.' : 'Your staff role cannot upload files to this collection.'}
+            </p>}
+          </div>
+          <div className="studio-start-actions">
+            {isHosted && canCreate ? <button className="studio-create" type="button" aria-expanded={composerOpen} onClick={() => setComposerOpen(open => !open)}>{composerOpen ? 'Close link form' : '+ Add video links'}</button>
+              : hasUploadForm ? <button className="studio-create" type="button" disabled={!canUploadFiles} aria-expanded={canUploadFiles && composerOpen} onClick={() => setComposerOpen(open => !open)}>{canUploadFiles ? composerOpen ? 'Close upload form' : `+ Upload ${uploadType}` : `Upload ${uploadType} — unavailable`}</button>
+                : null}
+            {(isHosted || hasUploadForm) && <small>{isHosted ? 'No file upload or R2 storage needed.' : canUploadFiles ? 'Uploads are saved as private drafts.' : 'Uploads will become available after approved storage activation.'}</small>}
+          </div>
+        </div>
+        <div className="studio-next-steps" aria-label="How Media Studio works"><span><b>1.</b> Add or choose media</span><span><b>2.</b> Review and publish</span><span><b>3.</b> Choose where it appears</span></div>
         {library === 'hosted' && composerOpen && canCreate && <form className="studio-composer studio-hosted-composer" onSubmit={addHostedLinks}>
           <div><span className="studio-kicker">YOUTUBE · LIVESTREAMS · VIMEO</span><h3>Paste video links in bulk</h3><p>One per line: <strong>Video title | https://www.youtube.com/live/VIDEO_ID</strong>. Up to 25 links per batch. Stream URLs work during the broadcast and may remain available for replay, subject to YouTube settings. No file upload or R2 storage required.</p></div>
           <label className="studio-hosted-lines">Video titles and links<textarea required rows={6} value={hostedLinks} onChange={e => setHostedLinks(e.target.value)} placeholder={'Friday Lecture | https://www.youtube.com/watch?v=VIDEO_ID\nSpecial Programme | https://www.youtube.com/live/VIDEO_ID'} /></label>
@@ -261,16 +307,16 @@ export default function MediaStudio() {
           <label className="studio-hosted-lines">Description for these entries (optional)<textarea rows={2} value={hostedDescription} onChange={e => setHostedDescription(e.target.value)} maxLength={5000}/></label>
           <button type="submit" disabled={uploadBusy}>{uploadBusy ? 'Validating links…' : 'Save links as drafts'}</button>
         </form>}
-        {composerOpen && uploadInfo.enabled && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Create a private draft</h3><p>Publishing is a separate action. Uploaded objects remain private unless explicitly released.</p></div>
+        {composerOpen && canUploadFiles && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Create a private draft</h3><p>Publishing is a separate action. Uploaded objects remain private unless explicitly released.</p></div>
           {library !== 'lecturers' && <label>Edition<select name="edition" required defaultValue=""><option value="">Select camp edition</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>}
           {library === 'promotions' && <><label>Promotion type<select required name="kind"><option value="introduction">Upcoming introduction</option><option value="experience">Previous participant experience</option></select></label><label>Previous source edition (for experience videos)<select name="source_edition" defaultValue=""><option value="">Not applicable</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}
           {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}<input name={field.name} type={field.file ? 'file' : 'text'} multiple={library === 'photos' && field.name === 'photograph'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : 2000} /></label>)}
           <button type="submit" disabled={uploadBusy}>{uploadBusy ? 'Validating and uploading…' : 'Save private draft'}</button>
         </form>}
-        <div className="studio-filters"><label>Search<input aria-label="Search media" placeholder="Search titles and captions" value={q} onChange={e => { setPage(1); setQ(e.target.value) }} /></label>
+        <details className="studio-filters-toggle"><summary>Search and filter saved items</summary><div className="studio-filters"><label>Search<input aria-label="Search media" placeholder="Search titles and captions" value={q} onChange={e => { setPage(1); setQ(e.target.value) }} /></label>
           <label>Publication status<select aria-label="Filter publication status" value={state} onChange={e => { setPage(1); setState(e.target.value) }}><option value="">All statuses</option><option value="draft">Draft</option>{library !== 'hosted' && <option value="review">Review</option>}<option value="published">Published</option></select></label>
           {!['lecturers'].includes(library) && <label>Camp edition ID<input aria-label="Filter edition" inputMode="numeric" placeholder="All editions" value={edition} onChange={e => { setPage(1); setEdition(e.target.value.replace(/[^0-9]/g,'')) }}/></label>}
-        </div>
+        </div></details>
         {message && <p className="studio-notice" role="status">{message}</p>}
         {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className="studio-item" key={item.id}>
           <div className={'studio-art' + (item.preview_url || item.player_url ? ' studio-art-available' : '')}>
@@ -282,7 +328,7 @@ export default function MediaStudio() {
           </div>
           <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publish(item, item.state === 'published' ? 'withdraw' : 'publish')}>{pending === item.id ? 'Saving…' : item.state === 'published' ? 'Withdraw' : 'Publish'}</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
           {editing === item.id && <form className="studio-edit-form" onSubmit={event => saveMetadata(event, item)}><strong>Editorial details</strong>{Object.entries(item.metadata || {}).map(([name,value]) => <label key={name}>{name.replaceAll('_',' ')}{typeof value === 'boolean' ? <input name={name} type="checkbox" defaultChecked={value} /> : <input name={name} type={typeof value === 'number' ? 'number' : 'text'} min={typeof value === 'number' ? 0 : undefined} maxLength={typeof value === 'number' ? undefined : 5000} defaultValue={value ?? ''} />}</label>)}<button type="submit" disabled={pending !== null}>Save changes</button></form>}</div>
-        </article>)}</div> : <div className="studio-state"><strong>No media records match this view.</strong><p>Use the filters to find existing items. Try a different search or clear the filters. YouTube links can be added now; new file uploads require private storage activation.</p></div>}
+        </article>)}</div> : <div className="studio-state"><strong>{q || state || edition ? 'No items match these filters.' : `No ${selected?.name.toLowerCase()} saved here yet.`}</strong><p>{q || state || edition ? 'Open “Search and filter saved items” to change or clear your filters.' : isHosted ? 'Use “Add video links” above to save your first video or livestream.' : hasUploadForm ? 'When file uploads are activated, you can add new media using the upload action above. Any existing items will appear here.' : 'Speaker appearances will appear here when they are available.'}</p></div>}
         {more && <div className="studio-pagination"><button type="button" disabled={loading || page >= 100} onClick={() => setPage(current => current + 1)}>{loading ? 'Loading…' : 'Load more media'}</button></div>}
       </section>
       {user.can_manage_catalogue ? <StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /> : null}
