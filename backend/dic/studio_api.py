@@ -178,7 +178,8 @@ class StudioLibraryView(StudioView):
             queryset = queryset.filter(edition_id=int(edition))
         preview_route = {
             'photos': lambda item: reverse('dic:memory-image', args=[item.pk]) + '?preview=1',
-            'videos': lambda item: reverse('dic:video-thumbnail', args=[item.pk]) + '?preview=1' if item.thumbnail else None,
+            'videos': lambda item: reverse('dic:studio-private-preview', args=['videos', item.pk]) if item.recording_file else (reverse('dic:video-thumbnail', args=[item.pk]) + '?preview=1' if item.thumbnail else None),
+            'recordings': lambda item: reverse('dic:studio-private-preview', args=['recordings', item.pk]),
             'flyers': lambda item: reverse('dic:official-flyer', args=[item.pk]) + '?preview=1',
             'promotions': lambda item: reverse('dic:promo-poster', args=[item.pk]) + '?preview=1',
             'lecturers': lambda item: reverse('dic:showcase-image', args=['identity', item.pk]) if item.photograph else None,
@@ -210,6 +211,44 @@ class StudioLibraryView(StudioView):
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename)),
                              'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename)),
                              'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename))})
+
+
+class StudioPrivatePreviewView(StudioView):
+    """Staff-only private audio/video stream; no R2 object URLs or camper access."""
+
+    def get(self, request, kind, pk):
+        from pathlib import Path
+        from django.http import FileResponse
+        from rest_framework.exceptions import NotFound, PermissionDenied
+        from .media_delivery import safe_media, media_headers
+        if kind not in ('recordings', 'videos'):
+            raise NotFound()
+        model, code, _ = LIBRARIES[kind]
+        if not (request.user.is_superuser or request.user.has_perm('dic.view_' + code)):
+            raise PermissionDenied('Media library permission required.')
+        item = model.objects.filter(pk=pk).first()
+        if item is None:
+            raise NotFound()
+        field = item.audio if kind == 'recordings' else item.recording_file
+        if not field:
+            raise NotFound('No private media file.')
+        extension = Path(field.name).suffix.lower()
+        allowed = ({'.mp3': 'audio/mpeg', '.m4a': 'audio/mp4',
+                    '.wav': 'audio/wav', '.ogg': 'audio/ogg'} if kind == 'recordings'
+                   else {'.mp4': 'video/mp4', '.webm': 'video/webm'})
+        if extension not in allowed:
+            raise NotFound('Unsupported preview format.')
+
+        @safe_media
+        def deliver():
+            response = FileResponse(field.open('rb'), content_type=allowed[extension],
+                                    as_attachment=request.query_params.get('download') == '1',
+                                    filename='studio-media' + extension)
+            # Credentialed requests remain subject to Django session authorization.
+            response = media_headers(response, public=True)
+            return response
+
+        return deliver()
 
 
 class StudioPublicationView(StudioView):
