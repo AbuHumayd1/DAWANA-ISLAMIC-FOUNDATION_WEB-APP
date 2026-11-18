@@ -271,11 +271,18 @@ class PublicStudioPlacementsView(APIView):
         public = {'foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing', 'dic_resources'}
         if destination not in public:
             raise NotFound()
-        placements = StudioPlacement.objects.filter(
+        page_text = request.query_params.get('page', '1')
+        if not page_text.isascii() or not page_text.isdigit() or not 1 <= len(page_text) <= 3:
+            raise ValidationError({'page': 'Choose a valid archive page.'})
+        page = int(page_text)
+        if not 1 <= page <= 100:
+            raise ValidationError({'page': 'Archive page out of range.'})
+        offset = (page - 1) * 200
+        placements = list(StudioPlacement.objects.filter(
             destination=destination, state='published', asset__archived_at__isnull=True,
-        ).select_related('asset', 'edition').order_by('-published_at')[:200]
+        ).select_related('asset', 'edition').order_by('-published_at', '-pk')[offset:offset + 201])
         rows = []
-        for placement in placements:
+        for placement in placements[:200]:
             if placement.edition_id and not placement.edition.is_active:
                 continue
             # DIC resources is public for hosted video only; lecture audio is private.
@@ -293,6 +300,6 @@ class PublicStudioPlacementsView(APIView):
                     from .video_providers import video_source
                     item['embed_url'] = video_source(source.video_url)['embed_url']
                 rows.append(item)
-        response = Response({'items': rows})
+        response = Response({'items': rows, 'page': page, 'has_more': len(placements) > 200})
         response['Cache-Control'] = 'public, max-age=0, must-revalidate'
         return response
