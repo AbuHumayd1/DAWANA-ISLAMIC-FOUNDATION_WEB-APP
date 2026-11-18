@@ -19,9 +19,11 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   const [items, setItems] = useState([])
   const [state, setState] = useState('loading')
   const [activeEmbed, setActiveEmbed] = useState('')
+  const [activeAlbum, setActiveAlbum] = useState('')
   useEffect(() => {
     const controller = new AbortController()
     setActiveEmbed('')
+    setActiveAlbum('')
     setState('loading')
     const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
     fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}`, {
@@ -40,9 +42,13 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
     return () => controller.abort()
   }, [destination])
   if (state !== 'ready' || !items.length) return null
+  const albums = [...new Set(items.filter(item => item.source_kind === 'photos' && item.album).map(item => item.album))].sort()
+  const visibleItems = activeAlbum ? items.filter(item => item.source_kind === 'photos' && item.album === activeAlbum) : items
+  const canBrowseAlbums = ['foundation_archive', 'dic_memories'].includes(destination) && albums.length > 0
   return <section className="published-studio-archive" aria-labelledby={headingId}><Container>
     <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id={headingId}>{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
-    <div className="published-studio-grid">{items.map((item, i) => <article key={item.url + i} className="published-studio-card">
+    {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
+    <div className="published-studio-grid">{visibleItems.map((item, i) => <article key={item.url + i} className="published-studio-card">
       {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <div className="published-studio-visual published-studio-video">
         {activeEmbed === item.url ? <iframe title={item.title} src={approvedVideoLink(item.embed_url)} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /> :
           <button type="button" onClick={() => setActiveEmbed(item.url)} aria-label={`Play ${item.title} on this page`}><span aria-hidden="true">▶</span>Play YouTube video or livestream</button>}
