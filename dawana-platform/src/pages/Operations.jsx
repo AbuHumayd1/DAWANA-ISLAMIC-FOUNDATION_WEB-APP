@@ -294,9 +294,9 @@ function DashboardPage() {
       {activity && <p role="status">{activity}</p>}
       <section className="ops-metric-grid" aria-label="Registration metrics">
         <MetricCard title="Registration orders" value={metrics.orders} note="Parent or guardian checkouts" icon="clipboard" to="/dic/operations/registrations" />
-        <MetricCard title="Individual participants" value={metrics.participants} note="Participants in active registrations" icon="users" tone="gold" to="/dic/operations/participants" />
+        <MetricCard title="Registration attempts" value={metrics.participants} note="Includes unpaid records — not confirmed campers" icon="clipboard" tone="amber" to="/dic/operations/participants" />
         <MetricCard title="Verified paid orders" value={metrics.verified_paid_orders} note={`${paidRate}% of all orders`} icon="card" tone="green" to="/dic/operations/registrations?payment_status=paid" />
-        <MetricCard title="Paid participants" value={metrics.verified_paid_participants} note="Payment verified by provider" icon="users" tone="green" to="/dic/operations/participants?payment_status=paid" />
+        <MetricCard title="Verified paid campers" value={metrics.verified_paid_participants} note="Distinct campers with provider-verified payment" icon="users" tone="green" to="/dic/operations/participants?payment_status=paid" />
         <MetricCard title="Pending / unpaid" value={metrics.pending_unpaid_orders} note="Orders awaiting payment" icon="card" tone="amber" to="/dic/operations/registrations?payment_status=pending" />
         <MetricCard title="Repricing required" value={metrics.requiring_repricing} note="Needs explicit updated-price acceptance" icon="activity" tone="amber" to="/dic/operations/registrations?requiring_repricing=true" />
         {metrics.reconciliation_cases !== null && <MetricCard title="Reconciliation cases" value={metrics.reconciliation_cases} note="Finance review required" icon="alert" tone="red" to="/dic/operations/payments?status=reconcile" />}

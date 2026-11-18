@@ -18,7 +18,7 @@ export default function CamperSelect({ label, value, options, onChange, disabled
   }
   useEffect(() => {
     if (!open) return
-    list.current?.focus()
+    list.current?.focus({ preventScroll: true })
     const dismiss = event => { if (!root.current?.contains(event.target) && !list.current?.contains(event.target)) setOpen(false) }
     document.addEventListener('pointerdown', dismiss)
     return () => document.removeEventListener('pointerdown', dismiss)
