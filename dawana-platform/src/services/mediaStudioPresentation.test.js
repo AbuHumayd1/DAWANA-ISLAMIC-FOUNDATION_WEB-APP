@@ -119,3 +119,12 @@ test('private media previews reuse staff-protected backend routes, never raw R2 
   assert.match(backend, /media_headers\(response, public=True\)/)
   assert.doesNotMatch(ui, /r2\.cloudflarestorage\.com/)
 })
+
+test('public album navigation is derived only from published destination feed', () => {
+  const gallery = read('../components/media/PublishedStudioArchive.jsx')
+  assert.match(gallery, /items\.filter\(item => item\.source_kind === 'photos' && item\.album\)/)
+  assert.match(gallery, /aria-label="Browse photo albums"/)
+  assert.match(gallery, /aria-pressed=\{activeAlbum === album\}/)
+  assert.match(gallery, /visibleItems\.map/)
+  assert.doesNotMatch(gallery, /r2\.cloudflarestorage\.com/)
+})
