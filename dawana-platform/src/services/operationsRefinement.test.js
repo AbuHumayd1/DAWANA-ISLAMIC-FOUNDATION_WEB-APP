@@ -30,8 +30,10 @@ test('grouping preserves every allowed route once for all combinations of existi
     assert.equal(new Set(grouped).size, grouped.length)
   }
   assert.deepEqual(visibleOperationsGroups(user).map(group => group.label), ['Camp Overview','Participants & Registration','Camp Activities','Finance & Reports','Administration'])
-  assert.equal(navigation.length, 22)
-  assert.equal(navigation.filter(item => item.to === '/dic/operations/media-management').length, 1)
+  assert.equal(navigation.length, 23)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/media-management').length, 0)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/individual-scoring').length, 1)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/scoring-history').length, 1)
   assert.equal(navigation.filter(item => item.to === '/dic/operations/check-in').length, 1)
 })
 
@@ -41,7 +43,7 @@ test('sidebar renders semantic headings, current-page state and planned badges w
   assert.equal((markup.match(/aria-current="page"/g) || []).length, 1)
   assert.equal((markup.match(/class="campsite-planned"/g) || []).length, 0)
   const restricted = render(Nav, { user: { permissions: {}, can_access_campsite: true } })
-  for (const path of ['/finance','/payments','/activity','/id-printing','/participant-ids','/reports','/scoring','/feedback','/feedback-submit','/welfare']) assert.equal(restricted.includes(`href="/dic/operations${path}"`), false)
+  for (const path of ['/finance','/payments','/activity','/id-printing','/participant-ids','/reports','/scoring','/individual-scoring','/scoring-history','/feedback','/feedback-submit','/welfare']) assert.equal(restricted.includes(`href="/dic/operations${path}"`), false)
 })
 
 test('overview keeps exact metric definitions available while showing short cards and unavailable attendance', () => {
