@@ -30,8 +30,10 @@ test('grouping preserves every allowed route once for all combinations of existi
     assert.equal(new Set(grouped).size, grouped.length)
   }
   assert.deepEqual(visibleOperationsGroups(user).map(group => group.label), ['Camp Overview','Participants & Registration','Camp Activities','Finance & Reports','Administration'])
-  assert.equal(navigation.length, 22)
-  assert.equal(navigation.filter(item => item.to === '/dic/operations/media-management').length, 1)
+  assert.equal(navigation.length, 23)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/media-management').length, 0)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/individual-scoring').length, 1)
+  assert.equal(navigation.filter(item => item.to === '/dic/operations/scoring-history').length, 1)
   assert.equal(navigation.filter(item => item.to === '/dic/operations/check-in').length, 1)
 })
 
@@ -41,7 +43,7 @@ test('sidebar renders semantic headings, current-page state and planned badges w
   assert.equal((markup.match(/aria-current="page"/g) || []).length, 1)
   assert.equal((markup.match(/class="campsite-planned"/g) || []).length, 0)
   const restricted = render(Nav, { user: { permissions: {}, can_access_campsite: true } })
-  for (const path of ['/finance','/payments','/activity','/id-printing','/participant-ids','/reports','/scoring','/feedback','/feedback-submit','/welfare']) assert.equal(restricted.includes(`href="/dic/operations${path}"`), false)
+  for (const path of ['/finance','/payments','/activity','/id-printing','/participant-ids','/reports','/scoring','/individual-scoring','/scoring-history','/feedback','/feedback-submit','/welfare']) assert.equal(restricted.includes(`href="/dic/operations${path}"`), false)
 })
 
 test('overview keeps exact metric definitions available while showing short cards and unavailable attendance', () => {
@@ -121,4 +123,26 @@ test('registration-count cards explain eligibility without calling attempts atte
   assert.match(ui, /Registration attempts by category/)
   assert.match(ui, /Registration attempt activity/)
   assert.doesNotMatch(ui, /title="Individual participants" value=\{metrics\.participants\}/)
+})
+
+test('new scoring workspaces retain permission gates and never create a separate scoring ledger', () => {
+  const source = fs.readFileSync(new URL('../pages/Operations.jsx', import.meta.url), 'utf8')
+  const scoring = fs.readFileSync(new URL('../pages/HouseScoring.jsx', import.meta.url), 'utf8')
+  const form = fs.readFileSync(new URL('../components/operations/ActivityAwardForm.jsx', import.meta.url), 'utf8')
+  const menu = render(Nav, { user })
+  for (const route of ['/individual-scoring','/scoring','/scoring-history']) {
+    assert.match(source, new RegExp('path="' + route.slice(1) + '"'))
+    assert.ok(menu.includes('href="/dic/operations' + route + '"'))
+  }
+  assert.match(source, /<HouseScoring user=\{user\} mode="individual"/)
+  assert.match(source, /<HouseScoring user=\{user\} mode="history"/)
+  assert.match(scoring, /mode === 'individual' && <p className="score-policy-note"/)
+  assert.match(scoring, /mode === 'history' && <section className="ops-panel"/)
+  assert.match(form, /Eligible checked-in campers/)
+  assert.match(form, /options\.members\.map\(member =>/)
+  assert.match(form, /disabled=\{beforeCamp \|\| !options\.ready \|\| !options\.storage_ready\}/)
+  assert.match(form, /activityScoringPath\(edition\)/)
+  assert.match(scoring, /activityScoringPath\(data\.edition\.id\)/)
+  assert.doesNotMatch(source, /import MediaManagement from/)
+  assert.match(source, /path="media-management" element=\{<Navigate to="\/media-studio" replace/)
 })

@@ -15,14 +15,13 @@ export function CamperProfile({ participant: p, order, ID, Icon, onOpenID, busy 
 
 export function CamperExplore({ participant, camp, onNavigate, Icon }) {
   return <>
-    <section className="cw-explore-banner"><div><span className="cp-kicker">A WORLD OF POSSIBILITIES</span><h1>Find your next<br />camp moment.</h1><p>Learn something. Meet someone.<br />Make a memory.</p></div><Icon name="explore" /></section>
-    <div className="cw-discover-grid">
-      <button type="button" className="cw-discover-card cp-tone-coral" onClick={() => onNavigate('activities')}><Icon name="explore" /><span className="cp-kicker">Discover</span><h2>Explore approved camp activities</h2><p>Discover officially approved camp experiences.</p></button>
+    <section className="cw-explore-banner"><div><span className="cp-kicker">EXPLORE · DIC 2026</span><h1>Your camp,<br />your discoveries.</h1><p>Find activities, important updates and support in one place.</p></div><Icon name="explore" /></section>
+    <div className="cw-explore-section-title"><h2>Discover and connect</h2><p>Officially released activities and your day-to-day essentials.</p></div><div className="cw-discover-grid">
+      <button type="button" className="cw-discover-card cp-tone-coral is-featured" onClick={() => onNavigate('activities')}><Icon name="explore" /><span className="cp-kicker">Discover</span><h2>Camp activities</h2><p>Discover officially approved camp experiences.</p></button>
       <button className="cw-discover-card cp-tone-yellow" onClick={() => onNavigate('announcements')}><Icon name="feedback" /><span className="cp-kicker">Stay connected</span><h2>Camp announcements</h2><p>The latest from your camp.</p></button>
-      <button className="cw-discover-card cp-tone-sky" onClick={() => onNavigate('feedback')}><Icon name="feedback" /><span className="cp-kicker">Your voice matters</span><h2>Feedback & care</h2><p>Feedback, complaints and support.</p></button>
-      <button className="cw-discover-card cp-tone-mint" onClick={() => onNavigate('day')}><Icon name="day" /><span className="cp-kicker">Make the most of it</span><h2>Your camp programme</h2><p>Activities and shared meals.</p></button>
+      <button className="cw-discover-card cp-tone-mint" onClick={() => onNavigate('day')}><Icon name="day" /><span className="cp-kicker">Make the most of it</span><h2>My programme</h2><p>Activities and shared meals.</p></button>
     </div>
-    <section className="cw-care-links"><div className="cp-card-title"><h2>A camp that cares</h2><Icon name="feedback" /></div><div>{[['daily','Daily feedback'],['welfare','Submit a complaint'],['history','Complaint status'],['final','Final camp evaluation']].map(([channel,label]) => <Link key={channel} to={`/dic/feedback?channel=${channel}`}>{label}</Link>)}</div></section>
+    <section className="cw-care-links"><div className="cp-card-title"><h2>Feedback & care</h2><Icon name="feedback" /></div><div>{[['daily','Daily feedback'],['welfare','Submit a complaint'],['history','Complaint status'],['final','Final camp evaluation']].map(([channel,label]) => <Link key={channel} to={`/dic/feedback?channel=${channel}`}>{label}</Link>)}</div></section>
     <section className="cw-camp-note"><Icon name="camp" /><div><h2>Good to know</h2>{camp ? <><p>{campDate(camp.camp_start_date)} – {campDate(camp.camp_end_date)}</p><p>{camp.venue || 'Venue to be announced'}</p></> : <p>Edition dates and venue are available on the official camp page when configured.</p>}</div></section>
     {participant.registration_basis !== 'tutor' && <details className="cw-quiet-details"><summary>House duties & camp notices</summary><p>House duty details are not available in the current portal. Follow approved announcements and ask your camp officers for guidance.</p></details>}
   </>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getOperationsData, postOperationsData, getScoringPrintUrl } from '../services/operationsApi'
 import { scoringPath, scorePayload, submissionReference } from '../services/houseScoring'
 import { checkInTime } from '../services/checkIn'
@@ -10,8 +10,8 @@ export function CombinedLeaderboard({ rows }) {
   return <><p className="score-caption">Combined house leaderboard — male and female houses</p>
     <div className="ops-table-wrap score-table-scroll" role="region" aria-label="Combined house leaderboard" tabIndex={0}><table className="ops-table score-leaderboard" aria-label="Combined house leaderboard">
     <colgroup><col className="score-rank-column" /><col /><col className="score-number-column" /><col className="score-number-column" /><col className="score-number-column" /></colgroup>
-    <thead><tr><th scope="col">Rank</th><th scope="col">House</th><th scope="col">Awarded</th><th scope="col">Deducted</th><th scope="col">Net score</th></tr></thead>
-    <tbody>{rows.map(row => <tr key={row.house_id}><td>{row.rank}</td><td><span className="score-house">{row.colour && <span className="score-swatch" style={{ backgroundColor: row.colour }} aria-hidden="true" />}<span>{row.name}</span></span>{!row.colour && <small className="score-colour-note">Colour not configured</small>}</td><td>{row.awarded}</td><td>{row.deducted}</td><td><strong>{row.net}</strong></td></tr>)}</tbody>
+    <thead><tr><th scope="col">Rank</th><th scope="col">House</th><th scope="col" className="score-detail-column">Awarded</th><th scope="col" className="score-detail-column">Deducted</th><th scope="col">Net score</th></tr></thead>
+    <tbody>{rows.map(row => <tr key={row.house_id}><td>{row.rank}</td><td><span className="score-house">{row.colour && <span className="score-swatch" style={{ backgroundColor: row.colour }} aria-hidden="true" />}<span>{row.name}</span></span>{!row.colour && <small className="score-colour-note">Colour not configured</small>}</td><td className="score-detail-column">{row.awarded}</td><td className="score-detail-column">{row.deducted}</td><td><strong>{row.net}</strong></td></tr>)}</tbody>
   </table></div>{!rows.length && <p>No participant houses configured for this edition. Ask an administrator to review the existing house setup.</p>}</>
 }
 
@@ -40,7 +40,7 @@ function ScoreEntryForm({ houses, busy, onSave }) {
       }
     } catch (failure) { setError(failure.message) }
   }
-  return <section className="ops-panel"><h2>Award / Deduct Points</h2><p>Direct house awards and deductions for other agreed reasons. Use the verified activity selector above for catalogue awards; direct entries do not add personal points.</p>
+  return <section className="ops-panel"><h2>Award / Deduct Points</h2><p>Direct house awards and deductions for agreed reasons. These do not add personal points. Use Individual Scoring for camper achievements and the collective form for approved house activities.</p>
     <form className="score-form" onSubmit={submit}><fieldset disabled={busy || !houses.length}>
       <label>House<select name="house" required value={values.house} onChange={change}><option value="">Choose a house</option>{houses.map(row => <option key={row.house_id} value={row.house_id}>{row.name}</option>)}</select></label>
       <label>Transaction type<select name="entry_type" value={values.entry_type} onChange={change}><option value="award">Award</option><option value="deduction">Deduction</option></select></label>
@@ -70,7 +70,7 @@ function ReversalForm({ entry, busy, onSave, onCancel }) {
   </section>
 }
 
-export default function HouseScoring({ user }) {
+export default function HouseScoring({ user, mode = 'house' }) {
   const [params, setParams] = useSearchParams()
   const edition = params.get('edition') || '', page = Number(params.get('page') || 1)
   const [state, setState] = useState({ path: '', data: null, error: '' })
@@ -113,7 +113,8 @@ export default function HouseScoring({ user }) {
     } finally { posting.current = false; setBusy(false) }
   }
   return <>
-    <div className="ops-page-heading"><div><span className="ops-eyebrow">DIC camp activities</span><h1>House Scoring</h1><p>One combined ranking for male and female houses.</p></div></div>
+    <div className="ops-page-heading"><div><span className="ops-eyebrow">DIC camp activities</span><h1>{mode === 'individual' ? 'Individual Scoring' : mode === 'history' ? 'Scoring History' : 'House Scoring'}</h1><p>{mode === 'individual' ? 'Record verified camper achievements with approved points. Each individual award also credits the camper’s house.' : mode === 'history' ? 'Review recorded awards, deductions and accountable corrections.' : 'Combined house standings and verified collective awards.'}</p></div></div>
+    <nav className="score-workspace-tabs" aria-label="Scoring workspace"><Link to="/dic/operations/individual-scoring" aria-current={mode === 'individual' ? 'page' : undefined}>Individual scoring</Link><Link to="/dic/operations/scoring" aria-current={mode === 'house' ? 'page' : undefined}>House scoring</Link><Link to="/dic/operations/scoring-history" aria-current={mode === 'history' ? 'page' : undefined}>History</Link></nav>
     <p role="status" aria-live="polite">{notice.path === path ? notice.message : ''}</p>
     {error ? <section className="ops-error" role="alert"><p>{error}</p><button className="ops-button" onClick={reload}>Retry</button><button className="ops-button" onClick={() => changePage('')}>Use current edition</button></section>
       : !data ? <p role="status" aria-busy="true">Loading house scores…</p> : <>
@@ -125,13 +126,15 @@ export default function HouseScoring({ user }) {
         {data.edition ? <>
           <p className="campsite-context">Showing <strong>{data.edition.name}</strong>. Equal scores share ranks (1, 1, 3); names and house IDs determine display order within ties.</p>
           {data.leaderboard.length !== 8 && <p className="ops-callout" role="status">This edition has {data.leaderboard.length} participant houses configured; eight are expected. All configured participant houses are shown. Ask an administrator to review house setup.</p>}
-          <section className="ops-panel"><h2>Combined leaderboard</h2><CombinedLeaderboard rows={data.leaderboard} /><p className="ops-small-note">Totals include original entries and their opposing reversals. No houses or colours are generated automatically.</p></section>
-          {user.permissions.record_scores && <ActivityAwardForm key={`activity-${data.edition.id}`} edition={data.edition.id} busy={busy} canCorrect={user.permissions.correct_scores} onSave={payload => save(payload, null, true)} />}
-          {user.permissions.record_scores ? <ScoreEntryForm key={data.edition.id} houses={data.leaderboard} busy={busy} onSave={payload => save(payload)} /> : <p className="ops-small-note">You have read-only access to point entry.</p>}
-          {correction?.edition === data.edition.id && user.permissions.correct_scores && <ReversalForm key={correction.entry.id} entry={correction.entry} busy={busy} onCancel={() => setCorrection(null)} onSave={(id, payload) => save(payload, id)} />}
-          <section className="ops-panel"><h2>Recent scoring history</h2><ScoreHistory rows={data.history} canCorrect={user.permissions.correct_scores} busy={busy} onReverse={entry => setCorrection({ edition: data.edition.id, entry })} />
+          {mode === 'house' && <section className="ops-panel"><h2>Combined leaderboard</h2><CombinedLeaderboard rows={data.leaderboard} /><p className="ops-small-note">Scores include all recorded awards, deductions and opposing reversals.</p></section>}
+          {mode === 'individual' && <p className="score-policy-note">Only eligible, checked-in campers with exactly one active house allocation can receive individual awards. Early check-ins and house assignments are preserved, but scoring cannot begin before the camp start date.</p>}
+          {user.permissions.record_scores && mode !== 'history' && <ActivityAwardForm key={`activity-${mode}-${data.edition.id}`} edition={data.edition.id} mode={mode} busy={busy} canCorrect={user.permissions.correct_scores} onSave={payload => save(payload, null, true)} />}
+          {mode === 'house' && (user.permissions.record_scores ? <ScoreEntryForm key={data.edition.id} houses={data.leaderboard} busy={busy} onSave={payload => save(payload)} /> : <p className="ops-small-note">You have read-only access to point entry.</p>)}
+          {mode === 'individual' && !user.permissions.record_scores && <p className="ops-small-note">Your account has viewing access only; an authorized scoring officer must record awards.</p>}
+          {correction?.edition === data.edition.id && user.permissions.correct_scores && mode === 'history' && <ReversalForm key={correction.entry.id} entry={correction.entry} busy={busy} onCancel={() => setCorrection(null)} onSave={(id, payload) => save(payload, id)} />}
+          {mode === 'history' && <section className="ops-panel"><h2>Scoring ledger and corrections</h2><ScoreHistory rows={data.history} canCorrect={user.permissions.correct_scores} busy={busy} onReverse={entry => setCorrection({ edition: data.edition.id, entry })} />
             {data.count > 0 && <div className="checkin-pagination"><button className="ops-button ops-button-secondary" disabled={busy || page <= 1} onClick={() => changePage(data.edition.id, page-1)}>Previous</button><span>Page {page} of {Math.ceil(data.count / data.page_size)} · {data.count} entries</span><button className="ops-button ops-button-secondary" disabled={busy || page * data.page_size >= data.count} onClick={() => changePage(data.edition.id, page+1)}>Next</button></div>}
-          </section>
+          </section>}
         </> : <section className="ops-panel"><p>No camp edition configured. Ask an administrator to review camp setup.</p></section>}
       </>}
   </>

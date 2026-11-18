@@ -20,7 +20,7 @@ test('tutor portal has ID and activities but no housing or competition sections'
     order: { edition: 'Synthetic DIC', reference: 'reference' }, onOpenID() {} })
     if (tab === 'home') assert.match(html, /My Digital ID/)
     if (['profile', 'houses', 'points'].includes(tab)) assert.match(html, /Open my Digital ID/)
-    if (tab === 'camp') assert.match(html, /Explore approved camp activities/)
+    if (tab === 'camp') assert.match(html, /Camp activities/)
     assert.doesNotMatch(html, /House assignment|House Arena|My Points|championship|Not yet assigned/)
   }
 })

@@ -1,7 +1,6 @@
-import MediaManagement from './MediaManagement'
 import RegistrationTabs from '../components/operations/RegistrationTabs'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   downloadOperationsReport,
   getOperationsData,
@@ -168,11 +167,13 @@ function Operations() {
         <Route path="classes" element={user.can_access_campsite && user.permissions.classes ? <ClassesOperations /> : <EmptyState title="Class management permission required" />} />
         <Route path="announcements" element={user.can_access_campsite && user.permissions.announcements ? <AnnouncementsOperations user={user} /> : <EmptyState title="Announcement permission required" />} />
         <Route path="check-in" element={user.can_access_campsite ? <CampCheckIn user={user} /> : <EmptyState title="Campsite staff access required" />} />
-        <Route path="scoring" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} /> : <EmptyState title="House Scoring permission required" />} />
+        <Route path="scoring" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} mode="house" /> : <EmptyState title="House Scoring permission required" />} />
+        <Route path="individual-scoring" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} mode="individual" /> : <EmptyState title="Scoring permission required" />} />
+        <Route path="scoring-history" element={user.can_access_campsite && user.permissions.scores ? <HouseScoring user={user} mode="history" /> : <EmptyState title="Scoring permission required" />} />
         <Route path="feedback" element={user.can_access_campsite && user.permissions.feedback ? <FeedbackDashboard user={user} /> : <EmptyState title="Feedback summary permission required" />} />
         <Route path="feedback-submit" element={user.can_access_campsite && user.permissions.feedback_entry ? <FeedbackEntry user={user} /> : <EmptyState title="Feedback submission permission required" />} />
         <Route path="welfare" element={user.can_access_campsite && user.permissions.welfare ? <WelfareDashboard user={user} /> : <EmptyState title="Welfare permission required" />} />
-        <Route path="media-management" element={user.permissions.media ? <MediaManagement /> : <EmptyState title="Media permission required" />} />
+        <Route path="media-management" element={<Navigate to="/media-studio" replace />} />
         <Route path="finance" element={user.can_access_campsite && user.permissions.finance ? <Finance /> : <EmptyState title="Finance staff permission required" />} />
         <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}

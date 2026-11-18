@@ -5,17 +5,23 @@ import { activityScoringPath, activityPayload, campToday, participationPreview }
 
 const empty = () => ({ activity: '', date: campToday(), participant: '', house: '', slot: '', reading_target: '', note: '', verified: false, attendees: [], exemptions: {}, marks: {} })
 
-export default function ActivityAwardForm({ edition, busy, canCorrect, onSave }) {
+export default function ActivityAwardForm({ edition, busy, canCorrect, onSave, mode = 'house' }) {
   const [options, setOptions] = useState(null), [error, setError] = useState(''), [values, setValues] = useState(empty)
   const [refresh, setRefresh] = useState(0)
   const reference = useRef(null)
   useEffect(() => {
     const controller = new AbortController()
-    getOperationsData(activityScoringPath(edition), { signal: controller.signal }).then(setOptions).catch(failure => { if (!controller.signal.aborted) setError(failure.message) })
+    getOperationsData(activityScoringPath(edition), { signal: controller.signal }).then(result => {
+      if (controller.signal.aborted) return
+      setOptions(result)
+      setValues(current => ({ ...current, date: result.start_date > campToday() ? result.start_date : current.date < result.start_date ? result.start_date : current.date > result.end_date ? result.end_date : current.date }))
+    }).catch(failure => { if (!controller.signal.aborted) setError(failure.message) })
     return () => controller.abort()
   }, [edition, refresh])
   const change = (key, value) => setValues(current => ({ ...current, [key]: value }))
-  const rule = [...(options?.individual || []), ...(options?.collective || [])].find(row => row.code === values.activity)
+  const activities = mode === 'individual' ? options?.individual || [] : options?.collective || []
+  const rule = activities.find(row => row.code === values.activity)
+  const beforeCamp = !!options && campToday() < options.start_date
   const collective = rule?.kind === 'collective'
   const roster = options?.members.filter(row => row.house === Number(values.house)) || []
   const participation = ['participation', 'prayer_target'].includes(rule?.mode)
@@ -32,23 +38,27 @@ export default function ActivityAwardForm({ edition, busy, canCorrect, onSave })
       }
     } catch (failure) { setError(failure.message) }
   }
-  return <section className="ops-panel activity-award-panel"><h2>Verified activity awards</h2>
-    <p>Fixed approved points. Individual awards also credit the camper’s house once. Direct house adjustments remain available below.</p>
+  return <section className="ops-panel activity-award-panel"><h2>{mode === 'individual' ? 'Award individual points' : 'Verified collective house activities'}</h2>
+    <p>{mode === 'individual' ? 'Choose a checked-in, eligible camper and an approved achievement. The official catalogue fixes the point value and credits the house once.' : 'Record verified collective achievements using the existing approved activity catalogue.'}</p>
     {error && <p role="alert" className="ops-error">{error} <button type="button" className="ops-button" onClick={() => { setError(''); setRefresh(current => current + 1) }}>Reload activity options</button></p>}
     {!options ? <p role="status">Loading eligible campers and approved activities…</p> : <>
       {!options.storage_ready && <p className="ops-callout" role="status">Activity scoring is awaiting its approved database setup. No activity awards can be submitted yet.</p>}
       {!options.ready && <p className="ops-callout" role="status">{options.message}</p>}
+      {mode === 'individual' && <div className="score-roster-panel"><div><strong>Eligible checked-in campers</strong><p>Visible here before selecting an activity. This is not a points award and does not modify check-in or allocation.</p></div><span className="score-roster-count">{options.members.length} eligible</span>
+        {options.members.length ? <ul>{options.members.map(member => <li key={member.id}><span>{member.name}</span><small>{member.house_name} · Checked in and allocated</small></li>)}</ul> : <p role="status">No campers currently meet all scoring requirements. Verify payment, check-in, house allocation and registration eligibility in Operations.</p>}
+      </div>}
+      {beforeCamp && <p role="status" className="score-policy-note">Camp activity awards open on {options.start_date} (Africa/Lagos). Existing early check-ins and house allocations remain valid, but no points can be entered before camp begins.</p>}
       <form className="score-form" onSubmit={submit}><fieldset disabled={busy}>
-        <label>Approved activity<select required value={values.activity} onChange={event => { setValues(current => ({ ...empty(), date: current.date, activity: event.target.value })); reference.current = null }}>
-          <option value="">Choose an individual or collective activity</option>
-          <optgroup label="Individual camper activities">{options.individual.map(row => <option key={row.code} value={row.code}>{row.code} · {row.name} (+{row.points})</option>)}</optgroup>
-          <optgroup label="Collective house activities">{options.collective.map(row => <option key={row.code} value={row.code}>{row.code} · {row.name} (+{row.points})</option>)}</optgroup>
+        {mode === 'individual' && <label>Eligible camper<select required value={values.participant} onChange={event => change('participant',event.target.value)}><option value="">Choose a checked-in camper</option>{options.members.map(row => <option key={row.id} value={row.id}>{row.name} · {row.house_name}</option>)}</select></label>}
+        <label>Approved activity<select required value={values.activity} onChange={event => { setValues(current => ({ ...empty(), date: current.date, participant: current.participant, activity: event.target.value })); reference.current = null }}>
+          <option value="">Choose an approved {mode === 'individual' ? 'individual' : 'collective'} activity</option>
+          {activities.map(row => <option key={row.code} value={row.code}>{row.code} · {row.name} (+{row.points})</option>)}
         </select></label>
-        <label>Camp-local activity date<input type="date" required min={options.start_date} max={options.end_date < campToday() ? options.end_date : campToday()} value={values.date} onChange={event => change('date', event.target.value)} /></label>
+        <label>Camp-local activity date<input type="date" disabled={beforeCamp} required min={options.start_date} max={options.end_date < campToday() ? options.end_date : campToday()} value={values.date} onChange={event => change('date', event.target.value)} /></label>
         {rule && <>
           <p className="score-wide">Award: <strong>{rule.points} points</strong>{rule.threshold && ` · Required participation: ${rule.threshold}%`}{rule.cap_bucket && ` · Separate daily ${rule.cap_bucket} cap: 10`}{rule.frequency === 'once' && ' · Once per camper this edition; verified prerequisites required.'}</p>
           {collective ? <label>House<select required value={values.house} onChange={event => setValues(current => ({ ...current, house: event.target.value, attendees: [], exemptions: {} }))}><option value="">Choose a house</option>{options.houses.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
-            : <label>Eligible camper<select required value={values.participant} onChange={event => change('participant', event.target.value)}><option value="">Choose a verified-paid, checked-in camper</option>{options.members.map(row => <option key={row.id} value={row.id}>{row.name} · {row.house_name}</option>)}</select></label>}
+            : null}
           {['prayer', 'rawatib'].includes(rule.frequency) && <label>{rule.frequency === 'rawatib' ? 'Rawātib period' : 'Obligatory prayer'}<select required value={values.slot} onChange={event => change('slot', event.target.value)}><option value="">Choose a period</option>{options[rule.frequency === 'rawatib' ? 'rawatib' : 'prayers'].map(slot => <option key={slot} value={slot}>{slot.replaceAll('_', ' ')}</option>)}</select></label>}
           {['target', 'session'].includes(rule.frequency) && <label>Approved target / task / incident / session reference<input required maxLength={80} pattern="[a-z0-9][a-z0-9_-]*" value={values.slot} onChange={event => change('slot', event.target.value)} /><small>Use the same agreed lowercase reference for the same achievement, including when another officer records it. Never relabel a task or incident to award it twice.</small></label>}
           {rule.code === 'MIL05' && <label>Completed approved reading target<input required maxLength={80} pattern="[a-z0-9][a-z0-9_-]*" value={values.reading_target} onChange={event => change('reading_target', event.target.value)} /><small>Must match a verified QUR05 reading task.</small></label>}
@@ -68,7 +78,7 @@ export default function ActivityAwardForm({ edition, busy, canCorrect, onSave })
           </div>}
           <label className="score-wide">Verification evidence / note<textarea required={collective || rule.frequency === 'target'} maxLength={600} rows={3} value={values.note} onChange={event => change('note', event.target.value)} /></label>
           <label className="score-wide activity-check"><input type="checkbox" required checked={values.verified} onChange={event => change('verified', event.target.checked)} />I have verified completion, the approved target or official result, and any documented exemptions.</label>
-          <button className="ops-button ops-button-primary" disabled={!options.ready || !options.storage_ready}>Record verified award</button>
+          <button className="ops-button ops-button-primary" disabled={beforeCamp || !options.ready || !options.storage_ready}>Record verified award</button>
         </>}
       </fieldset></form>
     </>}

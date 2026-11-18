@@ -2,7 +2,6 @@ export const navigation = [
   { label: 'Timetables', to: '/dic/operations/timetables', icon: 'clipboard', permission: 'timetables' },
   { label: 'Classes', to: '/dic/operations/classes', icon: 'users', permission: 'classes', campsite: true },
   { label: 'Announcements', to: '/dic/operations/announcements', icon: 'clipboard', permission: 'announcements', campsite: true },
-  { label: 'Media management', to: '/dic/operations/media-management', icon: 'file', permission: 'media' },
   { label: 'Overview', to: '/dic/operations', icon: 'grid' },
   { label: 'Camp Check-in', to: '/dic/operations/check-in', icon: 'clipboard', campsite: true },
   { label: 'Finance', to: '/dic/operations/finance', icon: 'card', permission: 'finance', campsite: true },
@@ -14,7 +13,9 @@ export const navigation = [
   { label: 'Payments', to: '/dic/operations/payments', icon: 'card', permission: 'finance' },
   { label: 'House allocation', to: '/dic/operations/houses', icon: 'home' },
   { label: 'Reports', to: '/dic/operations/reports', icon: 'file', permission: 'export_reports' },
+  { label: 'Individual scoring', to: '/dic/operations/individual-scoring', icon: 'users', campsite: true, permission: 'scores' },
   { label: 'House scoring', to: '/dic/operations/scoring', icon: 'activity', campsite: true, permission: 'scores' },
+  { label: 'Scoring history', to: '/dic/operations/scoring-history', icon: 'file', campsite: true, permission: 'scores' },
   { label: 'Feedback', to: '/dic/operations/feedback', icon: 'clipboard', campsite: true, permission:'feedback' },
   { label: 'Submit feedback', to: '/dic/operations/feedback-submit', icon:'clipboard',campsite:true,permission:'feedback_entry' },
   { label: 'Welfare complaints', to: '/dic/operations/welfare', icon:'clipboard',campsite:true,permission:'welfare' },
@@ -31,9 +32,9 @@ export function visibleOperationsNavigation(user) {
 export const operationsNavigationGroups = [
   { label: 'Camp Overview', paths: ['', 'registration-overview'] },
   { label: 'Participants & Registration', paths: ['check-in', 'assisted-registration', 'registrations', 'participants', 'participant-ids', 'id-printing', 'houses'] },
-  { label: 'Camp Activities', paths: ['classes', 'timetables', 'announcements', 'scoring', 'feedback','feedback-submit','welfare'] },
+  { label: 'Camp Activities', paths: ['classes', 'timetables', 'announcements', 'individual-scoring', 'scoring', 'scoring-history', 'feedback','feedback-submit','welfare'] },
   { label: 'Finance & Reports', paths: ['payments', 'finance', 'reports', 'reporting-hub'] },
-  { label: 'Administration', paths: ['media-management', 'activity'] },
+  { label: 'Administration', paths: ['activity'] },
 ]
 
 export function visibleOperationsGroups(user) {
