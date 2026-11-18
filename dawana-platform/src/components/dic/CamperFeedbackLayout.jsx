@@ -2,8 +2,14 @@ import { Link } from 'react-router-dom'
 import './CamperFeedbackWorld.css'
 
 export function FeedbackWelcome({ channel = 'daily' }) {
-  const final = channel === 'final'
-  return <header className="cf-welcome"><div><span className="cf-eyebrow">DIC CAMPER WORLD · YOUR VOICE MATTERS</span><h1>{final ? 'A camp to remember.' : 'A little reflection.\nA better camp, together.'}</h1><p>{final ? 'Look back on the moments that helped you grow.' : 'Tell us what made you smile, and what we can make better.'}</p></div><span className="cf-welcome-art" aria-hidden="true">✧</span></header>
+  const copy = {
+    daily: ['Daily feedback', 'Share your experience of today’s programme and meals.'],
+    welfare: ['Submit a complaint', 'Report a welfare concern privately to the camp team.'],
+    history: ['Complaint status', 'Review the progress of concerns you have submitted.'],
+    final: ['Final camp evaluation', 'Reflect on the camp and help us improve future editions.'],
+  }
+  const [title,description] = copy[channel] || copy.daily
+  return <header className="cf-welcome"><div><span className="cf-eyebrow">CAMPER WORLD · YOUR VOICE</span><h1>{title}</h1><p>{description}</p></div><span className="cf-welcome-art" aria-hidden="true">✧</span></header>
 }
 
 export function FeedbackChannelNav({ channel, onChange }) {
