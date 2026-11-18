@@ -301,13 +301,14 @@ class PublicStudioPlacementsView(APIView):
             url = published_url(placement.asset, source)
             if placement.asset.source_kind == 'recordings' and destination == 'foundation_archive':
                 url = reverse('dic:studio-public-audio', args=[placement.asset.pk]) if (
-                    source_published(placement.asset, source) and not source.session_id and source.audio
-                    and source.edition.is_active) else None
+                    source_published(placement.asset, source) and not source.session_id and source.audio) else None
             if url:
                 item = {'title': placement.asset.title, 'description': placement.asset.description,
                         'programme': placement.asset.programme, 'event': placement.asset.event,
                         'edition': placement.edition.year if placement.edition_id else (
-                            source.edition.year if placement.asset.source_kind == 'recordings' else None),
+                            source.edition.year if getattr(source, 'edition_id', None) and
+                            placement.asset.source_kind in ('recordings', 'videos', 'hosted', 'promotions')
+                            else None),
                         'source_kind': placement.asset.source_kind, 'url': url,
                         'album': placement.asset.album}
                 if placement.asset.source_kind == 'hosted':
@@ -330,7 +331,7 @@ class PublicStudioAudioView(APIView):
     def get(self, request, asset_id):
         asset = get_object_or_404(StudioAsset, pk=asset_id, source_kind='recordings', archived_at__isnull=True)
         source = source_for(asset)
-        if not source_published(asset, source) or source.session_id or not source.audio or not source.edition.is_active:
+        if not source_published(asset, source) or source.session_id or not source.audio:
             raise Http404()
         if not StudioPlacement.objects.filter(
             asset=asset, destination='foundation_archive', edition__isnull=True,
