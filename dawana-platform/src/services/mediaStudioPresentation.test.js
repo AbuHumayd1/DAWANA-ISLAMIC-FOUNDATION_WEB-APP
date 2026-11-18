@@ -139,3 +139,26 @@ test('public archive paging retries its current page and does not accept private
   assert.match(gallery, /credentials: 'omit'/)
   assert.doesNotMatch(gallery, /camper_resources/)
 })
+
+
+test('Media Studio exposes the shared persistent theme preference and maintains readable mobile contrast', () => {
+  const ui = read('../pages/MediaStudio.jsx')
+  const studio = read('../pages/MediaStudio.css')
+  const publishing = read('../pages/StudioDestinations.css')
+  const appearance = read('../../public/appearance.js')
+  assert.match(ui, /useSyncExternalStore\(appearance\.subscribe, appearance\.getSnapshot\)/)
+  assert.match(ui, /onClick=\{appearance\.toggle\}/)
+  assert.match(ui, /Switch Media Studio to light mode/)
+  assert.match(ui, /Switch Media Studio to dark mode/)
+  assert.match(ui, /studio-login-appearance/)
+  assert.match(ui, /studio-account"><StudioAppearanceButton/)
+  assert.match(appearance, /localStorage\.setItem/)
+  assert.match(appearance, /html\.dataset\.theme = state\.theme/)
+  for (const css of [studio, publishing]) {
+    assert.doesNotMatch(css, /@media\s*\(?prefers-color-scheme\s*:\s*dark/)
+    assert.match(css, /:root\[data-theme="dark"\]/)
+  }
+  assert.match(studio, /studio-app \.studio-collections h2/)
+  assert.match(studio, /studio-app \.studio-filters label/)
+  assert.match(publishing, /studio-destinations \.studio-catalogue-search/)
+})
