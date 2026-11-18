@@ -8,6 +8,7 @@ test('browser tab icons use DAWANA identity, not starter Vite lightning', () => 
   assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/favicon\.svg\?v=20261118-dawana"/)
   assert.match(html, /<link rel="apple-touch-icon" href="\/dawana-official-logo\.png\?v=20261118-dawana"/)
   assert.match(icon, /DAWANA Islamic Foundation/)
+  assert.match(icon, /#138451|#185d3d/)
   assert.doesNotMatch(icon, /#863bff|#7e14ff|vite|Vite|lightning/i)
   assert.equal(fs.existsSync(new URL('../assets/vite.svg', import.meta.url)), false)
 })
