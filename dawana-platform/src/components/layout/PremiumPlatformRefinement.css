@@ -110,3 +110,44 @@
 .home-page .home-donation-note p{max-width:620px;margin:0;color:var(--text-main);font-size:.92rem;line-height:1.6}
 .home-page .home-donation-note .text-link{font-size:.9rem;white-space:nowrap}
 @media(max-width:700px){.home-page .home-donation-note .container{display:block}.home-page .home-donation-note .text-link{display:inline-flex;margin-top:10px}.home-page .hero-meta{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Cross-workspace navigation and dense operations screens. */
+.footer{padding-block:clamp(24px,4vw,42px) 16px}
+.footer .footer-grid{column-gap:clamp(18px,3.6vw,45px);row-gap:22px;padding-bottom:clamp(20px,3vw,32px)}
+.footer .footer-grid>div:not(:first-child) a{line-height:1.4}
+.footer .footer-grid h3{margin-block:0 10px}
+.footer .footer-bottom{gap:10px 18px;flex-wrap:wrap}
+.ops-app .ops-metric-grid{gap:clamp(8px,1.3vw,14px)}
+.ops-app .ops-metric-copy strong{font-variant-numeric:tabular-nums}
+.ops-app .ops-count-explanation{margin:0 0 18px;color:var(--text-muted);font-size:.85rem;line-height:1.55;max-width:85ch}
+.ops-app .ops-chart-grid,.ops-app .ops-bottom-grid,.ops-app .ops-detail-grid{min-width:0}
+.ops-app .ops-panel,.ops-app .ops-detail-panel{min-width:0;overflow-wrap:anywhere}
+.ops-app .ops-table-wrap{max-width:100%;scrollbar-width:thin;overscroll-behavior-x:contain}
+.ops-app .ops-filter{min-width:0}
+.ops-app :is(.ops-table-wrap,.ops-filter,.ops-print-actions) :is(button,a,select,input):focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.ops-app .ops-nav-group-links{gap:3px}
+.ops-app .ops-nav-link{border-radius:10px;min-width:0;overflow-wrap:anywhere}
+.ops-app .ops-id-printing{min-width:0}
+.ops-app .ops-id-printing .ops-print-actions{align-items:center}
+.ops-app .ops-id-printing .ops-print-actions button{min-height:44px}
+.ops-app .ops-id-printing .ops-table-wrap{max-width:100%}
+@media(min-width:701px) and (max-width:1100px){
+  .navbar[data-compact="true"] ~ .mobile-nav{width:min(340px,62vw);padding:15px}
+  .navbar[data-compact="true"] ~ .mobile-nav .mobile-nav-links{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:900px){
+  .ops-app .ops-topbar{row-gap:8px}
+  .ops-app .ops-main{min-width:0}
+  .ops-app .ops-nav-group-links{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:600px){
+  .ops-app .ops-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ops-app .ops-metric-card{padding:12px 10px;min-width:0}
+  .ops-app .ops-metric-copy span{font-size:.8rem;line-height:1.3}
+  .ops-app .ops-metric-copy strong{font-size:clamp(1.3rem,6vw,1.85rem)}
+  .ops-app .ops-count-explanation{font-size:.78rem}
+  .ops-app .ops-id-printing .ops-print-actions{gap:8px}
+  .ops-app .ops-id-printing .ops-print-actions button{flex:1 1 130px;white-space:normal}
+  .ops-app .ops-id-printing .ops-table tr{background:var(--panel);box-shadow:0 3px 12px rgba(0,0,0,.025)}
+  .ops-app .ops-id-printing .ops-table td{line-height:1.45}
+}

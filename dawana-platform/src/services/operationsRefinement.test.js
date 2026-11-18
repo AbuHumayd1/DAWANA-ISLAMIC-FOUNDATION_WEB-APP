@@ -112,3 +112,13 @@ test('Operations overview distinguishes attempted registrations from confirmed e
   assert.match(ui, /title="Registration attempts" value=\{metrics\.participants\}/)
   assert.match(ui, /max-width: 900px/)
 })
+
+
+test('registration-count cards explain eligibility without calling attempts attendance', () => {
+  const ui = fs.readFileSync(new URL('../pages/Operations.jsx', import.meta.url), 'utf8')
+  assert.ok(ui.indexOf('title="Confirmed campers"') < ui.indexOf('title="Registration attempts"'))
+  assert.match(ui, /className="ops-count-explanation"/)
+  assert.match(ui, /Registration attempts by category/)
+  assert.match(ui, /Registration attempt activity/)
+  assert.doesNotMatch(ui, /title="Individual participants" value=\{metrics\.participants\}/)
+})
