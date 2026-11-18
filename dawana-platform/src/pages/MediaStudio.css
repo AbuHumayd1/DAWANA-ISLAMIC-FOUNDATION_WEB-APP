@@ -237,3 +237,17 @@
 @media(max-width:640px){.studio-advanced-publishing{padding-inline:12px}}
 :root[data-theme="dark"] .studio-advanced-publishing{background:#17291e;border-color:#3c5843}
 :root[data-theme="dark"] .studio-advanced-publishing>summary{color:#cfe5d4}
+
+
+/* The open hamburger is a modal-like surface: closing must consume the tap.
+   Without the backdrop, pointerdown closed the menu before click and Safari
+   could activate the underlying card, form, or navigation target. */
+.studio-menu-backdrop{position:fixed;inset:0;z-index:1;display:block;width:100vw;height:100dvh;margin:0;padding:0;border:0;border-radius:0;background:rgba(9,24,17,.24);cursor:default;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.studio-top:has(.studio-menu-backdrop){z-index:90}
+.studio-nav-wrapper{z-index:2}
+.studio-popnav{z-index:3;box-shadow:0 22px 65px rgba(6,31,18,.28)}
+.studio-popnav button{min-height:44px}
+.studio-hamburger[aria-expanded="true"]{background:#e4f1e6;border-color:#8fb79a}
+:root[data-theme="dark"] .studio-menu-backdrop{background:rgba(0,0,0,.58)}
+:root[data-theme="dark"] .studio-hamburger[aria-expanded="true"]{background:#335941;border-color:#7da88b}
+@media(max-width:640px){.studio-menu-backdrop{height:100dvh}.studio-popnav{max-height:min(70dvh,570px)}}
