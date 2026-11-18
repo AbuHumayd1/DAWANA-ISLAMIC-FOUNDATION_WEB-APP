@@ -158,11 +158,15 @@ export default function StudioDestinations({ user, editions, library, sourceLink
   return <section id="studio-publishing" className="studio-destinations" aria-labelledby="destinations-heading">
     <header className="studio-destinations-head"><div><span className="studio-kicker">ONE ASSET · MANY DESTINATIONS</span><h2 id="destinations-heading">Foundation publishing</h2><p>Connect existing media once, organize it, and independently choose where its approved content appears.</p></div><span>Private asset catalogue</span></header>
     {message && <p role="status" className="studio-notice">{message}</p>}
-    <form className="studio-link" onSubmit={link}><strong>Link an existing media item</strong>
-      <label>Collection<select value={linkKind} onChange={e => setLinkKind(e.target.value)}>{Object.keys(choices).filter(x => user.libraries?.includes(x)).map(kind => <option value={kind} key={kind}>{kind}</option>)}</select></label>
-      <label>Media ID<input type="number" min="1" required value={linkId} onChange={e => setLinkId(e.target.value)} placeholder="ID from the collection above" /></label>
-      <button type="submit" disabled={busy || !linkId}>Add to catalogue</button>
-    </form>
+    {!items.length && !loading && !catalogueSearch && !collectionFilter && !albumFilter && <div className="studio-publishing-onboarding"><strong>No media ready to place yet</strong><p>Choose a collection above, add or select an item, then use “Add to Foundation catalogue” on that item. After linking it, choose where it should appear on the website. You do not need to enter an ID manually for the usual workflow.</p></div>}
+    <details className="studio-advanced-link"><summary>Advanced: link an existing item by ID</summary>
+      <p>Only use this when you already know the item’s record ID. For most media, use the button on the item in its collection instead.</p>
+      <form className="studio-link" onSubmit={link}><strong>Existing media record</strong>
+        <label>Collection<select value={linkKind} onChange={e => setLinkKind(e.target.value)}>{Object.keys(choices).filter(x => user.libraries?.includes(x)).map(kind => <option value={kind} key={kind}>{kind}</option>)}</select></label>
+        <label>Media ID<input type="number" min="1" required value={linkId} onChange={e => setLinkId(e.target.value)} placeholder="Record ID" /></label>
+        <button type="submit" disabled={busy || !linkId}>Link item</button>
+      </form>
+    </details>
     <div className="studio-catalogue-body">
       <div className="studio-linked-list"><div className="studio-linked-title"><strong>Linked media ({items.length})</strong><label><input type="checkbox" checked={showArchive} onChange={e => setShowArchive(e.target.checked)} />Show archived</label></div>
         <div className="studio-catalogue-filters"><label className="studio-catalogue-search"><span>Collection</span><select aria-label="Filter catalogue collection" value={collectionFilter} onChange={event => {setPage(1);setBatchIds([]);setCollectionFilter(event.target.value);setAlbumFilter('')}}><option value="">All permitted collections</option>{Object.keys(choices).filter(x=>user.libraries?.includes(x)).map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><label className="studio-catalogue-search"><span>Search entire catalogue</span><input type="search" aria-label="Search full catalogue" placeholder="Title, album or programme…" maxLength="100" value={catalogueSearch} onChange={event => {setPage(1);setBatchIds([]);setCatalogueSearch(event.target.value)}} /></label>{collectionFilter === 'photos' && <label className="studio-catalogue-search"><span>Photo album</span><select aria-label="Filter photography by album" value={albumFilter} onChange={event => {setPage(1);setBatchIds([]);setAlbumFilter(event.target.value)}}><option value="">All albums</option>{availableAlbums.map(name=><option key={name} value={name}>{name}</option>)}</select></label>}</div>
