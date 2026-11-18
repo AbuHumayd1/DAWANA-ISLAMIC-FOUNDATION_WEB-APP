@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
 import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioHostedLinks } from '../services/mediaStudioApi'
@@ -26,6 +26,18 @@ const LIBRARIES = [
   { key: 'appearances', name: 'Appearances', count: 'Speaker programmes', icon: '◫' },
   { key: 'activities', name: 'Activities', count: 'Events & highlights', icon: '▤' },
 ]
+
+function StudioAppearanceButton() {
+  const appearance = window.DawanaAppearance
+  const preference = useSyncExternalStore(appearance.subscribe, appearance.getSnapshot)
+  const dark = preference.theme === 'dark'
+  return <button className="studio-appearance-button" type="button"
+    onClick={appearance.toggle} aria-label={dark ? 'Switch Media Studio to light mode' : 'Switch Media Studio to dark mode'}
+    title={dark ? 'Switch to light mode' : 'Switch to dark mode'}>
+    <span aria-hidden="true">{dark ? '☀' : '☾'}</span>
+    <span>{dark ? 'Light mode' : 'Dark mode'}</span>
+  </button>
+}
 
 export default function MediaStudio() {
   const [user, setUser] = useState(null)
@@ -213,7 +225,7 @@ export default function MediaStudio() {
     finally { setPending(null) }
   }
   if (checking) return <main className="studio-checking" aria-busy="true">Opening the secure DAWANA Media Studio…</main>
-  if (!user) return <main className="studio-login"><Link to="/" className="studio-back">← DAWANA Islamic Foundation</Link><section className="studio-login-card">
+  if (!user) return <main className="studio-login"><div className="studio-login-appearance"><StudioAppearanceButton /></div><Link to="/" className="studio-back">← DAWANA Islamic Foundation</Link><section className="studio-login-card">
     <span className="studio-kicker">THE CREATIVE WORKSPACE</span>
     <h1>Every story deserves a beautiful home.</h1>
     <p>DAWANA Media Studio — a private workspace for our Foundation media team.</p>
@@ -234,7 +246,7 @@ export default function MediaStudio() {
         {LIBRARIES.filter(x => user.libraries?.includes(x.key)).map(x => <button type="button" key={x.key} onClick={() => { setPage(1); setLibrary(x.key); setQ(''); setState(''); setEdition(''); setMenuOpen(false) }} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
       </nav>}</div>
       <Link to="/" className="studio-logo"><img src="/dawana-official-logo.png" alt="" /><span><strong>DAWANA</strong><small>MEDIA STUDIO</small></span></Link>
-      <div className="studio-account"><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={signOut}>Sign out</button></div>
+      <div className="studio-account"><StudioAppearanceButton /><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={signOut}>Sign out</button></div>
     </header>
     <main className="studio-main">
       <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-overview-mark" aria-hidden="true">✦</div></div>
