@@ -256,7 +256,19 @@ export default function MediaStudio() {
         }
         setMessage(`${results.length} video(s) published to ${placements.length} selected destination(s).`)
       } else {
-        setMessage(`${created.length} video link(s) saved privately as drafts. You can publish them later from the saved list.`)
+        if (user.can_manage_catalogue) {
+          let tagged = 0
+          for (const item of created) {
+            try {
+              await studioAssetMetadata(item.asset_id, {programme: mediaCategory, event: ['other','ramadan'].includes(mediaCategory) ? mediaProgrammeName.trim() : ''})
+              tagged++
+            } catch (error) {
+              setMessage(`${created.length} video drafts saved; only ${tagged} classified. ${error.message}. Review saved items instead of submitting duplicates.`)
+              return
+            }
+          }
+        }
+        setMessage(`${created.length} video link(s) saved privately as drafts with their chosen collection.`)
       }
       setHostedLinks(''); setHostedTitle(''); setHostedUrl('')
       setComposerOpen(false)
@@ -296,6 +308,15 @@ export default function MediaStudio() {
             published++
           } catch (error) {
             setMessage(`${saved} draft(s) saved, ${published} published. ${failWithProgress(error, saved)}`)
+            return
+          }
+        } else if (user.can_manage_catalogue && ['videos','recordings'].includes(library)) {
+          try {
+            const {asset} = await studioLinkAsset(library, created.id)
+            if (!asset?.id) throw new Error('Could not index the saved media.')
+            await studioAssetMetadata(asset.id, {programme: mediaCategory, event: ['other','ramadan'].includes(mediaCategory) ? mediaProgrammeName.trim() : ''})
+          } catch (error) {
+            setMessage(`${saved} draft(s) saved but classification failed: ${error.message}. Review saved items before retrying.`)
             return
           }
         }
@@ -544,7 +565,7 @@ export default function MediaStudio() {
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
             <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
           </div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations([]); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory('general'); setItemProgrammeName('')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations([]); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory(MEDIA_CATEGORIES.some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
           {itemToPublish === item.id && <div className="studio-item-publisher">
             <strong>Where should “{item.title}” appear?</strong>
              {['hosted','videos','recordings'].includes(library) && <><MediaCategoryInput value={itemMediaCategory} onChange={setItemMediaCategory} audio={library === 'recordings'}/>
