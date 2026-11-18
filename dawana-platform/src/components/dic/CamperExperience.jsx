@@ -1,4 +1,5 @@
 import CamperDay from './CamperDay'
+import CamperApprovedActivities from './CamperApprovedActivities'
 import CamperResources from './CamperResources'
 import CamperSelect from './CamperSelect'
 import { useEffect, useRef, useState } from 'react'
@@ -45,6 +46,7 @@ export function ExperienceContent({ tab, participant: p, order, data, error, onN
   if (view === 'settings') return null
   if (view === 'recordings') return <CamperResources key={p.registration_item_id} item={p.registration_item_id} />
   if (view === 'certificate') return <CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly />
+  if (view === 'activities') return <CamperApprovedActivities onNavigate={onNavigate} />
   if (view === 'day') return <><div className="cp-section-heading cp-day-heading"><span className="cp-kicker">YOUR CAMP COMPANION</span><h1>My Day</h1><p>Your published programme and meals, in one place.</p></div><CamperDay key={p.registration_item_id} item={p.registration_item_id} /></>
   if (view === 'digital-id') return <><div className="cp-section-heading"><h1>My Digital ID</h1></div><DigitalIDStatus participant={p} onOpenID={onOpenID} busy={busy} /><button className="cp-text-button" onClick={() => onNavigate('me')}>Back to my profile</button></>
   if (view === 'me') return <><CamperProfile participant={p} order={order} ID={DigitalIDStatus} Icon={PortalIcon} onOpenID={onOpenID} busy={busy} /><CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly /></>

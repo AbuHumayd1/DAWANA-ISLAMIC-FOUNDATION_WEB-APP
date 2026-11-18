@@ -17,7 +17,7 @@ export function CamperExplore({ participant, camp, onNavigate, Icon }) {
   return <>
     <section className="cw-explore-banner"><div><span className="cp-kicker">A WORLD OF POSSIBILITIES</span><h1>Find your next<br />camp moment.</h1><p>Learn something. Meet someone.<br />Make a memory.</p></div><Icon name="explore" /></section>
     <div className="cw-discover-grid">
-      <button type="button" className="cw-discover-card cp-tone-coral" onClick={() => onNavigate('day')}><Icon name="explore" /><span className="cp-kicker">Discover</span><h2>Explore approved camp activities</h2><p>See your published daily activities and programme.</p></button>
+      <button type="button" className="cw-discover-card cp-tone-coral" onClick={() => onNavigate('activities')}><Icon name="explore" /><span className="cp-kicker">Discover</span><h2>Explore approved camp activities</h2><p>Discover officially approved camp experiences.</p></button>
       <button className="cw-discover-card cp-tone-yellow" onClick={() => onNavigate('announcements')}><Icon name="feedback" /><span className="cp-kicker">Stay connected</span><h2>Camp announcements</h2><p>The latest from your camp.</p></button>
       <button className="cw-discover-card cp-tone-sky" onClick={() => onNavigate('feedback')}><Icon name="feedback" /><span className="cp-kicker">Your voice matters</span><h2>Feedback & care</h2><p>Feedback, complaints and support.</p></button>
       <button className="cw-discover-card cp-tone-mint" onClick={() => onNavigate('day')}><Icon name="day" /><span className="cp-kicker">Make the most of it</span><h2>Your camp programme</h2><p>Activities and shared meals.</p></button>

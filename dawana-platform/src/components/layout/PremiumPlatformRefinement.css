@@ -151,3 +151,27 @@
   .ops-app .ops-id-printing .ops-table tr{background:var(--panel);box-shadow:0 3px 12px rgba(0,0,0,.025)}
   .ops-app .ops-id-printing .ops-table td{line-height:1.45}
 }
+
+/* Approved activity showcase is isolated inside the Camper World: no public-site header. */
+.cp-route .cw-approved-activities{display:grid;gap:16px}
+.cp-route .cw-approved-heading{display:grid;gap:7px}
+.cp-route .cw-approved-heading h1{font:500 clamp(1.5rem,4vw,2.15rem)/1.2 Georgia,serif;margin:0;color:var(--brand-deep)}
+.cp-route .cw-approved-heading p{margin:0;color:var(--brand-deep);opacity:.8;line-height:1.55}
+.cp-route .cw-approved-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.cp-route .cw-approved-card{min-width:0;overflow:hidden;border:1px solid #d9e4dc;border-radius:18px;background:#f7fbf6}
+.cp-route .cw-approved-card img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover}
+.cp-route .cw-approved-card-copy{display:grid;gap:8px;padding:18px}
+.cp-route .cw-approved-card-copy small{font-size:.72rem;font-weight:700;letter-spacing:.03em;color:#416953;text-transform:uppercase}
+.cp-route .cw-approved-card-copy h2{font:500 1.25rem/1.26 Georgia,serif;margin:0;color:#184531}
+.cp-route .cw-approved-card-copy p{font-size:.9rem;line-height:1.55;color:#425e4e;margin:0}
+.cp-route .cw-approved-note{font-size:.85rem;line-height:1.5;color:var(--brand-deep);opacity:.85}
+.cp-route .cw-approved-actions{display:flex;gap:10px;flex-wrap:wrap}
+.cp-route .cw-approved-actions button{border:1px solid #bdcfbe;border-radius:12px;min-height:44px;padding:10px 14px;background:transparent;color:var(--brand-deep);font:600 .86rem var(--font-body);cursor:pointer}
+.cp-route .cw-approved-actions button:first-child{background:#1d5d3f;color:#fff;border-color:#1d5d3f}
+.cp-route .cw-approved-actions button:focus-visible{outline:3px solid #cfaa5f;outline-offset:2px}
+.cp-route .cp-experience[data-theme=dark] .cw-approved-heading :is(h1,p),
+.cp-route .cp-experience[data-theme=dark] .cw-approved-note{color:#e8f1e9}
+.cp-route .cp-experience[data-theme=dark] .cw-approved-card{background:#24392b;border-color:#405e49}
+.cp-route .cp-experience[data-theme=dark] .cw-approved-card-copy :is(h2,p,small){color:#e8f1e9}
+.cp-route .cp-experience[data-theme=dark] .cw-approved-actions button:not(:first-child){color:#e8f1e9;border-color:#668775}
+@media(max-width:600px){.cp-route .cw-approved-grid{grid-template-columns:1fr;gap:11px}.cp-route .cw-approved-card-copy{padding:15px}}

@@ -207,3 +207,8 @@ test('Arena leaderboard podium and labels remain readable in dark appearance', (
   assert.ok(css.includes('[data-theme=dark] .cw-leaderboard li :is(strong,small,b,.cp-rank)'))
   assert.ok(css.includes('color:#f3faf4'))
 })
+
+test('approved activity collection is a secondary Explore view rather than a public navigation redirect', () => {
+  assert.equal(portalView('activities'), 'activities')
+  assert.equal(activeDestination('activities'), 'explore')
+})
