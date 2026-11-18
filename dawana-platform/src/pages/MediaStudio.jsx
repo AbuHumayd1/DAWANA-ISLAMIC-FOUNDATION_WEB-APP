@@ -85,7 +85,6 @@ export default function MediaStudio() {
   const [uploadBusy, setUploadBusy] = useState(false)
   const [revision, setRevision] = useState(0)
   const [publishDestinations, setPublishDestinations] = useState([])
-  const [saveAction, setSaveAction] = useState('draft')
   const [resultDetails, setResultDetails] = useState([])
 
   const menuRef = useRef(null)
@@ -119,7 +118,7 @@ export default function MediaStudio() {
   }, [user])
   useEffect(() => {
     setComposerOpen(false); setPreview(null); setEditing(null)
-    setPublishDestinations([]); setSaveAction('draft')
+    setPublishDestinations([])
   }, [library])
   useEffect(() => {
     if (!preview) return undefined
@@ -134,8 +133,46 @@ export default function MediaStudio() {
         && !url.username && !url.password && !url.hash && !url.port ? url.href : ''
     } catch { return '' }
   }
+  function selectedPublication(editionId) {
+    const destinations = publishDestinations.filter(key =>
+      (PUBLISH_DESTINATIONS[library] || []).some(([id]) => id === key))
+    if (!destinations.length) throw new Error('Choose at least one place for the media to appear.')
+    if (destinations.some(needsEdition) && !editionId) {
+      throw new Error('Choose the camp edition before publishing to a DIC or Camper Portal section.')
+    }
+    return destinations.map(destination => ({destination, edition: needsEdition(destination) ? editionId : null}))
+  }
+  async function publishCreated(kind, sourceId, existingAssetId, placements) {
+    // The existing backend rechecks all permissions and validation at each step.
+    // Do not retry successful operations or claim atomicity across HTTP requests.
+    const stage = {sourceId, stage: 'draft saved', destinations: []}
+    try {
+      await studioPublish(kind, sourceId, 'publish')
+      stage.stage = 'original published'
+      const assetId = existingAssetId || (await studioLinkAsset(kind, sourceId)).asset?.id
+      if (!assetId) throw new Error('Could not link the published item to the Foundation catalogue.')
+      stage.stage = 'linked to catalogue'
+      for (const placement of placements) {
+        await studioPlacement(assetId, placement.destination, 'publish', placement.edition)
+        stage.destinations.push(placement.destination)
+      }
+      stage.stage = 'published to all selected destinations'
+      return stage
+    } catch (error) {
+      error.studioProgress = stage
+      throw error
+    }
+  }
+  function failWithProgress(error, createdCount) {
+    const progress = error.studioProgress
+    if (!progress) return createdCount
+      ? `${createdCount} draft(s) saved, but remaining work stopped: ${error.message}. Check saved items before trying again.`
+      : error.message
+    return `Media record #${progress.sourceId}: ${progress.stage}; ${progress.destinations.length} destination(s) published. ${error.message}. Check existing media before retrying to avoid duplicates.`
+  }
   async function addHostedLinks(event) {
     event.preventDefault()
+    const action = event.nativeEvent.submitter?.value === 'publish' ? 'publish' : 'draft'
     const lines = hostedMode === 'single'
       ? [`${hostedTitle.trim()} | ${hostedUrl.trim()}`]
       : hostedLinks.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
@@ -153,45 +190,86 @@ export default function MediaStudio() {
       }
     })
     if (entries.some(entry => !entry?.title || !entry?.video_url)) {
-      setMessage('Each line needs its title, a vertical bar (|), then the video URL.'); return
+      setMessage(hostedMode === 'single'
+        ? 'Enter a video title and a valid YouTube/Vimeo link.'
+        : 'Each line needs its title, a vertical bar (|), then the video URL.'); return
     }
-    setUploadBusy(true); setMessage('')
+    let placements = []
+    try {
+      if (action === 'publish') {
+        if (!canPublishImmediately) throw new Error('You do not have permission to publish this collection.')
+        placements = selectedPublication(hostedEdition)
+      }
+    } catch (error) { setMessage(error.message); return }
+    setUploadBusy(true); setMessage(''); setResultDetails([])
     try {
       const response = await studioHostedLinks(entries)
-      setHostedLinks('')
-      setHostedTitle('')
-      setHostedUrl('')
-      setMessage(`${response.items.length} YouTube/Vimeo link${response.items.length === 1 ? '' : 's'} saved as private drafts. Publish their sources, then choose destinations below. No video files were uploaded.`)
+      const created = response.items || []
       setRevision(n => n + 1)
+      if (action === 'publish') {
+        const results = []
+        for (const item of created) {
+          try { results.push(await publishCreated('hosted', item.id, item.asset_id, placements)) }
+          catch (error) {
+            setResultDetails(results)
+            setMessage(`${results.length} of ${created.length} videos published. ${failWithProgress(error, created.length)}`)
+            return
+          }
+        }
+        setResultDetails(results)
+        setMessage(`${results.length} video(s) published to ${placements.length} selected destination(s).`)
+      } else {
+        setMessage(`${created.length} video link(s) saved privately as drafts. You can publish them later from the saved list.`)
+      }
+      setHostedLinks(''); setHostedTitle(''); setHostedUrl('')
       setComposerOpen(false)
+      setRevision(n => n + 1)
     } catch (error) { setMessage(error.message) }
     finally { setUploadBusy(false) }
   }
   async function upload(event) {
     event.preventDefault()
+    const action = event.nativeEvent.submitter?.value === 'publish' ? 'publish' : 'draft'
     const form = event.currentTarget
     const formData = new FormData(form)
     const values = Object.fromEntries(formData)
-    const photos = library === 'photos' ? formData.getAll('photograph').filter(file => file instanceof File && file.name && file.size) : []
+    const photos = library === 'photos'
+      ? formData.getAll('photograph').filter(file => file instanceof File && file.name && file.size) : []
     if (library === 'photos' && photos.length > 20) {
       setMessage('Select up to 20 photographs per batch.'); return
     }
-    setUploadBusy(true); setMessage('')
-    let saved = 0
+    let placements = []
     try {
-      if (photos.length > 1) {
-        for (const photo of photos) {
-          await studioUpload(library, { ...values, photograph: photo })
-          saved += 1
-        }
-      } else {
-        await studioUpload(library, values)
-        saved = 1
+      if (action === 'publish') {
+        if (!canPublishImmediately) throw new Error('You do not have permission to publish this collection.')
+        placements = selectedPublication(values.edition)
       }
-      setMessage(`${saved} media item${saved === 1 ? '' : 's'} saved as private drafts. Review before publishing.`)
+    } catch (error) { setMessage(error.message); return }
+    setUploadBusy(true); setMessage(''); setResultDetails([])
+    let saved = 0, published = 0
+    try {
+      const batch = photos.length > 1 ? photos.map(photograph => ({...values, photograph})) : [values]
+      for (const fields of batch) {
+        const created = await studioUpload(library, fields)
+        saved++
+        setRevision(current => current + 1)
+        if (action === 'publish') {
+          try {
+            await publishCreated(library, created.id, null, placements)
+            published++
+          } catch (error) {
+            setMessage(`${saved} draft(s) saved, ${published} published. ${failWithProgress(error, saved)}`)
+            return
+          }
+        }
+      }
+      setMessage(action === 'publish'
+        ? `${published} media item(s) published to ${placements.length} chosen destination(s).`
+        : `${saved} media item(s) saved privately as drafts. You can publish them later.`)
       setComposerOpen(false)
-    } catch (error) { setMessage(saved ? `${saved} items saved; remaining uploads stopped: ${error.message}` : error.message) }
-    finally {
+    } catch (error) {
+      setMessage(failWithProgress(error, saved))
+    } finally {
       if (saved) setRevision(current => current + 1)
       setUploadBusy(false)
     }
