@@ -55,6 +55,9 @@ export default function MediaStudio() {
   const [canEdit, setCanEdit] = useState(false)
   const [canCreate, setCanCreate] = useState(false)
   const [hostedLinks, setHostedLinks] = useState('')
+  const [hostedMode, setHostedMode] = useState('single')
+  const [hostedTitle, setHostedTitle] = useState('')
+  const [hostedUrl, setHostedUrl] = useState('')
   const [hostedLecturer, setHostedLecturer] = useState('')
   const [hostedDescription, setHostedDescription] = useState('')
   const [hostedEdition, setHostedEdition] = useState('')
@@ -113,7 +116,9 @@ export default function MediaStudio() {
   }
   async function addHostedLinks(event) {
     event.preventDefault()
-    const lines = hostedLinks.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+    const lines = hostedMode === 'single'
+      ? [`${hostedTitle.trim()} | ${hostedUrl.trim()}`]
+      : hostedLinks.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
     if (!lines.length || lines.length > 25) {
       setMessage('Provide between 1 and 25 YouTube/Vimeo links per batch.'); return
     }
@@ -134,6 +139,8 @@ export default function MediaStudio() {
     try {
       const response = await studioHostedLinks(entries)
       setHostedLinks('')
+      setHostedTitle('')
+      setHostedUrl('')
       setMessage(`${response.items.length} YouTube/Vimeo link${response.items.length === 1 ? '' : 's'} saved as private drafts. Publish their sources, then choose destinations below. No video files were uploaded.`)
       setRevision(n => n + 1)
       setComposerOpen(false)
@@ -300,12 +307,19 @@ export default function MediaStudio() {
         </div>
         <div className="studio-next-steps" aria-label="How Media Studio works"><span><b>1.</b> Add or choose media</span><span><b>2.</b> Review and publish</span><span><b>3.</b> Choose where it appears</span></div>
         {library === 'hosted' && composerOpen && canCreate && <form className="studio-composer studio-hosted-composer" onSubmit={addHostedLinks}>
-          <div><span className="studio-kicker">YOUTUBE · LIVESTREAMS · VIMEO</span><h3>Paste video links in bulk</h3><p>One per line: <strong>Video title | https://www.youtube.com/live/VIDEO_ID</strong>. Up to 25 links per batch. Stream URLs work during the broadcast and may remain available for replay, subject to YouTube settings. No file upload or R2 storage required.</p></div>
-          <label className="studio-hosted-lines">Video titles and links<textarea required rows={6} value={hostedLinks} onChange={e => setHostedLinks(e.target.value)} placeholder={'Friday Lecture | https://www.youtube.com/watch?v=VIDEO_ID\nSpecial Programme | https://www.youtube.com/live/VIDEO_ID'} /></label>
+          <div><span className="studio-kicker">YOUTUBE · LIVESTREAMS · VIMEO</span><h3>Add video links</h3><p>Give the video a title, paste its YouTube or Vimeo URL, then save it as a private draft. This works for livestreams too; no file upload or R2 storage required.</p></div>
+          <div className="studio-hosted-mode" role="group" aria-label="Number of videos to add">
+            <button type="button" aria-pressed={hostedMode === 'single'} onClick={() => setHostedMode('single')}>One video</button>
+            <button type="button" aria-pressed={hostedMode === 'bulk'} onClick={() => setHostedMode('bulk')}>Several videos</button>
+          </div>
+          {hostedMode === 'single' ? <>
+            <label>Video title<input required value={hostedTitle} onChange={e => setHostedTitle(e.target.value)} placeholder="e.g. Friday lecture" maxLength={200} /></label>
+            <label>YouTube or Vimeo link<input required type="url" value={hostedUrl} onChange={e => setHostedUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label>
+          </> : <label className="studio-hosted-lines">Video titles and links (up to 25)<textarea required rows={6} value={hostedLinks} onChange={e => setHostedLinks(e.target.value)} placeholder={'Friday Lecture | https://www.youtube.com/watch?v=VIDEO_ID\nSpecial Programme | https://www.youtube.com/live/VIDEO_ID'} /><small>Enter one video per line in this format: Title | URL. Up to 25 links per batch.</small></label>}
           <label>Lecturer / presenter (optional)<input value={hostedLecturer} onChange={e => setHostedLecturer(e.target.value)} maxLength={200}/></label>
           <label>Camp edition (optional)<select value={hostedEdition} onChange={e => setHostedEdition(e.target.value)}><option value="">Foundation-wide</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>
           <label className="studio-hosted-lines">Description for these entries (optional)<textarea rows={2} value={hostedDescription} onChange={e => setHostedDescription(e.target.value)} maxLength={5000}/></label>
-          <button type="submit" disabled={uploadBusy}>{uploadBusy ? 'Validating links…' : 'Save links as drafts'}</button>
+          <button type="submit" disabled={uploadBusy}>{uploadBusy ? 'Validating links…' : hostedMode === 'single' ? 'Save video as draft' : 'Save videos as drafts'}</button>
         </form>}
         {composerOpen && canUploadFiles && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Create a private draft</h3><p>Publishing is a separate action. Uploaded objects remain private unless explicitly released.</p></div>
           {library !== 'lecturers' && <label>Edition<select name="edition" required defaultValue=""><option value="">Select camp edition</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>}
