@@ -3,7 +3,10 @@
 Only source-validated, already published media can ever be exposed publicly.
 A placement does not override the original model's publication/edition guard.
 """
+from pathlib import Path
 from django.db import transaction
+from django.http import FileResponse, Http404
+from .media_delivery import safe_media, media_headers
 from django.utils import timezone
 from django.urls import reverse
 from django.shortcuts import get_object_or_404
@@ -239,7 +242,13 @@ class StudioPlacementView(StudioView):
                 raise NotFound('Media source was withdrawn.')
             if action == 'publish' and not source_published(asset, source):
                 raise ValidationError({'action': 'Publish the validated source first. Archived or draft media cannot be distributed.'})
-            if action == 'publish' and destination not in ('camper_resources', 'dic_resources') and not published_url(asset, source):
+            if action == 'publish' and destination == 'foundation_archive' and asset.source_kind == 'recordings':
+                # Keep camp session audience boundaries enforced.
+                if source.session_id:
+                    raise ValidationError({'action': 'Recordings attached to a camp session cannot be made public. Use Camper Portal resources instead.'})
+                if not source.audio:
+                    raise ValidationError({'action': 'A validated audio file is required before public publication.'})
+            elif action == 'publish' and destination not in ('camper_resources', 'dic_resources') and not published_url(asset, source):
                 raise ValidationError({'action': 'No publicly deliverable media is available for this destination.'})
             if edition_id and not CampEdition.objects.filter(pk=edition_id).exists():
                 raise ValidationError({'edition': 'Choose an existing camp edition.'})
@@ -290,8 +299,15 @@ class PublicStudioPlacementsView(APIView):
                 continue
             source = source_for(placement.asset)
             url = published_url(placement.asset, source)
+            if placement.asset.source_kind == 'recordings' and destination == 'foundation_archive':
+                url = reverse('dic:studio-public-audio', args=[placement.asset.pk]) if (
+                    source_published(placement.asset, source) and not source.session_id and source.audio
+                    and source.edition.is_active) else None
             if url:
                 item = {'title': placement.asset.title, 'description': placement.asset.description,
+                        'programme': placement.asset.programme, 'event': placement.asset.event,
+                        'edition': placement.edition.year if placement.edition_id else (
+                            source.edition.year if placement.asset.source_kind == 'recordings' else None),
                         'source_kind': placement.asset.source_kind, 'url': url,
                         'album': placement.asset.album}
                 if placement.asset.source_kind == 'hosted':
@@ -303,3 +319,30 @@ class PublicStudioPlacementsView(APIView):
         response = Response({'items': rows, 'page': page, 'has_more': len(placements) > 200})
         response['Cache-Control'] = 'public, max-age=0, must-revalidate'
         return response
+
+
+class PublicStudioAudioView(APIView):
+    """Explicit public audio release; never reuses camper entitlement URLs."""
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    @safe_media
+    def get(self, request, asset_id):
+        asset = get_object_or_404(StudioAsset, pk=asset_id, source_kind='recordings', archived_at__isnull=True)
+        source = source_for(asset)
+        if not source_published(asset, source) or source.session_id or not source.audio or not source.edition.is_active:
+            raise Http404()
+        if not StudioPlacement.objects.filter(
+            asset=asset, destination='foundation_archive', edition__isnull=True,
+            state='published', published_at__isnull=False,
+        ).exists():
+            raise Http404()
+        suffix = Path(source.audio.name).suffix.lower()
+        mime = {'.mp3': 'audio/mpeg', '.m4a': 'audio/mp4',
+                '.wav': 'audio/wav', '.ogg': 'audio/ogg'}.get(suffix)
+        if not mime:
+            raise Http404()
+        response = FileResponse(source.audio.open('rb'), content_type=mime,
+                                as_attachment=request.query_params.get('download') == '1',
+                                filename='foundation-audio' + suffix)
+        return media_headers(response, public=True)
