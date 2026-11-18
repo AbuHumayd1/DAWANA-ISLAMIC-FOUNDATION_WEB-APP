@@ -40,6 +40,9 @@ const PUBLISH_DESTINATIONS = {
 }
 const needsEdition = destination => destination.startsWith('dic_') || destination === 'camper_resources'
 const MEDIA_CATEGORIES = [['general','General Foundation media'],['dic','Darul Islam Camp'],['ramadan','Ramadan Tafseer'],['shorts','Short videos'],['other','Other programmes (youth outreach, podcasts, events)']]
+function categoryMetadata(category, series) {
+  return {programme: category, ...(['other','ramadan'].includes(category) ? {event: series.trim()} : {})}
+}
 function MediaCategoryInput({value, onChange, audio = false}) {
   return <label>Media collection
     <select value={value} onChange={event => onChange(event.target.value)}>
@@ -184,7 +187,7 @@ export default function MediaStudio() {
       if (!assetId) throw new Error('Could not link the published item to the Foundation catalogue.')
       stage.stage = 'linked to catalogue'
       if (['hosted','videos','recordings'].includes(kind)) {
-        await studioAssetMetadata(assetId, {programme: category, event: ['other','ramadan'].includes(category) ? eventName.trim() : ''})
+        await studioAssetMetadata(assetId, categoryMetadata(category, eventName))
         stage.stage = 'classified for public Media page'
       }
       for (const placement of placements) {
@@ -260,7 +263,7 @@ export default function MediaStudio() {
           let tagged = 0
           for (const item of created) {
             try {
-              await studioAssetMetadata(item.asset_id, {programme: mediaCategory, event: ['other','ramadan'].includes(mediaCategory) ? mediaProgrammeName.trim() : ''})
+              await studioAssetMetadata(item.asset_id, categoryMetadata(mediaCategory, mediaProgrammeName))
               tagged++
             } catch (error) {
               setMessage(`${created.length} video drafts saved; only ${tagged} classified. ${error.message}. Review saved items instead of submitting duplicates.`)
@@ -314,7 +317,7 @@ export default function MediaStudio() {
           try {
             const {asset} = await studioLinkAsset(library, created.id)
             if (!asset?.id) throw new Error('Could not index the saved media.')
-            await studioAssetMetadata(asset.id, {programme: mediaCategory, event: ['other','ramadan'].includes(mediaCategory) ? mediaProgrammeName.trim() : ''})
+            await studioAssetMetadata(asset.id, categoryMetadata(mediaCategory, mediaProgrammeName))
           } catch (error) {
             setMessage(`${saved} draft(s) saved but classification failed: ${error.message}. Review saved items before retrying.`)
             return
@@ -407,7 +410,7 @@ export default function MediaStudio() {
         const {asset} = await studioLinkAsset(library, item.id)
         if (!asset?.id) throw new Error('Could not link media to the Foundation catalogue.')
         if (['hosted','videos','recordings'].includes(library))
-          await studioAssetMetadata(asset.id, {programme: itemMediaCategory, event: ['other','ramadan'].includes(itemMediaCategory) ? itemProgrammeName.trim() : ''})
+          await studioAssetMetadata(asset.id, categoryMetadata(itemMediaCategory, itemProgrammeName))
         let completed = 0
         for (const dest of chosen) {
           try {
