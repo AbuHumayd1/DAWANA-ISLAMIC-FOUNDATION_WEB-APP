@@ -151,6 +151,31 @@ class StudioCatalogueTests(TestCase):
         self.assertFalse(last.json()['has_more'])
         self.assertEqual(self.client.get(reverse('dic:studio-assets'), {'page': 101}).status_code, 400)
 
+    def test_gallery_filtering_searches_all_pages_and_never_leaks_unapproved_collections(self):
+        for n in range(36):
+            StudioAsset.objects.create(
+                source_kind='photos', source_id=20000 + n,
+                title=f'Gallery photo {n}', album='Event gallery' if n % 2 else 'Camp moments',
+                created_by=self.owner)
+        StudioAsset.objects.create(source_kind='recordings', source_id=30001,
+                                   title='Private audio fixture', created_by=self.owner)
+        url = reverse('dic:studio-assets')
+        photos = self.client.get(url, {'kind': 'photos', 'album': 'Event gallery', 'q': 'Gallery'})
+        self.assertEqual(photos.status_code, 200, photos.content)
+        self.assertEqual(len(photos.json()['assets']), 18)
+        self.assertEqual({x['album'] for x in photos.json()['assets']}, {'Event gallery'})
+        self.assertEqual(set(photos.json()['albums']), {'Camp moments', 'Event gallery'})
+        self.assertFalse(photos.json()['has_more'])
+        self.assertEqual(self.client.get(url, {'kind': 'recordings', 'album': 'Event gallery'}).status_code, 400)
+        self.assertEqual(self.client.get(url, {'q': 'x' * 101}).status_code, 400)
+        viewer = get_user_model().objects.create_user(
+            'gallery-viewer', password='synthetic', is_staff=True)
+        viewer.user_permissions.add(Permission.objects.get(
+            content_type__app_label='dic', codename='view_campphotograph'))
+        self.client.force_login(viewer)
+        self.assertEqual(self.client.get(url, {'kind': 'recordings'}).status_code, 403)
+        self.assertEqual(self.client.get(url, {'kind': 'photos'}).status_code, 403)
+
     def test_library_pages_bound_query_and_do_not_expose_private_file_keys(self):
         with TemporaryDirectory() as root, override_settings(
                 DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
