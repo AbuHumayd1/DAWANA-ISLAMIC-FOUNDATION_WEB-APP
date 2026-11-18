@@ -108,6 +108,7 @@ export default function MediaStudio() {
   function chooseLibrary(kind) {
     setPage(1)
     setLibrary(kind)
+    setMessage('')
     setQ('')
     setState('')
     setEdition('')
@@ -305,7 +306,7 @@ export default function MediaStudio() {
     }
     let active = true
     const current = ++seq.current
-    setLoading(true); setMessage('')
+    setLoading(true)
     studioLibrary({ library, q, state, edition, page })
       .then(data => { if (active && current === seq.current) { setRows(previous => page === 1 ? data.items : [...previous.filter(item => !data.items.some(next => next.id === item.id)), ...data.items]); setMore(data.has_more); setCanPublish(data.can_publish); setCanEdit(data.can_edit); setCanCreate(data.can_create) } })
       .catch(e => { if (active && current === seq.current) { setRows([]); setMessage(e.message) } })
