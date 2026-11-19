@@ -44,7 +44,8 @@ class DICEditorialView(APIView):
 
 def editorial_headers(response, request):
     # Only the published branch of asset() may grant public embedding.
-    return media_headers(response, public=request.GET.get('preview') != '1')
+    return media_headers(response, public=request.GET.get('preview') != '1',
+                         same_site=request.GET.get('preview') == '1')
 
 
 @require_safe

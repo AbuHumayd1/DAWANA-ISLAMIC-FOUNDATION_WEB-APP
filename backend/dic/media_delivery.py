@@ -13,10 +13,14 @@ class PortraitUnavailable(Exception):
     """A referenced production portrait must not silently become a blank card."""
 
 
-def media_headers(response, *, public=False):
+def media_headers(response, *, public=False, same_site=False):
+    # Private staff previews may be embedded by the Foundation frontend on
+    # a sibling HTTPS origin. Keep authentication at the view, and disallow
+    # unrelated cross-site embedding; published assets remain public.
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
-    response['Cross-Origin-Resource-Policy'] = 'cross-origin' if public else 'same-origin'
+    response['Cross-Origin-Resource-Policy'] = ('cross-origin' if public else
+                                                'same-site' if same_site else 'same-origin')
     return response
 
 
