@@ -322,6 +322,12 @@ urlpatterns += [
     path('ids/verify/', verify_view, name='verify-id'),
 ]
 
+# Shared staff-only self-service password endpoint.
+from .staff_password_api import StaffChangePasswordView
+urlpatterns += [
+    path('staff/auth/password/change/', StaffChangePasswordView.as_view(), name='staff-password-change'),
+]
+
 # Foundation-wide DAWANA Media Studio staff routes (separate from DIC Operations).
 from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, StudioMetadataView, StudioHostedLinksView, StudioPrivatePreviewView, studio_csrf
 urlpatterns += [
