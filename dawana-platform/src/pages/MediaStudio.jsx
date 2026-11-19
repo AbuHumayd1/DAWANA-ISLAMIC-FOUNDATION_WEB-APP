@@ -486,9 +486,14 @@ export default function MediaStudio() {
       {menuOpen && <nav id="studio-menu" className="studio-popnav" aria-label="Media Studio sections">
         <strong>Media collections</strong>
         {showCollections.map(x => <button type="button" key={x.key} onClick={() => selectCollection(x.key)} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
+        <div className="studio-menu-account">
+          <strong>Account</strong>
+          <button type="button" onClick={() => { setMenuOpen(false); setPasswordOpen(true) }}><span aria-hidden="true">⚙</span>Change password</button>
+          <button type="button" onClick={() => { setMenuOpen(false); signOut() }}><span aria-hidden="true">↪</span>Sign out</button>
+        </div>
       </nav>}</div>
       <Link to="/" className="studio-logo"><img src="/dawana-official-logo.png" alt="" /><span><strong>DAWANA</strong><small>MEDIA STUDIO</small></span></Link>
-      <div className="studio-account"><StudioAppearanceButton /><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={() => setPasswordOpen(true)}>Change password</button><button type="button" onClick={signOut}>Sign out</button></div>
+      <div className="studio-account"><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><StudioAppearanceButton /></div>
     </header>
     {passwordOpen && <StaffPasswordChange onChangePassword={changeStudioPassword} onClose={() => setPasswordOpen(false)} />}
     <main className="studio-main">

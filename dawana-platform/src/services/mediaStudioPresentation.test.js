@@ -154,7 +154,7 @@ test('Media Studio exposes the shared persistent theme preference and maintains 
   assert.match(ui, /Switch Media Studio to light mode/)
   assert.match(ui, /Switch Media Studio to dark mode/)
   assert.match(ui, /studio-login-appearance/)
-  assert.match(ui, /studio-account"><StudioAppearanceButton/)
+  assert.match(ui, /studio-account\"><span className=\"studio-identity\">[\s\S]*?<StudioAppearanceButton\s*\/>/)
   assert.match(appearance, /localStorage\.setItem/)
   assert.match(appearance, /html\.dataset\.theme = state\.theme/)
   for (const css of [studio, publishing]) {
@@ -311,4 +311,17 @@ test('public Media dark mode maintains readable editorial contrast', () => {
   assert.match(archiveCss, /data-theme="dark"/)
   assert.match(archiveCss, /published-studio-heading h2/)
   assert.match(archiveCss, /published-studio-card/)
+})
+
+test('Studio mobile header keeps password and logout in the hamburger account menu', () => {
+  const ui = read('../pages/MediaStudio.jsx')
+  const css = read('../pages/MediaStudio.css')
+  assert.match(ui, /className="studio-menu-account"/)
+  assert.match(ui, /setMenuOpen\(false\); setPasswordOpen\(true\)/)
+  assert.match(ui, /setMenuOpen\(false\); signOut\(\)/)
+  const header = ui.split('className="studio-account"')[1].split('</header>')[0]
+  assert.doesNotMatch(header, /Change password|Sign out/)
+  assert.match(header, /<StudioAppearanceButton \/>/)
+  assert.match(css, /\.studio-account \.studio-appearance-button\>span:last-child\{display:none\}/)
+  assert.match(css, /\.studio-menu-account button\{min-height:44px\}/)
 })
