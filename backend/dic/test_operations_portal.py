@@ -295,7 +295,9 @@ class DICOperationsPortalTests(TestCase):
             self.assertIn("word/document.xml", archive.namelist())
         document = Document(io.BytesIO(word_response.content))
         self.assertIn("DAWANA ISLAMIC FOUNDATION", document.paragraphs[0].text)
-        self.assertEqual(len(document.tables[0].rows) - 1, len(csv_rows) - 1)
+        self.assertEqual(len(document.tables), len(csv_rows) - 1)
+        self.assertTrue(all(len(table.columns) == 2 for table in document.tables))
+        self.assertEqual(sum(p.style.name == 'Heading 3' for p in document.paragraphs), len(csv_rows) - 1)
 
         events = DICAdminAuditEvent.objects.filter(
             actor=self.operator,
