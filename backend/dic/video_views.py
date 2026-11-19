@@ -74,4 +74,5 @@ def video_thumbnail(request, pk):
     response["Cache-Control"] = "private, no-store"
     response["Content-Disposition"] = 'inline; filename="camp-video-thumbnail.jpg"'
     response["X-Content-Type-Options"] = "nosniff"
-    return media_headers(response, public=request.GET.get('preview') != '1')
+    return media_headers(response, public=request.GET.get('preview') != '1',
+                         same_site=request.GET.get('preview') == '1')
