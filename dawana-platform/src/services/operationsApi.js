@@ -67,6 +67,17 @@ export async function getCsrfToken() {
   return csrfToken
 }
 
+export async function changeOperationsPassword(current_password, new_password, confirm_password) {
+  await getCsrfToken()
+  const apiRoot = apiBase.replace(/\\/$/, '')
+  const response = await fetch(`${apiRoot}/dic/staff/auth/password/change/`, {
+    method: 'POST', credentials: 'include', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({ current_password, new_password, confirm_password }),
+  })
+  return readApiResponse(response)
+}
+
 export async function getOperationsUser() {
   const response = await request('/auth/me/', { notifySessionExpiry: false })
   return readApiResponse(response)
