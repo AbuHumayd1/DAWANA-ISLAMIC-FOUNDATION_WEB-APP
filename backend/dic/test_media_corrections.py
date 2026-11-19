@@ -18,7 +18,7 @@ class MediaCorrectionTests(SimpleTestCase):
         self.factory = RequestFactory()
 
     def test_public_editorial_embedding_and_private_previews(self):
-        for preview, policy in [(False, 'cross-origin'), (True, 'same-origin')]:
+        for preview, policy in [(False, 'cross-origin'), (True, 'same-site')]:
             request = self.factory.get('/?preview=1' if preview else '/', HTTP_ORIGIN='https://portal.example.test')
             field = Mock()
             field.open.return_value = BytesIO(b'synthetic')
@@ -27,6 +27,26 @@ class MediaCorrectionTests(SimpleTestCase):
             self.assertEqual(response['Cross-Origin-Resource-Policy'], policy)
             self.assertIn('no-store', response['Cache-Control'])
             response.close()
+
+    def test_staff_preview_policies_preserve_access_controls_across_image_libraries(self):
+        from .media_delivery import media_headers
+        from .memory_views import memory_image
+        from .video_views import video_thumbnail
+        response = media_headers(HttpResponse(b'private'), same_site=True)
+        self.assertEqual(response['Cross-Origin-Resource-Policy'], 'same-site')
+        self.assertIn('no-store', response['Cache-Control'])
+        self.assertEqual(media_headers(HttpResponse(b'private'))['Cross-Origin-Resource-Policy'], 'same-origin')
+        self.assertEqual(media_headers(HttpResponse(b'published'), public=True)['Cross-Origin-Resource-Policy'], 'cross-origin')
+        for view, model_path in [
+            (memory_image, 'dic.memory_views.get_object_or_404'),
+            (video_thumbnail, 'dic.video_views.get_object_or_404')
+        ]:
+            request = self.factory.get('/?preview=1')
+            request.user = NS(is_active=False, is_staff=False)
+            with patch(model_path) as lookup:
+                with self.assertRaises(Http404):
+                    view(request, 1)
+                lookup.assert_not_called()
 
     def test_unauthorized_preview_never_resolves_object(self):
         request = self.factory.get('/?preview=1')
@@ -157,6 +177,6 @@ class ShowcaseVisibilityTests(SimpleTestCase):
 
     def test_authorized_preview_can_open_inactive_draft_privately(self):
         response, _ = self.retrieve('activity', active=False, published=False, preview=True, staff=True)
-        self.assertEqual(response['Cross-Origin-Resource-Policy'], 'same-origin')
+        self.assertEqual(response['Cross-Origin-Resource-Policy'], 'same-site')
         response.close()
         with self.assertRaises(Http404): self.retrieve('activity', preview=True)
