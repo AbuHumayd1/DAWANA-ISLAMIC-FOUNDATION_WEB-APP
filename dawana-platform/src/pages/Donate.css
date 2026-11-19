@@ -1,19 +1,12 @@
 /* DAWANA Support — page-scoped editorial system, built on shared Foundation tokens. */
 .donate-page{--donate-serif:var(--premium-heading-serif,Georgia,"Times New Roman",serif);--donate-ink:var(--heading);--donate-muted:var(--text-muted);--donate-border:var(--line);background:var(--page);color:var(--donate-ink);overflow:hidden}
 .donate-page .container{width:min(1116px,calc(100% - 48px))}
-.donate-page .public-hero{padding:clamp(48px,7vw,96px) 0 clamp(42px,6vw,78px);background:linear-gradient(130deg,var(--panel-green),var(--mint));border-bottom:1px solid var(--donate-border)}
-.donate-page .public-hero:after{width:360px;height:360px;right:-110px;top:-85px;opacity:.07;pointer-events:none}
-.donate-page .public-hero-grid{grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr);gap:clamp(30px,6vw,90px)}
+.donate-page .public-hero{padding:clamp(48px,7vw,90px) 0 clamp(42px,6vw,72px);background:linear-gradient(130deg,var(--panel-green),var(--mint));border-bottom:1px solid var(--donate-border)}
+.donate-page .public-hero:after{content:none}
+.donate-page .public-hero-grid{grid-template-columns:minmax(0,1fr);gap:0}
 .donate-page .public-hero .eyebrow,.donate-page .eyebrow{font-size:.75rem;letter-spacing:.095em;text-transform:uppercase;font-weight:700;color:var(--donate-ink)}
 .donate-page .public-hero h1{max-width:660px;margin:18px 0 19px;font-family:var(--donate-serif);font-weight:500;font-size:clamp(2.6rem,5.2vw,4.7rem);line-height:1.07;letter-spacing:-.036em;overflow-wrap:normal}
 .donate-page .public-hero p{max-width:560px;font-size:clamp(.94rem,1.6vw,1.07rem);line-height:1.76;color:var(--donate-muted)}
-.donate-page .public-hero-aside{border:0;background:transparent;box-shadow:none;padding:0;max-width:none}
-.donate-page-art{min-height:290px;display:grid;place-items:center;position:relative;isolation:isolate}
-.donate-page-art::before{content:"";position:absolute;width:min(85%,310px);aspect-ratio:1;border:1px solid var(--donate-border);border-radius:50%;box-shadow:0 0 0 24px color-mix(in srgb,var(--heading) 4%,transparent),0 0 0 48px color-mix(in srgb,var(--heading) 2%,transparent);opacity:.7}
-.donate-page-arch{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:17px;width:min(80%,280px);min-height:250px;padding:28px;border:1px solid var(--donate-border);border-radius:125px 125px 18px 18px;background:color-mix(in srgb,var(--panel) 84%,transparent);box-shadow:0 18px 45px rgba(5,48,33,.07)}
-.donate-page-star{font-family:var(--donate-serif);font-size:clamp(3.2rem,6vw,5rem);line-height:1;color:var(--accent)}
-.donate-page-art-rule{display:block;width:52px;height:1px;background:var(--accent)}
-.donate-page-art-caption{font-size:.72rem;letter-spacing:.13em;text-align:center;text-transform:uppercase;font-weight:650;color:var(--donate-ink)}
 .donate-page .donate-why{padding:clamp(58px,7vw,102px) 0;background:var(--page)}
 .donate-page .donate-section-heading{max-width:730px;margin-bottom:clamp(26px,4vw,46px)}
 .donate-page .donate-section-heading h2,.donate-page .donate-main-copy h2,.donate-page .donate-contact-cta h2{margin:12px 0 13px;font-family:var(--donate-serif);font-size:clamp(2rem,3.8vw,3.15rem);font-weight:500;letter-spacing:-.025em;line-height:1.16;color:var(--donate-ink)}
@@ -43,18 +36,13 @@
 .donate-contact-cta .button{flex-shrink:0;min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:12px 24px;border-radius:12px;font-size:.93rem;font-weight:700}
 .donate-contact-cta .gold-eyebrow{color:var(--donate-ink)}
 .donate-page a:focus-visible,.donate-page button:focus-visible,.donate-page input:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
-@media(max-width:900px){.donate-page .public-hero-grid{grid-template-columns:minmax(0,1fr) 280px;gap:20px}.donate-main>.container{gap:30px}}
+@media(max-width:900px){.donate-main>.container{gap:30px}}
 @media(max-width:700px){
  .donate-page .container{width:min(100% - 36px,560px)}
  .donate-page .public-hero{padding:45px 0 45px}
- .donate-page .public-hero-grid{grid-template-columns:minmax(0,1fr);gap:28px}
+ .donate-page .public-hero-grid{grid-template-columns:minmax(0,1fr);gap:0}
  .donate-page .public-hero h1{font-size:clamp(2.35rem,10vw,3rem);line-height:1.12;max-width:12ch}
  .donate-page .public-hero p{font-size:.94rem;line-height:1.64}
- .donate-page-art{min-height:190px}
- .donate-page-art::before{width:190px}
- .donate-page-arch{width:180px;min-height:184px;padding:19px;border-radius:90px 90px 14px 14px;gap:10px}
- .donate-page-star{font-size:3.2rem}
- .donate-page-art-caption{font-size:.58rem;letter-spacing:.07em}
  .donate-page .donate-why{padding:48px 0 56px}
  .donate-page .donate-section-heading{margin-bottom:25px}
  .donate-page .donate-section-heading h2,.donate-page .donate-main-copy h2,.donate-page .donate-contact-cta h2{font-size:clamp(1.85rem,7.2vw,2.35rem);line-height:1.2}
