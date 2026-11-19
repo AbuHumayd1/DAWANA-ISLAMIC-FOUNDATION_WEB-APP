@@ -45,12 +45,20 @@ class OperationsAcceptanceTests(TestCase):
                     (output_path / f"acceptance-{report}.{export_format}").write_bytes(response.content)
             rows = list(csv.reader(io.StringIO(responses["csv"].decode("utf-8-sig"))))
             document = Document(io.BytesIO(responses["docx"]))
-            self.assertEqual(len(document.tables[0].rows), len(rows))
             self.assertIn("DAWANA ISLAMIC FOUNDATION", document.paragraphs[0].text)
-            self.assertIsNotNone(document.tables[0].rows[0]._tr.find(".//" + qn("w:tblHeader")))
             self.assertIn("PAGE", document.sections[0].footer._element.xml)
             section = document.sections[0]
-            self.assertEqual(section.page_width > section.page_height, len(rows[0]) > 7)
+            if len(rows[0]) > 7:
+                # A wide CSV is a data extract; the Word document must keep
+                # every record without squeezing 13+ columns onto one page.
+                self.assertEqual(len(document.tables), len(rows) - 1)
+                self.assertTrue(all(len(table.columns) == 2 for table in document.tables))
+                record_headings = [p for p in document.paragraphs if p.style.name == 'Heading 3']
+                self.assertEqual(len(record_headings), len(rows) - 1)
+                self.assertLess(section.page_width, section.page_height)
+            else:
+                self.assertEqual(len(document.tables[0].rows), len(rows))
+                self.assertIsNotNone(document.tables[0].rows[0]._tr.find(".//" + qn("w:tblHeader")))
             self.assertGreaterEqual(len(rows) - 1, 16)
             manifest[report] = {"records": len(rows) - 1, "columns": len(rows[0]), "orientation": "landscape" if section.page_width > section.page_height else "portrait", "visual_rendering": "not verified"}
         if output_path:
