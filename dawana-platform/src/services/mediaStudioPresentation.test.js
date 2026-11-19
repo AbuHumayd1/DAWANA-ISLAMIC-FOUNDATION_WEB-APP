@@ -154,7 +154,7 @@ test('Media Studio exposes the shared persistent theme preference and maintains 
   assert.match(ui, /Switch Media Studio to light mode/)
   assert.match(ui, /Switch Media Studio to dark mode/)
   assert.match(ui, /studio-login-appearance/)
-  assert.match(ui, /studio-account"><StudioAppearanceButton/)
+  assert.match(ui, /studio-account\"><span className=\"studio-identity\">[\s\S]*?<StudioAppearanceButton\s*\/>/)
   assert.match(appearance, /localStorage\.setItem/)
   assert.match(appearance, /html\.dataset\.theme = state\.theme/)
   for (const css of [studio, publishing]) {
