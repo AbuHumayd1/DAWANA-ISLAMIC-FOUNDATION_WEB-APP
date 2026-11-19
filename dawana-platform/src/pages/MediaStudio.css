@@ -300,3 +300,25 @@
 @media(max-width:1000px){.studio-hero-art{flex-basis:270px;width:270px;transform:scale(.82);transform-origin:center right;margin-left:-30px;margin-right:-14px}}
 @media(max-width:640px){.studio-overview{min-height:255px;display:block;padding-bottom:88px}.studio-overview>div:first-child{max-width:100%}.studio-hero-art{position:absolute;right:-15px;bottom:-100px;width:260px;height:230px;transform:scale(.57);transform-origin:top right;opacity:.7;z-index:1}.studio-overview p{max-width:25ch}.studio-overview h1{max-width:12ch}}
 @media(prefers-reduced-motion:reduce){.studio-hero-art,.studio-hero-art *{animation:none!important;transition:none!important}.studio-hero-trail{stroke-dasharray:none}}
+
+/* Compact Studio account navigation: the header remains brand-first on mobile. */
+.studio-menu-account{margin-top:12px;padding-top:12px;border-top:1px solid #dce6db;display:flex;flex-direction:column;gap:2px}
+.studio-menu-account>strong{padding:7px 12px 9px}
+.studio-menu-account button{min-height:44px}
+.studio-account .studio-appearance-button{width:44px;min-width:44px;height:44px;padding:0;gap:0}
+.studio-account .studio-appearance-button>span:first-child{font-size:20px}
+.studio-account .studio-appearance-button>span:last-child{display:none}
+.studio-nav-wrapper{flex:0 0 auto}
+.studio-logo{min-width:0}
+.studio-logo span{min-width:0}
+.studio-popnav{z-index:3}
+:root[data-theme="dark"] .studio-menu-account{border-color:#365342}
+@media(max-width:640px){
+  .studio-top{gap:10px;padding-inline:12px}
+  .studio-account{margin-left:auto;flex:0 0 auto;gap:0}
+  .studio-account .studio-appearance-button{width:40px;min-width:40px;height:40px;min-height:40px;border-radius:12px;padding:0}
+  .studio-logo img{flex:0 0 auto}
+  .studio-logo strong{font-size:15px}
+  .studio-hamburger{width:42px;min-width:42px;padding:9px}
+  .studio-popnav{max-height:min(76dvh,600px)}
+}
