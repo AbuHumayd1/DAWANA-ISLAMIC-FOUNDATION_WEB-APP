@@ -177,7 +177,7 @@ function Operations() {
         <Route path="welfare" element={user.can_access_campsite && user.permissions.welfare ? <WelfareDashboard user={user} /> : <EmptyState title="Welfare permission required" />} />
         <Route path="media-management" element={<Navigate to="/media-studio" replace />} />
         <Route path="finance" element={user.can_access_campsite && user.permissions.finance ? <Finance /> : <EmptyState title="Finance staff permission required" />} />
-        <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <Reporting /> : <EmptyState title="Reporting permission required" />} />
+        <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <ComprehensiveReportLanding /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
         <Route path="registrations" element={<RegistrationListPage user={user} />} />
         <Route path="assisted-registration" element={user.can_access_campsite ? <AssistedRegistration /> : <EmptyState title="Campsite staff access required" />} />
@@ -188,7 +188,8 @@ function Operations() {
         <Route path="participants/:participantId" element={<ParticipantDetailPage user={user} />} />
         <Route path="payments" element={user.permissions.finance ? <PaymentsPage /> : <EmptyState title="Finance permission required" />} />
         <Route path="houses" element={<HousesPage />} />
-        <Route path="reports" element={user.permissions.export_reports ? <ReportsPage user={user} /> : <EmptyState title="Report export permission required" />} />
+        <Route path="reports" element={user.permissions.export_reports ? <Reporting /> : <EmptyState title="Report export permission required" />} />
+        <Route path="reports/data" element={user.permissions.export_reports ? <ReportsPage user={user} /> : <EmptyState title="Report export permission required" />} />
         <Route path="activity" element={user.permissions.audit ? <ActivityPage /> : <EmptyState title="Audit permission required" />} />
         <Route path="*" element={<DashboardPage />} />
       </Route>
@@ -622,6 +623,19 @@ function HousesPage() {
   </>
 }
 
+function ComprehensiveReportLanding() {
+  return <div className="ops-report-landing">
+    <PageHeading eyebrow="Edition-wide assessment" title="Comprehensive camp report"
+      description="A single evidence-backed end-of-camp publication, rather than a set of individual report filters." />
+    <section className="ops-panel" style={{maxWidth:'850px'}}>
+      <h2>Consolidated reporting</h2>
+      <p>The edition-wide report and committee-approval workflow are being finalized in a separate release. Individual operational reports and premium Word/PDF exports are available in Reports now.</p>
+      <p>The comprehensive publication will combine recorded camp evidence, charts, approved committee findings, achievements, challenges and recommendations. We won't substitute scheduled events for verified outcomes.</p>
+      <Link className="ops-button ops-button-primary" to="/dic/operations/reports">Open individual reports</Link>
+    </section>
+  </div>
+}
+
 function ReportsPage({ user }) {
   const [report, setReport] = useState('registrations')
   const [format, setFormat] = useState('docx')
@@ -650,14 +664,14 @@ function ReportsPage({ user }) {
     }
   }
   return <>
-    <PageHeading eyebrow="Reporting" title="Reports & exports" description="Download Word reports or CSV files for your committee." />
+    <PageHeading eyebrow="Reporting" title="Detailed data exports" description="Export authorized individual operational records when you need booking-level data." />
     <section className="ops-report-layout"><div className="ops-panel ops-report-form"><div className="ops-panel-heading"><h2>Choose your report</h2></div>
       <label className="ops-form-field">Report type<select value={report} onChange={(event) => setReport(event.target.value)}>{reports.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label>
       <div className="ops-form-field"><span>File format</span><div className="ops-format-options"><button aria-pressed={format === 'docx'} className={format === 'docx' ? 'selected' : ''} onClick={() => setFormat('docx')} type="button"><b>W</b><span>Word document<small>.docx</small></span></button><button aria-pressed={format === 'csv'} className={format === 'csv' ? 'selected' : ''} onClick={() => setFormat('csv')} type="button"><b>▦</b><span>Spreadsheet<small>.csv</small></span></button></div></div>
       <MoreFilters label="Optional report filters"><div className="ops-report-filters"><label className="ops-form-field">Search<input value={filters.q} onChange={(event) => updateFilter('q', event.target.value)} placeholder="Reference or participant name" /></label><div className="ops-date-fields"><label className="ops-form-field">From<input type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} /></label><label className="ops-form-field">To<input type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} /></label></div>{['registrations', 'participants', 'payments'].includes(report) && <><label className="ops-form-field">Payment status<select value={filters.payment_status} onChange={(event) => updateFilter('payment_status', event.target.value)}><option value="">All statuses</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label className="ops-form-field">Category<select value={filters.category} onChange={(event) => updateFilter('category', event.target.value)}><option value="">All categories</option>{(filterOptions?.categories || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="ops-form-field">House<select value={filters.house} onChange={(event) => updateFilter('house', event.target.value)}><option value="">All houses</option>{(filterOptions?.houses || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}<button type="button" className="ops-button ops-button-secondary" onClick={() => setFilters(current => Object.fromEntries(Object.keys(current).map(key => [key, ''])))}>Clear filters</button></div></MoreFilters>
       {error && <p className="ops-form-error" role="alert">{error}</p>}<button className="ops-button ops-button-primary ops-download-button" onClick={download} disabled={downloading || !user.permissions.export_reports}>{downloading ? 'Preparing report…' : `Download ${format.toUpperCase()}`}<Icon name="arrow" /></button><p className="ops-report-note">Both formats use your filters and account permissions.</p>
     </div>
-      <aside className="ops-panel ops-report-aside"><span className="ops-report-aside-icon"><Icon name="file" /></span><h2>Ready for the committee</h2><p>Reports include the DIC edition, generation time, applied filters and clear totals. Word reports are formatted for printing and sharing.</p><HelpDetails label="Export and privacy details"><ul><li>CSV values are protected against spreadsheet formulas.</li><li>Every download is recorded in the audit activity.</li><li>Recovery codes, tokens and payment authorization URLs are never exported.</li></ul></HelpDetails></aside>
+      <aside className="ops-panel ops-report-aside"><span className="ops-report-aside-icon"><Icon name="file" /></span><h2>Detailed source exports</h2><p>These files contain individual administrative records. For polished reports with key figures and charts, use the main Reports page.</p><HelpDetails label="Export and privacy details"><ul><li>CSV values are protected against spreadsheet formulas.</li><li>Every download is recorded in the audit activity.</li><li>Recovery codes, tokens and payment authorization URLs are never exported.</li></ul></HelpDetails></aside>
     </section>
   </>
 }
