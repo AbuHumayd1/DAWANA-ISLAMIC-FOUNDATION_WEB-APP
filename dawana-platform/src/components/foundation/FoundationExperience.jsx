@@ -78,7 +78,7 @@ export function DonationExperience() {
   return <aside className="donate-details-card"><h3>Support Dawana</h3><p>Donations are separate from DIC registration fees.</p>
     {optionsError && <p role="alert">{optionsError} <button onClick={retry}>Retry</button></p>}
     {!options && !optionsError && <p role="status">Checking donation availability…</p>}
-    {options && !options.donations_enabled && <p>Donation collection is awaiting approved configuration. No payment will be initiated here.</p>}
+    {options && !options.donations_enabled && <p>Online donations are not available yet. Please check back for an official announcement.</p>}
     {options?.donations_enabled && !collectionAvailable && <p role="alert">Donation payment mode could not be confirmed. Please retry before proceeding.</p>}
     {collectionAvailable && <><p><strong>{paymentMode === 'test' ? 'Test mode only — no live collection.' : 'Live donation collection.'}</strong></p>
       {!saved && <form onSubmit={initialize}><label>Email<input name="email" type="email" required maxLength={254} /></label><label>Amount (NGN)<input name="amount" type="number" step="0.01" required min={options.minimum} max={options.maximum} /></label><p>Any amount from NGN {options.minimum}. No business maximum applies; payment and storage precision limits apply.</p><button className="button" disabled={busy}>{paymentMode === 'test' ? 'Prepare test donation' : 'Prepare donation'}</button></form>}
