@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+<a href="{% url 'admin:accounts_user_changelist' %}">Users</a> &rsaquo; Provision DAWANA staff</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>This action creates eight <strong>inactive</strong> staff accounts with unusable passwords, and assigns existing least-privilege DAWANA roles.</p>
+  <p><strong>No account can sign in after provisioning.</strong> Verify each recipient, set a unique password privately through Django Admin, and explicitly mark the account active. All three media identities, including the one labelled Anonymous user, are included.</p>
+  <p>This action is atomic and auditable. If any proposed username already exists, nothing new is created.</p>
+  <table>
+    <thead><tr><th>Username</th><th>Staff label</th><th>Assigned group</th></tr></thead>
+    <tbody>
+    {% for username, label, group in accounts %}
+      <tr><td>{{ username }}</td><td>{{ label|default:"Operations staff" }}</td><td>{{ group }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="{% url 'admin:accounts_user_provision_dawana_staff' %}">
+    {% csrf_token %}
+    <fieldset class="module aligned">
+      <div class="form-row">
+        <label for="id_confirmation">Type <strong>{{ confirmation }}</strong> to confirm:</label>
+        <input type="text" id="id_confirmation" name="confirmation" autocomplete="off" required>
+      </div>
+    </fieldset>
+    <div class="submit-row">
+      <input type="submit" class="default" value="Prepare eight inactive accounts">
+      <a href="{% url 'admin:accounts_user_changelist' %}" class="closelink">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
