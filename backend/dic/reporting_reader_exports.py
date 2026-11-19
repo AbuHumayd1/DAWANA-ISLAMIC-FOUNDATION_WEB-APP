@@ -8,7 +8,7 @@ from io import BytesIO
 from decimal import Decimal
 
 from docx import Document
-from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
 from docx.oxml import OxmlElement
