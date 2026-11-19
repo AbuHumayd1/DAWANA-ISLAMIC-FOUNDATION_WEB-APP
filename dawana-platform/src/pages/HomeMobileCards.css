@@ -19,3 +19,34 @@
   body:has(#what-we-do) .brand { min-width:0; }
   body:has(#what-we-do) .brand-lockup small { font-size:.625rem; }
 }
+
+/* Home-only refinement: quieter, more compact Foundation mandate cards.
+   The editorial serif section headings retain the established site identity. */
+.home-page #what-we-do{padding-block:clamp(38px,5vw,64px)}
+.home-page #what-we-do .section-heading{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);align-items:end;column-gap:clamp(22px,4vw,56px);margin-bottom:clamp(20px,3vw,30px)}
+.home-page #what-we-do .section-heading>div{min-width:0}
+.home-page #what-we-do .section-heading h2{margin:8px 0 0}
+.home-page #what-we-do .section-heading>p{max-width:440px;margin:0;color:var(--text-muted);font-size:clamp(.9rem,1.25vw,1rem);line-height:1.6}
+.home-page #what-we-do .area-grid{gap:clamp(12px,2vw,20px);background:transparent;border:0}
+.home-page #what-we-do .area-card{display:flex;flex-direction:column;align-items:flex-start;min-height:0;gap:0;padding:clamp(20px,2.4vw,27px);border:1px solid var(--border);border-radius:16px;background:var(--panel);box-shadow:0 8px 24px rgba(10,47,32,.045)}
+.home-page #what-we-do .area-card .card-number{font-size:.81rem;font-weight:750;letter-spacing:.09em;color:var(--accent)}
+.home-page #what-we-do .area-card h3{margin:17px 0 9px;font-size:clamp(1.07rem,1.55vw,1.25rem);font-weight:650;line-height:1.32;letter-spacing:-.012em;text-wrap:balance;color:var(--heading)}
+.home-page #what-we-do .area-card p{margin:0;font-size:clamp(.86rem,1.1vw,.94rem);line-height:1.58;color:var(--text-muted)}
+.home-page #events .event-empty{display:block;min-height:0;padding:clamp(20px,3vw,30px);border-radius:16px;background:var(--panel);border:1px solid var(--border)}
+.home-page #events .event-empty h3{margin:10px 0;font-size:clamp(1.1rem,2vw,1.35rem);line-height:1.3}
+.home-page #events .event-empty p{max-width:680px;line-height:1.6}
+@media(max-width:900px){
+ .home-page #what-we-do .section-heading{grid-template-columns:minmax(0,1fr);gap:12px}
+ .home-page #what-we-do .section-heading>p{max-width:620px}
+}
+@media(max-width:600px){
+ .home-page #what-we-do{padding-top:32px;padding-bottom:42px}
+ .home-page #what-we-do .section-heading{margin-bottom:21px;gap:12px}
+ .home-page #what-we-do .section-heading>p{font-size:.92rem;line-height:1.52}
+ .home-page #what-we-do .area-grid{grid-template-columns:minmax(0,1fr);gap:11px}
+ .home-page #what-we-do .area-card{padding:19px 20px 20px;border-radius:14px}
+ .home-page #what-we-do .area-card h3{margin:11px 0 7px;font-size:clamp(1.02rem,4.3vw,1.17rem);line-height:1.29}
+ .home-page #what-we-do .area-card p{font-size:.87rem;line-height:1.53}
+ .home-page #events .event-empty{padding:19px 20px;border-radius:14px}
+ .home-page #events .event-empty h3{margin:10px 0 8px}
+}
