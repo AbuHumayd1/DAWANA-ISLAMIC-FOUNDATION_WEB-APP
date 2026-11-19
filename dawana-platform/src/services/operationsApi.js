@@ -11,6 +11,15 @@ export function getReportingExportUrl(values, format) {
   return operationsBase + reportingPath(values, format)
 }
 
+export function getAftercampReportUrl(edition, format = '') {
+  if (!/^[1-9]\d*$/.test(String(edition)) || !['', 'docx', 'print'].includes(format)) {
+    throw new Error('Choose a valid camp edition and report format.')
+  }
+  const params = new URLSearchParams({edition: String(edition)})
+  if (format) params.set('export', format)
+  return operationsBase + '/aftercamp-report/?' + params
+}
+
 export function getScoringPrintUrl(edition, report) {
   if (!['leaderboard', 'history'].includes(report)) throw new Error('Choose a scoring report.')
   return `${operationsBase}${scoringPath(edition)}&print=${report}`
