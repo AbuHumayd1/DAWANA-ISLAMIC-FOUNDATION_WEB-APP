@@ -4,7 +4,7 @@ export function reportingPath(values, format = '') {
   const domain = source.get('domain') || 'overview'
   if (!reportDomains.includes(domain)) throw new Error('Choose a supported report.')
   if (!/^[1-9]\d*$/.test(source.get('edition') || '')) throw new Error('Choose a camp edition.')
-  if (format && !['csv','print'].includes(format)) throw new Error('Choose CSV or print.')
+  if (format && !['csv','print','docx'].includes(format)) throw new Error('Choose Word, CSV or print.')
   const query = new URLSearchParams({edition: source.get('edition'), domain})
   for (const key of ['date_from','date_to','category','status','payment_status','q','channel','concern_category','urgency','sort','page']) {
     if (source.get(key)) query.set(key,source.get(key))
