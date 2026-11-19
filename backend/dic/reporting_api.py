@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from .operations_api import OperationsBaseView
 from .operations_exports import spreadsheet_safe
+from .reporting_reader_exports import create_reader_report
 from .models import CampEdition, RegistrationCategory, DICAdminAuditEvent
 from . import reporting_services as services
 
@@ -85,7 +86,7 @@ class ReportingView(OperationsBaseView):
         if selected['category'] and not RegistrationCategory.objects.filter(pk=selected['category'],edition=edition).exists():
             raise ValidationError('Category is not in the selected edition.')
         exporting=request.query_params.get('export','')
-        if exporting and exporting not in ('csv','print'): raise ValidationError('Choose CSV or print export.')
+        if exporting and exporting not in ('csv','print','docx'): raise ValidationError('Choose Word, CSV or print export.')
         if exporting and domain=='finance' and not all(request.user.has_perm('dic_finance.can_'+permission+'_finance') for permission in ('export','view_details')):
             raise PermissionDenied('Finance detail and export permissions are required.')
         selected['_exporting']=bool(exporting)
@@ -100,6 +101,11 @@ class ReportingView(OperationsBaseView):
             action='reporting_exported' if exporting else 'reporting_viewed',
             target_type='CampEdition',target_id=str(edition.pk),
             details={'domain':domain,'format':exporting or 'screen','date_from':selected['date_from'],'date_to':selected['date_to']})
+        if exporting=='docx':
+            payload=create_reader_report(data)
+            response=HttpResponse(payload, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            response['Content-Disposition']=f'attachment; filename="dic-{edition.pk}-{domain}-summary.docx"'
+            return response
         if exporting:
             headers,rows=export_rows(data)
             if len(rows)>10000: raise ValidationError('Narrow filters to 10,000 exported summary/detail rows or fewer.')
