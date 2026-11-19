@@ -13,7 +13,7 @@ test('Comprehensive aftercamp reporting is distinct from domain reporting', () =
   const operations = readFileSync(new URL('../pages/Operations.jsx',import.meta.url),'utf8')
   const screen = readFileSync(new URL('../pages/AftercampReport.jsx',import.meta.url),'utf8')
   assert.match(operations, /path="reporting-hub".*<AftercampReport/)
-  assert.match(operations, /path="reporting".*<Reporting/)
+  assert.match(operations, /path="reports".*<Reporting/)
   assert.match(screen, /Download consolidated Word report/)
   assert.match(screen, /Detailed operational analytics/)
   assert.match(screen, /section\.state==='restricted'/)
