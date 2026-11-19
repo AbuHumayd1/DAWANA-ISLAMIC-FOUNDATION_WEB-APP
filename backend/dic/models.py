@@ -1563,3 +1563,5 @@ from .camp_release_models import LectureRecording, CertificateRelease, Participa
 from .studio_models import StudioAsset, StudioPlacement  # noqa: E402,F401
 
 from .studio_hosted_models import StudioHostedVideo  # noqa: E402,F401
+
+from .aftercamp_models import AftercampAssessment  # noqa: E402,F401
