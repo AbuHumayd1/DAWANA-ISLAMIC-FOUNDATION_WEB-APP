@@ -17,19 +17,53 @@ function PromoCard({ item }) {
 function Flyer({ flyer, onRegister, canRegister }) {
   const [open, setOpen] = useState(false)
   const dialog = useRef(null)
+  const imageUrl = resolveMediaUrl(flyer.image_url)
   useEffect(() => {
     if (!open) return undefined
     const node = dialog.current
     const opener = document.activeElement
+    if (!node) return undefined
     node.showModal()
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { node.close(); document.body.style.overflow = overflow; opener?.focus() }
+    return () => {
+      if (node.open) node.close()
+      document.body.style.overflow = overflow
+      opener?.focus()
+    }
   }, [open])
-  return <section className="dic-official-flyer" aria-labelledby="dic-flyer-title"><Container><div className="dic-flyer-layout">
-    <button className="dic-flyer-open" type="button" onClick={() => setOpen(true)} aria-label={`Enlarge ${flyer.title}`}><img src={resolveMediaUrl(flyer.image_url)} alt={flyer.alt_text} loading="lazy" decoding="async" width="800" height="1100" /><span>View the official flyer ↗</span></button>
-    <div><span className="eyebrow">THE OFFICIAL INVITATION</span><h2 id="dic-flyer-title">{flyer.title}</h2><p>Take a closer look at the official camp flyer, then explore registration for your next DIC experience.</p><button className="button" type="button" onClick={onRegister} disabled={!canRegister}>Register for DIC ↗</button></div>
-  </div></Container><dialog className="dic-flyer-viewer" ref={dialog} aria-label={flyer.title} onCancel={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false) }}><button type="button" autoFocus onClick={() => setOpen(false)} aria-label="Close official flyer">Close ×</button>{open && <img src={resolveMediaUrl(flyer.image_url)} alt={flyer.alt_text} />}</dialog></section>
+  return <section className="dic-official-flyer" aria-labelledby="dic-flyer-title">
+    <Container>
+      <div className="dic-flyer-layout">
+        <button className="dic-flyer-open" type="button" onClick={() => setOpen(true)} aria-label={`Enlarge ${flyer.title}`}>
+          <img src={imageUrl} alt={flyer.alt_text} loading="lazy" decoding="async" />
+          <span>View the official flyer</span>
+        </button>
+        <div className="dic-flyer-copy">
+          <span className="eyebrow">THE OFFICIAL INVITATION</span>
+          <h2 id="dic-flyer-title">{flyer.title}</h2>
+          <p>Discover this year's camp through the official invitation. Enlarge the flyer to read the full details and learn more about the programme.</p>
+          <div className="dic-flyer-info">
+            <h3>Plan your camp experience</h3>
+            <p>Explore the camp programme, participation information and registration process from the DIC page.</p>
+          </div>
+          <div className="dic-flyer-actions">
+            <button className="button" type="button" onClick={onRegister} disabled={!canRegister}>Register for DIC</button>
+            <button className="dic-flyer-secondary" type="button" onClick={() => setOpen(true)}>View full flyer</button>
+          </div>
+        </div>
+      </div>
+    </Container>
+    <dialog className="dic-flyer-viewer" ref={dialog} aria-label={`Official flyer: ${flyer.title}`} onCancel={event => { event.preventDefault(); setOpen(false) }} onClick={event => { if (event.target === event.currentTarget) setOpen(false) }}>
+      <div className="dic-flyer-viewer-head">
+        <span>OFFICIAL CAMP FLYER</span>
+        <button type="button" autoFocus onClick={() => setOpen(false)} aria-label="Close official flyer">Close ×</button>
+      </div>
+      {open && <div className="dic-flyer-viewer-image"><img src={imageUrl} alt={flyer.alt_text} /></div>}
+      {open && <p className="dic-flyer-viewer-hint">For the clearest view, open the full image in a separate tab. The detail available depends on the original uploaded artwork.</p>}
+      {open && <a className="dic-flyer-original" href={imageUrl} target="_blank" rel="noopener noreferrer">Open full image</a>}
+    </dialog>
+  </section>
 }
 
 export default function DICEditorial({ onRegister, canRegister }) {
