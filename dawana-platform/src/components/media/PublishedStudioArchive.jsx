@@ -52,6 +52,8 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
     }).then(data => {
       if (!Array.isArray(data.items)) throw new Error('Archive unavailable')
       const accepted = data.items.filter(row =>
+        // Safeguard while already-published legacy flyer placements are retired.
+        !(destination === 'dic_landing' && row.source_kind === 'flyers') &&
         typeof row.title === 'string' && typeof row.url === 'string' &&
         ((row.url.startsWith('/api/v1/dic/') && row.url.length < 400) ||
          (row.source_kind === 'hosted' && !!approvedVideoLink(row.embed_url))))
@@ -66,7 +68,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   const albums = [...new Set(items.filter(item => item.source_kind === 'photos' && item.album).map(item => item.album))].sort()
   const visibleItems = activeAlbum ? items.filter(item => item.source_kind === 'photos' && item.album === activeAlbum) : items
   const canBrowseAlbums = ['foundation_archive', 'dic_memories'].includes(destination) && albums.length > 0
-  return <section className="published-studio-archive" aria-labelledby={headingId}><Container>
+  return <section className={`published-studio-archive published-studio-archive--${destination}`} aria-labelledby={headingId}><Container>
     <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id={headingId}>{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
     {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
     <div className="published-studio-grid">{visibleItems.map((item, i) => <article key={item.url + i} className="published-studio-card">
