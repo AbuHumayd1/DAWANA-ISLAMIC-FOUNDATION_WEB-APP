@@ -10,10 +10,6 @@ const supportAreas = [
   { number: '03', title: 'Community Outreach', copy: "Contribute towards Dawana's wider outreach and community activities." },
 ]
 
-function DonationIllustration() {
-  return <div className="donate-page-art" role="img" aria-label="Decorative geometric star and arch motif"><div className="donate-page-arch"><span className="donate-page-star">✦</span><span className="donate-page-art-rule" /><span className="donate-page-art-caption">Faith · Knowledge · Service</span></div></div>
-}
-
 function DonationDetails() { return <DonationExperience /> }
 
 function WhySupport() {
@@ -25,5 +21,5 @@ function MakeDonation() {
 }
 
 export default function Donate() {
-  return <div className="public-page donate-page"><PageHero eyebrow="Support Dawana" title="Support the Work of Dawana" description="Your support helps Dawana continue its Dawah, youth, Tarbiyah and community activities." aside={<DonationIllustration />} /><WhySupport /><MakeDonation /><section className="donate-contact-cta"><Container><div><span className="eyebrow gold-eyebrow">Let's make an impact together</span><h2>Have a Question?</h2><p>Interested in supporting our initiatives or exploring a partnership? We'd love to hear from you.</p></div><Link className="button button-gold" to="/contact">Contact Dawana <span aria-hidden="true">→</span></Link></Container></section></div>
+  return <div className="public-page donate-page"><PageHero eyebrow="Support Dawana" title="Support the Work of Dawana" description="Your support helps Dawana continue its Dawah, youth, Tarbiyah and community activities." /><WhySupport /><MakeDonation /><section className="donate-contact-cta"><Container><div><span className="eyebrow gold-eyebrow">Let's make an impact together</span><h2>Have a Question?</h2><p>Interested in supporting our initiatives or exploring a partnership? We'd love to hear from you.</p></div><Link className="button button-gold" to="/contact">Contact Dawana <span aria-hidden="true">→</span></Link></Container></section></div>
 }
