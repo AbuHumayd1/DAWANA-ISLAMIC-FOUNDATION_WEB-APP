@@ -24,7 +24,7 @@ test('report requests require an edition and preserve only supported filters',()
 
 test('screen, CSV and print share filters; export excludes page and cannot choose private formats',()=>{
   const params=new URLSearchParams({edition:'1',domain:'feedback',channel:'daily',date_from:'2026-12-25',page:'2'})
-  for(const format of ['csv','print']){
+  for(const format of ['csv','print','docx']){
     const url=getReportingExportUrl(params,format)
     assert.match(url,/domain=feedback/);assert.match(url,/channel=daily/);assert.match(url,/date_from=2026-12-25/)
     assert.ok(url.endsWith('export='+format));assert.doesNotMatch(url,/page=/)
@@ -61,6 +61,6 @@ test('report navigation requires existing report permission and no longer advert
 
 test('report initial state loads choices without invented production totals',()=>{
   const markup=render('default',{})
-  assert.match(markup,/Reporting and Analytics/);assert.match(markup,/Loading authorized report choices/)
+  assert.match(markup,/Reports &amp; analytics/);assert.match(markup,/Loading authorized report choices/)
   assert.match(markup,/Choose an edition/);assert.doesNotMatch(markup,/Confirmed bookings: 0|Gross verified collections: 0/)
 })
