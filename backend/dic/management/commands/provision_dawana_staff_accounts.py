@@ -96,5 +96,6 @@ class Command(BaseCommand):
         self.stdout.write(
             'Eight dormant accounts prepared. Owner must verify each real holder, '
             'set individual passwords privately through Django Admin, review permissions, '
-            'then explicitly activate. Do not activate Anonymous user without identifying its holder.'
+            'then explicitly activate all eight accounts, including Dawana_Media_003. ' 
+            'The Anonymous user label is display-only; issue credentials privately to its designated operator.'
         )
