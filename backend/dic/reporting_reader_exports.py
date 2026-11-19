@@ -11,6 +11,8 @@ from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 
 def _display(value, unit='count'):
@@ -25,7 +27,7 @@ def _display(value, unit='count'):
     return str(value)
 
 
-def _chart(points):
+def _chart(points, money=False):
     from PIL import Image, ImageDraw, ImageFont
     valid = [(str(p.get('label') or 'Unspecified')[:37], p.get('value'))
              for p in points[:12] if isinstance(p.get('value'), (int, float, Decimal))]
@@ -46,7 +48,7 @@ def _chart(points):
         width = max(2, round(abs(float(value)) / peak * (end-start)))
         draw.rounded_rectangle((start, y + 6, start + width, y + 31),
                                radius=9, fill='#247453')
-        draw.text((968, y), _display(value)[:10], fill='#194b34', font=font)
+        draw.text((968, y), _display(value, 'NGN kobo' if money else 'count')[:10], fill='#194b34', font=font)
     output = BytesIO()
     image.save(output, 'PNG')
     output.seek(0)
@@ -69,7 +71,14 @@ def create_reader_report(data):
     header = section.header.paragraphs[0]
     header.text = 'DAWANA ISLAMIC FOUNDATION  /  CAMP OPERATIONS'
     header.style = document.styles['Caption']
+    for run in header.runs:
+        run.font.bold = True
+        run.font.color.rgb = RGBColor(150, 113, 48)
+        run.font.size = Pt(8)
 
+    for style_name in ('Title', 'Heading 1', 'Heading 2'):
+        document.styles[style_name].font.name = 'Georgia'
+        document.styles[style_name].font.color.rgb = RGBColor(18, 76, 51)
     document.add_heading(data['title'], 0)
     document.add_paragraph(data['edition']['name'])
     document.add_paragraph(
@@ -83,16 +92,29 @@ def create_reader_report(data):
     else:
         # The measured summary remains compact and does not serialize raw records.
         table = document.add_table(rows=0, cols=2)
-        table.style = 'Light Shading Accent 1'
+        table.style = 'Table Grid'
         table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        table.autofit = False
         for measure in metrics:
             row = table.add_row().cells
             row[0].text = measure['label']
             row[1].text = _display(measure.get('value'), measure.get('unit', 'count'))
+            for cell in row:
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                color = OxmlElement('w:shd')
+                color.set(qn('w:fill'), 'F1F6F1')
+                cell._tc.get_or_add_tcPr().append(color)
+            for run in row[0].paragraphs[0].runs:
+                run.font.color.rgb = RGBColor(76, 101, 82)
+                run.font.size = Pt(9)
+            for run in row[1].paragraphs[0].runs:
+                run.font.color.rgb = RGBColor(18, 76, 51)
+                run.font.size = Pt(12)
+                run.bold = True
 
     for title, points in data.get('series', {}).items():
         document.add_heading(title, level=2)
-        visual = _chart(points)
+        visual = _chart(points, money='(kobo)' in title)
         if visual:
             document.add_picture(visual, width=Inches(6.5))
         else:
