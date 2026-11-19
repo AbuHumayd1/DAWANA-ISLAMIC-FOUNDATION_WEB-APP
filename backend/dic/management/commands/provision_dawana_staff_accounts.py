@@ -1,6 +1,7 @@
 """Owner-reviewed initial staff identities; no passwords, invitations or automatic access."""
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from dic.models import DICAdminAuditEvent
@@ -55,6 +56,32 @@ class Command(BaseCommand):
             for username in usernames:
                 if User.objects.filter(username__iexact=username).exists():
                     raise CommandError('Case-insensitive username collision; no accounts created.')
+
+            # Production may have the 0042 recording table but lack the
+            # post_migrate content type and its four model permissions.
+            # Restore ONLY these metadata rows, never media or other grants.
+            recording_ct, ct_created = ContentType.objects.get_or_create(
+                app_label='dic', model='lecturerecording'
+            )
+            restored = []
+            for code, name in (
+                ('add_lecturerecording', 'Can add lecture recording'),
+                ('change_lecturerecording', 'Can change lecture recording'),
+                ('view_lecturerecording', 'Can view lecture recording'),
+                ('publish_lecturerecording', 'Publish or withdraw lecture recordings'),
+            ):
+                _, created = Permission.objects.get_or_create(
+                    content_type=recording_ct, codename=code, defaults={'name': name}
+                )
+                if created:
+                    restored.append(code)
+            if ct_created or restored:
+                DICAdminAuditEvent.objects.create(
+                    actor=approver, action='staff_permission_metadata_repaired',
+                    target_type='ContentType', target_id=str(recording_ct.pk),
+                    details={'model': 'dic.LectureRecording', 'content_type_created': ct_created,
+                             'permissions_created': restored},
+                )
 
             groups = {}
             for group_name in (OPERATIONS_GROUP, MEDIA_GROUP):
