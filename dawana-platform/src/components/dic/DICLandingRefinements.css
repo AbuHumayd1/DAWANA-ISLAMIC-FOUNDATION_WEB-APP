@@ -136,7 +136,8 @@
   border-radius:10px;
   background:var(--panel,#fff);
   color:var(--heading,#173f2e);
-  font:600 .93rem inherit;
+  font-size:.93rem;
+  font-weight:600;
   cursor:pointer;
 }
 .dic-flyer-secondary:focus-visible,.dic-flyer-open:focus-visible,.dic-flyer-viewer button:focus-visible,.dic-flyer-original:focus-visible{outline:3px solid var(--accent,#367d55);outline-offset:3px}
