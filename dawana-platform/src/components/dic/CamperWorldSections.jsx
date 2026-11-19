@@ -8,7 +8,7 @@ export function CamperProfile({ participant: p, order, ID, Icon, onOpenID, busy 
   return <>
     <section className="cw-profile-pass"><div className="cw-pass-top"><span className="cp-kicker">MY CAMPER WORLD</span><Icon name="id" /></div><div className="cw-profile-person"><span className="cp-avatar" aria-hidden="true">{p.name?.slice(0, 1)}</span><div><h1>{p.name}</h1><p>{p.category}</p></div></div><div className="cw-pass-bottom"><span>{p.participant_number || 'Participant number pending'}</span><span>DIC 2026</span></div></section>
     <div className="cw-profile-grid"><section className="cw-info-card cp-tone-mint"><Icon name="arena" /><span className="cp-kicker">{tutor ? 'Your role' : 'Your community'}</span><h2>{tutor ? 'Camp tutor' : p.house_assignment?.name || 'Awaiting house allocation'}</h2>{tutor && <p>Complimentary DIC tutor: no payment required</p>}</section><ClassAssignmentCard participant={p} /></div>
-    <section className="cw-booking-summary"><div className="cp-card-title"><h2>Ready for camp</h2><Icon name="day" /></div><dl className="cw-status-chips"><div><dt>Registration</dt><dd>{order.status}</dd></div><div><dt>Payment</dt><dd>{order.payment_status}</dd></div><div><dt>Camp check-in</dt><dd>{p.checked_in === true ? 'Checked in' : p.checked_in === false ? 'Not checked in' : 'Status unavailable'}</dd></div></dl><details className="cw-quiet-details"><summary>Booking details</summary><p>{order.edition}</p><p className="participant-reference">{order.reference}</p></details></section>
+    <section className="cw-booking-summary"><div className="cp-card-title"><h2>Ready for camp</h2><Icon name="day" /></div><dl className="cw-status-chips"><div><dt>Registration</dt><dd>{order.status}</dd></div><div><dt>Payment</dt><dd>{order.payment_status}</dd></div><div><dt>Camp check-in</dt><dd>{p.checked_in === true ? 'Checked in' : p.checked_in === false ? 'Not checked in' : 'Status unavailable'}</dd></div></dl></section>
     <ID participant={p} onOpenID={onOpenID} busy={busy} />
   </>
 }
@@ -23,7 +23,6 @@ export function CamperExplore({ participant, camp, onNavigate, Icon }) {
     </div>
     <section className="cw-care-links"><div className="cp-card-title"><h2>Feedback & care</h2><Icon name="feedback" /></div><div>{[['daily','Daily feedback'],['welfare','Submit a complaint'],['history','Complaint status'],['final','Final camp evaluation']].map(([channel,label]) => <Link key={channel} to={`/dic/feedback?channel=${channel}`}>{label}</Link>)}</div></section>
     <section className="cw-camp-note"><Icon name="camp" /><div><h2>Good to know</h2>{camp ? <><p>{campDate(camp.camp_start_date)} – {campDate(camp.camp_end_date)}</p><p>{camp.venue || 'Venue to be announced'}</p></> : <p>Edition dates and venue are available on the official camp page when configured.</p>}</div></section>
-    {participant.registration_basis !== 'tutor' && <details className="cw-quiet-details"><summary>House duties & camp notices</summary><p>House duty details are not available in the current portal. Follow approved announcements and ask your camp officers for guidance.</p></details>}
   </>
 }
 

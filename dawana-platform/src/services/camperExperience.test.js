@@ -163,3 +163,21 @@ test('iPhone Safari tab preview and browser tabs use DAWANA instead of the Vite 
   assert.match(html, /apple-mobile-web-app-title" content="DAWANA"/)
   assert.doesNotMatch(html, /vite\.svg|vite\.png|favicon\.ico/i)
 })
+
+test('Me keeps verified readiness and ID without booking details dropdown', () => {
+  const markup = content('me')
+  assert.match(markup, /Ready for camp/)
+  assert.match(markup, /Registration/)
+  assert.match(markup, /Payment/)
+  assert.match(markup, /Camp check-in/)
+  assert.doesNotMatch(markup, /Booking details|booking-reference/)
+})
+
+test('Explore retains camp announcements and care without house duties placeholder', () => {
+  const markup = content('explore')
+  assert.match(markup, /Camp activities/)
+  assert.match(markup, /Camp announcements/)
+  assert.match(markup, /My programme/)
+  assert.match(markup, /Feedback &amp; care/)
+  assert.doesNotMatch(markup, /House duties &amp; camp notices|House duty details are not available/)
+})
