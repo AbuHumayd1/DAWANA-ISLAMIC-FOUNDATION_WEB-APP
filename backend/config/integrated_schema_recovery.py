@@ -110,6 +110,7 @@ def graph(executor, pinned=True):
         ('dic', '0043_exclude_dic2026_millionaire_drafts'),
         ('dic', '0044_studio_catalogue_placements'),
         ('dic', '0045_studio_hosted_video'),
+        ('dic', '0046_aftercamp_assessments'),
     )
     for previous, current in zip((TARGET,) + successors, successors):
         if current in loader.graph.nodes:
