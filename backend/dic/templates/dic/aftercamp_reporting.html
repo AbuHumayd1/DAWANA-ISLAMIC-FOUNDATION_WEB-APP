@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ report.edition.name }} — Camp report</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#edf3ec;font:14px/1.6 system-ui;color:#193d2b}.toolbar{max-width:900px;margin:18px auto;text-align:right}.toolbar button{background:#115138;color:#fff;border:0;border-radius:8px;padding:12px 18px;cursor:pointer}.paper{max-width:900px;margin:20px auto 50px;background:white;padding:50px 55px;box-shadow:0 20px 50px #123c2b19}.eyebrow{font-weight:750;letter-spacing:.1em;font-size:11px;color:#a08139;text-transform:uppercase}h1{font:normal 38px/1.2 Georgia,serif;margin:15px 0 10px}h2{font:normal 25px/1.22 Georgia,serif;margin:30px 0 11px;color:#154d35}h3{font:700 14px system-ui;margin:0 0 9px}.sub{color:#587263}.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.kpi{border:1px solid #dce7de;border-radius:10px;padding:14px;break-inside:avoid}.kpi b{display:block;font-size:20px;color:#164f35}.kpi span{font-size:11px;color:#5c7062}.chart{border-top:1px solid #e1e9df;margin:13px 0 18px;padding-top:12px;break-inside:avoid}.bar-row{display:grid;grid-template-columns:1.3fr 1.7fr auto;gap:8px;align-items:center;margin:8px 0;font-size:12px}.track{height:9px;border-radius:99px;background:#e1ece4;overflow:hidden}.track>span{display:block;height:100%;background:#25724c}.note{border-left:3px solid #bf9b4d;padding-left:12px;color:#5e7161}.foot{border-top:1px solid #dee8dd;margin-top:28px;padding-top:14px;color:#65786a;font-size:11px}.section{break-inside:auto}.restricted{color:#8b6955}.method{font-size:12px;color:#576b60;padding-left:20px}@media(max-width:600px){.paper{padding:25px 18px;margin:0}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:30px}.bar-row{grid-template-columns:1fr;gap:4px}}@page{size:A4 portrait;margin:15mm}@media print{body{background:white}.toolbar{display:none}.paper{margin:0;max-width:none;padding:0;box-shadow:none}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}h2,h3{break-after:avoid}.section{break-before:auto}} 
+</style></head><body>
+<div class="toolbar"><button type="button" onclick="window.print()">Print or save as PDF</button></div>
+<main class="paper"><span class="eyebrow">DAWANA ISLAMIC FOUNDATION · DIC</span><h1>Camp performance report</h1>
+<p class="sub">{{ report.edition.name }} · {{ report.report_status }}<br>Prepared {{ report.generated_display }}</p>
+<section><h2>Executive overview</h2>
+<p>This report brings together verified operational records and approved committee assessments, distinguishing documented outcomes from planned activities and missing data.</p>
+<p><strong>{{ report.covered_count }} of {{ report.total_sections }}</strong> reporting domains contain recorded measurements available to this account.</p>
+{% if not report.committee_approval_complete %}<p class="note">Committee review is still incomplete. This is not yet the final approved camp assessment.</p>{% endif %}
+{% for highlight in report.executive_highlights %}
+<h3>{{ highlight.title }}</h3><p>{{ highlight.finding }}</p>
+{% endfor %}
+{% if report.evidence_gaps %}<h3>Evidence requiring follow-up</h3><ul>{% for gap in report.evidence_gaps %}<li>{{ gap.title }} — {{ gap.reason }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% for section in report.sections %}
+<section class="section"><h2>{{ section.title }}</h2>
+{% if section.state != 'recorded' %}<p class="restricted">{{ section.summary }}</p>{% else %}
+<p>{{ section.summary }}</p><div class="kpis">{% for metric in section.metrics|slice:":12" %}<div class="kpi"><span>{{ metric.label }}</span><b>{{ metric.display }}</b></div>{% endfor %}</div>
+{% for chart in section.charts|slice:":3" %}
+<div class="chart"><h3>{{ chart.title }}</h3>{% for point in chart.points %}<div class="bar-row"><span>{{ point.label }}</span><div class="track"><span style="width:{{ point.width }}%"></span></div><strong>{{ point.display }}</strong></div>{% endfor %}</div>
+{% endfor %}
+{% endif %}{% if section.notes %}<p class="note">{{ section.notes.0 }}</p>{% endif %}</section>
+{% endfor %}
+<section><h2>Approved committee assessment</h2>
+{% for assessment in report.committee_assessments %}
+  <div class="section">
+    <h3>{{ assessment.title }}</h3>
+    {% if assessment.findings %}<p><strong>Findings.</strong> {{ assessment.findings|linebreaksbr }}</p>{% endif %}
+    {% if assessment.challenges %}<p><strong>Challenges.</strong> {{ assessment.challenges|linebreaksbr }}</p>{% endif %}
+    {% if assessment.recommendations %}<p><strong>Recommendations.</strong> {{ assessment.recommendations|linebreaksbr }}</p>{% endif %}
+    {% if assessment.evidence_reference %}<p class="note"><strong>Supporting evidence:</strong> {{ assessment.evidence_reference }}</p>{% endif %}
+  </div>
+{% empty %}<p class="note">No committee assessment has been approved for this edition.</p>{% endfor %}
+</section>
+<section><h2>Methodology and reporting limitations</h2><ul class="method">{% for note in report.methodology %}<li>{{ note }}</li>{% endfor %}</ul></section>
+<footer class="foot">DAWANA Islamic Foundation · Authorized, permission-scoped reporting · Not an audited financial statement</footer></main></body></html>

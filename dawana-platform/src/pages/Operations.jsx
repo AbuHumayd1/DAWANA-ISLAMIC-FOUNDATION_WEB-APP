@@ -24,6 +24,7 @@ import CampCheckIn from './CampCheckIn'
 import HouseScoring from './HouseScoring'
 import FeedbackDashboard, { FeedbackEntry, WelfareDashboard } from './Feedback'
 import Reporting from './Reporting'
+import AftercampReport from './AftercampReport'
 import TimetableOperations from './TimetableOperations'
 import AssistedRegistration from './AssistedRegistration'
 import { ClassesOperations, AnnouncementsOperations } from './CampManagement'
@@ -177,7 +178,7 @@ function Operations() {
         <Route path="welfare" element={user.can_access_campsite && user.permissions.welfare ? <WelfareDashboard user={user} /> : <EmptyState title="Welfare permission required" />} />
         <Route path="media-management" element={<Navigate to="/media-studio" replace />} />
         <Route path="finance" element={user.can_access_campsite && user.permissions.finance ? <Finance /> : <EmptyState title="Finance staff permission required" />} />
-        <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <ComprehensiveReportLanding /> : <EmptyState title="Reporting permission required" />} />
+        <Route path="reporting-hub" element={user.can_access_campsite && user.permissions.export_reports ? <AftercampReport /> : <EmptyState title="Reporting permission required" />} />
         {Object.keys(campsiteModules).filter(key => !['finance','reporting-hub'].includes(key)).map(key => <Route key={key} path={key} element={user.can_access_campsite ? <PlannedCampsiteModule moduleKey={key} user={user} /> : <EmptyState title="Campsite staff access required" />} />)}
         <Route path="registrations" element={<RegistrationListPage user={user} />} />
         <Route path="assisted-registration" element={user.can_access_campsite ? <AssistedRegistration /> : <EmptyState title="Campsite staff access required" />} />
@@ -621,19 +622,6 @@ function HousesPage() {
       <section className="ops-panel ops-detail-panel"><div className="ops-panel-heading"><div><span className="ops-eyebrow">ALLOCATION HISTORY</span><h2>Participant assignments</h2></div></div>{allocations.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Participant</th><th>House</th><th>Status</th><th>Assigned</th><th>Eligibility</th></tr></thead><tbody>{allocations.map((item, index) => <tr key={`${item.participant_id}-${index}`}><td>{item.participant}</td><td>{item.house}</td><td><StatusPill value={item.status} /></td><td>{formatDate(item.allocated_at, { timeStyle: 'short' })}</td><td><StatusPill value={item.verified_eligible ? 'Verified paid' : 'Review required'} positive={item.verified_eligible} /></td></tr>)}</tbody></table></div> : <EmptyState title="No allocations recorded" detail="There are no house assignments for this edition yet." />}</section>
     </>}
   </>
-}
-
-function ComprehensiveReportLanding() {
-  return <div className="ops-report-landing">
-    <PageHeading eyebrow="Edition-wide assessment" title="Comprehensive camp report"
-      description="A single evidence-backed end-of-camp publication, rather than a set of individual report filters." />
-    <section className="ops-panel" style={{maxWidth:'850px'}}>
-      <h2>Consolidated reporting</h2>
-      <p>The edition-wide report and committee-approval workflow are being finalized in a separate release. Individual operational reports and premium Word/PDF exports are available in Reports now.</p>
-      <p>The comprehensive publication will combine recorded camp evidence, charts, approved committee findings, achievements, challenges and recommendations. We won't substitute scheduled events for verified outcomes.</p>
-      <Link className="ops-button ops-button-primary" to="/dic/operations/reports">Open individual reports</Link>
-    </section>
-  </div>
 }
 
 function ReportsPage({ user }) {

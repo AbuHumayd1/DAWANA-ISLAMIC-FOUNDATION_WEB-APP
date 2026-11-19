@@ -7,7 +7,7 @@ test('ordinary Reports hosts premium individual domains and raw extracts are sep
   const src=readFileSync(new URL('../pages/Operations.jsx',import.meta.url),'utf8')
   assert.match(src, /path="reports" element=\{user\.permissions\.export_reports \? <Reporting/)
   assert.match(src, /path="reports\/data" element=\{user\.permissions\.export_reports \? <ReportsPage/)
-  assert.match(src, /path="reporting-hub" element=\{user\.can_access_campsite && user\.permissions\.export_reports \? <ComprehensiveReportLanding/)
+  assert.match(src, /path="reporting-hub" element=\{user\.can_access_campsite && user\.permissions\.export_reports \? <AftercampReport/)
 })
 test('premium Word exports retain authorized domain and filters',()=>{
   const url=reportingPath({edition:'1',domain:'registration',date_from:'2026-12-23',page:'4'},'docx')
