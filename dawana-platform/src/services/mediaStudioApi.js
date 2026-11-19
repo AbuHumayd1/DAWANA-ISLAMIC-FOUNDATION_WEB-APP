@@ -21,7 +21,7 @@ async function studioRequest(path, { method = 'GET', body, ...options } = {}) {
 
 export async function changeStudioPassword(current_password, new_password, confirm_password) {
   await token()
-  const apiRoot = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\\/$/, '')
+  const apiRoot = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
   const response = await fetch(`${apiRoot}/dic/staff/auth/password/change/`, {
     method: 'POST', credentials: 'include', cache: 'no-store',
     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
