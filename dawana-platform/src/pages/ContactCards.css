@@ -26,3 +26,64 @@
     gap: .75rem;
   }
 }
+
+/* Keep public contact content calm and consistent with the Foundation typography. */
+.contact-page .contact-main > .container:has(> .contact-information:only-child){
+  display:block;
+  max-width:1080px;
+}
+.contact-page .contact-main > .container:has(> .contact-information:only-child) .contact-details-grid{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr));
+  gap:14px;
+}
+.contact-page .contact-information > h2{
+  margin:0 0 18px;
+  font-family:var(--premium-heading-serif,Georgia,serif);
+  font-size:clamp(1.6rem,2.8vw,2.15rem);
+  font-weight:500;
+  line-height:1.2;
+  letter-spacing:-.02em;
+}
+.contact-page .contact-form-panel > h2{
+  margin:0 0 11px;
+  font-family:var(--premium-heading-serif,Georgia,serif);
+  font-size:clamp(1.55rem,2.5vw,2rem);
+  font-weight:500;
+  line-height:1.2;
+}
+.contact-page .contact-form-panel > p{
+  margin:0 0 18px;
+  color:var(--text-muted);
+  font-size:.9rem;
+  line-height:1.62;
+}
+.contact-page .contact-detail-card{
+  min-height:0;
+  padding:18px;
+  border-radius:13px;
+}
+.contact-page .contact-detail-card h3{
+  margin:0 0 7px;
+  font-size:.86rem;
+  line-height:1.35;
+}
+.contact-page .contact-detail-card a,
+.contact-page .contact-detail-card p{
+  font-size:clamp(.86rem,1.15vw,.95rem);
+  line-height:1.55;
+}
+.contact-page .contact-enquiry-section .contact-section-heading h2{
+  font-family:var(--premium-heading-serif,Georgia,serif);
+  font-size:clamp(1.65rem,3vw,2.15rem);
+  font-weight:500;
+  line-height:1.22;
+}
+@media(max-width:620px){
+  .contact-page .contact-main{padding-block:32px 39px}
+  .contact-page .contact-form-panel{padding:20px 18px}
+  .contact-page .contact-detail-card{padding:15px 16px}
+  .contact-page .contact-information > h2{margin-bottom:16px}
+  .contact-page .contact-section-heading > p{font-size:.88rem;line-height:1.55}
+  .contact-page .contact-enquiry-card strong{font-size:.93rem}
+  .contact-page .contact-enquiry-card small{font-size:.8rem;line-height:1.45}
+}

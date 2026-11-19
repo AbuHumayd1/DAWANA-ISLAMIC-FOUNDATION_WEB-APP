@@ -17,7 +17,7 @@ export function VerifiedContactInformation() {
   return <section className="contact-information"><h2>How to reach us</h2>
     {error && <p role="alert">Contact details could not be loaded. <button onClick={retry}>Retry</button></p>}
     {!data && !error && <p role="status">Loading official contact channels…</p>}
-    {data && !Object.keys(channels).length && <p>Verified official contact channels are awaiting confirmation by the Foundation.</p>}
+    {data && !Object.keys(channels).length && <p>Explore our programmes and enquiry topics below for more information.</p>}
     <div className="contact-details-grid">{channels.email && <article className="contact-detail-card"><h3>Email</h3><a href={'mailto:' + channels.email}>{channels.email}</a></article>}
       {channels.phone && <article className="contact-detail-card"><h3>Telephone</h3><a href={'tel:' + channels.phone}>{channels.phone}</a></article>}
       {channels.phones?.map(phone => <article className="contact-detail-card" key={phone}><h3>Telephone</h3><a href={'tel:' + phone}>{phone}</a></article>)}
@@ -27,7 +27,7 @@ export function VerifiedContactInformation() {
 }
 
 export function FoundationContactForm() {
-  const { data, error: optionsError, retry } = useOptions()
+  const { data } = useOptions()
   const [busy, setBusy] = useState(false), [status, setStatus] = useState(''), [error, setError] = useState('')
   async function submit(event) {
     event.preventDefault(); if (busy) return
@@ -36,17 +36,17 @@ export function FoundationContactForm() {
     try { await foundationRequest('/contact/', { body: values }); setStatus('Your enquiry has been received by the Foundation inbox.'); form.reset() }
     catch (failure) { setError(failure.message) } finally { setBusy(false) }
   }
-  return <section className="contact-form-panel"><h2>Send an enquiry</h2><p>Your message is available only to authorized Foundation staff. This form is separate from confidential camper welfare reporting.</p>
-    {optionsError && <p role="alert">{optionsError} <button onClick={retry}>Retry</button></p>}
-    {!data && !optionsError && <p role="status">Checking enquiry availability…</p>}
-    {data && !data.contact_enabled && <p>The Foundation enquiry inbox is awaiting activation.</p>}
-    {data?.contact_enabled && <form className="contact-form" onSubmit={submit}><div className="contact-form-grid">
+  // An unavailable enquiry inbox is an internal state, not a public feature.
+  // Hide the form entirely unless the backend explicitly enables enquiries.
+  if (!data?.contact_enabled) return null
+  return <section className="contact-form-panel"><h2>Send an enquiry</h2><p>Have a question about our programmes, events or partnerships? Send us a message and we'll be glad to hear from you.</p>
+    <form className="contact-form" onSubmit={submit}><div className="contact-form-grid">
       <label>Full name<input name="name" required maxLength={120} autoComplete="name" /></label>
       <label>Email<input name="email" type="email" required maxLength={254} autoComplete="email" /></label>
       <label>Subject<input name="subject" required maxLength={200} /></label>
       <label className="contact-form-full">Message<textarea name="message" required minLength={10} maxLength={5000} rows={5} /></label>
       <label hidden aria-hidden="true">Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
-    </div><button className="button" disabled={busy}>{busy ? 'Sending…' : 'Send enquiry'}</button></form>}
+    </div><button className="button" disabled={busy}>{busy ? 'Sending…' : 'Send enquiry'}</button></form>
     {status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
   </section>
 }

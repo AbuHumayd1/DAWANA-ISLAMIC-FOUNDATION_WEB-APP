@@ -18,7 +18,9 @@ test('Contact page renders enquiry links and safe loading states without undefin
   assert.match(html, /Contact Us/)
   assert.match(html, /href="\/dic"/)
   assert.match(html, /Loading official contact channels/)
-  assert.match(html, /Checking enquiry availability/)
+  assert.doesNotMatch(html, /Checking enquiry availability|awaiting activation|camper welfare reporting/)
+  assert.doesNotMatch(html, /Send an enquiry/)
+  assert.match(html, /What would you like to ask about\?/)
   assert.doesNotMatch(html, /Your message has been sent/)
 })
 test('Donate page preserves branding and separates donations from registration', () => {
