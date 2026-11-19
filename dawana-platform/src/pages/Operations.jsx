@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   downloadOperationsReport,
+  changeOperationsPassword,
   getOperationsData,
   postOperationsData,
   getOperationsUser,
@@ -10,6 +11,7 @@ import {
   signOut,
 } from '../services/operationsApi'
 import './Operations.css'
+import StaffPasswordChange from '../components/StaffPasswordChange'
 import AppearanceControls from '../components/layout/AppearanceControls'
 import { backendUrl } from '../services/productionContract.js'
 import StaffParticipantIDs from './StaffParticipantIDs'
@@ -230,6 +232,7 @@ function BrandLockup() {
 }
 
 function OperationsShell({ user, onLogout }) {
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(() => window.matchMedia('(min-width: 901px)').matches)
   const location = useLocation()
   useEffect(() => {
@@ -257,6 +260,7 @@ function OperationsShell({ user, onLogout }) {
         <Link className="ops-website-link" to="/">Main website</Link><AppearanceControls />
         <span className="ops-edition-chip"><i /> DIC Campsite Operations</span>
         {user.can_access_django_admin && <a className="ops-admin-link" href={backendUrl('/admin/')}>Administration</a>}
+        <button type="button" className="ops-admin-link" onClick={() => setPasswordOpen(true)}>Change password</button>
         <div className="ops-profile"><span className="ops-avatar">{user.display_name.slice(0, 1).toUpperCase()}</span><span className="ops-profile-copy"><strong>{user.display_name}</strong><small>{user.role}</small></span></div>
         <button className="ops-logout" onClick={onLogout} aria-label="Sign out"><Icon name="logout" /><span>Sign out</span></button>
       </header>
@@ -267,6 +271,7 @@ function OperationsShell({ user, onLogout }) {
         </aside>
         <main className="ops-main"><Outlet /></main>
       </div>
+      {passwordOpen && <StaffPasswordChange onChangePassword={changeOperationsPassword} onClose={() => setPasswordOpen(false)} />}
     </div>
   )
 }

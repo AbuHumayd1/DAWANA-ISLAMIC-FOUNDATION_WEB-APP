@@ -19,6 +19,17 @@ async function studioRequest(path, { method = 'GET', body, ...options } = {}) {
   return readApiResponse(response)
 }
 
+export async function changeStudioPassword(current_password, new_password, confirm_password) {
+  await token()
+  const apiRoot = (import.meta.env?.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+  const response = await fetch(`${apiRoot}/dic/staff/auth/password/change/`, {
+    method: 'POST', credentials: 'include', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+    body: JSON.stringify({ current_password, new_password, confirm_password }),
+  })
+  return readApiResponse(response)
+}
+
 export const studioSession = () => studioRequest('/auth/me/')
 export async function studioLogin(username, password) {
   await token()

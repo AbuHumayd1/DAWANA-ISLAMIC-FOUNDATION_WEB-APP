@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement } from '../services/mediaStudioApi'
 import './MediaStudio.css'
+import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
@@ -85,6 +86,7 @@ export default function MediaStudio() {
   const [message, setMessage] = useState('')
   const [loginBusy, setLoginBusy] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const [library, setLibrary] = useState('photos')
   const [q, setQ] = useState('')
   const [state, setState] = useState('')
@@ -486,8 +488,9 @@ export default function MediaStudio() {
         {showCollections.map(x => <button type="button" key={x.key} onClick={() => selectCollection(x.key)} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
       </nav>}</div>
       <Link to="/" className="studio-logo"><img src="/dawana-official-logo.png" alt="" /><span><strong>DAWANA</strong><small>MEDIA STUDIO</small></span></Link>
-      <div className="studio-account"><StudioAppearanceButton /><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={signOut}>Sign out</button></div>
+      <div className="studio-account"><StudioAppearanceButton /><span className="studio-identity">{user.display_name}{user.owner ? <small>System administrator</small> : <small>Media team</small>}</span><button type="button" onClick={() => setPasswordOpen(true)}>Change password</button><button type="button" onClick={signOut}>Sign out</button></div>
     </header>
+    {passwordOpen && <StaffPasswordChange onChangePassword={changeStudioPassword} onClose={() => setPasswordOpen(false)} />}
     <main className="studio-main">
       <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-hero-art" aria-hidden="true">
           <div className="studio-hero-halo" />
