@@ -40,11 +40,10 @@ class StaffPasswordChangeTests(TestCase):
         ).count(), 1)
         self.assertNotIn(self.valid['new_password'], str(DICAdminAuditEvent.objects.last().details))
 
-    def test_wrong_current_mismatch_and_weak_password_rejected(self):
+    def test_wrong_current_and_mismatch_rejected(self):
         for values in (
             {**self.valid, 'current_password': 'not-the-current-password'},
             {**self.valid, 'confirm_password': 'Different Passphrase'},
-            {**self.valid, 'new_password': '123', 'confirm_password': '123'},
         ):
             with self.subTest(values=values['new_password']):
                 response = self.client.post(self.url, values, content_type='application/json')
@@ -52,6 +51,19 @@ class StaffPasswordChangeTests(TestCase):
         self.operator.refresh_from_db()
         self.assertTrue(self.operator.check_password(self.valid['current_password']))
         self.assertFalse(DICAdminAuditEvent.objects.filter(action='staff_password_changed').exists())
+
+    def test_simple_numeric_password_is_accepted(self):
+        simple = '0' * 4
+        values = {**self.valid, 'new_password': simple, 'confirm_password': simple}
+        response = self.client.post(self.url, values, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.operator.refresh_from_db()
+        self.assertTrue(self.operator.check_password(simple))
+
+    def test_empty_password_rejected(self):
+        values = {**self.valid, 'new_password': '', 'confirm_password': ''}
+        response = self.client.post(self.url, values, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
 
     def test_not_logged_in_is_denied(self):
         self.client.logout()
