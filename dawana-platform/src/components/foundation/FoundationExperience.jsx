@@ -27,7 +27,7 @@ export function VerifiedContactInformation() {
 }
 
 export function FoundationContactForm() {
-  const { data, error: optionsError, retry } = useOptions()
+  const { data } = useOptions()
   const [busy, setBusy] = useState(false), [status, setStatus] = useState(''), [error, setError] = useState('')
   async function submit(event) {
     event.preventDefault(); if (busy) return
@@ -46,7 +46,7 @@ export function FoundationContactForm() {
       <label>Subject<input name="subject" required maxLength={200} /></label>
       <label className="contact-form-full">Message<textarea name="message" required minLength={10} maxLength={5000} rows={5} /></label>
       <label hidden aria-hidden="true">Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
-    </div><button className="button" disabled={busy}>{busy ? 'Sending…' : 'Send enquiry'}</button></form>}
+    </div><button className="button" disabled={busy}>{busy ? 'Sending…' : 'Send enquiry'}</button></form>
     {status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
   </section>
 }
