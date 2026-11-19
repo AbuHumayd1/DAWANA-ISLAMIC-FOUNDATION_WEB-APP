@@ -32,6 +32,21 @@ def export_rows(data):
 
 def presentation_sections(data):
     """Reader-facing views over the already permission-scoped report payload."""
+    from decimal import Decimal
+    metrics = []
+    for metric in data.get('metrics', []):
+        value, unit = metric.get('value'), metric.get('unit', 'count')
+        if value is None:
+            display = 'Unavailable'
+        elif unit == 'NGN kobo':
+            display = '₦{:,.2f}'.format(Decimal(value) / 100)
+        elif unit == 'percent':
+            display = '{:,.1f}%'.format(float(value))
+        elif isinstance(value, (int, float, Decimal)):
+            display = '{:,}'.format(value)
+        else:
+            display = str(value)
+        metrics.append({**metric, 'display_value': display})
     chart_sections = []
     for title, points in data.get('series', {}).items():
         scale = max((abs(float(point.get('value') or 0)) for point in points), default=0) or 1
@@ -49,7 +64,7 @@ def presentation_sections(data):
                   for key in data.get('columns', []) if key in row and row[key] != '']
         if fields:
             cards.append(fields)
-    return {'chart_sections': chart_sections, 'detail_cards': cards}
+    return {'chart_sections': chart_sections, 'detail_cards': cards, 'display_metrics': metrics}
 
 
 class ReportingView(OperationsBaseView):
