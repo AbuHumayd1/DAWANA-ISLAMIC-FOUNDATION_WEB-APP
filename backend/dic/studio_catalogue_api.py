@@ -240,6 +240,8 @@ class StudioPlacementView(StudioView):
             source = source_for(asset)
             if source is None:
                 raise NotFound('Media source was withdrawn.')
+            if action == 'publish' and destination == 'dic_landing' and asset.source_kind == 'flyers':
+                raise ValidationError({'destination': 'Official DIC flyers appear in their dedicated invitation section; use the Foundation media archive for additional distribution.'})
             if action == 'publish' and not source_published(asset, source):
                 raise ValidationError({'action': 'Publish the validated source first. Archived or draft media cannot be distributed.'})
             if action == 'publish' and destination == 'foundation_archive' and asset.source_kind == 'recordings':
@@ -287,9 +289,15 @@ class PublicStudioPlacementsView(APIView):
         if not 1 <= page <= 100:
             raise ValidationError({'page': 'Archive page out of range.'})
         offset = (page - 1) * 200
-        placements = list(StudioPlacement.objects.filter(
+        placements_query = StudioPlacement.objects.filter(
             destination=destination, state='published', asset__archived_at__isnull=True,
-        ).select_related('asset', 'edition').order_by('-published_at', '-pk')[offset:offset + 201])
+        )
+        # The dedicated DIC flyer block is the canonical home for official flyers.
+        # Exclude them before pagination so no empty highlights section is rendered.
+        if destination == 'dic_landing':
+            placements_query = placements_query.exclude(asset__source_kind='flyers')
+        placements = list(placements_query.select_related('asset', 'edition')
+                          .order_by('-published_at', '-pk')[offset:offset + 201])
         rows = []
         for placement in placements[:200]:
             if placement.edition_id and not placement.edition.is_active:
