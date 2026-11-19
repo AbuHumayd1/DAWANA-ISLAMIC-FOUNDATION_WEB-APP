@@ -49,4 +49,5 @@ def memory_image(request, pk):
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     response["Content-Disposition"] = 'inline; filename="camp-memory.jpg"'
-    return media_headers(response, public=request.GET.get('preview') != '1')
+    return media_headers(response, public=request.GET.get('preview') != '1',
+                         same_site=request.GET.get('preview') == '1')
