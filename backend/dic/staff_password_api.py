@@ -1,5 +1,5 @@
 """Self-service staff password changes; never a credential reset or privilege grant."""
-from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.db import transaction
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -44,7 +44,7 @@ class StaffChangePasswordView(APIView):
 
         with transaction.atomic():
             # Lock the user row and verify the credential again under the lock.
-            locked = type(user).objects.select_for_update().get(pk=user.pk)
+            locked = get_user_model().objects.select_for_update().get(pk=user.pk)
             if not locked.is_active or not locked.is_staff or not locked.check_password(current):
                 return Response({'detail': 'Current password is no longer valid.'}, status=400)
             locked.set_password(new)
