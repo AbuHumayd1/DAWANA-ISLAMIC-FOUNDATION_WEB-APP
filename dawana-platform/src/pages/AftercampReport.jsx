@@ -101,7 +101,7 @@ export default function AftercampReport() {
       {data&&<div className="aftercamp-export-actions">
         <a className="ops-button ops-button-primary" href={getAftercampReportUrl(edition,'docx')}>Download consolidated Word report</a>
         <a className="ops-button ops-button-secondary" href={getAftercampReportUrl(edition,'print')} target="_blank" rel="noopener noreferrer">Print or save as PDF</a>
-        <Link className="ops-button ops-button-secondary" to={'/dic/operations/reporting?edition='+encodeURIComponent(edition)+'&domain=registration'}>Detailed operational analytics</Link>
+        <Link className="ops-button ops-button-secondary" to={'/dic/operations/reports?edition='+encodeURIComponent(edition)+'&domain=registration'}>Detailed operational analytics</Link>
       </div>}
     </div>
     {(metadata.error||report.error)&&<p role="alert" className="ops-error">{metadata.error||report.error}</p>}
