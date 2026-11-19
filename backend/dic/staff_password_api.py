@@ -1,7 +1,5 @@
 """Self-service staff password changes; never a credential reset or privilege grant."""
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -40,10 +38,9 @@ class StaffChangePasswordView(APIView):
             return Response({'detail': 'New passwords do not match.'}, status=400)
         if new == current:
             return Response({'detail': 'Choose a password different from your current one.'}, status=400)
-        try:
-            validate_password(new, user)
-        except DjangoValidationError as error:
-            return Response({'detail': ' '.join(error.messages)}, status=400)
+        # Staff self-service accepts any nonempty password, including numeric-only
+        # values such as "0000". Keep credential verification, rate limits, CSRF,
+        # hashing, auditing and session rotation independent of complexity policy.
 
         with transaction.atomic():
             # Lock the user row and verify the credential again under the lock.
