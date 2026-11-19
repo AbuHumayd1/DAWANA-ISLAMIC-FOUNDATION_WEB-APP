@@ -30,6 +30,28 @@ def export_rows(data):
     return [headings.get(key, key.replace('_', ' ').capitalize()) for key in columns], values
 
 
+def presentation_sections(data):
+    """Reader-facing views over the already permission-scoped report payload."""
+    chart_sections = []
+    for title, points in data.get('series', {}).items():
+        scale = max((abs(float(point.get('value') or 0)) for point in points), default=0) or 1
+        chart_sections.append({
+            'title': title,
+            'points': [{'label': point.get('label', ''),
+                        'value': point.get('value'),
+                        'width': round(abs(float(point.get('value') or 0)) * 100 / scale, 1)}
+                       for point in points],
+        })
+    cards = []
+    for row in data.get('rows', []):
+        fields = [{'label': key.replace('_', ' ').capitalize(),
+                   'value': str(row[key]) if row[key] is not None else 'Unavailable'}
+                  for key in data.get('columns', []) if key in row and row[key] != '']
+        if fields:
+            cards.append(fields)
+    return {'chart_sections': chart_sections, 'detail_cards': cards}
+
+
 class ReportingView(OperationsBaseView):
     def get(self,request):
         domain=request.query_params.get('domain','overview')
@@ -72,7 +94,7 @@ class ReportingView(OperationsBaseView):
                 response=HttpResponse('\ufeff'+stream.getvalue(),content_type='text/csv; charset=utf-8')
                 response['Content-Disposition']=f'attachment; filename="dic-{edition.pk}-{domain}.csv"'
                 return response
-            return HttpResponse(render_to_string('dic/reporting.html',dict(data=data,headers=headers,rows=rows)),content_type='text/html; charset=utf-8')
+            return HttpResponse(render_to_string('dic/reporting.html', dict(data=data, **presentation_sections(data))), content_type='text/html; charset=utf-8')
         data['can_export']=domain!='finance' or all(request.user.has_perm('dic_finance.can_'+permission+'_finance') for permission in ('export','view_details'))
         data['drilldowns']=drilldowns(request.user,domain,edition.pk)
         return Response(data)
