@@ -8,8 +8,11 @@ const markup = readFileSync(new URL('../pages/MediaStudio.jsx', import.meta.url)
 test('Media Studio top navigation stays visible while workspace scrolls', () => {
   const header = source.match(/\.studio-top\{([^}]*)\}/)?.[1]
   assert.ok(header, 'expected Media Studio header styles')
-  assert.match(header, /position:sticky/)
-  assert.match(header, /top:0/)
+  assert.match(header, /position:fixed/)
+  assert.match(header, /inset:0 0 auto/)
+  assert.match(header, /width:100%/)
+  assert.match(source, /\.studio-app\{padding-top:78px\}/)
+  assert.match(source, /@media\(max-width:640px\)\{\.studio-app\{padding-top:69px\}/)
   assert.match(header, /z-index:90/)
   assert.match(markup, /<header className="studio-top">/)
   assert.match(source, /\.studio-popnav\{[^}]*position:absolute/)
