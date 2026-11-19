@@ -74,4 +74,6 @@ def showcase_image(request, kind, pk):
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     response["Content-Disposition"] = 'inline; filename="dic-showcase.jpg"'
-    return media_headers(response, public=kind != 'identity' and request.GET.get('preview') != '1')
+    return media_headers(response,
+                         public=kind != 'identity' and request.GET.get('preview') != '1',
+                         same_site=kind == 'identity' or request.GET.get('preview') == '1')
