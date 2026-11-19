@@ -157,27 +157,62 @@ def create_word_report(title, edition_name, filters, headers, rows):
     )
     document.add_paragraph(f"Filters: {filters or 'None'}")
     document.add_paragraph(f"Records: {len(rows)}")
-    table = document.add_table(rows=1, cols=len(headers))
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.style = "Light Shading Accent 1"
-    header_cells = table.rows[0].cells
-    for index, label in enumerate(headers):
-        header_cells[index].text = str(label)
-        header_cells[index].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        for run in header_cells[index].paragraphs[0].runs:
-            run.bold = True
-            run.font.color.rgb = RGBColor(255, 255, 255)
-        shading = OxmlElement("w:shd")
-        shading.set(qn("w:fill"), "0F4D38")
-        header_cells[index]._tc.get_or_add_tcPr().append(shading)
-    repeat_header = OxmlElement("w:tblHeader")
-    repeat_header.set(qn("w:val"), "true")
-    table.rows[0]._tr.get_or_add_trPr().append(repeat_header)
-    for row in rows:
-        cells = table.add_row().cells
-        for index, value in enumerate(row):
-            cells[index].text = str(value)
-            cells[index].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+    # Wide exports like registrations carry 13–16 fields: a landscape table
+    # makes the text unreadable. Display each authorized record as a compact,
+    # labelled two-column panel instead, retaining every original field.
+    wide = len(headers) > 7
+    if wide:
+        document.add_heading("Records", level=2)
+        document.add_paragraph(
+            "Each record is presented with its original fields and values. "
+            "The information below is an operational extract, not a narrative camp assessment."
+        )
+        for number, row in enumerate(rows, start=1):
+            heading = document.add_paragraph(style="Heading 3")
+            heading.add_run(f"Record {number}")
+            if row and row[0]:
+                reference = str(row[0])
+                if len(reference) <= 60:
+                    heading.add_run(" · " + reference)
+            record_table = document.add_table(rows=0, cols=2)
+            record_table.style = "Light Shading Accent 1"
+            record_table.autofit = False
+            record_table.columns[0].width = Inches(2.3)
+            record_table.columns[1].width = Inches(6.0)
+            for label, value in zip(headers, row):
+                if value is None or str(value).strip() == "":
+                    continue
+                cells = record_table.add_row().cells
+                cells[0].text = str(label)
+                cells[1].text = str(value)
+                for run in cells[0].paragraphs[0].runs:
+                    run.bold = True
+                    run.font.color.rgb = RGBColor(15, 77, 56)
+                for cell in cells:
+                    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            document.add_paragraph()
+    else:
+        table = document.add_table(rows=1, cols=len(headers))
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        table.style = "Light Shading Accent 1"
+        header_cells = table.rows[0].cells
+        for index, label in enumerate(headers):
+            header_cells[index].text = str(label)
+            header_cells[index].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            for run in header_cells[index].paragraphs[0].runs:
+                run.bold = True
+                run.font.color.rgb = RGBColor(255, 255, 255)
+            shading = OxmlElement("w:shd")
+            shading.set(qn("w:fill"), "0F4D38")
+            header_cells[index]._tc.get_or_add_tcPr().append(shading)
+        repeat_header = OxmlElement("w:tblHeader")
+        repeat_header.set(qn("w:val"), "true")
+        table.rows[0]._tr.get_or_add_trPr().append(repeat_header)
+        for row in rows:
+            cells = table.add_row().cells
+            for index, value in enumerate(row):
+                cells[index].text = str(value)
+                cells[index].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
     footer.add_run("Dawana Islamic Foundation — Confidential operational report")
