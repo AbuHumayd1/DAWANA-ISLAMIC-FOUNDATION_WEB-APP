@@ -123,9 +123,7 @@ def create_word_report(title, edition_name, filters, headers, rows):
 
     document = Document()
     section = document.sections[0]
-    if len(headers) > 7:
-        section.orientation = WD_ORIENT.LANDSCAPE
-        section.page_width, section.page_height = section.page_height, section.page_width
+    # Prefer portrait, even for wide extracts: those become labelled records.
     section.top_margin = Inches(0.65)
     section.bottom_margin = Inches(0.65)
     section.left_margin = Inches(0.7)
@@ -178,7 +176,7 @@ def create_word_report(title, edition_name, filters, headers, rows):
             record_table.style = "Light Shading Accent 1"
             record_table.autofit = False
             record_table.columns[0].width = Inches(2.3)
-            record_table.columns[1].width = Inches(6.0)
+            record_table.columns[1].width = Inches(4.6)
             for label, value in zip(headers, row):
                 if value is None or str(value).strip() == "":
                     continue
