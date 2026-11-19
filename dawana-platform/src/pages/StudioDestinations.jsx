@@ -15,7 +15,7 @@ const choices = {
   videos: ['foundation_archive', 'foundation_home', 'dic_landing'],
   hosted: ['foundation_archive', 'foundation_home', 'dic_landing', 'dic_resources'],
   recordings: ['foundation_archive', 'camper_resources'],
-  flyers: ['foundation_archive', 'dic_landing'],
+  flyers: ['foundation_archive'],
   promotions: ['foundation_archive', 'foundation_home', 'dic_landing'],
   lecturers: ['foundation_archive', 'dic_landing'],
   activities: ['foundation_archive', 'dic_landing'],
