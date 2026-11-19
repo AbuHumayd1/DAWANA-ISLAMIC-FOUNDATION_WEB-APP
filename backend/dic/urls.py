@@ -55,6 +55,7 @@ app_name = "dic"
 from .printing_api import PrintingDirectoryView, PrintingExportView, PrintingConfirmView
 from .campsite_api import CampsiteOverviewView
 from .reporting_api import ReportingView
+from .aftercamp_reporting_api import AfterCampReportView
 from .checkin_api import CampCheckInView
 from .scoring_api import HouseScoringView, HouseScoreReversalView
 from .activity_scoring_api import ActivityScoringView, CamperScoringView
@@ -76,6 +77,7 @@ urlpatterns = [
     path('operations/registrations/<uuid:public_id>/recheck-payment/', OperationsRegistrationRecheckView.as_view(), name='operations-registration-recheck-payment'),
     path('operations/registrations/<uuid:public_id>/delete/', OperationsRegistrationDeleteView.as_view(), name='operations-registration-delete'),
     path('operations/reporting/', ReportingView.as_view(), name='operations-reporting'),
+    path('operations/aftercamp-report/', AfterCampReportView.as_view(), name='operations-aftercamp-report'),
     path('tutor-registration/challenges/', TutorChallengeView.as_view(), name='tutor-challenge'),
     path('tutor-registration/verify/', TutorVerifyView.as_view(), name='tutor-verify'),
     path('tutor-registration/redeem/', TutorRedeemView.as_view(), name='tutor-redeem'),
