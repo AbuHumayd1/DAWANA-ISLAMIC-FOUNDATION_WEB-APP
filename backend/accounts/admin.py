@@ -1,11 +1,66 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 
 from .models import User
 from .participant_admin import ParticipantAwarePasswordChangeForm, participant_identity
 
 
 class ParticipantAwareUserAdmin(UserAdmin):
+    change_list_template = "admin/accounts/user/change_list.html"
+
+    def get_urls(self):
+        custom = [
+            path(
+                "provision-dawana-staff/",
+                self.admin_site.admin_view(self.provision_dawana_staff),
+                name="accounts_user_provision_dawana_staff",
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def provision_dawana_staff(self, request):
+        # Admin site enforces login and CSRF. Provisioning is owner-superuser-only.
+        if not (request.user.is_authenticated and request.user.is_active
+                and request.user.is_staff and request.user.is_superuser):
+            raise PermissionDenied("Only an active owner superuser can prepare staff accounts.")
+
+        from dic.management.commands.provision_dawana_staff_accounts import ACCOUNTS
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Provision DAWANA staff accounts",
+            "opts": self.model._meta,
+            "accounts": ACCOUNTS,
+            "confirmation": "PROVISION 8 STAFF ACCOUNTS",
+        }
+        if request.method == "POST":
+            if request.POST.get("confirmation") != context["confirmation"]:
+                self.message_user(request, "Confirmation phrase did not match. No accounts created.", level="error")
+            else:
+                try:
+                    call_command(
+                        "provision_dawana_staff_accounts",
+                        apply=True,
+                        approved_by=request.user.get_username(),
+                    )
+                except (CommandError, ValidationError) as exc:
+                    # Provisioning runs transactionally; account collisions fail closed.
+                    self.message_user(request, str(exc), level="error")
+                else:
+                    self.message_user(
+                        request,
+                        "Eight inactive staff accounts prepared. Privately assign unique passwords, "
+                        "verify recipients, then enable each account individually.",
+                        level="success",
+                    )
+                    return HttpResponseRedirect(reverse("admin:accounts_user_changelist"))
+        return TemplateResponse(request, "admin/accounts/user/provision_staff.html", context)
+
     def save_model(self, request, obj, form, change):
         # User management can confer staff/superuser access: reserve it for owners.
         if not request.user.is_superuser:
