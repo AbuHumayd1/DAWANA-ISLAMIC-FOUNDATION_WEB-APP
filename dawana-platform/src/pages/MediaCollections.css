@@ -99,3 +99,25 @@
   white-space:pre-wrap;
   overflow-wrap:anywhere;
 }
+
+
+/* DAWANA Events / annual itinerary: accessible responsive table. */
+.annual-itinerary-toolbar{display:flex;align-items:center;gap:12px;margin:22px 0 18px}
+.annual-itinerary-toolbar label{font-size:14px;font-weight:700;color:inherit}
+.annual-itinerary-toolbar select{background:var(--surface,#fff);color:inherit;border:1px solid #c3d7c8;border-radius:9px;padding:10px 14px;font:inherit}
+.annual-itinerary-scroll{max-width:100%;overflow-x:auto;border:1px solid #d6e3d9;border-radius:16px;background:var(--surface,#fff)}
+.annual-itinerary-table{width:100%;border-collapse:collapse;text-align:left;min-width:640px}
+.annual-itinerary-table th{padding:16px 18px;background:#eaf2eb;color:#24503b;text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.annual-itinerary-table td{padding:18px;border-top:1px solid #e0e9e2;vertical-align:top;font-size:14px;line-height:1.55}
+.annual-itinerary-table td:first-child{min-width:165px;font-weight:650}
+.annual-itinerary-table td:nth-child(2){min-width:220px}
+.annual-itinerary-table td p{margin:5px 0 0;color:#607568;white-space:pre-wrap;overflow-wrap:anywhere}
+.annual-itinerary-end{font-size:12px;font-weight:400;color:#52695b;margin-top:3px}
+.annual-itinerary-status{display:inline-block;text-transform:capitalize;font-size:12px;font-weight:750;border-radius:99px;padding:5px 10px;background:#e4f3e6;color:#205a3c}
+.annual-itinerary-status--postponed{background:#fff0c8;color:#715319}
+.annual-itinerary-status--cancelled{background:#fce6e4;color:#8c3535}
+.annual-itinerary-scroll>p{margin:14px 18px;font-size:13px}
+:root[data-theme="dark"] .annual-itinerary-scroll,:root[data-theme="dark"] .annual-itinerary-toolbar select{background:#203127;border-color:#49634e}
+:root[data-theme="dark"] .annual-itinerary-table th{background:#294433;color:#d9eadc}
+:root[data-theme="dark"] .annual-itinerary-table td{border-color:#435a47}
+:root[data-theme="dark"] .annual-itinerary-table td p,:root[data-theme="dark"] .annual-itinerary-end{color:#bed4c3}
