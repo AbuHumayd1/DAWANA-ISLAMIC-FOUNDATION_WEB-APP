@@ -3,7 +3,7 @@ from django.contrib import admin,messages
 from django import forms
 from django.db import models
 from django.urls import path,reverse
-from django.utils.html import format_html
+from django.utils.html import format_html,format_html_join
 from django.http import FileResponse
 from .media_delivery import safe_media
 from django.core.exceptions import PermissionDenied,ValidationError
@@ -72,7 +72,18 @@ class RecordingAdmin(admin.ModelAdmin):
 
 @admin.register(CertificateRelease)
 class ReleaseAdmin(admin.ModelAdmin):
-    list_display=['edition','enabled','release_at','artwork'];list_filter=['enabled']
+    list_display=['edition','enabled','release_at','artwork','release_readiness'];list_filter=['enabled']
+    readonly_fields=['release_readiness']
+    @admin.display(description='Certificate release readiness')
+    def release_readiness(self,obj):
+        if not obj or not obj.pk or not obj.edition_id:
+            return 'Choose the camp edition and save a disabled draft first.'
+        from .certificates import certificate_readiness
+        problems=certificate_readiness(obj)
+        if not problems:
+            return 'Ready: the approved configuration is complete.'
+        return format_html('<ul>{}</ul>',format_html_join('', '<li>{}</li>', ((p,) for p in problems)))
+
     def has_view_permission(self,request,obj=None):return request.user.has_perm('dic.release_dic_certificates')
     def has_add_permission(self,request):return self.has_view_permission(request)
     def has_change_permission(self,request,obj=None):return self.has_view_permission(request)
