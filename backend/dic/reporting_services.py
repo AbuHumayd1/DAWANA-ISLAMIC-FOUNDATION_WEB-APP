@@ -221,18 +221,11 @@ def finance(edition, selected, actor):
     # Apportion nothing: actual accepted revision line fees account for gross
     # collections. Booking-level adjustments have no invented per-child split.
     credited={row['order']:row for row in data if row['gross_verified_kobo']}
-    categories=Counter();unattributed=0
+    categories=Counter()
     lines=RegistrationOrderPriceItem.objects.filter(revision__order__edition=edition,
         revision_id=F('revision__order__current_price_revision_id'),revision__order__public_id__in=credited)
     for row in lines.values('category_name_snapshot').annotate(total=Sum('fee_snapshot_ngn')):
         categories[row['category_name_snapshot']]+=int(row['total']*100)
-    attributed=sum(categories.values());unattributed=totals['gross']-attributed
-    trend=Counter()
-    for row in data: trend[row['date']]+=row['verified_kobo']
-    details=actor.has_perm('dic_finance.can_view_details_finance')
-    rows=[dict(label=row['order'],date=row['date'],status=row['status'],recorded_payment_status=row['payment_status'], registration_lifecycle=row['registration_lifecycle'],
-        value=row['verified_kobo'],attempt_id=row['id'],reference=row['reference'],gross_kobo=row['gross_verified_kobo'],recorded_adjustment_kobo=row['adjustment_kobo'],
-        exception=row['exception'],excluded_reason=row['excluded_reason']) for row in data] if details else []
     # Operational reports present verified outcomes only, not potential booking
     # value or checkout attempts. Diagnostics remain in Payments/reconciliation.
     verified_rows = [row for row in data if row['gross_verified_kobo'] or row['adjustment_kobo']]
