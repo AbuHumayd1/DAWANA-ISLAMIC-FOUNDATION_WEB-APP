@@ -325,3 +325,23 @@ test('Studio mobile header keeps password and logout in the hamburger account me
   assert.match(css, /\.studio-account \.studio-appearance-button\>span:last-child\{display:none\}/)
   assert.match(css, /\.studio-menu-account button\{min-height:44px\}/)
 })
+
+test('media team can write full 5000-character captions without placing text over the artwork', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  const gallery = read('../components/media/PublishedStudioArchive.jsx')
+  const galleryStyle = read('../components/media/PublishedStudioArchive.css')
+  const studioStyle = read('../pages/MediaStudio.css')
+  const catalogue = read('../../../backend/dic/studio_models.py')
+  assert.match(studio, /name="publication_description" rows=\{7\} maxLength=\{5000\}/)
+  assert.match(studio, /delete values\.publication_description/)
+  assert.match(studio, /description: fullCaption/)
+  assert.match(studio, /publicationDescription \? \{description: publicationDescription\}/)
+  assert.match(catalogue, /description = models\.TextField\(max_length=5000/)
+  assert.match(gallery, /<details className="published-studio-long-caption"/)
+  assert.match(galleryStyle, /\.published-studio-card>\.published-studio-content\{/)
+  assert.match(galleryStyle, /position:static !important/)
+  assert.match(galleryStyle, /object-fit:contain/)
+  assert.match(galleryStyle, /white-space:pre-wrap/)
+  assert.match(studioStyle, /studio-long-caption textarea/)
+})
+
