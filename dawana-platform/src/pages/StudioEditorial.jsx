@@ -11,7 +11,7 @@ const KINDS = [
   ['podcast', 'Podcast episode'], ['video', 'YouTube or Vimeo recording'],
 ]
 const blank = { kind: 'article', title: '', description: '', body: '', video_url: '',
-  meeting_url: '', collection_id: '', event_at: '', season: '1', episode: '1' }
+  meeting_url: '', collection_id: '', event_at: '', event_end_at: '', event_venue: '', event_status: 'scheduled', season: '1', episode: '1' }
 const makeSlug = title => title.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 170)
 
@@ -67,6 +67,7 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
     const fields = {...form,
       collection_id: form.collection_id || null,
       event_at: form.event_at ? new Date(form.event_at).toISOString() : null,
+      event_end_at: form.event_end_at ? new Date(form.event_end_at).toISOString() : null,
     }
     run(async () => {
       if (editingId) await studioUpdateEditorialItem(editingId, fields)
@@ -90,7 +91,7 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
     <div className="studio-editorial-heading">
       <div><span className="studio-kicker">FOUNDATION PUBLISHING</span>
         <h2>Collections, podcasts & live programmes</h2>
-        <p>Build new lecture series, publish articles, announce live broadcasts and organise podcast episodes. All new items begin as private drafts.</p>
+        <p>Build lecture series, podcasts, articles and the Foundation’s annual itinerary. Event rows begin as private drafts and appear on the public Events page only after approval.</p>
       </div>
     </div>
     {message && <p role="status" className="studio-notice">{message}</p>}
@@ -120,7 +121,13 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
           {form.kind==='article' && <label>Article text<textarea rows={8} maxLength={30000} value={form.body} onChange={e=>update('body',e.target.value)} placeholder="Write the article here. Text is displayed as plain paragraphs, not executable HTML." /></label>}
           {['podcast','video','live'].includes(form.kind) && <label>YouTube / Vimeo URL<input type="url" value={form.video_url} onChange={e=>update('video_url',e.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label>}
           {['live','event'].includes(form.kind) && <label>Google Meet joining link (optional)<input type="url" value={form.meeting_url} onChange={e=>update('meeting_url',e.target.value)} placeholder="https://meet.google.com/..." /></label>}
-          {['live','event'].includes(form.kind) && <label>Scheduled time<input type="datetime-local" value={form.event_at} onChange={e=>update('event_at',e.target.value)}/></label>}
+          {['live','event'].includes(form.kind) && <label>{form.kind==='event' ? 'Event start (Lagos time)' : 'Scheduled time'}<input type="datetime-local" required={form.kind==='event'} value={form.event_at} onChange={e=>update('event_at',e.target.value)}/></label>}
+          {form.kind==='event' && <div className="studio-itinerary-fields">
+            <label>Event end (optional, Lagos time)<input type="datetime-local" min={form.event_at || undefined} value={form.event_end_at} onChange={e=>update('event_end_at',e.target.value)}/></label>
+            <label>Venue or online location<input maxLength={250} value={form.event_venue} onChange={e=>update('event_venue',e.target.value)} placeholder="Venue, city, or online" /></label>
+            <label>Schedule status<select value={form.event_status} onChange={e=>update('event_status',e.target.value)}><option value="scheduled">Scheduled</option><option value="postponed">Postponed</option><option value="cancelled">Cancelled</option></select></label>
+            <p>Publishing adds this programme to the public Annual Itinerary. To correct a published entry, withdraw it, edit the details, then republish.</p>
+          </div>}
           {form.kind==='podcast' && <div className="studio-editorial-numbers"><label>Season<input type="number" min="1" max="999" value={form.season} onChange={e=>update('season',e.target.value)}/></label><label>Episode<input type="number" min="1" max="999" value={form.episode} onChange={e=>update('episode',e.target.value)}/></label></div>}
           {form.kind==='document' && <label>PDF file (max 15 MB)<input type="file" accept="application/pdf,.pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/></label>}
           <button disabled={busy}>{editingId ? 'Save draft changes' : 'Save private draft'}</button>{editingId && <button type="button" disabled={busy} onClick={()=>{setEditingId(null);setForm(blank);setFile(null)}}>Cancel editing</button>}
@@ -130,10 +137,10 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
         <h3>Drafts and published items</h3>
         {!items.length ? <p>No editorial publications yet.</p> :
           <div className="studio-editorial-items">{items.map(item=><article key={item.id}>
-            <div><strong>{item.title}</strong><small>{item.kind}{item.kind==='podcast'?' · Season '+item.season+' / Episode '+item.episode:''} · {item.state}</small></div>
+            <div><strong>{item.title}</strong><small>{item.kind}{item.kind==='event' && item.event_at ? ' · '+new Intl.DateTimeFormat('en-NG',{dateStyle:'medium',timeZone:'Africa/Lagos'}).format(new Date(item.event_at))+' · '+item.event_status : ''}{item.kind==='podcast'?' · Season '+item.season+' / Episode '+item.episode:''} · {item.state}</small></div>
             <div className="studio-editorial-actions">
               {item.state === 'draft' && <button className="studio-delete-draft" disabled={busy} type="button" onClick={()=>deleteDraft(item)}>Delete draft</button>}
-              {item.state !== 'published' && <button disabled={busy} type="button" onClick={()=>{setEditingId(item.id);setForm({...blank,kind:item.kind,title:item.title,description:item.description,body:item.body,video_url:item.video_url,meeting_url:item.meeting_url,live_state:item.live_state,season:String(item.season),episode:String(item.episode),collection_id:item.collection_id || '',event_at:item.event_at ? new Date(new Date(item.event_at).getTime() - new Date(item.event_at).getTimezoneOffset()*60000).toISOString().slice(0,16):''});setFile(null)}}>Edit draft</button>}
+              {item.state !== 'published' && <button disabled={busy} type="button" onClick={()=>{setEditingId(item.id);setForm({...blank,kind:item.kind,title:item.title,description:item.description,body:item.body,video_url:item.video_url,meeting_url:item.meeting_url,live_state:item.live_state,season:String(item.season),episode:String(item.episode),collection_id:item.collection_id || '',event_at:item.event_at ? new Date(new Date(item.event_at).getTime() - new Date(item.event_at).getTimezoneOffset()*60000).toISOString().slice(0,16):'',event_end_at:item.event_end_at ? new Date(new Date(item.event_end_at).getTime() - new Date(item.event_end_at).getTimezoneOffset()*60000).toISOString().slice(0,16):'',event_venue:item.event_venue || '',event_status:item.event_status || 'scheduled'});setFile(null)}}>Edit draft</button>}
               {publisher && <button disabled={busy} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.state==='published'?'withdraw':'publish'), item.state==='published'?'Publication withdrawn.':'Publication published to the Media page.')}>{item.state==='published'?'Withdraw':'Publish'}</button>}
               {publisher && item.kind === 'live' && item.state === 'published' && <button disabled={busy || item.live_state === 'ended'} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.live_state==='live'?'end_live':'go_live'),'Live broadcast status updated.')}>{item.live_state==='live'?'End live':'Go live'}</button>}
               {publisher && item.state === 'published' && !item.notification_sent && <button disabled={busy} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,'notify'),'Notification request checked. See provider configuration for delivery status.')}>Notify subscribers</button>}
