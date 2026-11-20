@@ -227,8 +227,18 @@ class EditorialItemDetailView(StudioView):
     def post(self, request, item_id):
         require_publisher(request.user)
         action = request.data.get('action', '')
-        if action not in ('publish', 'withdraw', 'notify'):
-            raise ValidationError('Choose publish, withdraw or notify subscribers.')
+        if action not in ('publish', 'withdraw', 'notify', 'go_live', 'end_live'):
+            raise ValidationError('Choose publish, withdraw, go live, end live or notify subscribers.')
+        if action in ('go_live', 'end_live'):
+            with transaction.atomic():
+                item = get_object_or_404(StudioPublication.objects.select_for_update(),
+                    pk=item_id, kind='live', state='published')
+                item.live_state = 'live' if action == 'go_live' else 'ended'
+                model_validate(item)
+                item.save(update_fields=['live_state', 'updated_at'])
+                audit(request.user, 'studio_broadcast_' + action,
+                      'StudioPublication', item.pk)
+            return self.nocache({'item': publication_data(item)})
         if action == 'notify':
             item = get_object_or_404(StudioPublication, pk=item_id, state='published')
             outcome = notify_publication(item.pk)
