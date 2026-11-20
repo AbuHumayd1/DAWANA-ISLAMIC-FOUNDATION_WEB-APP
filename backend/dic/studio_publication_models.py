@@ -71,6 +71,7 @@ class StudioPublication(models.Model):
         ('draft', 'Draft'), ('published', 'Published'), ('withdrawn', 'Withdrawn')),
         default='draft')
     published_at = models.DateTimeField(null=True, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
                                    on_delete=models.SET_NULL, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)
