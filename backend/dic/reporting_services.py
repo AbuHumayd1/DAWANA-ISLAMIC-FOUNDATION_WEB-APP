@@ -234,7 +234,8 @@ def finance(edition, selected, actor):
         trend[row['date']]+=row['verified_kobo']
     details=actor.has_perm('dic_finance.can_view_details_finance')
     rows=[dict(label=row['order'],date=row['date'],status='verified transaction',
-        value=row['verified_kobo'],attempt_id=row['id'],reference=row['reference'],
+        value=row['verified_kobo'],registration_lifecycle=row['registration_lifecycle'],
+        attempt_id=row['id'],reference=row['reference'],
         gross_kobo=row['gross_verified_kobo'],
         recorded_adjustment_kobo=row['adjustment_kobo'])
         for row in verified_rows] if details else []
