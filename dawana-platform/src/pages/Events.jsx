@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Container } from '../components/layout/SiteChrome'
 import { EventCard, PageHero } from '../components/pages/PublicPage'
+import './MediaCollections.css'
 
 const events = [
   { title: 'Monthly Da’wah Seminar', label: 'Recurring Seminar', tone: 'green', symbol: '▣', summary: 'A recurring monthly Da’wah seminar.', details: [['Date', 'To be announced']], footer: 'Periodic Assembly' },
