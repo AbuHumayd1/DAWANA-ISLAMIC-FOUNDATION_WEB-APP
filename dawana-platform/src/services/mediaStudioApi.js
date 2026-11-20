@@ -66,9 +66,10 @@ export async function studioUpload(library, fields) {
   return readApiResponse(response)
 }
 
-export const studioDeleteDraft = (library, id) =>
+export const studioDeleteDraft = (library, id, confirmHistoricalDeletion = false) =>
   studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/draft/`, {
     method: 'DELETE',
+    body: { confirm_historical_deletion: confirmHistoricalDeletion },
   })
 
 export const studioEdit = (library, id, metadata) => studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/metadata/`, { method: 'PATCH', body: metadata })
