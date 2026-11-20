@@ -269,7 +269,13 @@ class StudioPlacementView(StudioView):
             DICAdminAuditEvent.objects.create(actor=request.user, action='studio_placement_' + action,
                 target_type='StudioPlacement', target_id=str(placement.pk),
                 details={'asset_id': str(asset.pk), 'destination': destination, 'edition': edition_id})
-        return self.nocache({'asset': summary(asset), 'placement_id': placement.pk})
+        if action == 'publish' and destination == 'foundation_archive':
+            from .studio_notifications import notify_public_placement
+            notification = notify_public_placement(placement.pk)
+        else:
+            notification = 'not_sent'
+        return self.nocache({'asset': summary(asset), 'placement_id': placement.pk,
+                             'notification': notification})
 
 
 class PublicStudioPlacementsView(APIView):
