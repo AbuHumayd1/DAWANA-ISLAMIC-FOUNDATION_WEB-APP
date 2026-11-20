@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Approved one-time 0047 release uses the established non-promoting Render build path.
+# Never run automatically or during an ordinary deployment.
+if [[ "${DAWANA_0047_APPROVAL:-}" == 'APPROVE-DAWANA-MEDIA-0047' ]]; then
+  bash backend/media-0047-migration-apply-build.sh
+  exit 1
+fi
 # Build without production settings, credentials, connections or migrations.
 cd backend
 # Deliberately failed, owner-gated one-time schema application. This NEVER

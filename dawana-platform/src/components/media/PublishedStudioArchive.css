@@ -88,3 +88,243 @@
     padding:17px;
   }
 }
+
+/* Media cards always have two independent, non-overlapping regions.
+   The image is editorial artwork: never use it as a text background. */
+.published-studio-archive .published-studio-card{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  position:relative;
+  isolation:isolate;
+}
+.published-studio-archive .published-studio-card>.published-studio-visual{
+  position:relative;
+  inset:auto;
+  flex:0 0 auto;
+  width:100%;
+  height:auto;
+  aspect-ratio:16/10;
+  min-height:0;
+  overflow:hidden;
+  background:#eaf2e8;
+}
+.published-studio-archive .published-studio-card>.published-studio-visual>img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+}
+.published-studio-archive .published-studio-card>.published-studio-content{
+  position:static !important;
+  inset:auto !important;
+  transform:none !important;
+  width:100%;
+  min-width:0;
+  flex:1 0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:9px;
+  padding:20px;
+  background:inherit;
+  text-align:left;
+}
+.published-studio-archive .published-studio-content h3{margin:0;overflow-wrap:anywhere}
+.published-studio-archive .published-studio-content p{
+  margin:0;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  width:100%;
+}
+.published-studio-archive .published-studio-content a{
+  display:inline-block;
+  position:static;
+  margin-top:auto;
+  padding-top:6px;
+}
+.published-studio-long-caption{width:100%;min-width:0}
+.published-studio-long-caption summary{cursor:pointer;font-size:13px;font-weight:700;color:#1a6242;padding:4px 0}
+.published-studio-long-caption[open] summary{margin-bottom:10px}
+.published-studio-long-caption summary:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+:root[data-theme="dark"] .published-studio-long-caption summary{color:#b5e4c3}
+@media(max-width:600px){
+  .published-studio-archive .published-studio-card>.published-studio-visual{aspect-ratio:16/11}
+  .published-studio-archive .published-studio-card>.published-studio-content{padding:16px}
+}
+
+
+/* Premium homepage: one lead story and two supporting features, never a
+   cramped three-tile gallery. Existing media artwork remains unobstructed. */
+.published-studio-archive--foundation_home{
+  background:linear-gradient(145deg,#f7f7f1 0%,#edf3ed 100%);
+  padding:clamp(45px,6.5vw,95px) 0;
+}
+.published-studio-archive--foundation_home .published-studio-heading{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:end;
+  gap:4px 20px;
+  max-width:none;
+  margin-bottom:27px;
+}
+.published-studio-archive--foundation_home .published-studio-eyebrow{
+  grid-column:1/-1;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.19em;
+  color:#6b775f;
+}
+.published-studio-archive--foundation_home .published-studio-heading h2{
+  margin:2px 0 0;
+  font-size:clamp(32px,4vw,54px);
+  letter-spacing:-.035em;
+  line-height:1.1;
+}
+.published-studio-archive--foundation_home .published-studio-heading-link{
+  font-size:13px;
+  font-weight:750;
+  text-decoration:none;
+  color:#195940;
+  padding:7px 0;
+  border-bottom:1px solid currentColor;
+}
+.published-studio-archive--foundation_home .published-studio-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+  gap:16px;
+}
+.published-studio-archive--foundation_home .published-studio-card{
+  border:1px solid #d5e1d5;
+  box-shadow:0 10px 28px rgba(19,61,43,.045);
+  border-radius:18px;
+  transition:box-shadow .2s ease,transform .2s ease;
+}
+.published-studio-archive--foundation_home .published-studio-card--lead{
+  grid-row:span 2;
+}
+.published-studio-archive--foundation_home .published-studio-card--lead>.published-studio-visual{
+  aspect-ratio:16/10;
+}
+.published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead){
+  display:grid;
+  grid-template-columns:minmax(0,42%) minmax(0,58%);
+  grid-template-rows:minmax(0,1fr);
+}
+.published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual{
+  height:100%;
+  min-height:180px;
+  aspect-ratio:auto;
+}
+.published-studio-archive--foundation_home .published-studio-card>.published-studio-content{
+  justify-content:center;
+  background:transparent;
+  gap:10px;
+}
+.published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead)>.published-studio-content{padding:18px}
+.published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead) h3{
+  font-size:clamp(18px,2vw,24px);
+}
+.published-studio-archive--foundation_home .published-studio-card--lead h3{
+  font-size:clamp(23px,2.6vw,31px);
+}
+.published-studio-archive--foundation_home .published-studio-home-cta{
+  margin-top:29px;
+  width:max-content;
+  max-width:100%;
+  text-align:center;
+  background:#195940;
+  color:#fff;
+  border-color:#195940;
+  padding:13px 24px;
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+  .published-studio-archive--foundation_home .published-studio-card:hover{
+    box-shadow:0 16px 36px rgba(19,61,43,.1);
+    transform:translateY(-3px);
+  }
+}
+@media(max-width:950px){
+  .published-studio-archive--foundation_home .published-studio-grid{
+    grid-template-columns:1fr;
+    grid-template-rows:auto;
+  }
+  .published-studio-archive--foundation_home .published-studio-card--lead{grid-row:auto}
+  .published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead){
+    grid-template-columns:minmax(0,40%) minmax(0,60%);
+  }
+}
+@media(max-width:560px){
+  .published-studio-archive--foundation_home .published-studio-heading{
+    grid-template-columns:1fr;
+    gap:12px;
+    margin-bottom:19px;
+  }
+  .published-studio-archive--foundation_home .published-studio-heading-link{justify-self:start}
+  .published-studio-archive--foundation_home .published-studio-grid{gap:16px}
+  .published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead){
+    display:flex;
+    flex-direction:column;
+  }
+  .published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual{
+    height:auto;
+    min-height:0;
+    aspect-ratio:16/10;
+  }
+  .published-studio-archive--foundation_home .published-studio-card>.published-studio-content{
+    padding:18px;
+  }
+}
+:root[data-theme="dark"] .published-studio-archive--foundation_home{
+  background:linear-gradient(140deg,#14281d,#1e3728);
+}
+:root[data-theme="dark"] .published-studio-archive--foundation_home .published-studio-heading-link,
+:root[data-theme="dark"] .published-studio-archive--foundation_home .published-studio-eyebrow{color:#c8e0cf}
+:root[data-theme="dark"] .published-studio-archive--foundation_home .published-studio-home-cta{
+  background:#317451;color:#fff;border-color:#317451;
+}
+
+
+/* Original-resolution artwork is never forced into a 16:10 crop.
+   Posters, flyers and photographs retain their actual intrinsic aspect ratio. */
+.published-studio-archive .published-studio-card>.published-studio-visual--original-ratio{
+  display:block;
+  height:auto !important;
+  min-height:0 !important;
+  aspect-ratio:auto !important;
+  align-self:start;
+}
+.published-studio-archive .published-studio-card>.published-studio-visual--original-ratio>img{
+  display:block;
+  width:100%;
+  height:auto !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  object-fit:contain !important;
+  object-position:center;
+}
+/* Video frames themselves remain 16:9, but still image thumbnails should not
+   crop graphics or captions embedded by the video producer. */
+.published-studio-archive .published-studio-card>.published-studio-video{
+  aspect-ratio:16/9;
+  height:auto;
+}
+.published-studio-archive .published-studio-video-cover img{
+  object-fit:contain;
+}
+/* The homepage editorial grid may be asymmetric without clipping artwork. */
+.published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual--original-ratio{
+  height:auto !important;
+  min-height:0 !important;
+  aspect-ratio:auto !important;
+  align-self:center;
+}
+@media(max-width:899px){
+  .published-studio-archive--dic_landing .published-studio-card>.published-studio-visual--original-ratio{
+    height:auto !important;
+    aspect-ratio:auto !important;
+  }
+}

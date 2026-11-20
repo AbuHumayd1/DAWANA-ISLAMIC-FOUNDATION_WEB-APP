@@ -215,7 +215,10 @@ class StudioLibraryView(StudioView):
                              'has_more': len(records) > 30,
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename)),
                              'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename)),
-                             'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename))})
+                             'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename)),
+                             'can_delete': bool(kind in ('photos', 'videos', 'recordings', 'flyers',
+                                'promotions', 'activities', 'hosted') and request.user.is_staff and
+                                (request.user.is_superuser or (request.user.has_perm('dic.manage_studio_assets') and request.user.has_perm('dic.change_' + codename))))})
 
 
 class StudioPrivatePreviewView(StudioView):
@@ -288,6 +291,60 @@ class StudioPublicationView(StudioView):
                 target_type=model.__name__, target_id=str(item.pk),
                 details={'library': kind})
         return self.nocache({'id': item.pk, 'state': item.state})
+
+
+class StudioDraftDeleteView(StudioView):
+    """Delete never-published drafts, preserving media files and immutable audit.
+
+    This is not an unpublish function: previously published, externally placed
+    or referenced source records are deliberately ineligible for deletion.
+    No R2 object or participant-scoped resource is removed.
+    """
+    def delete(self, request, kind, pk):
+        from django.db.models.deletion import ProtectedError, RestrictedError
+        from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
+        from .studio_models import StudioAsset, StudioPlacement
+        if kind not in ('photos', 'videos', 'recordings', 'flyers',
+                        'promotions', 'activities', 'hosted'):
+            raise NotFound('Unknown deletable draft library.')
+        model, code, _ = LIBRARIES[kind]
+        if not request.user.is_staff or not request.user.is_active or not (
+            request.user.is_superuser or (request.user.has_perm('dic.manage_studio_assets') and request.user.has_perm('dic.change_' + code))):
+            raise PermissionDenied('Permission to delete media drafts is required.')
+        with transaction.atomic():
+            record = model.objects.select_for_update().filter(pk=pk).first()
+            if record is None:
+                raise NotFound('Draft no longer exists.')
+            if record.state != 'draft' or getattr(record, 'published_at', None):
+                raise ValidationError({'detail': 'Only unpublished drafts can be deleted. Withdrawn or published content is retained.'})
+            assets = list(StudioAsset.objects.select_for_update().filter(
+                source_kind=kind, source_id=record.pk))
+            if any(StudioPlacement.objects.filter(asset=asset).exists() for asset in assets):
+                raise ValidationError({'detail': 'This media has publishing destinations and cannot be deleted. Use Withdraw or Archive.'})
+            # Historical publication must never be disguised as an unused draft
+            # by withdrawing it and then deleting the evidence.
+            if DICAdminAuditEvent.objects.filter(
+                target_type=model.__name__, target_id=str(pk),
+                action__in=('studio_media_publish', 'studio_media_withdraw')).exists():
+                raise ValidationError({'detail': 'Previously published media cannot be deleted.'})
+            if any(DICAdminAuditEvent.objects.filter(
+                target_type='StudioPlacement', details__asset_id=str(asset.pk),
+                action__in=('studio_placement_publish', 'studio_placement_withdraw')).exists()
+                for asset in assets):
+                raise ValidationError({'detail': 'Previously distributed media cannot be deleted.'})
+            name = str(getattr(record, 'caption', '') or getattr(record, 'title', '') or '')[:200]
+            try:
+                for asset in assets:
+                    asset.delete()
+                record.delete()
+            except (ProtectedError, RestrictedError) as error:
+                raise ValidationError({'detail': 'This draft is referenced elsewhere and cannot be safely deleted.'}) from error
+            DICAdminAuditEvent.objects.create(
+                actor=request.user, action='studio_media_draft_deleted',
+                target_type=model.__name__, target_id=str(pk),
+                details={'library': kind, 'title': name,
+                         'retained_storage_files': True})
+        return self.nocache({'deleted': True, 'id': pk, 'library': kind})
 
 
 # Existing, schema-backed editorial media types; no generic arbitrary-key upload.
