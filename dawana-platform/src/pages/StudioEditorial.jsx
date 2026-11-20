@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   studioEditorialCollections, studioCreateCollection, studioUpdateCollection,
-  studioEditorialItems, studioCreateEditorialItem, studioUpdateEditorialItem, studioPublishEditorialItem,
+  studioEditorialItems, studioCreateEditorialItem, studioUpdateEditorialItem, studioPublishEditorialItem, studioDeleteEditorialDraft,
 } from '../services/mediaStudioApi'
 import './StudioEditorial.css'
 
@@ -76,6 +76,14 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
       setEditingId(null)
     }, editingId ? 'Draft updated.' : 'Draft saved. Review it below before publishing.')
   }
+  function deleteDraft(item) {
+    if (item.state !== 'draft') return
+    if (!window.confirm(`Delete private draft “${item.title}”? This cannot be undone and published material cannot be deleted.`)) return
+    run(async () => {
+      await studioDeleteEditorialDraft(item.id)
+      if (editingId === item.id) {setEditingId(null);setForm(blank);setFile(null)}
+    }, 'Private draft deleted. Published content remains unchanged.')
+  }
   const update = (key, value) => setForm(old => ({...old, [key]: value}))
   if (!editor) return null
   return <section className="studio-editorial" aria-label="Foundation Publishing">
@@ -124,6 +132,7 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
           <div className="studio-editorial-items">{items.map(item=><article key={item.id}>
             <div><strong>{item.title}</strong><small>{item.kind}{item.kind==='podcast'?' · Season '+item.season+' / Episode '+item.episode:''} · {item.state}</small></div>
             <div className="studio-editorial-actions">
+              {item.state === 'draft' && <button className="studio-delete-draft" disabled={busy} type="button" onClick={()=>deleteDraft(item)}>Delete draft</button>}
               {item.state !== 'published' && <button disabled={busy} type="button" onClick={()=>{setEditingId(item.id);setForm({...blank,kind:item.kind,title:item.title,description:item.description,body:item.body,video_url:item.video_url,meeting_url:item.meeting_url,live_state:item.live_state,season:String(item.season),episode:String(item.episode),collection_id:item.collection_id || '',event_at:item.event_at ? new Date(new Date(item.event_at).getTime() - new Date(item.event_at).getTimezoneOffset()*60000).toISOString().slice(0,16):''});setFile(null)}}>Edit draft</button>}
               {publisher && <button disabled={busy} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.state==='published'?'withdraw':'publish'), item.state==='published'?'Publication withdrawn.':'Publication published to the Media page.')}>{item.state==='published'?'Withdraw':'Publish'}</button>}
               {publisher && item.kind === 'live' && item.state === 'published' && <button disabled={busy || item.live_state === 'ended'} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.live_state==='live'?'end_live':'go_live'),'Live broadcast status updated.')}>{item.live_state==='live'?'End live':'Go live'}</button>}
