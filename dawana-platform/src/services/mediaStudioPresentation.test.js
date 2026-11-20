@@ -345,3 +345,34 @@ test('media team can write full 5000-character captions without placing text ove
   assert.match(studioStyle, /studio-long-caption textarea/)
 })
 
+
+
+test('home media uses a lead story and two supporting cards with premium mobile stacking', () => {
+  const gallery = read('../components/media/PublishedStudioArchive.jsx')
+  const css = read('../components/media/PublishedStudioArchive.css')
+  assert.match(gallery, /Stories worth sharing/)
+  assert.match(gallery, /published-studio-card--lead/)
+  assert.match(gallery, /destination === 'foundation_home' \? 3/)
+  assert.match(css, /grid-template-columns:minmax\(0,1\.3fr\) minmax\(0,1fr\)/)
+  assert.match(css, /grid-row:span 2/)
+  assert.match(css, /@media\(max-width:560px\)/)
+  assert.match(css, /object-fit:contain/)
+  assert.match(css, /prefers-reduced-motion:no-preference/)
+})
+
+test('media staff have confirmed draft deletion without any published deletion action', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  const editorial = read('../pages/StudioEditorial.jsx')
+  const api = read('./mediaStudioApi.js')
+  const backend = read('../../../backend/dic/studio_api.py')
+  const role = read('../../../backend/dic/staff_roles.py')
+  assert.match(studio, /canDelete && item\.state === 'draft'/)
+  assert.match(studio, /window\.confirm/)
+  assert.match(editorial, /item\.state === 'draft'/)
+  assert.match(api, /studioDeleteDraft/)
+  assert.match(api, /studioDeleteEditorialDraft/)
+  assert.match(backend, /class StudioDraftDeleteView\(StudioView\)/)
+  assert.match(backend, /record\.state != 'draft'/)
+  assert.match(backend, /StudioPlacement\.objects\.filter\(asset=asset\)\.exists\(\)/)
+  assert.match(role, /dic\.delete_campphotograph/)
+})
