@@ -33,6 +33,17 @@ CHARTS = {
 }
 MAX_POINTS = 20
 
+# The consolidated camp report is an evidence-of-results document, not a
+# checkout pipeline dashboard. Operational diagnostics remain in Payments.
+COMPREHENSIVE_FINANCE_EXCLUDED_METRICS = frozenset({
+    'Expected booking value',
+    'Pending attempts',
+    'Failed attempts',
+    'Exceptional attempts',
+    'Recorded adjustment events in period',
+    'Gross / accepted-price discrepancy',
+})
+
 
 def display(value, unit='count'):
     if value is None:
@@ -125,6 +136,8 @@ def build(edition, actor, *, for_download=False):
                     'unit': m.get('unit', 'count'),
                     'display': display(m.get('value'), m.get('unit', 'count'))}
                    for m in source.get('metrics', [])]
+        if domain == 'finance':
+            metrics = [m for m in metrics if m['label'] not in COMPREHENSIVE_FINANCE_EXCLUDED_METRICS]
         charts = []
         for chart_name in CHARTS.get(domain, ()):
             points = source.get('series', {}).get(chart_name, [])
