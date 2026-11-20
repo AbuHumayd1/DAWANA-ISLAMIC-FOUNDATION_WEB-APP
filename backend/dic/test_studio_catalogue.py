@@ -320,3 +320,55 @@ class StudioCatalogueTests(TestCase):
         self.client.force_login(viewer)
         self.assertEqual(self.client.get(reverse('dic:studio-assets')).status_code, 403)
         self.assertEqual(self.post('studio-assets', {'source_kind': 'photos', 'source_id': 1}).status_code, 403)
+
+
+    def test_media_personnel_can_delete_never_published_draft_with_audit(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            photo = self.photo('Remove this unused synthetic draft')
+            asset = self.post('studio-assets', {
+                'source_kind': 'photos', 'source_id': photo.pk})
+            self.assertEqual(asset.status_code, 201)
+            photo_id = photo.pk
+            result = self.client.delete(
+                reverse('dic:studio-draft-delete', args=['photos', photo_id]),
+                HTTP_X_CSRFTOKEN=self.csrf)
+            self.assertEqual(result.status_code, 200, result.content)
+            self.assertFalse(CampPhotograph.objects.filter(pk=photo_id).exists())
+            self.assertFalse(StudioAsset.objects.filter(
+                source_kind='photos', source_id=photo_id).exists())
+            self.assertTrue(DICAdminAuditEvent.objects.filter(
+                action='studio_media_draft_deleted', target_id=str(photo_id)).exists())
+
+    def test_draft_deletion_refuses_placements_published_history_and_foreign_actors(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            photo = self.photo('Protected draft')
+            url = reverse('dic:studio-draft-delete', args=['photos', photo.pk])
+            linked = self.post('studio-assets', {
+                'source_kind': 'photos', 'source_id': photo.pk})
+            self.assertEqual(linked.status_code, 201)
+            asset_id = linked.json()['asset']['id']
+            placement = self.post('studio-placements', {
+                'destination': 'foundation_home', 'action': 'draft'}, args=[asset_id])
+            self.assertEqual(placement.status_code, 200)
+            denied = self.client.delete(url, HTTP_X_CSRFTOKEN=self.csrf)
+            self.assertEqual(denied.status_code, 400, denied.content)
+            self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
+            StudioPlacement.objects.all().delete()
+            photo.state = 'published'
+            photo.save(actor=self.operator)
+            photo.state = 'draft'
+            photo.save(actor=self.operator)
+            DICAdminAuditEvent.objects.create(
+                actor=self.operator, action='studio_media_publish',
+                target_type='CampPhotograph', target_id=str(photo.pk), details={})
+            denied_history = self.client.delete(url, HTTP_X_CSRFTOKEN=self.csrf)
+            self.assertEqual(denied_history.status_code, 400)
+            outsider = get_user_model().objects.create_user(
+                'synthetic-outside-editor', password='synthetic', is_staff=True)
+            self.client.force_login(outsider)
+            denied_role = self.client.delete(url, HTTP_X_CSRFTOKEN=self.csrf)
+            self.assertEqual(denied_role.status_code, 403)
+            self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
+
