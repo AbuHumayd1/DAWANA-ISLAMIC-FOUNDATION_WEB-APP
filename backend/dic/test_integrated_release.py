@@ -293,6 +293,43 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertEqual(available.json()['certificate']['state'],'released')
         self.assertEqual(ParticipationCertificate.objects.count(),0)
 
+
+    def test_certificate_download_pdf_uses_authoritative_name_and_stable_reference(self):
+        from PIL import Image
+        import fitz
+        config=CertificateRelease.objects.create(edition=self.edition)
+        config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc);config.enabled=True
+        config.artwork_sha256='a'*64
+        config.name_box=[75,170,690,110];config.reference_box=[115,45,600,55]
+        config.save()
+        CampCheckIn.objects.create(
+            edition=self.edition, participant=self.item.participant, checked_in_by=self.owner)
+        client,_=self.login();url=reverse('dic:camper-certificate')
+        # Only synthetic artwork in a disposable test; never a production template.
+        with tempfile.TemporaryDirectory() as folder:
+            art=Path(folder)/'synthetic-test-only.png'
+            Image.new('RGB',(1684,1190),'white').save(art)
+            with patch('dic.certificates.approved_artwork',return_value=str(art)),patch(
+                'dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+                response=client.get(url, {'item_id':self.item.pk})
+                self.assertEqual(response.status_code,200,response.content[:200])
+                self.assertEqual(response['Content-Type'],'application/pdf')
+                self.assertIn('attachment',response['Content-Disposition'])
+                document=fitz.open(stream=response.content,filetype='pdf')
+                self.assertEqual(document.page_count,1)
+                actual=document[0].get_text()
+                self.assertIn(self.item.participant.full_name, actual)
+                certificate=ParticipationCertificate.objects.get(
+                    edition=self.edition,participant=self.item.participant)
+                self.assertIn(str(certificate.reference),actual)
+                second=client.get(url,{'item_id':self.item.pk})
+                self.assertEqual(second.status_code,200)
+                self.assertEqual(ParticipationCertificate.objects.count(),1)
+                certificate.revoked_at=datetime.now(utc.utc)
+                certificate.save(update_fields=['revoked_at'])
+                blocked=client.get(url,{'item_id':self.item.pk})
+                self.assertEqual(blocked.status_code,403)
+
     def test_certificate_artwork_missing_blocks_release_and_long_names_fit_legibly(self):
         from .certificates import approved_artwork,fitted_lines
         config=CertificateRelease.objects.create(edition=self.edition)
