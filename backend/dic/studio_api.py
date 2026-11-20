@@ -218,7 +218,7 @@ class StudioLibraryView(StudioView):
                              'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename)),
                              'can_delete': bool(kind in ('photos', 'videos', 'recordings', 'flyers',
                                 'promotions', 'activities', 'hosted') and request.user.is_staff and
-                                (request.user.is_superuser or request.user.has_perm('dic.delete_' + codename)))})
+                                (request.user.is_superuser or (request.user.has_perm('dic.manage_studio_assets') and request.user.has_perm('dic.change_' + codename))))})
 
 
 class StudioPrivatePreviewView(StudioView):
@@ -309,7 +309,7 @@ class StudioDraftDeleteView(StudioView):
             raise NotFound('Unknown deletable draft library.')
         model, code, _ = LIBRARIES[kind]
         if not request.user.is_staff or not request.user.is_active or not (
-            request.user.is_superuser or request.user.has_perm('dic.delete_' + code)):
+            request.user.is_superuser or (request.user.has_perm('dic.manage_studio_assets') and request.user.has_perm('dic.change_' + code))):
             raise PermissionDenied('Permission to delete media drafts is required.')
         with transaction.atomic():
             record = model.objects.select_for_update().filter(pk=pk).first()
