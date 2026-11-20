@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioDeleteDraft } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
@@ -97,6 +97,7 @@ export default function MediaStudio() {
   const [canPublish, setCanPublish] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
   const [canCreate, setCanCreate] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
   const [hostedLinks, setHostedLinks] = useState('')
   const [hostedMode, setHostedMode] = useState('single')
   const [hostedTitle, setHostedTitle] = useState('')
@@ -374,7 +375,7 @@ export default function MediaStudio() {
     const current = ++seq.current
     setLoading(true)
     studioLibrary({ library, q, state, edition, page })
-      .then(data => { if (active && current === seq.current) { setRows(previous => page === 1 ? data.items : [...previous.filter(item => !data.items.some(next => next.id === item.id)), ...data.items]); setMore(data.has_more); setCanPublish(data.can_publish); setCanEdit(data.can_edit); setCanCreate(data.can_create) } })
+      .then(data => { if (active && current === seq.current) { setRows(previous => page === 1 ? data.items : [...previous.filter(item => !data.items.some(next => next.id === item.id)), ...data.items]); setMore(data.has_more); setCanPublish(data.can_publish); setCanEdit(data.can_edit); setCanCreate(data.can_create); setCanDelete(data.can_delete) } })
       .catch(e => { if (active && current === seq.current) { setRows([]); setMessage(e.message) } })
       .finally(() => { if (active && current === seq.current) setLoading(false) })
     return () => { active = false }
@@ -417,6 +418,21 @@ export default function MediaStudio() {
       setMessage('Changes saved. Previously published material has been returned to draft for review.')
     } catch (error) { setMessage(error.message) }
     finally { setPending(null) }
+  }
+  async function deleteDraft(item) {
+    if (item.state !== 'draft' || !canDelete) return
+    if (!window.confirm(`Delete draft “${item.title}” from Media Studio? This cannot be undone. Published and previously distributed media cannot be deleted.`)) return
+    setPending(item.id); setMessage('')
+    try {
+      await studioDeleteDraft(library, item.id)
+      setRows(previous => previous.filter(row => row.id !== item.id))
+      if (editing === item.id) setEditing(null)
+      if (itemToPublish === item.id) setItemToPublish(null)
+      setMessage('Draft deleted from the workspace. Existing public publications and shared storage files are unaffected.')
+      setRevision(current => current + 1)
+    } catch (error) {
+      setMessage(error.message || 'Draft could not be deleted.')
+    } finally { setPending(null) }
   }
   async function publishExisting(item, action, chosen = []) {
     setPending(item.id); setMessage('')
@@ -615,7 +631,7 @@ export default function MediaStudio() {
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
             <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
           </div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : []); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : []); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canDelete && item.state === 'draft' && <button type="button" className="studio-delete-draft" disabled={pending !== null} onClick={() => deleteDraft(item)}>Delete draft</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
           {itemToPublish === item.id && <div className="studio-item-publisher">
             <strong>Where should “{item.title}” appear?</strong>
              {['hosted','videos','recordings'].includes(library) && <><MediaCategoryInput value={itemMediaCategory} onChange={setItemMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
