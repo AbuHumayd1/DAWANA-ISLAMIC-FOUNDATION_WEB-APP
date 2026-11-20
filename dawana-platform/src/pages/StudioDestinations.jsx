@@ -3,8 +3,8 @@ import { studioAssets, studioLinkAsset, studioAssetMetadata, studioArchiveAsset,
 import './StudioDestinations.css'
 
 const destinationNames = {
-  foundation_archive: 'Foundation media archive',
-  foundation_home: 'Foundation homepage',
+  foundation_archive: 'Media page — collections',
+  foundation_home: 'Homepage — latest 3 featured media',
   dic_memories: 'DIC memories gallery',
   dic_landing: 'DIC landing page',
   dic_resources: 'DIC lecture resources',
