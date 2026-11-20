@@ -18,3 +18,17 @@
 .studio-editorial-items article{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 0;border-top:1px solid #d9e4db}
 .studio-editorial-numbers{display:flex;gap:14px}
 @media(max-width:650px){.studio-editorial{padding:15px}.studio-editorial-form{grid-template-columns:1fr}.studio-editorial-numbers{flex-wrap:wrap}.studio-editorial-items article{align-items:start;flex-direction:column}}
+
+
+/* Destructive draft action: visually separate from publishing controls. */
+.studio-delete-draft{
+  border:1px solid #c99292 !important;
+  background:transparent !important;
+  color:#a33e3e !important;
+  font-weight:700;
+}
+.studio-delete-draft:hover:not(:disabled){background:#fdf0ee !important}
+.studio-delete-draft:focus-visible{outline:3px solid #c99292;outline-offset:2px}
+:root[data-theme="dark"] .studio-delete-draft{
+  color:#fac4b7 !important;border-color:#b57c74 !important;
+}
