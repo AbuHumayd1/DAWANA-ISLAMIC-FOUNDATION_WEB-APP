@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import { PageHero } from '../components/pages/PublicPage'
+import MediaSubscribe from '../components/media/MediaSubscribe'
 import { backendUrl } from '../services/productionContract'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 import './MediaCollections.css'
@@ -138,6 +139,7 @@ export default function Media() {
   return <div className="public-page media-page media-clean-page">
     <PageHero eyebrow="Foundation Media" title="Media Library" description="Lectures, reminders and programme recordings — organised in one simple archive."/>
     <section className="media-clean-section"><Container>
+      <MediaSubscribe />
       <div className="media-clean-intro"><h2>Explore the media library</h2></div>
       <nav className="media-clean-collections" aria-label="Media library collections">
         {publicCollections.map(row => <button type="button" key={row.id} aria-current={selected === row.id ? 'page' : undefined}
