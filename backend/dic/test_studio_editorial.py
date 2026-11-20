@@ -135,7 +135,7 @@ class StudioEditorialTests(TestCase):
         data = {
             'kind': 'event', 'title': 'Synthetic annual seminar',
             'description': 'Official schedule test', 'event_venue': 'Lagos',
-            'event_at': '2026-12-31T22:30:00+00:00',
+            'event_at': '2026-12-31T23:30:00+00:00',
             'event_end_at': '2027-01-01T00:00:00+00:00',
             'event_status': 'scheduled',
         }
