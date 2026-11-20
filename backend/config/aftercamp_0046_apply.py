@@ -64,7 +64,7 @@ def apply():
         migration = plan[0][0]
         module = __import__(migration.__class__.__module__, fromlist=["__file__"])
         source = Path(module.__file__).read_bytes()
-        blob = hashlib.sha1(b"blob " + str(len(source)).encode() + b"\\0" + source).hexdigest()
+        blob = hashlib.sha1(b"blob " + str(len(source)).encode() + b"\x00" + source).hexdigest()
         require(blob == MIGRATION_BLOB_SHA, "MIGRATION_SOURCE_MISMATCH")
         operations = migration.operations
         require(migration.atomic and len(operations) == 2
