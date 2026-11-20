@@ -392,3 +392,23 @@ test('official flyers retain native proportions and no publication text covers i
   assert.match(archiveCss, /\.media-clean-visual-grid img\{\s*display:block;\s*width:100%;\s*height:auto;/)
   assert.match(archiveCss, /\.media-collection-screen \.media-video-thumbnail\{\s*object-fit:contain;/)
 })
+
+
+test('Events Annual Itinerary is public, year-filtered and Media Studio-controlled', () => {
+  const events = read('../pages/Events.jsx')
+  const editor = read('../pages/StudioEditorial.jsx')
+  const api = read('../../../backend/dic/studio_editorial_api.py')
+  const urls = read('../../../backend/dic/urls.py')
+  const style = read('../pages/MediaCollections.css')
+  assert.match(events, /studio\/public-itinerary\/\?year=/)
+  assert.match(events, /annual-itinerary-table/)
+  assert.match(events, /schedule\.status==='loading'/)
+  assert.match(events, /schedule\.status==='error'/)
+  assert.match(editor, /event_end_at/)
+  assert.match(editor, /event_venue/)
+  assert.match(editor, /event_status/)
+  assert.match(api, /class PublicAnnualItineraryView\(APIView\)/)
+  assert.match(api, /state='published', published_at__isnull=False/)
+  assert.match(urls, /name='studio-public-itinerary'/)
+  assert.match(style, /\.annual-itinerary-scroll\{/)
+})
