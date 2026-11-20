@@ -288,6 +288,8 @@ class PublicStudioPlacementsView(APIView):
         page = int(page_text)
         if not 1 <= page <= 100:
             raise ValidationError({'page': 'Archive page out of range.'})
+        if destination == 'foundation_home' and page != 1:
+            return Response({'items': [], 'page': page, 'has_more': False})
         offset = (page - 1) * 200
         placements_query = StudioPlacement.objects.filter(
             destination=destination, state='published', asset__archived_at__isnull=True,
@@ -326,7 +328,12 @@ class PublicStudioPlacementsView(APIView):
                     from .video_providers import video_source
                     item['embed_url'] = video_source(source.video_url)['embed_url']
                 rows.append(item)
-        response = Response({'items': rows, 'page': page, 'has_more': len(placements) > 200})
+                # The homepage is deliberately capped, even when staff publish
+                # more placements. Additional items remain in the media archive.
+                if destination == 'foundation_home' and len(rows) == 3:
+                    break
+        response = Response({'items': rows, 'page': page,
+                             'has_more': destination != 'foundation_home' and len(placements) > 200})
         response['Cache-Control'] = 'public, max-age=0, must-revalidate'
         return response
 
