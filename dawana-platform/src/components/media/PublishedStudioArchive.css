@@ -286,3 +286,45 @@
 :root[data-theme="dark"] .published-studio-archive--foundation_home .published-studio-home-cta{
   background:#317451;color:#fff;border-color:#317451;
 }
+
+
+/* Original-resolution artwork is never forced into a 16:10 crop.
+   Posters, flyers and photographs retain their actual intrinsic aspect ratio. */
+.published-studio-archive .published-studio-card>.published-studio-visual--original-ratio{
+  display:block;
+  height:auto !important;
+  min-height:0 !important;
+  aspect-ratio:auto !important;
+  align-self:start;
+}
+.published-studio-archive .published-studio-card>.published-studio-visual--original-ratio>img{
+  display:block;
+  width:100%;
+  height:auto !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+  object-fit:contain !important;
+  object-position:center;
+}
+/* Video frames themselves remain 16:9, but still image thumbnails should not
+   crop graphics or captions embedded by the video producer. */
+.published-studio-archive .published-studio-card>.published-studio-video{
+  aspect-ratio:16/9;
+  height:auto;
+}
+.published-studio-archive .published-studio-video-cover img{
+  object-fit:contain;
+}
+/* The homepage editorial grid may be asymmetric without clipping artwork. */
+.published-studio-archive--foundation_home .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual--original-ratio{
+  height:auto !important;
+  min-height:0 !important;
+  aspect-ratio:auto !important;
+  align-self:center;
+}
+@media(max-width:899px){
+  .published-studio-archive--dic_landing .published-studio-card>.published-studio-visual--original-ratio{
+    height:auto !important;
+    aspect-ratio:auto !important;
+  }
+}
