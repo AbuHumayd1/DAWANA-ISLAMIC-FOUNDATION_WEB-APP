@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from . import test_participant_portal as portal
-from .models import TimetableEntry,House,CertificateRelease,ParticipationCertificate,LectureRecording,DICAdminAuditEvent
+from .models import TimetableEntry,House,CertificateRelease,ParticipationCertificate,LectureRecording,DICAdminAuditEvent,CampCheckIn
 from .management.commands.initialize_dic2026_release import initialize,SOURCE
 from .timetable_services import publish_days
 
@@ -254,6 +254,12 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         client,_=self.login();url=reverse('dic:camper-certificate')
         self.assertEqual(client.get(url,{'item_id':self.item.pk}).status_code,403)
         config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc);config.enabled=True;config.artwork_sha256='a'*64;config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50];config.save()
+        from rest_framework.exceptions import PermissionDenied
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+            with self.assertRaises(PermissionDenied):issue(self.item)
+        self.assertEqual(ParticipationCertificate.objects.count(),0)
+        CampCheckIn.objects.create(edition=self.edition,participant=self.item.participant,checked_in_by=self.owner)
+
         with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
             first=issue(self.item);second=issue(self.item)
             self.assertEqual(first.reference,second.reference)
@@ -262,6 +268,30 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             from rest_framework.exceptions import PermissionDenied
             with self.assertRaises(PermissionDenied):issue(self.item)
         self.assertEqual(ParticipationCertificate.objects.count(),1)
+
+
+    def test_certificate_resources_require_confirmed_physical_check_in(self):
+        from .certificates import confirmed_camp_arrival
+        config=CertificateRelease.objects.create(edition=self.edition)
+        config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc)
+        config.enabled=True;config.artwork_sha256='a'*64
+        config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50]
+        config.save()
+        client,_=self.login();url=reverse('dic:camper-resources')
+        self.assertFalse(confirmed_camp_arrival(self.item))
+        before=client.get(url,{'item_id':self.item.pk})
+        self.assertEqual(before.status_code,200)
+        self.assertEqual(before.json()['certificate']['state'],'awaiting_check_in')
+        self.assertFalse(before.json()['certificate']['available'])
+        self.assertIsNone(before.json()['certificate']['url'])
+        self.assertEqual(ParticipationCertificate.objects.count(),0)
+        CampCheckIn.objects.create(edition=self.edition,participant=self.item.participant,checked_in_by=self.owner)
+        self.assertTrue(confirmed_camp_arrival(self.item))
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+            available=client.get(url,{'item_id':self.item.pk})
+        self.assertTrue(available.json()['certificate']['available'])
+        self.assertEqual(available.json()['certificate']['state'],'released')
+        self.assertEqual(ParticipationCertificate.objects.count(),0)
 
     def test_certificate_artwork_missing_blocks_release_and_long_names_fit_legibly(self):
         from .certificates import approved_artwork,fitted_lines
