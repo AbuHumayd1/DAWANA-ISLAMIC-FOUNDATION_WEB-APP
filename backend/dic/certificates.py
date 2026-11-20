@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
-from .models import CertificateRelease, ParticipationCertificate, DICAdminAuditEvent
+from .models import CertificateRelease, ParticipationCertificate, DICAdminAuditEvent, CampCheckIn
 
 
 def approved_artwork(config):
@@ -27,11 +27,25 @@ def release_for(edition):
     return config
 
 
+def confirmed_camp_arrival(item):
+    """Participation requires an actual recorded arrival, not a booking attempt.
+
+    The camper portal's existing scope check separately enforces that this
+    participant belongs to the authenticated user.
+    """
+    return CampCheckIn.objects.filter(
+        edition_id=item.order.edition_id,
+        participant_id=item.participant_id,
+    ).exists()
+
+
 @transaction.atomic
 def issue(item):
     # Serialize issuance through the existing participant identity lock.
     from .models import Participant
     Participant.objects.select_for_update().get(pk=item.participant_id)
+    if not confirmed_camp_arrival(item):
+        raise PermissionDenied('A confirmed camp check-in is required for this certificate.')
     release_for(item.order.edition)
     record,created=ParticipationCertificate.objects.get_or_create(edition=item.order.edition,
         participant=item.participant,defaults={'participant_name':item.participant.full_name})
