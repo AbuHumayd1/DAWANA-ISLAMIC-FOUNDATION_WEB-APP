@@ -278,7 +278,7 @@ test('Media Studio includes one classification choice independent from destinati
   const studio = read('../pages/MediaStudio.jsx')
   assert.match(studio, /MEDIA_CATEGORIES/)
   assert.match(studio, /MediaCategoryInput/)
-  assert.match(studio, /studioAssetMetadata\(assetId, categoryMetadata\(category, eventName\)\)/)
+  assert.match(studio, /studioAssetMetadata\(asset\.id, categoryMetadata\(itemMediaCategory, itemProgrammeName\)\)/)
   assert.match(studio, /Camper Portal — private lecture audio/)
 })
 
