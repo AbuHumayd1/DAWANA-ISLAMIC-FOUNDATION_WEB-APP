@@ -15,7 +15,7 @@ const blank = { kind: 'article', title: '', description: '', body: '', video_url
 const makeSlug = title => title.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 170)
 
-export default function StudioEditorial({ user }) {
+export default function StudioEditorial({ user, onCollectionsChange }) {
   const [collections, setCollections] = useState([])
   const [items, setItems] = useState([])
   const [form, setForm] = useState(blank)
@@ -49,6 +49,7 @@ export default function StudioEditorial({ user }) {
     try {
       await operation()
       await refresh()
+      onCollectionsChange?.()
       setMessage(success)
     } catch (error) {
       setMessage(error.message || 'Could not save this editorial change.')
