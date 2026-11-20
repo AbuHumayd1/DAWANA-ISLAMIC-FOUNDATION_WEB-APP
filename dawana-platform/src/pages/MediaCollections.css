@@ -66,3 +66,11 @@
 :root[data-theme=dark] .media-clean-page .media-clean-more,:root[data-theme=dark] .media-clean-page .media-clean-format button:not([aria-pressed=true]){background:#203127;color:#eaf6ed;border-color:#54715d}
 :root[data-theme=dark] .media-clean-page .media-clean-format button[aria-pressed=true]{background:#3b8059;color:#fff}
 :root[data-theme=dark] .media-clean-page .media-clean-collections button:focus-visible{outline-color:#f4c983}
+
+
+.editorial-media-entry .media-collection-entry-copy{width:100%;display:flex;flex-direction:column;align-items:start;gap:11px;padding:23px}
+.editorial-media-entry .media-collection-screen{width:100%;min-height:220px}
+.editorial-media-entry .media-collection-screen iframe{aspect-ratio:16/9;width:100%;border:0;border-radius:12px}
+.editorial-media-entry .media-article-body{white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere;max-height:440px;overflow:auto}
+.editorial-media-entry a{font-weight:700;text-underline-offset:3px}
+.media-live-status{background:#dcefe5;color:#0f5036;border-radius:999px;padding:5px 11px;font-size:12px}
