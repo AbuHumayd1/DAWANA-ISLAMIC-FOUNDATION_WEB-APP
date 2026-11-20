@@ -48,6 +48,11 @@ class Migration(migrations.Migration):
                     upload_to='studio-publications/%Y/%m/',
                     validators=[dic.studio_publication_models.validate_public_pdf])),
                 ('event_at', models.DateTimeField(blank=True, null=True)),
+                ('event_end_at', models.DateTimeField(blank=True, null=True)),
+                ('event_venue', models.CharField(blank=True, max_length=250)),
+                ('event_status', models.CharField(choices=[
+                    ('scheduled', 'Scheduled'), ('postponed', 'Postponed'),
+                    ('cancelled', 'Cancelled')], default='scheduled', max_length=16)),
                 ('live_state', models.CharField(choices=[
                     ('scheduled', 'Scheduled'), ('live', 'Live'), ('ended', 'Ended')],
                     default='scheduled', max_length=12)),
