@@ -376,3 +376,19 @@ test('media staff have confirmed draft deletion without any published deletion a
   assert.match(backend, /StudioPlacement\.objects\.filter\(asset=asset\)\.exists\(\)/)
   assert.match(role, /dic\.manage_studio_assets/)
 })
+
+
+test('official flyers retain native proportions and no publication text covers imagery', () => {
+  const cards = read('../components/media/PublishedStudioArchive.jsx')
+  const cardCss = read('../components/media/PublishedStudioArchive.css')
+  const archiveCss = read('../pages/MediaCollections.css')
+  assert.match(cards, /published-studio-visual--original-ratio/)
+  assert.match(cards, /<div className="published-studio-content"/)
+  assert.match(cardCss, /\.published-studio-visual--original-ratio>img\{/)
+  assert.match(cardCss, /height:auto !important/)
+  assert.match(cardCss, /aspect-ratio:auto !important/)
+  assert.match(cardCss, /object-fit:contain !important/)
+  assert.match(cardCss, /\.published-studio-video-cover img\{\s*object-fit:contain;/)
+  assert.match(archiveCss, /\.media-clean-visual-grid img\{\s*display:block;\s*width:100%;\s*height:auto;/)
+  assert.match(archiveCss, /\.media-collection-screen \.media-video-thumbnail\{\s*object-fit:contain;/)
+})
