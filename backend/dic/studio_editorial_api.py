@@ -158,7 +158,10 @@ def apply_fields(publication, data):
             continue
         value = data[field]
         if field == 'collection_id':
-            publication.collection_id = numeric_id(value) if value else None
+            collection_id = numeric_id(value) if value else None
+            if collection_id and not StudioCollection.objects.filter(pk=collection_id).exists():
+                raise ValidationError({'collection_id': 'Choose an existing collection.'})
+            publication.collection_id = collection_id
         elif field in ('season', 'episode'):
             if not str(value).isascii() or not str(value).isdigit() or not 1 <= int(value) <= 999:
                 raise ValidationError({field: 'Choose a number between 1 and 999.'})
