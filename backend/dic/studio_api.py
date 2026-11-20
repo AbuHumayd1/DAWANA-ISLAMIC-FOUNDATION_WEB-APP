@@ -321,12 +321,17 @@ class StudioDraftDeleteView(StudioView):
                 source_kind=kind, source_id=record.pk))
             if any(StudioPlacement.objects.filter(asset=asset).exists() for asset in assets):
                 raise ValidationError({'detail': 'This media has publishing destinations and cannot be deleted. Use Withdraw or Archive.'})
-            # Historical publication must never be disguised as an unused draft
-            # by withdrawing it and then deleting the evidence.
-            if DICAdminAuditEvent.objects.filter(
+            # A previously published item can become draft after withdrawal.
+            # Only the system owner can permanently remove such a source once
+            # it has no Studio placements (even withdrawn ones) or references.
+            # The immutable publish/withdraw audit and storage bytes survive.
+            historical = DICAdminAuditEvent.objects.filter(
                 target_type=model.__name__, target_id=str(pk),
-                action__in=('studio_media_publish', 'studio_media_withdraw')).exists():
-                raise ValidationError({'detail': 'Previously published media cannot be deleted.'})
+                action__in=('studio_media_publish', 'studio_media_withdraw')).exists()
+            if historical and not request.user.is_superuser:
+                raise ValidationError({'detail': 'Previously published drafts require system administrator deletion.'})
+            if historical and request.data.get('confirm_historical_deletion') is not True:
+                raise ValidationError({'detail': 'Confirm removal of previously published draft material. Its publication audit is retained.'})
             if any(DICAdminAuditEvent.objects.filter(
                 target_type='StudioPlacement', details__asset_id=str(asset.pk),
                 action__in=('studio_placement_publish', 'studio_placement_withdraw')).exists()
@@ -343,6 +348,7 @@ class StudioDraftDeleteView(StudioView):
                 actor=request.user, action='studio_media_draft_deleted',
                 target_type=model.__name__, target_id=str(pk),
                 details={'library': kind, 'title': name,
+                         'previously_published': historical,
                          'retained_storage_files': True})
         return self.nocache({'deleted': True, 'id': pk, 'library': kind})
 
