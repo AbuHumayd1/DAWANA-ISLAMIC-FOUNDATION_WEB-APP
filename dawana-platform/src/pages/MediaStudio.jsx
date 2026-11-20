@@ -32,14 +32,14 @@ const LIBRARIES = [
 
 // Destinations are restricted by the existing StudioPlacement backend allow-list.
 const PUBLISH_DESTINATIONS = {
-  photos: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_memories', 'DIC memories gallery'], ['dic_landing', 'DIC landing page']],
-  videos: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_landing', 'DIC landing page']],
-  hosted: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_landing', 'DIC landing page'], ['dic_resources', 'DIC lecture resources']],
-  recordings: [['foundation_archive', 'Public audio archive'], ['camper_resources', 'Camper Portal — private lecture audio']],
-  flyers: [['foundation_archive', 'Foundation media archive'], ['dic_landing', 'DIC landing page']],
-  promotions: [['foundation_archive', 'Foundation media archive'], ['foundation_home', 'Foundation homepage'], ['dic_landing', 'DIC landing page']],
+  photos: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_memories', 'DIC memories gallery'], ['dic_landing', 'DIC landing page']],
+  videos: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_landing', 'DIC landing page']],
+  hosted: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_landing', 'DIC landing page'], ['dic_resources', 'DIC lecture resources']],
+  recordings: [['foundation_archive', 'Media page — All Audio + chosen collection'], ['camper_resources', 'Camper Portal — private lecture audio']],
+  flyers: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['dic_landing', 'DIC landing page']],
+  promotions: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_landing', 'DIC landing page']],
   lecturers: [], appearances: [],
-  activities: [['foundation_archive', 'Foundation media archive'], ['dic_landing', 'DIC landing page']],
+  activities: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['dic_landing', 'DIC landing page']],
 }
 const needsEdition = destination => destination.startsWith('dic_') || destination === 'camper_resources'
 const MEDIA_CATEGORIES = [['general','General Foundation media'],['dic','Darul Islam Camp'],['ramadan','Ramadan Tafseer'],['shorts','Short videos'],['other','Other programmes (youth outreach, podcasts, events)']]
@@ -59,7 +59,7 @@ function StudioPublishChoices({choices, selected, setSelected, authorized}) {
   if (!authorized) return null
   return <fieldset className="studio-publish-choices">
     <legend>Where should this appear?</legend>
-    <p>Select the <strong>Foundation media archive</strong> to show this under All Videos or All Audio and its chosen collection on /media. Select other destinations only when needed. Camper Portal audio stays private.</p>
+    <p>Select <strong>Media page — All Videos / All Audio</strong> to show this in the appropriate format archive and the programme collection selected above. Select other destinations only when needed. Camper Portal audio stays private.</p>
     <div className="studio-publish-options">{choices.map(([key, name]) =>
       <label key={key}><input type="checkbox" checked={selected.includes(key)} onChange={event =>
         setSelected(previous => event.target.checked
