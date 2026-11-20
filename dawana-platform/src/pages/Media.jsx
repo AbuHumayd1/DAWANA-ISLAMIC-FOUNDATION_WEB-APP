@@ -90,13 +90,13 @@ export default function Media() {
   return <div className="public-page media-page media-clean-page">
     <PageHero eyebrow="Foundation Media" title="Media Library" description="Lectures, reminders and programme recordings — organised in one simple archive."/>
     <section className="media-clean-section"><Container>
-      <div className="media-clean-intro"><span className="eyebrow">Explore the archive</span><h2>Find what you want to watch or listen to.</h2><p>Choose a collection. A recording may appear in both the general archive and its programme collection.</p></div>
+      <div className="media-clean-intro"><h2>Explore the media library</h2></div>
       <nav className="media-clean-collections" aria-label="Media library collections">
         {COLLECTIONS.map(row => <button type="button" key={row.id} aria-current={selected === row.id ? 'page' : undefined}
           onClick={() => choose(row.id)}><strong>{row.name}</strong><small>{row.detail}</small></button>)}
       </nav>
       <div className="media-clean-results" id="media-archive">
-        <div className="media-clean-results-header"><div><span className="eyebrow">Official publications</span><h2>{selectedCollection.name}</h2><p>{selectedCollection.detail}</p></div>
+        <div className="media-clean-results-header"><div><h2>{selectedCollection.name}</h2><p>{selectedCollection.detail}</p></div>
           {['dic','ramadan','other'].includes(selected) && <div className="media-clean-format" role="group" aria-label="Filter collection format">
             {['all','videos','audio'].map(value => <button key={value} type="button" aria-pressed={format === value}
               onClick={() => setFormat(value)}>{value === 'all' ? 'All formats' : value === 'audio' ? 'Audio' : 'Videos'}</button>)}
@@ -110,7 +110,7 @@ export default function Media() {
         {hasMore && <button className="media-clean-more" type="button" disabled={status === 'loading'} onClick={() => setPage(value => value + 1)}>{status === 'loading' ? 'Loading…' : 'Load more media'}</button>}
       </div>
       {visualItems.length > 0 && <section className="media-clean-visuals" aria-label="Published photographs and visuals">
-        <div className="media-clean-results-header"><div><span className="eyebrow">Photography</span><h2>Foundation visual archive</h2><p>Only officially published photographs and visual materials.</p></div></div>
+        <div className="media-clean-results-header"><div><span className="eyebrow">Photography</span><h2>Photo gallery</h2></div></div>
         <div className="media-clean-visual-grid">{visualItems.map((item, index) => <a key={item.url + index} href={backendUrl(item.url)} target="_blank" rel="noopener noreferrer">
           <img src={backendUrl(item.url)} loading="lazy" alt={item.title}/><span>{item.title}</span>
         </a>)}</div>
