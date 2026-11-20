@@ -105,3 +105,25 @@ class StudioEditorialTests(TestCase):
         self.assertEqual(StudioAsset.objects.count(), 0)
         self.assertEqual(self.anonymous.get(reverse('dic:studio-public-placements'),
                                            {'destination': 'foundation_home'}).json()['items'], [])
+
+
+    def test_draft_delete_is_audited_and_never_deletes_published_history(self):
+        from .models import DICAdminAuditEvent
+        draft_id = self.create_article()
+        path = reverse('dic:studio-editorial-item-detail', args=[draft_id])
+        deleted = self.staff.delete(path)
+        self.assertEqual(deleted.status_code, 200, deleted.content)
+        self.assertFalse(StudioPublication.objects.filter(pk=draft_id).exists())
+        self.assertTrue(DICAdminAuditEvent.objects.filter(
+            target_type='StudioPublication', target_id=str(draft_id),
+            action='studio_publication_draft_deleted').exists())
+        item_id = self.create_article()
+        with patch('dic.studio_editorial_api.notify_publication', return_value='unconfigured'):
+            self.assertEqual(self.action(item_id, 'publish').status_code, 200)
+        published_path = reverse('dic:studio-editorial-item-detail', args=[item_id])
+        self.assertEqual(self.staff.delete(published_path).status_code, 400)
+        self.assertEqual(self.action(item_id, 'withdraw').status_code, 200)
+        self.assertEqual(self.staff.delete(published_path).status_code, 400)
+        self.assertTrue(StudioPublication.objects.filter(pk=item_id).exists())
+        self.assertEqual(self.anonymous.delete(published_path).status_code, 403)
+
