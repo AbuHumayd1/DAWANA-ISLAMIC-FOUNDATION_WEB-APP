@@ -374,5 +374,5 @@ test('media staff have confirmed draft deletion without any published deletion a
   assert.match(backend, /class StudioDraftDeleteView\(StudioView\)/)
   assert.match(backend, /record\.state != 'draft'/)
   assert.match(backend, /StudioPlacement\.objects\.filter\(asset=asset\)\.exists\(\)/)
-  assert.match(role, /dic\.delete_campphotograph/)
+  assert.match(role, /dic\.manage_studio_assets/)
 })
