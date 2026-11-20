@@ -69,6 +69,11 @@ class StudioPublication(models.Model):
     document = models.FileField(storage=private_memory_storage, upload_to='studio-publications/%Y/%m/',
                                 blank=True, max_length=220, validators=[validate_public_pdf])
     event_at = models.DateTimeField(null=True, blank=True)
+    event_end_at = models.DateTimeField(null=True, blank=True)
+    event_venue = models.CharField(max_length=250, blank=True)
+    event_status = models.CharField(max_length=16, choices=(
+        ('scheduled', 'Scheduled'), ('postponed', 'Postponed'),
+        ('cancelled', 'Cancelled')), default='scheduled')
     live_state = models.CharField(max_length=12, choices=(
         ('scheduled', 'Scheduled'), ('live', 'Live'), ('ended', 'Ended')),
         default='scheduled')
@@ -113,6 +118,13 @@ class StudioPublication(models.Model):
                     raise ValueError
             except ValueError:
                 raise ValidationError({'meeting_url': 'Use a valid HTTPS Google Meet link.'}) from None
+        if self.kind == 'event':
+            if self.state == 'published' and not self.event_at:
+                raise ValidationError({'event_at': 'An itinerary event needs a confirmed date and time.'})
+            if self.event_end_at and self.event_at and self.event_end_at < self.event_at:
+                raise ValidationError({'event_end_at': 'The end must not precede the start.'})
+        elif self.event_end_at or self.event_venue or self.event_status != 'scheduled':
+            raise ValidationError('Annual itinerary fields are only available for events.')
         if self.kind != 'podcast' and (self.season != 1 or self.episode != 1):
             raise ValidationError('Season and episode numbering is only for podcasts.')
         if self.state == 'published' and not self.published_at:
