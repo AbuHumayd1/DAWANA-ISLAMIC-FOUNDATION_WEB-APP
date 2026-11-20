@@ -66,7 +66,8 @@ class StudioPublication(models.Model):
     body = models.TextField(max_length=30000, blank=True)
     video_url = models.URLField(max_length=500, blank=True)
     meeting_url = models.URLField(max_length=500, blank=True)
-    document = models.FileField(storage=private_memory_storage, upload_to='studio-publications/%Y/%m/',\n                                blank=True, max_length=220, validators=[validate_public_pdf])
+    document = models.FileField(storage=private_memory_storage, upload_to='studio-publications/%Y/%m/',
+                                blank=True, max_length=220, validators=[validate_public_pdf])
     event_at = models.DateTimeField(null=True, blank=True)
     live_state = models.CharField(max_length=12, choices=(
         ('scheduled', 'Scheduled'), ('live', 'Live'), ('ended', 'Ended')),
