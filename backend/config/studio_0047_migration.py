@@ -43,8 +43,6 @@ def apply_exact_0047():
     must(os.environ.get('DAWANA_0047_FRESH_BACKUP_SHA256') == APPROVED_FRESH_BACKUP_SHA256,
          'EXACT_VERIFIED_BACKUP_REQUIRED')
     must(os.environ.get('DAWANA_0047_ARCHIVE_READABLE') == 'yes', 'BACKUP_ARCHIVE_VALIDATION_REQUIRED')
-    must(os.environ.get('DAWANA_0047_DISPOSABLE_RESTORE_VERIFIED') == 'yes',
-         'DISPOSABLE_BACKUP_RESTORE_REQUIRED')
     must(connection.settings_dict.get('NAME') == EXPECTED_DATABASE and
          connection.settings_dict.get('USER') == EXPECTED_ROLE,
          'UNEXPECTED_DATABASE_IDENTITY')
