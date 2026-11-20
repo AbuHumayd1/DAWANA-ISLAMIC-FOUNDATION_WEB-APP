@@ -340,6 +340,57 @@ class StudioCatalogueTests(TestCase):
             self.assertTrue(DICAdminAuditEvent.objects.filter(
                 action='studio_media_draft_deleted', target_id=str(photo_id)).exists())
 
+    def test_owner_can_remove_withdrawn_unplaced_draft_preserving_audit(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            photo = self.photo('Temporary withdrawn test')
+            key = str(photo.pk)
+            url = reverse('dic:studio-draft-delete', args=['photos', photo.pk])
+            DICAdminAuditEvent.objects.create(
+                actor=self.operator, action='studio_media_publish',
+                target_type='CampPhotograph', target_id=key,
+                details={'library': 'photos'})
+            DICAdminAuditEvent.objects.create(
+                actor=self.operator, action='studio_media_withdraw',
+                target_type='CampPhotograph', target_id=key,
+                details={'library': 'photos'})
+            self.client.force_login(self.owner)
+            csrf = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
+            unconfirmed = self.client.delete(
+                url, data='{"confirm_historical_deletion": false}',
+                content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+            self.assertEqual(unconfirmed.status_code, 400)
+            self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
+            confirmed = self.client.delete(
+                url, data='{"confirm_historical_deletion": true}',
+                content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+            self.assertEqual(confirmed.status_code, 200, confirmed.content)
+            self.assertFalse(CampPhotograph.objects.filter(pk=photo.pk).exists())
+            self.assertTrue(DICAdminAuditEvent.objects.filter(
+                action='studio_media_publish', target_type='CampPhotograph', target_id=key).exists())
+            self.assertTrue(DICAdminAuditEvent.objects.filter(
+                action='studio_media_withdraw', target_type='CampPhotograph', target_id=key).exists())
+            self.assertTrue(DICAdminAuditEvent.objects.filter(
+                action='studio_media_draft_deleted', target_type='CampPhotograph',
+                target_id=key, details__previously_published=True).exists())
+
+    def test_owner_cannot_delete_historical_item_with_placement(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            photo = self.photo('Official retained asset')
+            asset_id = self.post('studio-assets', {
+                'source_kind': 'photos', 'source_id': photo.pk}).json()['asset']['id']
+            self.post('studio-placements', {
+                'destination': 'foundation_archive', 'action': 'draft'}, args=[asset_id])
+            self.client.force_login(self.owner)
+            csrf = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
+            denied = self.client.delete(
+                reverse('dic:studio-draft-delete', args=['photos', photo.pk]),
+                data='{"confirm_historical_deletion": true}',
+                content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+            self.assertEqual(denied.status_code, 400, denied.content)
+            self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
+
     def test_draft_deletion_refuses_placements_published_history_and_foreign_actors(self):
         with TemporaryDirectory() as root, override_settings(
             DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
