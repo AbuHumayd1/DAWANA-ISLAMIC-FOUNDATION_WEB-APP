@@ -28,7 +28,7 @@ def _chart(title, rows):
         for p in points]}
 
 
-def additional_sections(edition, actor):
+def additional_sections(edition, actor, *, for_download=False):
     """Aggregate existing persistent evidence, never infer work was completed."""
     sections = []
     if reports.storage(TimetableEntry):
