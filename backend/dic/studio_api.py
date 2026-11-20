@@ -215,7 +215,10 @@ class StudioLibraryView(StudioView):
                              'has_more': len(records) > 30,
                              'can_publish': bool(request.user.is_superuser or request.user.has_perm('dic.publish_' + codename)),
                              'can_edit': bool(request.user.is_superuser or request.user.has_perm('dic.change_' + codename)),
-                             'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename))})
+                             'can_create': bool(request.user.is_superuser or request.user.has_perm('dic.add_' + codename)),
+                             'can_delete': bool(kind in ('photos', 'videos', 'recordings', 'flyers',
+                                'promotions', 'activities', 'hosted') and request.user.is_staff and
+                                (request.user.is_superuser or request.user.has_perm('dic.delete_' + codename)))})
 
 
 class StudioPrivatePreviewView(StudioView):
