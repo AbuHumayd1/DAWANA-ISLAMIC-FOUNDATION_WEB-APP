@@ -186,7 +186,7 @@ export default function MediaStudio() {
     }
     return destinations.map(destination => ({destination, edition: needsEdition(destination) ? editionId : null}))
   }
-  async function publishCreated(kind, sourceId, existingAssetId, placements, category = 'general', eventName = '') {
+  async function publishCreated(kind, sourceId, existingAssetId, placements, category = 'general', eventName = '', fullCaption = '') {
     // The existing backend rechecks all permissions and validation at each step.
     // Do not retry successful operations or claim atomicity across HTTP requests.
     const stage = {sourceId, stage: 'draft saved', destinations: []}
@@ -196,9 +196,13 @@ export default function MediaStudio() {
       const assetId = existingAssetId || (await studioLinkAsset(kind, sourceId)).asset?.id
       if (!assetId) throw new Error('Could not link the published item to the Foundation catalogue.')
       stage.stage = 'linked to catalogue'
-      if (['hosted','videos','recordings'].includes(kind)) {
-        await studioAssetMetadata(assetId, categoryMetadata(category, eventName))
-        stage.stage = 'classified for public Media page'
+      const metadata = {
+        ...(['hosted','videos','recordings'].includes(kind) ? categoryMetadata(category, eventName) : {}),
+        ...(fullCaption ? {description: fullCaption} : {}),
+      }
+      if (Object.keys(metadata).length) {
+        await studioAssetMetadata(assetId, metadata)
+        stage.stage = 'saved public caption and collection metadata'
       }
       for (const placement of placements) {
         await studioPlacement(assetId, placement.destination, 'publish', placement.edition)
@@ -247,6 +251,9 @@ export default function MediaStudio() {
         : 'Each line needs its title, a vertical bar (|), then the video URL.'); return
     }
     let placements = []
+    if (publicationDescription && !user.can_manage_catalogue) {
+      setMessage('Long publication captions require Media Studio catalogue permission. Ask an administrator to enable that permission.'); return
+    }
     try {
       if (action === 'publish') {
         if (!canPublishImmediately) throw new Error('You do not have permission to publish this collection.')
@@ -295,6 +302,8 @@ export default function MediaStudio() {
     const form = event.currentTarget
     const formData = new FormData(form)
     const values = Object.fromEntries(formData)
+    const publicationDescription = String(values.publication_description || '').trim()
+    delete values.publication_description
     const photos = library === 'photos'
       ? formData.getAll('photograph').filter(file => file instanceof File && file.name && file.size) : []
     if (library === 'photos' && photos.length > 20) {
@@ -317,17 +326,21 @@ export default function MediaStudio() {
         setRevision(current => current + 1)
         if (action === 'publish') {
           try {
-            await publishCreated(library, created.id, null, placements, mediaCategory, mediaProgrammeName)
+            await publishCreated(library, created.id, null, placements, mediaCategory, mediaProgrammeName, publicationDescription)
             published++
           } catch (error) {
             setMessage(`${saved} draft(s) saved, ${published} published. ${failWithProgress(error, saved)}`)
             return
           }
-        } else if (user.can_manage_catalogue && ['videos','recordings'].includes(library)) {
+        } else if (user.can_manage_catalogue && (['videos','recordings'].includes(library) || publicationDescription)) {
           try {
             const {asset} = await studioLinkAsset(library, created.id)
             if (!asset?.id) throw new Error('Could not index the saved media.')
-            await studioAssetMetadata(asset.id, categoryMetadata(mediaCategory, mediaProgrammeName))
+            const metadata = {
+              ...(['videos','recordings'].includes(library) ? categoryMetadata(mediaCategory, mediaProgrammeName) : {}),
+              ...(publicationDescription ? {description: publicationDescription} : {}),
+            }
+            await studioAssetMetadata(asset.id, metadata)
           } catch (error) {
             setMessage(`${saved} draft(s) saved but classification failed: ${error.message}. Review saved items before retrying.`)
             return
@@ -571,7 +584,13 @@ export default function MediaStudio() {
         {composerOpen && canUploadFiles && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Add {displayName}</h3><p>Your files are kept private while saving. Publish Now is available only to authorized staff with a selected destination.</p></div>
           {library !== 'lecturers' && <label>Edition<select name="edition" required defaultValue=""><option value="">Select camp edition</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>}
           {library === 'promotions' && <><label>Promotion type<select required name="kind"><option value="introduction">Upcoming introduction</option><option value="experience">Previous participant experience</option></select></label><label>Previous source edition (for experience videos)<select name="source_edition" defaultValue=""><option value="">Not applicable</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}
-          {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}<input name={field.name} type={field.file ? 'file' : 'text'} multiple={library === 'photos' && field.name === 'photograph'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : 2000} /></label>)}
+          {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}{['description','biography'].includes(field.name)
+            ? <textarea name={field.name} rows={5} required={field.required} maxLength={5000} />
+            : <input name={field.name} type={field.file ? 'file' : 'text'} multiple={library === 'photos' && field.name === 'photograph'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : field.name === 'caption' ? 300 : field.name === 'alt_text' ? 250 : 2000} />}</label>)}
+          {['photos','videos','promotions','activities','flyers'].includes(library) && <label className="studio-long-caption">Full publication caption / story (optional)
+            <textarea name="publication_description" rows={7} maxLength={5000} placeholder="Write the complete message, announcement, context, or story. This will appear below the media, never over the image." />
+            <small>Up to 5,000 characters. The short title stays separate from the full caption. All selected photos in a batch receive this caption.</small>
+          </label>}
           {['videos','recordings'].includes(library) && <><MediaCategoryInput value={mediaCategory} onChange={setMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
             {['ramadan','other'].includes(mediaCategory) && <label>Programme / series (optional)<input value={mediaProgrammeName} onChange={e=>setMediaProgrammeName(e.target.value)} maxLength={150} placeholder="e.g. Ramadan Tafseer 2026, Youth Outreach, Podcast"/></label>}
             </>}
