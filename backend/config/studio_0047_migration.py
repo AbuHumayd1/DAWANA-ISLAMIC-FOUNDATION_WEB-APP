@@ -5,8 +5,11 @@ non-promoting Render build wrapper. The archive hash must be pinned by code
 review after a *fresh* production backup has been checked.
 """
 import contextlib
+import hashlib
+from pathlib import Path
 import logging
 import os
+import re
 import sys
 
 APPROVAL = 'APPROVE-DAWANA-MEDIA-0047'
@@ -15,6 +18,7 @@ APPROVED_FRESH_BACKUP_SHA256 = '58C489B4A7A3C699725B676B25B462ABC80B25C835B97F3E
 EXPECTED_DATABASE = 'dawana_db'
 EXPECTED_ROLE = 'dawana_db_user'
 EXPECTED_CLUSTER = '7705861322388955175'
+MIGRATION_BLOB_SHA = '06b71ca299eb9b1c9557916590e37589808f31c9'
 TARGET = ('dic', '0047_studio_publications')
 LOCK = (17428041, 47)
 
@@ -36,6 +40,8 @@ def apply_exact_0047():
     from config.integrated_schema_recovery import identity
     must(settings.SETTINGS_MODULE == 'config.settings.render', 'RENDER_SETTINGS_REQUIRED')
     must(os.environ.get('RENDER') == 'true', 'RENDER_REQUIRED')
+    must(re.fullmatch(r'[0-9a-f]{40}', os.environ.get('RENDER_GIT_COMMIT', '')),
+         'DEPLOY_COMMIT_REQUIRED')
     must(os.environ.get('DAWANA_0047_APPROVAL') == APPROVAL, 'EXPLICIT_APPROVAL_REQUIRED')
     must(len(APPROVED_FRESH_BACKUP_SHA256) == 64 and
          all(x in '0123456789abcdefABCDEF' for x in APPROVED_FRESH_BACKUP_SHA256),
@@ -44,7 +50,8 @@ def apply_exact_0047():
          'EXACT_VERIFIED_BACKUP_REQUIRED')
     must(os.environ.get('DAWANA_0047_ARCHIVE_READABLE') == 'yes', 'BACKUP_ARCHIVE_VALIDATION_REQUIRED')
     must(connection.settings_dict.get('NAME') == EXPECTED_DATABASE and
-         connection.settings_dict.get('USER') == EXPECTED_ROLE,
+         connection.settings_dict.get('USER') == EXPECTED_ROLE and
+         str(connection.settings_dict.get('PORT') or '5432') == '5432',
          'UNEXPECTED_DATABASE_IDENTITY')
     expected = {
         'database': EXPECTED_DATABASE, 'role': EXPECTED_ROLE, 'cluster_id': EXPECTED_CLUSTER,
@@ -71,6 +78,11 @@ def apply_exact_0047():
         must(len(plan) == 1 and (plan[0][0].app_label, plan[0][0].name) == TARGET
              and plan[0][1] is False, 'UNREVIEWED_PENDING_MIGRATION')
         migration = plan[0][0]
+        from importlib import import_module
+        module = import_module(migration.__class__.__module__)
+        source = Path(module.__file__).read_bytes()
+        blob_sha = hashlib.sha1(b'blob ' + str(len(source)).encode() + b'\x00' + source).hexdigest()
+        must(blob_sha == MIGRATION_BLOB_SHA, 'MIGRATION_0047_SOURCE_MISMATCH')
         must(migration.atomic and len(migration.operations) == 2
              and all(type(op) is CreateModel for op in migration.operations),
              'MIGRATION_0047_OPERATIONS_CHANGED')
@@ -81,6 +93,20 @@ def apply_exact_0047():
                            "to_regclass('public.dic_studiopublication') IS NULL")
             must(cursor.fetchone() == (True, True), 'PARTIAL_OR_EXISTING_0047_SCHEMA')
         executor.migrate([TARGET], plan=plan)
+        # Mirror the verified 0046 pathway: migration run bypasses post_migrate,
+        # so explicitly add only permissions for these new publication models.
+        from django.apps import apps
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+        for model_name in ('StudioCollection', 'StudioPublication'):
+            model = apps.get_model('dic', model_name)
+            content_type, _ = ContentType.objects.get_or_create(
+                app_label='dic', model=model._meta.model_name)
+            for action in model._meta.default_permissions:
+                Permission.objects.get_or_create(
+                    content_type=content_type,
+                    codename=f'{action}_{model._meta.model_name}',
+                    defaults={'name': f'Can {action} {model._meta.verbose_name}'})
         refreshed = MigrationExecutor(connection)
         must(TARGET in refreshed.loader.applied_migrations
              and not refreshed.migration_plan(refreshed.loader.graph.leaf_nodes()),
@@ -89,6 +115,11 @@ def apply_exact_0047():
             cursor.execute("SELECT to_regclass('public.dic_studiocollection') IS NOT NULL,"
                            "to_regclass('public.dic_studiopublication') IS NOT NULL")
             must(cursor.fetchone() == (True, True), 'MIGRATION_0047_TABLES_MISSING')
+            cursor.execute("SELECT count(*) FROM auth_permission p "
+                           "JOIN django_content_type c ON p.content_type_id=c.id "
+                           "WHERE c.app_label='dic' AND c.model IN "
+                           "('studiocollection','studiopublication') AND p.codename LIKE '%%_' || c.model")
+            must(cursor.fetchone()[0] >= 8, 'MIGRATION_0047_PERMISSIONS_MISSING')
     return '0047_TRANSACTION_COMMITTED'
 
 
