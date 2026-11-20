@@ -72,6 +72,8 @@ def publication_data(row, public=False):
             'title': row.title, 'description': row.description,
             'body': row.body, 'season': row.season, 'episode': row.episode,
             'event_at': row.event_at.isoformat() if row.event_at else None,
+            'event_end_at': row.event_end_at.isoformat() if row.event_end_at else None,
+            'event_venue': row.event_venue, 'event_status': row.event_status,
             'live_state': row.live_state,
             'published_at': row.published_at.isoformat() if row.published_at else None,
             'video_url': row.video_url if row.video_url else '',
@@ -146,7 +148,8 @@ class EditorialCollectionDetailView(StudioView):
 
 EDITORIAL_FIELDS = frozenset({
     'kind', 'title', 'description', 'body', 'video_url', 'meeting_url', 'event_at',
-    'live_state', 'collection_id', 'season', 'episode'})
+    'live_state', 'collection_id', 'season', 'episode',
+    'event_end_at', 'event_venue', 'event_status'})
 
 
 def apply_fields(publication, data):
@@ -166,9 +169,9 @@ def apply_fields(publication, data):
             if not str(value).isascii() or not str(value).isdigit() or not 1 <= int(value) <= 999:
                 raise ValidationError({field: 'Choose a number between 1 and 999.'})
             setattr(publication, field, int(value))
-        elif field == 'event_at':
+        elif field in ('event_at', 'event_end_at'):
             if value in ('', None):
-                publication.event_at = None
+                setattr(publication, field, None)
             else:
                 if not isinstance(value, str):
                     raise ValidationError({field: 'Use an ISO date and time.'})
@@ -178,7 +181,7 @@ def apply_fields(publication, data):
                         raise ValueError
                 except ValueError:
                     raise ValidationError({field: 'Use a timezone-aware ISO date and time.'}) from None
-                publication.event_at = event_at
+                setattr(publication, field, event_at)
         else:
             if not isinstance(value, str):
                 raise ValidationError({field: 'Enter valid text.'})
@@ -322,6 +325,36 @@ class PublicEditorialView(APIView):
                            'page': page, 'has_more': len(items) > 24})
         result['Cache-Control'] = 'public, max-age=0, must-revalidate'
         return result
+
+
+
+class PublicAnnualItineraryView(APIView):
+    """Explicitly published event rows only; no staff-only metadata or draft leaks."""
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    def get(self, request):
+        raw = request.query_params.get('year', str(timezone.localdate().year))
+        if not isinstance(raw, str) or not len(raw) == 4 or not raw.isascii() or not raw.isdigit():
+            raise ValidationError({'year': 'Choose a four-digit year.'})
+        year = int(raw)
+        if not 2000 <= year <= 2100:
+            raise ValidationError({'year': 'Choose a supported year.'})
+        from datetime import datetime as dt
+        from zoneinfo import ZoneInfo
+        local = ZoneInfo('Africa/Lagos')
+        start = dt(year, 1, 1, tzinfo=local)
+        end = dt(year + 1, 1, 1, tzinfo=local)
+        events = StudioPublication.objects.filter(
+            kind='event', state='published', published_at__isnull=False,
+            event_at__gte=start, event_at__lt=end,
+        ).filter(models.Q(collection__isnull=True) | models.Q(collection__is_public=True))
+        entries = events.order_by('event_at', 'pk')[:501]
+        response = Response({'year': year,
+                             'items': [publication_data(x, public=True) for x in entries[:500]],
+                             'has_more': len(entries) > 500})
+        response['Cache-Control'] = 'public, max-age=0, must-revalidate'
+        return response
 
 
 class PublicEditorialDocumentView(APIView):
