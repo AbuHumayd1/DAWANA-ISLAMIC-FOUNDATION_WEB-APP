@@ -359,6 +359,21 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
                 blocked=client.get(url,{'item_id':self.item.pk})
                 self.assertEqual(blocked.status_code,403)
 
+    def test_2026_certificate_verified_artwork_configuration_is_safe_by_default(self):
+        from dic.management.commands.configure_dic2026_certificate import (
+            ARTWORK_NAME, ARTWORK_SHA256, RELEASE_LAGOS,
+            PAGE_WIDTH, PAGE_HEIGHT, NAME_BOX, REFERENCE_BOX, AUTHORITIES,
+        )
+        from zoneinfo import ZoneInfo
+        self.assertEqual(ARTWORK_NAME, 'DIC_2026_certificate_approved_artwork.jpg')
+        self.assertEqual(len(ARTWORK_SHA256), 64)
+        self.assertEqual(RELEASE_LAGOS, datetime(2026, 12, 31, 21, 0, tzinfo=ZoneInfo('Africa/Lagos')))
+        self.assertEqual((PAGE_WIDTH, PAGE_HEIGHT), (842, 651))
+        self.assertLessEqual(NAME_BOX[0] + NAME_BOX[2], PAGE_WIDTH)
+        self.assertLessEqual(REFERENCE_BOX[1] + REFERENCE_BOX[3], PAGE_HEIGHT)
+        self.assertEqual(AUTHORITIES[0][0], 'Shaykh AbdulHakeem Yuusuf Olomoda')
+        self.assertEqual(AUTHORITIES[1][0], 'Brother Abdullah Salman Akinola')
+
     def test_certificate_artwork_missing_blocks_release_and_long_names_fit_legibly(self):
         from .certificates import approved_artwork,fitted_lines
         config=CertificateRelease.objects.create(edition=self.edition)
