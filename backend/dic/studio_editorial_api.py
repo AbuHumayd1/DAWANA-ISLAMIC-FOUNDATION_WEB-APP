@@ -214,6 +214,27 @@ class EditorialItemsView(StudioView):
 class EditorialItemDetailView(StudioView):
     parser_classes = (JSONParser, FormParser, MultiPartParser)
 
+    def delete(self, request, item_id):
+        require_editor(request.user)
+        with transaction.atomic():
+            item = get_object_or_404(
+                StudioPublication.objects.select_for_update(), pk=item_id)
+            if item.state != 'draft' or item.published_at or item.notified_at:
+                raise ValidationError({'detail': 'Only original unpublished drafts can be deleted. Withdrawn publications remain in the audit history.'})
+            if DICAdminAuditEvent.objects.filter(
+                target_type='StudioPublication', target_id=str(item.pk),
+                action__in=('studio_publication_publish', 'studio_publication_withdraw',
+                            'studio_publication_notification_sent')).exists():
+                raise ValidationError({'detail': 'Previously published content cannot be deleted.'})
+            title = item.title
+            item.delete()
+            DICAdminAuditEvent.objects.create(
+                actor=request.user, action='studio_publication_draft_deleted',
+                target_type='StudioPublication', target_id=str(item_id),
+                details={'title': title[:200], 'retained_storage_files': True})
+        return self.nocache({'deleted': True, 'id': item_id})
+
+
     def patch(self, request, item_id):
         require_editor(request.user)
         with transaction.atomic():
