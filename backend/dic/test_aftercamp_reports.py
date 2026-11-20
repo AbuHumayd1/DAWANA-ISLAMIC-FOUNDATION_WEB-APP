@@ -86,6 +86,17 @@ class AfterCampReportingTests(SimpleTestCase):
         self.assertIn('Camp performance report', html)
         self.assertNotIn('<table', html)
 
+    def test_extra_sections_accept_screen_and_export_modes_without_500(self):
+        from dic import aftercamp_evidence
+        actor = SimpleNamespace(has_perm=lambda permission: False)
+        with patch.object(aftercamp_evidence.reports, 'storage', return_value=False):
+            for download in (False, True):
+                sections = aftercamp_evidence.additional_sections(
+                    self.edition, actor, for_download=download)
+                self.assertTrue(isinstance(sections, list))
+                self.assertTrue(any(section['domain'] == 'programme'
+                                    for section in sections))
+
     def test_finance_kobo_converts_to_naira_and_missing_is_not_zero(self):
         self.assertEqual(reports.display(100050, 'NGN kobo'), '₦1,000.50')
         self.assertEqual(reports.display(None), 'Unavailable')
