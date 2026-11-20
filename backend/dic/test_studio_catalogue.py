@@ -79,6 +79,29 @@ class StudioCatalogueTests(TestCase):
             photo.save(actor=self.operator)
             self.assertEqual(len(self.client.get(public_url, {'destination': 'foundation_archive'}).json()['items']), 0)
 
+    def test_homepage_media_is_server_capped_at_three_without_losing_archive(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            for n in range(5):
+                photo = self.photo('Synthetic homepage item ' + str(n))
+                photo.state = 'published'
+                photo.save(actor=self.operator)
+                asset_id = self.post('studio-assets', {
+                    'source_kind': 'photos', 'source_id': photo.pk}).json()['asset']['id']
+                for destination in ('foundation_archive', 'foundation_home'):
+                    response = self.post('studio-placements', {
+                        'destination': destination, 'action': 'publish'}, args=[asset_id])
+                    self.assertEqual(response.status_code, 200, response.content)
+            endpoint = reverse('dic:studio-public-placements')
+            home = self.client.get(endpoint, {'destination': 'foundation_home'})
+            self.assertEqual(home.status_code, 200)
+            self.assertEqual(len(home.json()['items']), 3)
+            self.assertFalse(home.json()['has_more'])
+            self.assertEqual(self.client.get(endpoint, {
+                'destination': 'foundation_home', 'page': 2}).json()['items'], [])
+            archive = self.client.get(endpoint, {'destination': 'foundation_archive'})
+            self.assertEqual(len(archive.json()['items']), 5)
+
     def test_public_archive_page_is_bounded_and_private_destination_is_not_enumerable(self):
         url = reverse('dic:studio-public-placements')
         first = self.client.get(url, {'destination': 'foundation_archive', 'page': 1})
