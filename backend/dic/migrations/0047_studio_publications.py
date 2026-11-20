@@ -57,6 +57,7 @@ class Migration(migrations.Migration):
                     ('draft', 'Draft'), ('published', 'Published'), ('withdrawn', 'Withdrawn')],
                     default='draft', max_length=12)),
                 ('published_at', models.DateTimeField(blank=True, null=True)),
+                ('notified_at', models.DateTimeField(blank=True, null=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('collection', models.ForeignKey(blank=True, null=True,
                     on_delete=django.db.models.deletion.PROTECT,
