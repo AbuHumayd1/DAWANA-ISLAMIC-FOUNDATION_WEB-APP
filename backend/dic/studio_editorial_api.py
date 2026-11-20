@@ -17,6 +17,8 @@ from .models import DICAdminAuditEvent
 from .studio_api import StudioView
 from .studio_publication_models import StudioCollection, StudioPublication
 from .video_providers import video_source
+from .studio_notifications import notify_publication, config_ready
+import os
 
 
 def can_edit(user):
@@ -77,6 +79,7 @@ def publication_data(row, public=False):
             'has_document': bool(row.document)}
     if not public:
         data['state'] = row.state
+        data['notification_sent'] = bool(row.notified_at)
     if row.video_url:
         try:
             data['embed_url'] = video_source(row.video_url)['embed_url']
@@ -224,8 +227,12 @@ class EditorialItemDetailView(StudioView):
     def post(self, request, item_id):
         require_publisher(request.user)
         action = request.data.get('action', '')
-        if action not in ('publish', 'withdraw'):
-            raise ValidationError('Choose publish or withdraw.')
+        if action not in ('publish', 'withdraw', 'notify'):
+            raise ValidationError('Choose publish, withdraw or notify subscribers.')
+        if action == 'notify':
+            item = get_object_or_404(StudioPublication, pk=item_id, state='published')
+            outcome = notify_publication(item.pk)
+            return self.nocache({'item': publication_data(item), 'notification': outcome})
         with transaction.atomic():
             item = get_object_or_404(StudioPublication.objects.select_for_update(),
                                      pk=item_id)
@@ -234,14 +241,17 @@ class EditorialItemDetailView(StudioView):
                     raise ValidationError('Already published. No duplicate publication.')
                 item.state = 'published'
                 item.published_at = timezone.now()
+                item.notified_at = None
             else:
                 item.state = 'withdrawn'
                 item.published_at = None
+                item.notified_at = None
             model_validate(item)
             item.save()
             audit(request.user, 'studio_publication_' + action,
                   'StudioPublication', item.pk)
-        return self.nocache({'item': publication_data(item)})
+        notification = notify_publication(item.pk) if action == 'publish' else 'not_sent'
+        return self.nocache({'item': publication_data(item), 'notification': notification})
 
 
 class PublicEditorialView(APIView):
@@ -294,3 +304,15 @@ class PublicEditorialDocumentView(APIView):
         response = FileResponse(item.document.open('rb'), content_type='application/pdf',
                                 as_attachment=True, filename='dawana-publication.pdf')
         return media_headers(response, public=True)
+
+
+class PublicNotificationConfigView(APIView):
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    def get(self, request):
+        ready = config_ready()
+        response = Response({'enabled': ready,
+                             'app_id': os.environ.get('DAWANA_ONESIGNAL_APP_ID') if ready else None})
+        response['Cache-Control'] = 'no-store'
+        return response
