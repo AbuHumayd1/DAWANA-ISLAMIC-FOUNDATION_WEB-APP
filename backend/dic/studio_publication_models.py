@@ -44,6 +44,12 @@ class StudioCollection(models.Model):
     class Meta:
         ordering = ('display_order', 'title')
 
+    def clean(self):
+        super().clean()
+        if self.slug in {'videos', 'audio', 'dic', 'ramadan', 'shorts',
+                         'other', 'podcasts', 'live', 'publications', 'events'}:
+            raise ValidationError({'slug': 'This address belongs to a built-in media category.'})
+
     def __str__(self):
         return self.title
 
@@ -89,6 +95,8 @@ class StudioPublication(models.Model):
             raise ValidationError({'body': 'An article needs written content.'})
         if self.state == 'published' and self.kind == 'document' and not self.document:
             raise ValidationError({'document': 'Upload a PDF document.'})
+        if self.state == 'published' and self.kind == 'podcast' and not self.collection_id:
+            raise ValidationError({'collection': 'Choose a podcast show before publishing an episode.'})
         if self.kind == 'podcast' and self.collection_id and self.collection.kind != 'podcast':
             raise ValidationError({'collection': 'Podcast episodes belong to a podcast show.'})
         if self.video_url:
