@@ -92,13 +92,18 @@ Read-only production preflight on 20 November 2026 confirmed:
   cluster identifier `7705861322388955175`; SSL connected.
 - `dic.0046_aftercamp_assessments` recorded, `dic.0047_studio_publications`
   not recorded, and neither new Studio table exists.
-- Backup has **not** been taken as part of PR74 at this stage.
+- Fresh archive taken by owner on **20 November 2026, 14:35:40 WAT**:
+  `dawana_db-PR74-0047-20261120-143540.dump` (442291 bytes),
+  SHA-256 `58C489B4A7A3C699725B676B25B462ABC80B25C835B97F3ECC817219AB0BF4B3`.
+  `pg_restore` archive readability was verified; **a disposable restore was NOT performed**.
+  This archive has not been uploaded into the repository and contains private production data.
 - The database provider's free-plan expiry metadata reads 8 December 2026:
   the owner must review upgrade/continuity before camp.
 
-The new `backend/config/studio_0047_migration.py` rejects all use until
-`APPROVED_FRESH_BACKUP_SHA256` is replaced in a reviewed code commit by the
-checksum of a fresh, readable, owner-controlled backup. Do **not** use the old
+The new `backend/config/studio_0047_migration.py` now pins the owner-reported
+fresh backup digest. It still requires an actual verified disposable restoration
+(`DAWANA_0047_DISPOSABLE_RESTORE_VERIFIED=yes`), explicit owner approval, and
+matching environment evidence. A readable archive is not proof of recoverability. Do **not** use the old
 17 November archive to approve 0047. The wrapper
 `backend/media-0047-migration-apply-build.sh` intentionally fails the Render
 candidate build after a successful DDL transaction to avoid promoting a
