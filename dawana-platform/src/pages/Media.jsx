@@ -54,6 +54,9 @@ function MediaEntry({item}) {
     </div>
   </article>
 }
+function trustedMeetLink(value) {
+  try {const url = new URL(value);return url.protocol === 'https:' && url.hostname === 'meet.google.com' && !url.username && !url.password && !url.port && !url.hash} catch {return false}
+}
 function EditorialMediaEntry({item}) {
   const embed = safeEmbed(item.embed_url)
   const isLive = item.kind === 'live'
@@ -67,7 +70,7 @@ function EditorialMediaEntry({item}) {
       {item.kind === 'article' && item.body && <div className="media-article-body">{item.body}</div>}
       {embed && <div className="media-collection-screen"><iframe title={item.title} loading="lazy" src={embed} allow="encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/></div>}
       {item.kind==='document' && item.document_url && <a href={backendUrl(item.document_url)}>Download PDF</a>}
-      {item.meeting_url && /^https:\\/\\/meet\\.google\\.com\\//.test(item.meeting_url) && <a href={item.meeting_url} target="_blank" rel="noopener noreferrer">Join Google Meet</a>}
+      {trustedMeetLink(item.meeting_url) && <a href={item.meeting_url} target="_blank" rel="noopener noreferrer">Join Google Meet</a>}
       {embed && <a href={item.video_url} target="_blank" rel="noopener noreferrer">Open on video platform</a>}
     </div>
   </article>
@@ -81,7 +84,7 @@ export default function Media() {
   const selected = publicCollections.some(row => row.id === params.get('collection')) ? params.get('collection') : 'videos'
   useEffect(() => {
     const controller = new AbortController()
-    const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\\/$/, '')
+    const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
     fetch(base + '/dic/studio/public-editorial/?page=' + editorialPage, {credentials: 'omit',cache: 'no-store',signal:controller.signal})
       .then(response => {if (!response.ok) throw new Error('New publications temporarily unavailable'); return response.json()})
       .then(data => setEditorial(previous => ({collections: data.collections || [], items: editorialPage === 1 ? data.items || [] : [...previous.items,...(data.items || [])], hasMore: Boolean(data.has_more), status:'ready'})))
