@@ -374,6 +374,18 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertEqual(AUTHORITIES[0][0], 'Shaykh AbdulHakeem Yuusuf Olomoda')
         self.assertEqual(AUTHORITIES[1][0], 'Brother Abdullah Salman Akinola')
 
+    def test_approved_certificate_name_box_keeps_long_two_line_names_below_heading(self):
+        from dic.certificates import fitted_lines
+        from dic.management.commands.configure_dic2026_certificate import NAME_BOX
+        self.assertEqual(NAME_BOX, [151, 281, 540, 54])
+        name = ('SHEIKH MUHAMMAD ABDULRAHMAN ABDULLAH '
+                'AL-MUSTAFA IBRAHIM AHMAD')
+        size, lines = fitted_lines(name, 'Helvetica', NAME_BOX[2], NAME_BOX[3])
+        self.assertEqual(len(lines), 2)
+        self.assertLessEqual(size, 19)
+        self.assertGreaterEqual(size, 16)
+        self.assertLessEqual(len(lines)*size*1.25, NAME_BOX[3])
+
     def test_certificate_artwork_missing_blocks_release_and_long_names_fit_legibly(self):
         from .certificates import approved_artwork,fitted_lines
         config=CertificateRelease.objects.create(edition=self.edition)
