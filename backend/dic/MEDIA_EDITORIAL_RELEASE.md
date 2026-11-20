@@ -101,10 +101,13 @@ Read-only production preflight on 20 November 2026 confirmed:
   the owner must review upgrade/continuity before camp.
 
 The new `backend/config/studio_0047_migration.py` now pins the owner-reported
-fresh backup digest. It still requires an actual verified disposable restoration
-(`DAWANA_0047_DISPOSABLE_RESTORE_VERIFIED=yes`), explicit owner approval, and
-matching environment evidence. A readable archive is not proof of recoverability. Do **not** use the old
-17 November archive to approve 0047. The wrapper
+fresh backup digest. The release now follows the established successful 0046 protocol: a fresh
+readable archive with a pinned matching SHA-256, explicit owner approval, exact
+database identity, reviewed migration plan, transaction lock, non-promoting
+build, and read-only postflight. A disposable restore is recommended recovery
+assurance but is not a mandatory extra local database workflow. Do **not** use the old
+17 November archive to approve 0047. The normal `backend/native-build.sh` invokes the one-time wrapper only with the exact
+`DAWANA_0047_APPROVAL` value. The wrapper
 `backend/media-0047-migration-apply-build.sh` intentionally fails the Render
 candidate build after a successful DDL transaction to avoid promoting a
 schema-incompatible runtime. Only after migration verification, clear one-time
