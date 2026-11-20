@@ -179,7 +179,11 @@ class OperationsLifecycleTests(LifecycleFixture, TestCase):
         accommodation_data=accommodation(self.edition,filters({},'accommodation'),self.actor)
         self.assertEqual(accommodation_data['rows'][0]['value'],1)
         finance_data=finance(self.edition,filters({},'finance'),self.actor)
-        self.assertEqual({row['registration_lifecycle'] for row in finance_data['rows']},{'active','archived','deleted'})
+        # Ordinary financial reports now include verified payment activity only.
+        # Archived unpaid bookings remain available in operational Payments,
+        # but are not financial outcomes in a camp performance report.
+        self.assertEqual({row['registration_lifecycle'] for row in finance_data['rows']}, {'active','deleted'})
+        self.assertEqual(len(finance_data['rows']), 2)
         self.assertEqual(DigitalIDIssue.objects.count(),2)
         self.assertTrue(HouseAllocation.objects.filter(pk=self.allocation.pk).exists())
 
