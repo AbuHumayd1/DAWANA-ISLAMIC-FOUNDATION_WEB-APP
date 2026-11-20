@@ -233,26 +233,34 @@ def finance(edition, selected, actor):
     rows=[dict(label=row['order'],date=row['date'],status=row['status'],recorded_payment_status=row['payment_status'], registration_lifecycle=row['registration_lifecycle'],
         value=row['verified_kobo'],attempt_id=row['id'],reference=row['reference'],gross_kobo=row['gross_verified_kobo'],recorded_adjustment_kobo=row['adjustment_kobo'],
         exception=row['exception'],excluded_reason=row['excluded_reason']) for row in data] if details else []
-    # Match the model property: accepted revision total, otherwise item snapshots.
-    item_totals=RegistrationOrderItem.objects.filter(order_id=OuterRef('pk')).order_by().values('order_id').annotate(
-        amount=Sum('fee_snapshot_ngn')).values('amount')[:1]
-    expected=period(orders,'created_at',selected).annotate(expected_amount=Coalesce(
-        'current_price_revision__total_amount_ngn', Subquery(item_totals), Value(Decimal(0)),
-        output_field=DecimalField(max_digits=16,decimal_places=2))).aggregate(total=Sum('expected_amount'))['total']
-    recorded_adjustments=Reconciliation.objects.filter(edition=edition,attempt__order_id__in=orders.values('pk'),outcome__in=('refund','reversal'))
-    recorded_adjustments=period(recorded_adjustments,'created_at',selected).aggregate(total=Sum('provider_amount_kobo'))['total'] or 0
-    return dict(available=True,metrics=[metric('Expected booking value',int((expected or Decimal(0))*100),unit='NGN kobo'),
-        metric('Gross verified collections',totals['gross'],unit='NGN kobo'),metric('Applied recorded adjustments',totals['refunds'],unit='NGN kobo'),
-        metric('Recorded adjustment events in period',recorded_adjustments,unit='NGN kobo'),metric('Net verified collections',totals['net'],unit='NGN kobo'),
-        metric('Verified charges',totals['successful']),metric('Pending attempts',totals['pending']),metric('Failed attempts',totals['failed']),
-        metric('Exceptional attempts',totals['exceptions']),metric('Gross / accepted-price discrepancy',unattributed,unit='NGN kobo')],
-        series={'Net verified collections by payment day (kobo)':[dict(label=k,value=v) for k,v in sorted(trend.items())],
-            'Gross collections by accepted price category (kobo)':[dict(label=k,value=v) for k,v in sorted(categories.items())]},rows=rows,
-        notes=['Historical financial totals include Active, Archived and Deleted registrations. Deletion is not a refund or reversal.',
-            'Not settled bank revenue. Trusted Finance evidence, duplicate-charge exclusion and documented adjustments are reused unchanged.',
-            'Expected value uses booking creation dates and matching booking cohort; collections use provider completion dates and matching attempt status/search. Adjustments applied to charges include documented later adjustments; adjustment events use their recorded dates.',
-            'Category filtering selects whole bookings. Category gross uses actual accepted revision lines, including siblings; refunds are not allocated to children without supporting records.',
-            'Reconciliation documents, provider IDs, credentials and personal contacts are never returned by this endpoint.'])
+    # Operational reports present verified outcomes only, not potential booking
+    # value or checkout attempts. Diagnostics remain in Payments/reconciliation.
+    verified_rows = [row for row in data if row['gross_verified_kobo'] or row['adjustment_kobo']]
+    trend=Counter()
+    for row in verified_rows:
+        trend[row['date']]+=row['verified_kobo']
+    details=actor.has_perm('dic_finance.can_view_details_finance')
+    rows=[dict(label=row['order'],date=row['date'],status='verified transaction',
+        value=row['verified_kobo'],attempt_id=row['id'],reference=row['reference'],
+        gross_kobo=row['gross_verified_kobo'],
+        recorded_adjustment_kobo=row['adjustment_kobo'])
+        for row in verified_rows] if details else []
+    return dict(available=True,metrics=[
+        metric('Gross verified collections',totals['gross'],unit='NGN kobo'),
+        metric('Applied recorded adjustments',totals['refunds'],unit='NGN kobo'),
+        metric('Net verified collections',totals['net'],unit='NGN kobo'),
+        metric('Verified charges',totals['successful'])],
+        series={'Net verified collections by payment day (kobo)':
+                    [dict(label=k,value=v) for k,v in sorted(trend.items())],
+                'Gross collections by accepted price category (kobo)':
+                    [dict(label=k,value=v) for k,v in sorted(categories.items())]},
+        rows=rows,
+        notes=[
+            'These totals reflect verified payment evidence, not expected booking values or attempted payments.',
+            'Financial history includes verified transactions from any registration lifecycle state. Deleting a registration is not a refund or reversal.',
+            'Payment verification is not independent proof of bank settlement.',
+            'Category breakdowns use accepted price revision lines; refunds are not attributed to individual children without evidence.',
+            'Sensitive payment-provider identifiers and credentials are not included in the report.'])
 
 
 def accommodation(edition, selected, actor):
