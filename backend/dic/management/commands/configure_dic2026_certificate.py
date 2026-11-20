@@ -19,7 +19,7 @@ RELEASE_LAGOS = datetime(2026, 12, 31, 21, 0, tzinfo=ZoneInfo('Africa/Lagos'))
 # 842x651 points, matching the 3264x2522 designer artwork.
 PAGE_WIDTH = 842
 PAGE_HEIGHT = 651
-NAME_BOX = [151, 290, 540, 54]
+NAME_BOX = [151, 281, 540, 54]
 REFERENCE_BOX = [230, 15, 382, 25]
 AUTHORITIES = (
     ('Shaykh AbdulHakeem Yuusuf Olomoda', 'Ameer, Da’wana Islamic Foundation'),
