@@ -421,10 +421,10 @@ export default function MediaStudio() {
   }
   async function deleteDraft(item) {
     if (item.state !== 'draft' || !canDelete) return
-    if (!window.confirm(`Delete draft “${item.title}” from Media Studio? This cannot be undone. Published and previously distributed media cannot be deleted.`)) return
+    if (!window.confirm(`Delete draft “${item.title}” from Media Studio? This cannot be undone. If this item was published and later withdrawn, only a system administrator can remove it, and its publication history will be retained. Media linked to a publishing destination cannot be deleted.`)) return
     setPending(item.id); setMessage('')
     try {
-      await studioDeleteDraft(library, item.id)
+      await studioDeleteDraft(library, item.id, Boolean(user?.owner))
       setRows(previous => previous.filter(row => row.id !== item.id))
       if (editing === item.id) setEditing(null)
       if (itemToPublish === item.id) setItemToPublish(null)
