@@ -77,7 +77,9 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
       </div>}
-      <div className="published-studio-content"><span>{item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}
+      <div className="published-studio-content"><span>{item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && (item.description.length > 340
+        ? <details className="published-studio-long-caption"><summary>Read full caption</summary><p>{item.description}</p></details>
+        : <p className="published-studio-caption">{item.description}</p>)}
       {(item.source_kind === 'hosted' || item.source_kind !== 'videos' || approvedVideoLink(item.embed_url)) ?
         <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</div>
