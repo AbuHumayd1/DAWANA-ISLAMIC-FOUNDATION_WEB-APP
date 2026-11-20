@@ -302,8 +302,11 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50]
         config.save()
         client,_=self.login();url=reverse('dic:camper-resources')
+        from .models import ParticipantPortalGrant
+        ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
         self.assertFalse(confirmed_camp_arrival(self.item))
-        before=client.get(url,{'item_id':self.item.pk})
+        with patch('dic.camp_release_api.release_for', return_value=config):
+            before=client.get(url,{'item_id':self.item.pk})
         self.assertEqual(before.status_code,200)
         self.assertEqual(before.json()['certificate']['state'],'awaiting_check_in')
         self.assertFalse(before.json()['certificate']['available'])
@@ -329,6 +332,8 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         CampCheckIn.objects.create(
             edition=self.edition, participant=self.item.participant, checked_in_by=self.owner)
         client,_=self.login();url=reverse('dic:camper-certificate')
+        from .models import ParticipantPortalGrant
+        ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
         # Only synthetic artwork in a disposable test; never a production template.
         with tempfile.TemporaryDirectory() as folder:
             art=Path(folder)/'synthetic-test-only.png'
