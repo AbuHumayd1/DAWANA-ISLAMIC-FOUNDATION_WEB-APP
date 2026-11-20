@@ -56,6 +56,8 @@ from .printing_api import PrintingDirectoryView, PrintingExportView, PrintingCon
 from .campsite_api import CampsiteOverviewView
 from .reporting_api import ReportingView
 from .aftercamp_reporting_api import AfterCampReportView
+from .studio_editorial_api import (EditorialCollectionsView, EditorialCollectionDetailView,
+    EditorialItemsView, EditorialItemDetailView, PublicEditorialView, PublicEditorialDocumentView)
 from .checkin_api import CampCheckInView
 from .scoring_api import HouseScoringView, HouseScoreReversalView
 from .activity_scoring_api import ActivityScoringView, CamperScoringView
@@ -68,6 +70,12 @@ from .participant_api import (
 )
 
 urlpatterns = [
+    path('studio/editorial/collections/', EditorialCollectionsView.as_view(), name='studio-editorial-collections'),
+    path('studio/editorial/collections/<int:collection_id>/', EditorialCollectionDetailView.as_view(), name='studio-editorial-collection-detail'),
+    path('studio/editorial/items/', EditorialItemsView.as_view(), name='studio-editorial-items'),
+    path('studio/editorial/items/<int:item_id>/', EditorialItemDetailView.as_view(), name='studio-editorial-item-detail'),
+    path('studio/public-editorial/', PublicEditorialView.as_view(), name='studio-public-editorial'),
+    path('studio/public-editorial/<int:item_id>/document/', PublicEditorialDocumentView.as_view(), name='studio-public-editorial-document'),
     path('participant/resources/',CamperResourcesView.as_view(),name='camper-resources'),
     path('participant/recordings/<str:kind>/<int:pk>/',CamperRecordingView.as_view(),name='camper-recording'),
     path('participant/certificate/',CamperCertificateView.as_view(),name='camper-certificate'),
