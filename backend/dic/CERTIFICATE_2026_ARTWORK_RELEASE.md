@@ -26,9 +26,9 @@ Exact dimensions: 3264 × 2522 pixels.
 ## Reviewed positions
 
 - Page size: 842 × 651 PDF points (the original artwork ratio).
-- Participant name: [151, 290, 540, 54] (PDF points; bottom-left origin).
+- Participant name: [151, 281, 540, 54] (PDF points; bottom-left origin).
 - Unique certificate reference: [230, 15, 382, 25].
-- Name and reference placements are testable without opening public access.
+- Name and reference placements are testable without opening public access.\nThe original name box clipped/overlapped the printed heading when a long name wrapped.\nProduction placement is adjusted to [151, 281, 540, 54] and two-line names are\nlimited to 19 pt so both lines clear the artwork's header and underline.
 
 ## Deployment sequence
 
