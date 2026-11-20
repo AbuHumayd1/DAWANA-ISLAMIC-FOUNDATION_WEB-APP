@@ -63,20 +63,18 @@ class CamperResourcesView(PortalView):
                 if value:records.append(value)
         from .certificates import confirmed_camp_arrival, release_for
         eligible=confirmed_camp_arrival(item)
-        available=False
-        if eligible:
-            try:
-                release_for(item.order.edition)
-                available=True
-            except (ModelError, PermissionDenied):
-                pass
+        released=False
+        try:
+            release_for(item.order.edition)
+            released=True
+        except (ModelError, PermissionDenied):
+            pass
         certificate=ParticipationCertificate.objects.filter(edition=item.order.edition,participant=item.participant).first()
-        if certificate and certificate.revoked_at:
-            available=False
-        state=('released' if available else
-               'awaiting_check_in' if not eligible else
-               'revoked' if certificate and certificate.revoked_at else
-               'not_released')
+        revoked=bool(certificate and certificate.revoked_at)
+        available=bool(released and eligible and not revoked)
+        state=('revoked' if revoked else
+               'not_released' if not released else
+               'awaiting_check_in' if not eligible else 'released')
         return Response(dict(recordings=records,certificate=dict(
             available=available, state=state,
             url=reverse('dic:camper-certificate')+'?item_id='+str(item.pk) if available else None)))
