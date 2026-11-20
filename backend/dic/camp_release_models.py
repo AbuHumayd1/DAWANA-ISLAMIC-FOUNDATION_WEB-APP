@@ -55,8 +55,16 @@ class CertificateRelease(models.Model):
             raise ValidationError('Use a relative approved artwork path.')
         if path.suffix.lower() not in ('.png','.jpg','.jpeg'):
             raise ValidationError('Use the approved PNG or JPEG designer export.')
-        if self.release_at and timezone.localtime(self.release_at).date() < self.edition.camp_end_date:
-            raise ValidationError('Certificates may not be released before the final camp day.')
+        if self.release_at:
+            from datetime import datetime, date, time
+            from zoneinfo import ZoneInfo
+            lagos=ZoneInfo('Africa/Lagos')
+            local_release=timezone.localtime(self.release_at, lagos)
+            if self.edition.year == 2026 and self.edition.camp_start_date == date(2026,12,23):
+                if local_release != datetime(2026,12,31,21,0,tzinfo=lagos):
+                    raise ValidationError('DIC 2026 certificate release is approved for 31 December 2026 at 9:00 PM Africa/Lagos.')
+            elif local_release.date() < self.edition.camp_end_date:
+                raise ValidationError('Certificates may not be released before the final camp day.')
         for box in (self.name_box,self.reference_box):
             if box and (not isinstance(box,list) or len(box)!=4 or any(type(v) not in (int,float) for v in box)
                 or box[0]<0 or box[1]<0 or box[2]<=0 or box[3]<=0 or box[0]+box[2]>self.page_width or box[1]+box[3]>self.page_height):
