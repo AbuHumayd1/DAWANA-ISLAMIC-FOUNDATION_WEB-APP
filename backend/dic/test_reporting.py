@@ -99,6 +99,41 @@ class ReportingPolicyTests(SimpleTestCase):
         self.assertEqual((result['gross'],result['refunds'],result['net'],result['successful']),(10000,2500,7500,1))
         self.assertEqual((result['pending'],result['failed'],result['exceptions']),(1,1,1))
 
+    def test_finance_report_and_exports_exclude_unpaid_attempts_and_booking_value(self):
+        from decimal import Decimal
+        edition = NS(pk=1)
+        selected = self.selected('finance')
+        recorded = [
+            dict(order='BOOK-PAID', date='2026-11-12', gross_verified_kobo=400000,
+                 adjustment_kobo=0, verified_kobo=400000, exception='', status='successful',
+                 payment_status='paid',registration_lifecycle='active', id=1, reference='VERIFIED-1'),
+            dict(order='BOOK-PENDING', date='2026-11-13', gross_verified_kobo=0,
+                 adjustment_kobo=0, verified_kobo=0, exception='', status='pending',
+                 payment_status='pending',registration_lifecycle='active', id=2, reference='ATTEMPT-2'),
+        ]
+        with patch.object(reports, 'storage', return_value=True), patch.object(
+            reports.RegistrationOrder.objects, 'filter') as orders, patch(
+            'dic.reporting_services.PaymentAttempt.objects.filter') as attempts, patch(
+            'dic.models.RegistrationOrderPriceItem.objects.filter') as prices, patch(
+            'dic_finance.services.registration_rows', return_value=recorded):
+            orders.return_value.values.return_value = []
+            attempts.return_value.count.return_value = 2
+            prices.return_value.values.return_value.annotate.return_value = [
+                {'category_name_snapshot':'Pre-Primary','total':Decimal('4000.00')}]
+            result = reports.finance(edition, selected, self.actor(
+                'dic.can_view_dic_finance','dic_finance.can_view_details_finance'))
+        amounts = {m['label']:m['value'] for m in result['metrics']}
+        self.assertEqual(amounts['Gross verified collections'], 400000)
+        self.assertEqual(amounts['Net verified collections'], 400000)
+        self.assertEqual(amounts['Verified charges'], 1)
+        for irrelevant in ('Expected booking value','Pending attempts','Failed attempts',
+                           'Exceptional attempts','Gross / accepted-price discrepancy'):
+            self.assertNotIn(irrelevant, amounts)
+        self.assertEqual(len(result['rows']), 1)
+        self.assertEqual(result['rows'][0]['reference'], 'VERIFIED-1')
+        self.assertEqual(result['series']['Net verified collections by payment day (kobo)'],
+                         [{'label':'2026-11-12','value':400000}])
+
     def test_missing_schemas_do_not_become_zero_statistics(self):
         with patch('dic.reporting_services.storage',return_value=False):
             for function in (reports.finance,reports.accommodation,reports.attendance):

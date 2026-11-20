@@ -97,6 +97,32 @@ class AfterCampReportingTests(SimpleTestCase):
                 self.assertTrue(any(section['domain'] == 'programme'
                                     for section in sections))
 
+    def test_comprehensive_report_excludes_attempts_and_hypothetical_booking_value(self):
+        finance = {'available': True, 'metrics': [
+            {'label': 'Expected booking value', 'value': 13000000, 'unit': 'NGN kobo'},
+            {'label': 'Gross verified collections', 'value': 400000, 'unit': 'NGN kobo'},
+            {'label': 'Applied recorded adjustments', 'value': 0, 'unit': 'NGN kobo'},
+            {'label': 'Net verified collections', 'value': 400000, 'unit': 'NGN kobo'},
+            {'label': 'Pending attempts', 'value': 4, 'unit': 'count'},
+            {'label': 'Failed attempts', 'value': 0, 'unit': 'count'},
+            {'label': 'Exceptional attempts', 'value': 5, 'unit': 'count'},
+        ], 'series': {}, 'notes': [], 'rows': []}
+        actor = SimpleNamespace(has_perm=lambda permission: True)
+        with patch.object(reports.reports, 'require_report'), patch.object(
+            reports.reports, 'report', return_value=finance), patch(
+            'dic.aftercamp_evidence.additional_sections', return_value=[]), patch(
+            'dic.aftercamp_evidence.approved_assessments', return_value=[]):
+            for download in (False, True):
+                result = reports.build(self.edition, actor, for_download=download)
+                section = next(s for s in result['sections'] if s['domain'] == 'finance')
+                labels = {m['label'] for m in section['metrics']}
+                self.assertIn('Gross verified collections', labels)
+                self.assertIn('Net verified collections', labels)
+                self.assertNotIn('Expected booking value', labels)
+                self.assertNotIn('Pending attempts', labels)
+                self.assertNotIn('Failed attempts', labels)
+                self.assertNotIn('Exceptional attempts', labels)
+
     def test_finance_kobo_converts_to_naira_and_missing_is_not_zero(self):
         self.assertEqual(reports.display(100050, 'NGN kobo'), '₦1,000.50')
         self.assertEqual(reports.display(None), 'Unavailable')
