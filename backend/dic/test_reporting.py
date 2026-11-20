@@ -106,15 +106,15 @@ class ReportingPolicyTests(SimpleTestCase):
         recorded = [
             dict(order='BOOK-PAID', date='2026-11-12', gross_verified_kobo=400000,
                  adjustment_kobo=0, verified_kobo=400000, exception='', status='successful',
-                 payment_status='paid', id=1, reference='VERIFIED-1'),
+                 payment_status='paid',registration_lifecycle='active', id=1, reference='VERIFIED-1'),
             dict(order='BOOK-PENDING', date='2026-11-13', gross_verified_kobo=0,
                  adjustment_kobo=0, verified_kobo=0, exception='', status='pending',
-                 payment_status='pending', id=2, reference='ATTEMPT-2'),
+                 payment_status='pending',registration_lifecycle='active', id=2, reference='ATTEMPT-2'),
         ]
         with patch.object(reports, 'storage', return_value=True), patch.object(
             reports.RegistrationOrder.objects, 'filter') as orders, patch(
             'dic.reporting_services.PaymentAttempt.objects.filter') as attempts, patch(
-            'dic.reporting_services.RegistrationOrderPriceItem.objects.filter') as prices, patch(
+            'dic.models.RegistrationOrderPriceItem.objects.filter') as prices, patch(
             'dic_finance.services.registration_rows', return_value=recorded):
             orders.return_value.values.return_value = []
             attempts.return_value.count.return_value = 2
