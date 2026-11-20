@@ -99,6 +99,9 @@ def fitted_lines(text,font,width,height):
             if stringWidth(next_line,font,size)>width: lines.append(word)
             else: lines[-1]=next_line
         else:
+            # The designer's name area has room for two lines only if
+            # the type is reduced enough to clear the printed header and rule.
+            if len(lines)>1 and size>19: continue
             if len(lines)*size*1.25<=height: return size,lines
     raise ValidationError('The approved name box cannot fit this name legibly; enlarge its placement before release.')
 
