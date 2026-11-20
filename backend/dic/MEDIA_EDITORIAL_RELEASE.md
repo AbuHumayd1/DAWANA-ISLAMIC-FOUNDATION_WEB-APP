@@ -85,6 +85,32 @@ collection navigation, actual PDF download, YouTube embedding and Meet
 joining, and then perform OneSignal end-to-end delivery tests *after*
 the provider account is configured.
 
+## PR74 one-time 0047 guard — prepared, NOT approved
+
+Read-only production preflight on 20 November 2026 confirmed:
+- Production PostgreSQL 18.6, database `dawana_db`, role `dawana_db_user`,
+  cluster identifier `7705861322388955175`; SSL connected.
+- `dic.0046_aftercamp_assessments` recorded, `dic.0047_studio_publications`
+  not recorded, and neither new Studio table exists.
+- Backup has **not** been taken as part of PR74 at this stage.
+- The database provider's free-plan expiry metadata reads 8 December 2026:
+  the owner must review upgrade/continuity before camp.
+
+The new `backend/config/studio_0047_migration.py` rejects all use until
+`APPROVED_FRESH_BACKUP_SHA256` is replaced in a reviewed code commit by the
+checksum of a fresh, readable, owner-controlled backup. Do **not** use the old
+17 November archive to approve 0047. The wrapper
+`backend/media-0047-migration-apply-build.sh` intentionally fails the Render
+candidate build after a successful DDL transaction to avoid promoting a
+schema-incompatible runtime. Only after migration verification, clear one-time
+approval variables and allow the normal build.
+
+Before execution, check the final migration source/operation list, current
+database identity, backup digest, available recovery route and release commit.
+Never apply 0047 merely by deploying the feature branch, running regular
+`manage.py migrate`, or setting a guessed approval flag. No migration is
+authorized by the presence of these guard files alone.
+
 ## Explicit limitations
 
 - Google Meet participants open Google Meet; only a separate supported
