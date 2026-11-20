@@ -66,6 +66,11 @@ export async function studioUpload(library, fields) {
   return readApiResponse(response)
 }
 
+export const studioDeleteDraft = (library, id) =>
+  studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/draft/`, {
+    method: 'DELETE',
+  })
+
 export const studioEdit = (library, id, metadata) => studioRequest(`/library/${encodeURIComponent(library)}/${encodeURIComponent(id)}/metadata/`, { method: 'PATCH', body: metadata })
 
 export const studioAssets = (page = 1, { kind = '', q = '', album = '' } = {}) => {
@@ -118,3 +123,6 @@ export const studioPublishEditorialItem = (id, action) =>
   studioRequest('/editorial/items/' + encodeURIComponent(id) + '/', {
     method: 'POST', body: { action },
   })
+
+export const studioDeleteEditorialDraft = id =>
+  studioRequest('/editorial/items/' + encodeURIComponent(id) + '/', { method: 'DELETE' })
