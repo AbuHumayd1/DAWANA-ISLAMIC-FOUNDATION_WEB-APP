@@ -305,7 +305,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         from .models import ParticipantPortalGrant
         ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
         self.assertFalse(confirmed_camp_arrival(self.item))
-        with patch('dic.camp_release_api.release_for', return_value=config):
+        with patch('dic.certificates.release_for', return_value=config):
             before=client.get(url,{'item_id':self.item.pk})
         self.assertEqual(before.status_code,200)
         self.assertEqual(before.json()['certificate']['state'],'awaiting_check_in')
