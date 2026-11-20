@@ -55,6 +55,9 @@ def presentation_sections(data):
             'title': title,
             'points': [{'label': point.get('label', ''),
                         'value': point.get('value'),
+                        'display': ('Unavailable' if point.get('value') is None else
+                            ('₦{:,.2f}'.format(Decimal(point['value']) / 100)
+                             if '(kobo)' in title else '{:,}'.format(point['value']))),
                         'width': round(abs(float(point.get('value') or 0)) * 100 / scale, 1)}
                        for point in points],
         })
