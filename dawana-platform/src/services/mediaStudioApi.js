@@ -87,3 +87,34 @@ export const studioPlacement = (id, destination, action, edition = null) =>
   })
 
 export const studioHostedLinks = (items) => studioRequest('/hosted-links/', { method: 'POST', body: { items } })
+
+export const studioEditorialCollections = () => studioRequest('/editorial/collections/')
+export const studioCreateCollection = fields =>
+  studioRequest('/editorial/collections/', { method: 'POST', body: fields })
+export const studioUpdateCollection = (id, fields) =>
+  studioRequest('/editorial/collections/' + encodeURIComponent(id) + '/', {
+    method: 'PATCH', body: fields,
+  })
+export const studioEditorialItems = () => studioRequest('/editorial/items/')
+export const studioCreateEditorialItem = async (fields, documentFile) => {
+  if (!documentFile) return studioRequest('/editorial/items/', { method: 'POST', body: fields })
+  if (!csrf) await token()
+  const data = new FormData()
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== null && value !== undefined) data.append(key, value)
+  }
+  data.append('document', documentFile)
+  const response = await fetch(base + '/editorial/items/', {
+    method: 'POST', credentials: 'include', cache: 'no-store',
+    headers: { 'X-CSRFToken': csrf }, body: data,
+  })
+  return readApiResponse(response)
+}
+export const studioUpdateEditorialItem = (id, fields) =>
+  studioRequest('/editorial/items/' + encodeURIComponent(id) + '/', {
+    method: 'PATCH', body: fields,
+  })
+export const studioPublishEditorialItem = (id, action) =>
+  studioRequest('/editorial/items/' + encodeURIComponent(id) + '/', {
+    method: 'POST', body: { action },
+  })
