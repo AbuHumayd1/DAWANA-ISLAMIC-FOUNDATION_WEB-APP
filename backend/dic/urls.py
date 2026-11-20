@@ -57,7 +57,7 @@ from .campsite_api import CampsiteOverviewView
 from .reporting_api import ReportingView
 from .aftercamp_reporting_api import AfterCampReportView
 from .studio_editorial_api import (EditorialCollectionsView, EditorialCollectionDetailView,
-    EditorialItemsView, EditorialItemDetailView, PublicEditorialView, PublicEditorialDocumentView)
+    EditorialItemsView, EditorialItemDetailView, PublicEditorialView, PublicEditorialDocumentView, PublicNotificationConfigView)
 from .checkin_api import CampCheckInView
 from .scoring_api import HouseScoringView, HouseScoreReversalView
 from .activity_scoring_api import ActivityScoringView, CamperScoringView
@@ -75,6 +75,7 @@ urlpatterns = [
     path('studio/editorial/items/', EditorialItemsView.as_view(), name='studio-editorial-items'),
     path('studio/editorial/items/<int:item_id>/', EditorialItemDetailView.as_view(), name='studio-editorial-item-detail'),
     path('studio/public-editorial/', PublicEditorialView.as_view(), name='studio-public-editorial'),
+    path('studio/public-notifications/', PublicNotificationConfigView.as_view(), name='studio-public-notifications'),
     path('studio/public-editorial/<int:item_id>/document/', PublicEditorialDocumentView.as_view(), name='studio-public-editorial-document'),
     path('participant/resources/',CamperResourcesView.as_view(),name='camper-resources'),
     path('participant/recordings/<str:kind>/<int:pk>/',CamperRecordingView.as_view(),name='camper-recording'),
