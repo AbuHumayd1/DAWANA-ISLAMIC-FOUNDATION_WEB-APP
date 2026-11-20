@@ -1,7 +1,8 @@
 from django.core.management.base import BaseCommand,CommandError
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from dic.models import CampEdition,House,TimetableEntry,CertificateRelease
+from dic.models import CampEdition,House,TimetableEntry,CertificateRelease,ParticipationCertificate,CampCheckIn
+from dic.certificates import certificate_readiness
 class Command(BaseCommand):
     help='Read-only integrated release preflight; no storage activation or publication.'
     def add_arguments(self,p):p.add_argument('--edition',type=int,required=True)
@@ -11,5 +12,12 @@ class Command(BaseCommand):
         self.stdout.write('Houses: '+str(House.objects.filter(edition=edition).count()))
         self.stdout.write('Published timetable entries: '+str(TimetableEntry.objects.filter(edition=edition,status='published').count()))
         config=CertificateRelease.objects.filter(edition=edition).first()
-        self.stdout.write('Certificates: '+('enabled with explicit release time' if config and config.enabled and config.release_at else 'blocked until artwork, placement and exact release time approved'))
+        issues=certificate_readiness(config)
+        self.stdout.write('Certificate configuration: '+('READY' if not issues else 'BLOCKED'))
+        for issue in issues:
+            self.stdout.write(' - '+issue)
+        self.stdout.write('Physical camp check-ins: '+str(
+            CampCheckIn.objects.filter(edition=edition).count()))
+        self.stdout.write('Certificates already issued: '+str(
+            ParticipationCertificate.objects.filter(edition=edition).count()))
         self.stdout.write('Read-only check complete. Live R2 access and approved media rendering require separate owner-controlled verification.')

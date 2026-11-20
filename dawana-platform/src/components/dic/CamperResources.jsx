@@ -11,6 +11,12 @@ export default function CamperResources({ item, certificateOnly = false }) {
   if(!data)return <p role="status">Loading camp resources…</p>
   return <section className="cp-card"><h2>{certificateOnly?'Participation certificate':'Lecture Recordings'}</h2>
     {!certificateOnly&&<>{!data.recordings.length&&<p>Published recordings will appear here.</p>}{data.recordings.map(row=><article className="cp-recording" key={`${row.kind}-${row.id}`}><h3>{row.title}</h3><p>{row.lecturer}</p>{row.session&&<small>{row.session}</small>}<p>{row.description}</p><audio crossOrigin="use-credentials" controls preload="none" src={resolveMediaUrl(row.url)} aria-label={'Play ' + row.title}/><a href={resolveMediaUrl(row.url+'&download=1')}>Download audio</a></article>)}</>}
-    {certificateOnly&&(data.certificate.available?<a className="button" href={resolveMediaUrl(data.certificate.url)}>Download my certificate (PDF)</a>:<p>Your certificate will be available after the approved release.</p>)}
+    {certificateOnly&&(data.certificate.available
+      ? <a className="button" href={resolveMediaUrl(data.certificate.url)}>Download my certificate (PDF)</a>
+      : <p role="status">{data.certificate.state==='awaiting_check_in'
+          ? 'A confirmed camp check-in is required before your participation certificate can be issued.'
+          : data.certificate.state==='revoked'
+            ? 'This certificate is unavailable. Please contact authorized camp officials.'
+            : 'Your certificate will be available after the approved release.'}</p>)}
   </section>
 }

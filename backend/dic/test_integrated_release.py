@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from . import test_participant_portal as portal
-from .models import TimetableEntry,House,CertificateRelease,ParticipationCertificate,LectureRecording,DICAdminAuditEvent
+from .models import TimetableEntry,House,CertificateRelease,ParticipationCertificate,LectureRecording,DICAdminAuditEvent,CampCheckIn
 from .management.commands.initialize_dic2026_release import initialize,SOURCE
 from .timetable_services import publish_days
 
@@ -248,13 +248,43 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertEqual(client.get(url,{'item_id':self.item.pk}).status_code,404)
         self.assertEqual(Client().get(url,{'item_id':self.item.pk}).status_code,403)
 
+    def test_2026_certificate_release_requires_exact_final_night_time(self):
+        from zoneinfo import ZoneInfo
+        from .certificates import release_for
+        from rest_framework.exceptions import PermissionDenied
+        config=CertificateRelease.objects.create(edition=self.edition)
+        config.artwork_sha256='a'*64
+        config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50]
+        with self.assertRaises(ValidationError):
+            config.release_at=datetime(2026,12,31,19,59,tzinfo=utc.utc)
+            config.save()
+        with self.assertRaises(ValidationError):
+            config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc)
+            config.save()
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc)
+        config.enabled=True
+        config.save()
+        with patch('dic.certificates.approved_artwork',return_value='synthetic-reviewed-artwork'),patch(
+                'dic.certificates.timezone.now',return_value=datetime(2026,12,31,19,59,59,tzinfo=utc.utc)):
+            with self.assertRaises(PermissionDenied):
+                release_for(self.edition)
+        with patch('dic.certificates.approved_artwork',return_value='synthetic-reviewed-artwork'),patch(
+                'dic.certificates.timezone.now',return_value=datetime(2026,12,31,20,tzinfo=utc.utc)):
+            self.assertEqual(release_for(self.edition).pk,config.pk)
+
     def test_certificate_release_no_early_access_stable_reference_and_names(self):
         from .certificates import issue,release_for
         config=CertificateRelease.objects.create(edition=self.edition)
         client,_=self.login();url=reverse('dic:camper-certificate')
         self.assertEqual(client.get(url,{'item_id':self.item.pk}).status_code,403)
-        config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc);config.enabled=True;config.artwork_sha256='a'*64;config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50];config.save()
-        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc);config.enabled=True;config.artwork_sha256='a'*64;config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50];config.save()
+        from rest_framework.exceptions import PermissionDenied
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
+            with self.assertRaises(PermissionDenied):issue(self.item)
+        self.assertEqual(ParticipationCertificate.objects.count(),0)
+        CampCheckIn.objects.create(edition=self.edition,participant=self.item.participant,checked_in_by=self.owner)
+
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
             first=issue(self.item);second=issue(self.item)
             self.assertEqual(first.reference,second.reference)
             self.assertEqual(first.participant_name,self.item.participant.full_name)
@@ -262,6 +292,99 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             from rest_framework.exceptions import PermissionDenied
             with self.assertRaises(PermissionDenied):issue(self.item)
         self.assertEqual(ParticipationCertificate.objects.count(),1)
+
+
+    def test_certificate_resources_require_confirmed_physical_check_in(self):
+        from .certificates import confirmed_camp_arrival
+        config=CertificateRelease.objects.create(edition=self.edition)
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc)
+        config.enabled=True;config.artwork_sha256='a'*64
+        config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50]
+        config.save()
+        client,_=self.login();url=reverse('dic:camper-resources')
+        from .models import ParticipantPortalGrant
+        ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
+        self.assertFalse(confirmed_camp_arrival(self.item))
+        with patch('dic.certificates.release_for', return_value=config):
+            before=client.get(url,{'item_id':self.item.pk})
+        self.assertEqual(before.status_code,200)
+        self.assertEqual(before.json()['certificate']['state'],'awaiting_check_in')
+        self.assertFalse(before.json()['certificate']['available'])
+        self.assertIsNone(before.json()['certificate']['url'])
+        self.assertEqual(ParticipationCertificate.objects.count(),0)
+        CampCheckIn.objects.create(edition=self.edition,participant=self.item.participant,checked_in_by=self.owner)
+        self.assertTrue(confirmed_camp_arrival(self.item))
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
+            available=client.get(url,{'item_id':self.item.pk})
+        self.assertTrue(available.json()['certificate']['available'])
+        self.assertEqual(available.json()['certificate']['state'],'released')
+        self.assertEqual(ParticipationCertificate.objects.count(),0)
+
+
+    def test_certificate_download_pdf_uses_authoritative_name_and_stable_reference(self):
+        from PIL import Image
+        import fitz
+        config=CertificateRelease.objects.create(edition=self.edition)
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc);config.enabled=True
+        config.artwork_sha256='a'*64
+        config.name_box=[75,170,690,110];config.reference_box=[115,45,600,55]
+        config.save()
+        CampCheckIn.objects.create(
+            edition=self.edition, participant=self.item.participant, checked_in_by=self.owner)
+        client,_=self.login();url=reverse('dic:camper-certificate')
+        from .models import ParticipantPortalGrant
+        ParticipantPortalGrant.objects.update(expires_at=datetime(2027,1,2,tzinfo=utc.utc))
+        # Only synthetic artwork in a disposable test; never a production template.
+        with tempfile.TemporaryDirectory() as folder:
+            art=Path(folder)/'synthetic-test-only.png'
+            Image.new('RGB',(1684,1190),'white').save(art)
+            with patch('dic.certificates.approved_artwork',return_value=str(art)),patch(
+                'dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
+                response=client.get(url, {'item_id':self.item.pk})
+                self.assertEqual(response.status_code,200,response.content[:200])
+                self.assertEqual(response['Content-Type'],'application/pdf')
+                self.assertIn('attachment',response['Content-Disposition'])
+                document=fitz.open(stream=response.content,filetype='pdf')
+                self.assertEqual(document.page_count,1)
+                actual=document[0].get_text()
+                self.assertIn(self.item.participant.full_name, actual)
+                certificate=ParticipationCertificate.objects.get(
+                    edition=self.edition,participant=self.item.participant)
+                self.assertIn(str(certificate.reference),actual)
+                second=client.get(url,{'item_id':self.item.pk})
+                self.assertEqual(second.status_code,200)
+                self.assertEqual(ParticipationCertificate.objects.count(),1)
+                certificate.revoked_at=datetime.now(utc.utc)
+                certificate.save(update_fields=['revoked_at'])
+                blocked=client.get(url,{'item_id':self.item.pk})
+                self.assertEqual(blocked.status_code,403)
+
+    def test_2026_certificate_verified_artwork_configuration_is_safe_by_default(self):
+        from dic.management.commands.configure_dic2026_certificate import (
+            ARTWORK_NAME, ARTWORK_SHA256, RELEASE_LAGOS,
+            PAGE_WIDTH, PAGE_HEIGHT, NAME_BOX, REFERENCE_BOX, AUTHORITIES,
+        )
+        from zoneinfo import ZoneInfo
+        self.assertEqual(ARTWORK_NAME, 'DIC_2026_certificate_approved_artwork.jpg')
+        self.assertEqual(len(ARTWORK_SHA256), 64)
+        self.assertEqual(RELEASE_LAGOS, datetime(2026, 12, 31, 21, 0, tzinfo=ZoneInfo('Africa/Lagos')))
+        self.assertEqual((PAGE_WIDTH, PAGE_HEIGHT), (842, 651))
+        self.assertLessEqual(NAME_BOX[0] + NAME_BOX[2], PAGE_WIDTH)
+        self.assertLessEqual(REFERENCE_BOX[1] + REFERENCE_BOX[3], PAGE_HEIGHT)
+        self.assertEqual(AUTHORITIES[0][0], 'Shaykh AbdulHakeem Yuusuf Olomoda')
+        self.assertEqual(AUTHORITIES[1][0], 'Brother Abdullah Salman Akinola')
+
+    def test_approved_certificate_name_box_keeps_long_two_line_names_below_heading(self):
+        from dic.certificates import fitted_lines
+        from dic.management.commands.configure_dic2026_certificate import NAME_BOX
+        self.assertEqual(NAME_BOX, [151, 281, 540, 54])
+        name = ('SHEIKH MUHAMMAD ABDULRAHMAN ABDULLAH '
+                'AL-MUSTAFA IBRAHIM AHMAD')
+        size, lines = fitted_lines(name, 'Helvetica', NAME_BOX[2], NAME_BOX[3])
+        self.assertEqual(len(lines), 2)
+        self.assertLessEqual(size, 19)
+        self.assertGreaterEqual(size, 16)
+        self.assertLessEqual(len(lines)*size*1.25, NAME_BOX[3])
 
     def test_certificate_artwork_missing_blocks_release_and_long_names_fit_legibly(self):
         from .certificates import approved_artwork,fitted_lines

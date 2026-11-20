@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError as ModelError
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 from .participant_api import PortalView
 from .feedback_services import portal_item
 from .models import LectureRecording,CampVideo,CertificateRelease,ParticipationCertificate
@@ -61,16 +61,23 @@ class CamperResourcesView(PortalView):
             for row in query[:100]:
                 value=data(row,kind)
                 if value:records.append(value)
-        config=CertificateRelease.objects.filter(edition=item.order.edition).first()
-        available=False
-        if config and config.enabled and config.release_at and timezone.now()>=config.release_at:
-            from .certificates import approved_artwork
-            try:approved_artwork(config);available=True
-            except ModelError:pass
+        from .certificates import confirmed_camp_arrival, release_for
+        eligible=confirmed_camp_arrival(item)
+        released=False
+        try:
+            release_for(item.order.edition)
+            released=True
+        except (ModelError, PermissionDenied):
+            pass
         certificate=ParticipationCertificate.objects.filter(edition=item.order.edition,participant=item.participant).first()
-        if certificate and certificate.revoked_at:available=False
-        return Response(dict(recordings=records,certificate=dict(available=available,
-            state='released' if available else 'not_released',url=reverse('dic:camper-certificate')+'?item_id='+str(item.pk) if available else None)))
+        revoked=bool(certificate and certificate.revoked_at)
+        available=bool(released and eligible and not revoked)
+        state=('revoked' if revoked else
+               'not_released' if not released else
+               'awaiting_check_in' if not eligible else 'released')
+        return Response(dict(recordings=records,certificate=dict(
+            available=available, state=state,
+            url=reverse('dic:camper-certificate')+'?item_id='+str(item.pk) if available else None)))
 
 
 class CamperRecordingView(PortalView):
