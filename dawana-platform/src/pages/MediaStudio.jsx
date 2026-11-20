@@ -251,9 +251,6 @@ export default function MediaStudio() {
         : 'Each line needs its title, a vertical bar (|), then the video URL.'); return
     }
     let placements = []
-    if (publicationDescription && !user.can_manage_catalogue) {
-      setMessage('Long publication captions require Media Studio catalogue permission. Ask an administrator to enable that permission.'); return
-    }
     try {
       if (action === 'publish') {
         if (!canPublishImmediately) throw new Error('You do not have permission to publish this collection.')
@@ -310,6 +307,9 @@ export default function MediaStudio() {
       setMessage('Select up to 20 photographs per batch.'); return
     }
     let placements = []
+    if (publicationDescription && !user.can_manage_catalogue) {
+      setMessage('Long publication captions require Media Studio catalogue permission. Ask an administrator to enable that permission.'); return
+    }
     try {
       if (action === 'publish') {
         if (!canPublishImmediately) throw new Error('You do not have permission to publish this collection.')
