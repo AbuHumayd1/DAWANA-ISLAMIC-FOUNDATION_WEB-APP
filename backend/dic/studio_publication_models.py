@@ -80,13 +80,13 @@ class StudioPublication(models.Model):
 
     def clean(self):
         super().clean()
-        if self.kind in ('video', 'podcast') and not self.video_url:
+        if self.state == 'published' and self.kind in ('video', 'podcast') and not self.video_url:
             raise ValidationError({'video_url': 'Add a YouTube or Vimeo link.'})
-        if self.kind == 'live' and not (self.video_url or self.meeting_url):
+        if self.state == 'published' and self.kind == 'live' and not (self.video_url or self.meeting_url):
             raise ValidationError('Add a YouTube stream or Google Meet link.')
-        if self.kind == 'article' and not self.body.strip():
+        if self.state == 'published' and self.kind == 'article' and not self.body.strip():
             raise ValidationError({'body': 'An article needs written content.'})
-        if self.kind == 'document' and not self.document:
+        if self.state == 'published' and self.kind == 'document' and not self.document:
             raise ValidationError({'document': 'Upload a PDF document.'})
         if self.kind == 'podcast' and self.collection_id and self.collection.kind != 'podcast':
             raise ValidationError({'collection': 'Podcast episodes belong to a podcast show.'})
