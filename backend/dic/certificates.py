@@ -70,9 +70,9 @@ def issue(item):
     # Serialize issuance through the existing participant identity lock.
     from .models import Participant
     Participant.objects.select_for_update().get(pk=item.participant_id)
+    release_for(item.order.edition)
     if not confirmed_camp_arrival(item):
         raise PermissionDenied('A confirmed camp check-in is required for this certificate.')
-    release_for(item.order.edition)
     record,created=ParticipationCertificate.objects.get_or_create(edition=item.order.edition,
         participant=item.participant,defaults={'participant_name':item.participant.full_name})
     if record.revoked_at: raise PermissionDenied('This certificate has been revoked. Contact authorized staff.')
