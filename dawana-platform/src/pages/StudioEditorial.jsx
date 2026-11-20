@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   studioEditorialCollections, studioCreateCollection, studioUpdateCollection,
-  studioEditorialItems, studioCreateEditorialItem, studioPublishEditorialItem,
+  studioEditorialItems, studioCreateEditorialItem, studioUpdateEditorialItem, studioPublishEditorialItem,
 } from '../services/mediaStudioApi'
 import './StudioEditorial.css'
 
@@ -21,6 +21,7 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
   const [form, setForm] = useState(blank)
   const [newCollection, setNewCollection] = useState({ title: '', kind: 'programme', description: '' })
   const [file, setFile] = useState(null)
+  const [editingId, setEditingId] = useState(null)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -68,11 +69,12 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
       event_at: form.event_at ? new Date(form.event_at).toISOString() : null,
     }
     run(async () => {
-      await studioCreateEditorialItem(fields, file)
+      if (editingId) await studioUpdateEditorialItem(editingId, fields)
+      else await studioCreateEditorialItem(fields, file)
       setForm(blank)
       setFile(null)
-      event.target?.reset?.()
-    }, 'Draft saved. Review it below before publishing.')
+      setEditingId(null)
+    }, editingId ? 'Draft updated.' : 'Draft saved. Review it below before publishing.')
   }
   const update = (key, value) => setForm(old => ({...old, [key]: value}))
   if (!editor) return null
@@ -101,7 +103,7 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
         </article>)}
       </div>}
       <details className="studio-editorial-panel" open>
-        <summary>Create a publication</summary>
+        <summary>{editingId ? 'Edit draft publication' : 'Create a publication'}</summary>
         <form className="studio-editorial-form" onSubmit={addPublication}>
           <label>Content type<select value={form.kind} onChange={e=>update('kind',e.target.value)}>{KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
           <label>Publication title<input required value={form.title} maxLength={250} onChange={e=>update('title',e.target.value)}/></label>
@@ -113,7 +115,7 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
           {['live','event'].includes(form.kind) && <label>Scheduled time<input type="datetime-local" value={form.event_at} onChange={e=>update('event_at',e.target.value)}/></label>}
           {form.kind==='podcast' && <div className="studio-editorial-numbers"><label>Season<input type="number" min="1" max="999" value={form.season} onChange={e=>update('season',e.target.value)}/></label><label>Episode<input type="number" min="1" max="999" value={form.episode} onChange={e=>update('episode',e.target.value)}/></label></div>}
           {form.kind==='document' && <label>PDF file (max 15 MB)<input type="file" accept="application/pdf,.pdf" onChange={e=>setFile(e.target.files?.[0] || null)}/></label>}
-          <button disabled={busy}>Save private draft</button>
+          <button disabled={busy}>{editingId ? 'Save draft changes' : 'Save private draft'}</button>{editingId && <button type="button" disabled={busy} onClick={()=>{setEditingId(null);setForm(blank);setFile(null)}}>Cancel editing</button>}
         </form>
       </details>
       <section className="studio-editorial-panel">
@@ -121,7 +123,12 @@ export default function StudioEditorial({ user, onCollectionsChange }) {
         {!items.length ? <p>No editorial publications yet.</p> :
           <div className="studio-editorial-items">{items.map(item=><article key={item.id}>
             <div><strong>{item.title}</strong><small>{item.kind}{item.kind==='podcast'?' · Season '+item.season+' / Episode '+item.episode:''} · {item.state}</small></div>
-            {publisher && <button disabled={busy} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.state==='published'?'withdraw':'publish'), item.state==='published'?'Publication withdrawn.':'Publication published to the Media page.')}>{item.state==='published'?'Withdraw':'Publish'}</button>}
+            <div className="studio-editorial-actions">
+              {item.state !== 'published' && <button disabled={busy} type="button" onClick={()=>{setEditingId(item.id);setForm({...blank,...item,collection_id:item.collection_id || '',event_at:item.event_at ? new Date(item.event_at).toISOString().slice(0,16):''});setFile(null)}}>Edit draft</button>}
+              {publisher && <button disabled={busy} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.state==='published'?'withdraw':'publish'), item.state==='published'?'Publication withdrawn.':'Publication published to the Media page.')}>{item.state==='published'?'Withdraw':'Publish'}</button>}
+              {publisher && item.kind === 'live' && item.state === 'published' && <button disabled={busy || item.live_state === 'ended'} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,item.live_state==='live'?'end_live':'go_live'),'Live broadcast status updated.')}>{item.live_state==='live'?'End live':'Go live'}</button>}
+              {publisher && item.state === 'published' && !item.notification_sent && <button disabled={busy} type="button" onClick={()=>run(()=>studioPublishEditorialItem(item.id,'notify'),'Notification request checked. See provider configuration for delivery status.')}>Notify subscribers</button>}
+            </div>
           </article>)}</div>}
       </section>
     </>}
