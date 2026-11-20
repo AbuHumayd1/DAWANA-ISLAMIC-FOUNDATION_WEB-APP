@@ -74,3 +74,11 @@
 .editorial-media-entry .media-article-body{white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere;max-height:440px;overflow:auto}
 .editorial-media-entry a{font-weight:700;text-underline-offset:3px}
 .media-live-status{background:#dcefe5;color:#0f5036;border-radius:999px;padding:5px 11px;font-size:12px}
+
+.media-subscribe{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:24px 0 38px;padding:22px 26px;border:1px solid #cfddd0;border-radius:16px;background:rgba(255,255,255,.55)}
+.media-subscribe strong{font-size:20px;color:#14503b}
+.media-subscribe p{margin:7px 0;line-height:1.5}
+.media-subscribe small{font-size:12px;opacity:.72}
+.media-subscribe button{flex-shrink:0;border:0;border-radius:12px;background:#11513a;color:#fff;padding:13px 19px;font:inherit;font-weight:700;cursor:pointer}
+.media-subscribe button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:650px){.media-subscribe{flex-direction:column;align-items:stretch;padding:17px}.media-subscribe button{align-self:start}}
