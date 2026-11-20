@@ -11,6 +11,21 @@ from django.db import models
 from django.utils import timezone
 
 from .video_providers import video_source
+from .memory_storage import private_memory_storage
+
+
+def validate_public_pdf(value):
+    if value.size > 15 * 1024 * 1024 or value.size < 8:
+        raise ValidationError('PDF must be between 8 bytes and 15 MB.')
+    if not value.name.lower().endswith('.pdf'):
+        raise ValidationError('Only PDF documents are supported.')
+    position = value.tell()
+    try:
+        value.seek(0)
+        if value.read(5) != b'%PDF-':
+            raise ValidationError('File does not contain a valid PDF header.')
+    finally:
+        value.seek(position)
 
 
 class StudioCollection(models.Model):
@@ -45,7 +60,7 @@ class StudioPublication(models.Model):
     body = models.TextField(max_length=30000, blank=True)
     video_url = models.URLField(max_length=500, blank=True)
     meeting_url = models.URLField(max_length=500, blank=True)
-    document = models.FileField(upload_to='studio-publications/%Y/%m/', blank=True)
+    document = models.FileField(storage=private_memory_storage, upload_to='studio-publications/%Y/%m/',\n                                blank=True, max_length=220, validators=[validate_public_pdf])
     event_at = models.DateTimeField(null=True, blank=True)
     live_state = models.CharField(max_length=12, choices=(
         ('scheduled', 'Scheduled'), ('live', 'Live'), ('ended', 'Ended')),
