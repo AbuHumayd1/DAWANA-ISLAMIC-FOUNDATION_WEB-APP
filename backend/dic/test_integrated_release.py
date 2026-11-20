@@ -248,19 +248,43 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertEqual(client.get(url,{'item_id':self.item.pk}).status_code,404)
         self.assertEqual(Client().get(url,{'item_id':self.item.pk}).status_code,403)
 
+    def test_2026_certificate_release_requires_exact_final_night_time(self):
+        from zoneinfo import ZoneInfo
+        from .certificates import release_for
+        from rest_framework.exceptions import PermissionDenied
+        config=CertificateRelease.objects.create(edition=self.edition)
+        config.artwork_sha256='a'*64
+        config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50]
+        with self.assertRaises(ValidationError):
+            config.release_at=datetime(2026,12,31,19,59,tzinfo=utc.utc)
+            config.save()
+        with self.assertRaises(ValidationError):
+            config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc)
+            config.save()
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc)
+        config.enabled=True
+        config.save()
+        with patch('dic.certificates.approved_artwork',return_value='synthetic-reviewed-artwork'),patch(
+                'dic.certificates.timezone.now',return_value=datetime(2026,12,31,19,59,59,tzinfo=utc.utc)):
+            with self.assertRaises(PermissionDenied):
+                release_for(self.edition)
+        with patch('dic.certificates.approved_artwork',return_value='synthetic-reviewed-artwork'),patch(
+                'dic.certificates.timezone.now',return_value=datetime(2026,12,31,20,tzinfo=utc.utc)):
+            self.assertEqual(release_for(self.edition).pk,config.pk)
+
     def test_certificate_release_no_early_access_stable_reference_and_names(self):
         from .certificates import issue,release_for
         config=CertificateRelease.objects.create(edition=self.edition)
         client,_=self.login();url=reverse('dic:camper-certificate')
         self.assertEqual(client.get(url,{'item_id':self.item.pk}).status_code,403)
-        config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc);config.enabled=True;config.artwork_sha256='a'*64;config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50];config.save()
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc);config.enabled=True;config.artwork_sha256='a'*64;config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50];config.save()
         from rest_framework.exceptions import PermissionDenied
-        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
             with self.assertRaises(PermissionDenied):issue(self.item)
         self.assertEqual(ParticipationCertificate.objects.count(),0)
         CampCheckIn.objects.create(edition=self.edition,participant=self.item.participant,checked_in_by=self.owner)
 
-        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
             first=issue(self.item);second=issue(self.item)
             self.assertEqual(first.reference,second.reference)
             self.assertEqual(first.participant_name,self.item.participant.full_name)
@@ -273,7 +297,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
     def test_certificate_resources_require_confirmed_physical_check_in(self):
         from .certificates import confirmed_camp_arrival
         config=CertificateRelease.objects.create(edition=self.edition)
-        config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc)
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc)
         config.enabled=True;config.artwork_sha256='a'*64
         config.name_box=[100,200,640,100];config.reference_box=[100,40,640,50]
         config.save()
@@ -287,7 +311,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         self.assertEqual(ParticipationCertificate.objects.count(),0)
         CampCheckIn.objects.create(edition=self.edition,participant=self.item.participant,checked_in_by=self.owner)
         self.assertTrue(confirmed_camp_arrival(self.item))
-        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+        with patch('dic.certificates.approved_artwork',return_value='approved'),patch('dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
             available=client.get(url,{'item_id':self.item.pk})
         self.assertTrue(available.json()['certificate']['available'])
         self.assertEqual(available.json()['certificate']['state'],'released')
@@ -298,7 +322,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
         from PIL import Image
         import fitz
         config=CertificateRelease.objects.create(edition=self.edition)
-        config.release_at=datetime(2027,1,1,10,tzinfo=utc.utc);config.enabled=True
+        config.release_at=datetime(2026,12,31,20,tzinfo=utc.utc);config.enabled=True
         config.artwork_sha256='a'*64
         config.name_box=[75,170,690,110];config.reference_box=[115,45,600,55]
         config.save()
@@ -310,7 +334,7 @@ class IntegratedReleaseTests(portal.PortalFixtures,TestCase):
             art=Path(folder)/'synthetic-test-only.png'
             Image.new('RGB',(1684,1190),'white').save(art)
             with patch('dic.certificates.approved_artwork',return_value=str(art)),patch(
-                'dic.certificates.timezone.now',return_value=datetime(2027,1,1,11,tzinfo=utc.utc)):
+                'dic.certificates.timezone.now',return_value=datetime(2026,12,31,21,tzinfo=utc.utc)):
                 response=client.get(url, {'item_id':self.item.pk})
                 self.assertEqual(response.status_code,200,response.content[:200])
                 self.assertEqual(response['Content-Type'],'application/pdf')
