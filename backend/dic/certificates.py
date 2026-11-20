@@ -19,6 +19,32 @@ def approved_artwork(config):
     return path
 
 
+
+def certificate_readiness(config):
+    """Read-only human-actionable blockers; never activates certificates."""
+    problems=[]
+    if config is None:
+        return ['Certificate release configuration has not been created.']
+    if not config.release_at:
+        problems.append('Set the approved 1 January 2027 release time in Africa/Lagos.')
+    elif timezone.localtime(config.release_at).date() < config.edition.camp_end_date:
+        problems.append('Release cannot precede the camp departure date.')
+    if not config.artwork_sha256:
+        problems.append('Enter the SHA-256 checksum of the approved designer artwork.')
+    if not config.name_box:
+        problems.append('Set the participant name text box using the designer artwork.')
+    if not config.reference_box:
+        problems.append('Set the unique certificate reference text box.')
+    if config.artwork_sha256:
+        try:
+            approved_artwork(config)
+        except ValidationError:
+            problems.append('The approved artwork file is missing or does not match its checksum or configuration.')
+    if not config.enabled:
+        problems.append('Release is disabled; enable it only after all checks pass.')
+    return problems
+
+
 def release_for(edition):
     config=CertificateRelease.objects.filter(edition=edition).first()
     if not config or not config.enabled or not config.release_at or timezone.now()<config.release_at:
