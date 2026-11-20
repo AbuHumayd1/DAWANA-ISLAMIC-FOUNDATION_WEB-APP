@@ -26,7 +26,13 @@ def certificate_readiness(config):
     if config is None:
         return ['Certificate release configuration has not been created.']
     if not config.release_at:
-        problems.append('Set the approved 1 January 2027 release time in Africa/Lagos.')
+        problems.append('Set the approved 31 December 2026, 9:00 PM Africa/Lagos release time.')
+    elif config.edition.year == 2026:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        lagos=ZoneInfo('Africa/Lagos')
+        if timezone.localtime(config.release_at, lagos) != datetime(2026,12,31,21,0,tzinfo=lagos):
+            problems.append('Release time must be 31 December 2026 at 9:00 PM Africa/Lagos.')
     elif timezone.localtime(config.release_at).date() < config.edition.camp_end_date:
         problems.append('Release cannot precede the camp departure date.')
     if not config.artwork_sha256:
