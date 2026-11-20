@@ -127,3 +127,48 @@ class StudioEditorialTests(TestCase):
         self.assertTrue(StudioPublication.objects.filter(pk=item_id).exists())
         self.assertEqual(self.anonymous.delete(published_path).status_code, 403)
 
+
+
+    def test_annual_itinerary_only_published_approved_events_by_lagos_year(self):
+        from unittest.mock import patch
+        url = reverse('dic:studio-public-itinerary')
+        data = {
+            'kind': 'event', 'title': 'Synthetic annual seminar',
+            'description': 'Official schedule test', 'event_venue': 'Lagos',
+            'event_at': '2026-12-31T22:30:00+00:00',
+            'event_end_at': '2027-01-01T00:00:00+00:00',
+            'event_status': 'scheduled',
+        }
+        created = self.staff.post(reverse('dic:studio-editorial-items'),
+                                  data, content_type='application/json')
+        self.assertEqual(created.status_code, 201, created.content)
+        item = created.json()['item']['id']
+        self.assertEqual(self.anonymous.get(url, {'year': 2027}).json()['items'], [])
+        with patch('dic.studio_editorial_api.notify_publication', return_value='unconfigured'):
+            self.assertEqual(self.action(item, 'publish').status_code, 200)
+        result = self.anonymous.get(url, {'year': 2027})
+        self.assertEqual(result.status_code, 200, result.content)
+        self.assertEqual(len(result.json()['items']), 1)
+        self.assertEqual(result.json()['items'][0]['event_venue'], 'Lagos')
+        self.assertEqual(self.anonymous.get(url, {'year': 2026}).json()['items'], [])
+        self.assertEqual(self.action(item, 'withdraw').status_code, 200)
+        self.assertEqual(self.anonymous.get(url, {'year': 2027}).json()['items'], [])
+        self.assertEqual(self.anonymous.get(url, {'year': '2027x'}).status_code, 400)
+
+    def test_itinerary_rejects_bad_ranges_missing_dates_and_unapproved_edits(self):
+        url = reverse('dic:studio-editorial-items')
+        row = {'kind': 'event', 'title': 'Synthetic camp event',
+               'event_at': '2026-12-24T09:00:00+01:00',
+               'event_end_at': '2026-12-23T12:00:00+01:00'}
+        result = self.staff.post(url, row, content_type='application/json')
+        self.assertEqual(result.status_code, 400)
+        row['event_end_at'] = '2026-12-24T11:00:00+01:00'
+        valid = self.staff.post(url, row, content_type='application/json')
+        self.assertEqual(valid.status_code, 201, valid.content)
+        item = valid.json()['item']['id']
+        with patch('dic.studio_editorial_api.notify_publication', return_value='unconfigured'):
+            self.assertEqual(self.action(item, 'publish').status_code, 200)
+        path = reverse('dic:studio-editorial-item-detail', args=[item])
+        self.assertEqual(self.staff.patch(path, {'event_venue': 'Unexpected'},
+                                          content_type='application/json').status_code, 400)
+        self.assertEqual(self.anonymous.get(reverse('dic:studio-editorial-items')).status_code in (401,403), True)
