@@ -66,10 +66,11 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   }, [destination, page, retry])
   if (state !== 'ready' || (!items.length && !hasMore)) return null
   const albums = [...new Set(items.filter(item => item.source_kind === 'photos' && item.album).map(item => item.album))].sort()
-  const visibleItems = activeAlbum ? items.filter(item => item.source_kind === 'photos' && item.album === activeAlbum) : items
+  const visibleItems = (activeAlbum ? items.filter(item => item.source_kind === 'photos' && item.album === activeAlbum) : items)
+    .slice(0, destination === 'foundation_home' ? 3 : undefined)
   const canBrowseAlbums = ['foundation_archive', 'dic_memories'].includes(destination) && albums.length > 0
   return <section className={`published-studio-archive published-studio-archive--${destination}`} aria-labelledby={headingId}><Container>
-    <div className="published-studio-heading"><span className="eyebrow">Official publications</span><h2 id={headingId}>{destination === 'foundation_home' ? 'Featured Foundation stories' : destination === 'dic_landing' ? 'Official DIC media highlights' : destination === 'dic_memories' ? 'Selected camp memories' : 'From the DAWANA media library'}</h2><p>Approved media shared by our Foundation team.</p></div>
+    <div className="published-studio-heading"><h2 id={headingId}>{destination === 'foundation_home' ? 'Latest from DAWANA' : destination === 'dic_landing' ? 'DIC media highlights' : destination === 'dic_memories' ? 'Camp memories' : 'Media library'}</h2></div>
     {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
     <div className="published-studio-grid">{visibleItems.map((item, i) => <article key={item.url + i} className="published-studio-card">
       {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <HostedVideoCover item={item} embed={approvedVideoLink(item.embed_url)} active={activeEmbed === item.url} onPlay={() => setActiveEmbed(item.url)} /> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual">
@@ -81,6 +82,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
         <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</div>
     {pageError && <p role="alert">Could not load more publications. You can retry.</p>}
-    {hasMore && <button type="button" className="published-studio-load-more" onClick={() => pageError ? setRetry(n => n + 1) : setPage(n => n + 1)} disabled={loadingMore || page >= 100}>{loadingMore ? 'Loading approved media…' : pageError ? 'Retry this page' : 'Load more approved media'}</button>}
+    {destination === 'foundation_home' && <a className="published-studio-load-more" href="/media">Explore all media</a>}
+    {destination !== 'foundation_home' && hasMore && <button type="button" className="published-studio-load-more" onClick={() => pageError ? setRetry(n => n + 1) : setPage(n => n + 1)} disabled={loadingMore || page >= 100}>{loadingMore ? 'Loading approved media…' : pageError ? 'Retry this page' : 'Load more approved media'}</button>}
   </Container></section>
 }
