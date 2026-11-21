@@ -7,7 +7,7 @@ from config import studio_0048_migration as release
 
 
 class CarouselMigrationReleaseTests(TestCase):
-    def test_backup_not_pinned_refuses_migration_even_with_approval(self):
+    def test_backup_digest_must_match_reviewed_archive(self):
         env = {
             'RENDER': 'true', 'RENDER_GIT_COMMIT': 'a' * 40,
             'DAWANA_0048_APPROVAL': release.APPROVAL,
@@ -16,8 +16,16 @@ class CarouselMigrationReleaseTests(TestCase):
         }
         config = {'NAME': release.EXPECTED_DATABASE,
                   'USER': release.EXPECTED_ROLE, 'PORT': '5432', 'HOST': 'db.example.test'}
-        with self.assertRaisesRegex(release.Stop, 'FRESH_BACKUP_NOT_PINNED_IN_CODE'):
+        self.assertEqual(len(release.APPROVED_FRESH_BACKUP_SHA256), 64)
+        with self.assertRaisesRegex(release.Stop, 'BACKUP_DIGEST_MISMATCH'):
             release.validate_approval(env, 'config.settings.render', config)
+        env['DAWANA_0048_FRESH_BACKUP_SHA256'] = release.APPROVED_FRESH_BACKUP_SHA256
+        env['DAWANA_0048_ARCHIVE_READABLE'] = 'no'
+        with self.assertRaisesRegex(release.Stop, 'BACKUP_NOT_VERIFIED_READABLE'):
+            release.validate_approval(env, 'config.settings.render', config)
+        env['DAWANA_0048_ARCHIVE_READABLE'] = 'yes'
+        self.assertEqual(release.validate_approval(
+            env, 'config.settings.render', config)['database'], release.EXPECTED_DATABASE)
 
     def test_wrong_approval_and_release_context_are_rejected(self):
         config = {'NAME': release.EXPECTED_DATABASE,
