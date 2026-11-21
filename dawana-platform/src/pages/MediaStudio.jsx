@@ -5,6 +5,7 @@ import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioL
 import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
+import StudioCarouselEditor from './StudioCarouselEditor'
 import StudioEditorial from './StudioEditorial'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
@@ -647,6 +648,7 @@ export default function MediaStudio() {
         {more && <div className="studio-pagination"><button type="button" disabled={loading || page >= 100} onClick={() => setPage(current => current + 1)}>{loading ? 'Loading…' : 'Load more media'}</button></div>}
       </section>
       <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />
+      {(user.can_manage_catalogue || user.can_publish_destinations) && <StudioCarouselEditor user={user} editions={uploadInfo.editions} />}
       {(user.can_manage_catalogue || user.can_publish_destinations) ? <details className="studio-advanced-publishing" open={Boolean(focusAsset)} onToggle={event => {if (!event.currentTarget.open && focusAsset) setFocusAsset('')}}><summary>Advanced: manage albums and publishing details</summary><StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /></details> : null}
       {preview && <div className="studio-preview-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setPreview(null) }}>
         <section className="studio-preview-dialog" role="dialog" aria-modal="true" aria-label={`Preview: ${preview.title}`}>
