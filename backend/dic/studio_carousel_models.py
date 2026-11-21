@@ -29,7 +29,7 @@ def validate_carousel_audio(value):
     try:
         value.seek(0)
         signature = value.read(12)
-        valid = (name.endswith('.mp3') and (signature.startswith(b'ID3') or signature[:2] in (b'\\xff\\xfb', b'\\xff\\xf3', b'\\xff\\xf2'))) or (
+        valid = (name.endswith('.mp3') and (signature.startswith(b'ID3') or signature[:2] in (b'\xff\xfb', b'\xff\xf3', b'\xff\xf2'))) or (
             name.endswith('.ogg') and signature.startswith(b'OggS')) or (
             name.endswith('.wav') and signature.startswith(b'RIFF') and signature[8:12] == b'WAVE')
         if not valid:
