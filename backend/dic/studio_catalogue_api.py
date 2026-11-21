@@ -104,7 +104,8 @@ def summary(asset):
 
 class StudioAssetsView(StudioView):
     def get(self, request):
-        require_catalogue(request.user)
+        if not (request.user.is_superuser or request.user.has_perm('dic.manage_studio_assets') or request.user.has_perm('dic.publish_studio_placements')):
+            raise PermissionDenied('Studio catalogue access required.')
         raw_page = request.query_params.get('page', '1')
         if not raw_page.isascii() or not raw_page.isdigit() or not 1 <= len(raw_page) <= 3:
             raise ValidationError({'page': 'Choose a valid catalogue page.'})
@@ -202,13 +203,16 @@ class StudioAssetDetailView(StudioView):
         return self.nocache({'asset': summary(asset)})
 
     def post(self, request, asset_id):
-        require_catalogue(request.user)
-        if request.data.get('action') not in ('archive', 'restore'):
-            raise ValidationError({'action': 'Choose archive or restore.'})
+        if request.data.get('action') not in ('archive', 'restore', 'delete_publication'):
+            raise ValidationError({'action': 'Choose archive, restore or delete publication.'})
+        if request.data['action'] == 'delete_publication':
+            require_placement_publisher(request.user)
+        else:
+            require_catalogue(request.user)
         with transaction.atomic():
             asset = get_object_or_404(StudioAsset.objects.select_for_update(), pk=asset_id)
             require_source_view(request.user, asset)
-            if request.data['action'] == 'archive':
+            if request.data['action'] in ('archive', 'delete_publication'):
                 asset.archived_at = timezone.now()
                 StudioPlacement.objects.filter(asset=asset).update(
                     state='withdrawn', published_at=None, published_by=None)
@@ -216,7 +220,7 @@ class StudioAssetDetailView(StudioView):
                 asset.archived_at = None
             asset.save(update_fields=['archived_at', 'updated_at'])
             DICAdminAuditEvent.objects.create(actor=request.user, action='studio_asset_' + request.data['action'],
-                target_type='StudioAsset', target_id=str(asset.pk), details={})
+                target_type='StudioAsset', target_id=str(asset.pk), details={'retained_source_files': True, 'recoverable': True})
         return self.nocache({'asset': summary(asset)})
 
 
