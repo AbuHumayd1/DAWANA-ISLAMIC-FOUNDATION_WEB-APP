@@ -47,6 +47,7 @@ class StudioCarousel(models.Model):
     soundtrack = models.FileField(storage=private_memory_storage, upload_to='studio-carousels/audio/%Y/%m/',
                                   blank=True, validators=[validate_carousel_audio])
     loop_audio = models.BooleanField(default=False)
+    soundtrack_on_videos = models.BooleanField(default=False)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name='+')
     published_at = models.DateTimeField(null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
