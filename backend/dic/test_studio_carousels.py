@@ -1,8 +1,10 @@
 """Acceptance guards for grouped Studio publications."""
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError
 from django.urls import reverse
-from .studio_carousel_models import StudioCarousel
+from .studio_carousel_models import StudioCarousel, validate_carousel_audio
 
 
 class CarouselPublishingTests(TestCase):
@@ -47,3 +49,28 @@ class CarouselPublishingTests(TestCase):
 
     def test_public_rejects_private_destination(self):
         self.assertEqual(self.client.get(self.public_url, {'destination': 'camper_resources'}).status_code, 400)
+
+    def test_publisher_deletion_is_recoverable_and_audited(self):
+        from .models import DICAdminAuditEvent
+        self.client.force_login(self.owner)
+        carousel = StudioCarousel.objects.create(title='Withdraw me', format='mixed', created_by=self.owner)
+        response = self.client.post(reverse('dic:studio-carousel-detail', args=[carousel.pk]),
+            data='{"action":"delete"}', content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        carousel.refresh_from_db()
+        self.assertIsNotNone(carousel.deleted_at)
+        self.assertFalse(carousel.placements.exists())
+        self.assertTrue(DICAdminAuditEvent.objects.filter(
+            target_type='StudioCarousel', target_id=str(carousel.pk),
+            action='studio_carousel_delete').exists())
+
+    def test_rejects_disguised_soundtrack(self):
+        disguised = SimpleUploadedFile('track.mp3', b'not actually an mp3 file')
+        with self.assertRaises(ValidationError):
+            validate_carousel_audio(disguised)
+
+    def test_rejects_invalid_carousel_format(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(self.staff_url,
+            data='{"title":"Invalid","format":"slideshow"}', content_type='application/json')
+        self.assertEqual(response.status_code, 400)
