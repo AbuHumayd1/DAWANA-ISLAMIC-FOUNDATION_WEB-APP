@@ -20,6 +20,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
   const [edition, setEdition] = useState('')
   const [audioFile, setAudioFile] = useState(null)
   const [loopAudio, setLoopAudio] = useState(false)
+  const [soundtrackOnVideos, setSoundtrackOnVideos] = useState(false)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [reload, setReload] = useState(0)
@@ -46,6 +47,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
     setDest(item?.destinations?.map(d=>d.destination) || [])
     setEdition(String(item?.destinations?.find(d=>d.edition)?.edition || ''))
     setLoopAudio(Boolean(item?.loop_audio))
+    setSoundtrackOnVideos(Boolean(item?.soundtrack_on_videos))
     setAudioFile(null);setMessage('')
   }
   function addAsset(id) {
@@ -79,7 +81,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
     setBusy(true);setMessage('')
     try {
       const id=current?.id || (await studioCreateCarousel({title,format})).carousel.id
-      const fields={title,description,slides:slides.map(({asset_id,caption})=>({asset_id,caption})),loop_audio:loopAudio}
+      const fields={title,description,slides:slides.map(({asset_id,caption})=>({asset_id,caption})),loop_audio:loopAudio,soundtrack_on_videos:soundtrackOnVideos}
       await studioUpdateCarousel(id,fields)
       if(audioFile)await studioUploadCarouselAudio(id,audioFile,loopAudio)
       setSelected(id);setReload(v=>v+1)
@@ -135,6 +137,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
             <input type="file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" onChange={e=>setAudioFile(e.target.files?.[0]||null)} />
           </label>
           <label><input type="checkbox" checked={loopAudio} onChange={e=>setLoopAudio(e.target.checked)}/> Loop soundtrack</label>
+          {format !== 'images' && <label><input type="checkbox" checked={soundtrackOnVideos} onChange={e=>setSoundtrackOnVideos(e.target.checked)}/> Play soundtrack over muted uploaded promo video clips</label>}
           {current?.has_audio && <p>Soundtrack saved. Audio starts only when a visitor chooses to play it.</p>}
         </fieldset>
         {isDraft && <button type="button" disabled={busy||!canManage} onClick={save}>Save carousel draft</button>}
