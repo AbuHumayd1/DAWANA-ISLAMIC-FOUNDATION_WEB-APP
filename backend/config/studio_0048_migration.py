@@ -16,9 +16,10 @@ import sys
 from config.integrated_schema_recovery import identity
 
 APPROVAL = 'APPROVE-DAWANA-CAROUSELS-0048'
-# Replace with the reviewed SHA-256 of a NEW readable production backup.
-# Unset deliberately fails closed; the previous 0047 backup is not acceptable.
-APPROVED_FRESH_BACKUP_SHA256 = 'UNSET_PENDING_FRESH_0048_BACKUP'
+# Owner-reported fresh custom-format archive from 21 Nov 2026 at 18:15 WAT.
+# 455492 bytes; pg_restore --list readable; disposable restore not performed.
+# The preceding 0047 backup is not acceptable for this release.
+APPROVED_FRESH_BACKUP_SHA256 = 'A79DE43D91437345EED7E4BCC86426338A10BC7CBFC46597ED98A12E6ABB0C70'
 EXPECTED_DATABASE = 'dawana_db'
 EXPECTED_ROLE = 'dawana_db_user'
 EXPECTED_CLUSTER = '7705861322388955175'
