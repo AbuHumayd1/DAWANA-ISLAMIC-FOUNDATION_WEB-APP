@@ -40,7 +40,10 @@ function Story({ story }) {
       if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1) }
       if (event.key === 'ArrowRight') { event.preventDefault(); step(1) }
     }} tabIndex={0} aria-label={`Carousel: ${story.title}, use left and right arrows`}>
-      <div className="studio-story-neighbour studio-story-neighbour--previous" aria-hidden="true" />
+      <div className="studio-story-neighbour studio-story-neighbour--previous" aria-hidden="true">
+        {['photos','flyers','activities','appearances'].includes(slides[(active - 1 + slides.length) % slides.length]?.kind) &&
+          <img src={backendUrl(slides[(active - 1 + slides.length) % slides.length].url)} alt="" loading="lazy" />}
+      </div>
       <div className="studio-story-frame" key={current.url + active}>
         {video && current.kind === 'promotions'
           ? <video controls preload="metadata" playsInline src={backendUrl(current.url)} aria-label={current.title} onPlay={() => audio.current?.pause()} />
@@ -53,7 +56,10 @@ function Story({ story }) {
               </button>
             : <img src={backendUrl(current.url)} alt={current.title} loading="lazy" decoding="async" />}
       </div>
-      <div className="studio-story-neighbour studio-story-neighbour--next" aria-hidden="true" />
+      <div className="studio-story-neighbour studio-story-neighbour--next" aria-hidden="true">
+        {['photos','flyers','activities','appearances'].includes(slides[(active + 1) % slides.length]?.kind) &&
+          <img src={backendUrl(slides[(active + 1) % slides.length].url)} alt="" loading="lazy" />}
+      </div>
     </div>
     <div className="studio-story-navigation">
       <button type="button" onClick={() => step(-1)} aria-label="Previous slide">←</button>
