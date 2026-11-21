@@ -21,13 +21,14 @@ function Story({ story }) {
   const slides = story.slides || []
   const current = slides[active]
   const video = current && ['promotions', 'hosted', 'videos'].includes(current.kind)
+  const soundtrackVideo = video && current.kind === 'promotions' && story.soundtrack_on_videos
   useEffect(() => {
     setPlayingVideo(false)
     if (audio.current) {
-      if (video) audio.current.pause()
+      if (video && !soundtrackVideo) audio.current.pause()
       else if (soundEnabled) audio.current.play().catch(() => setSoundEnabled(false))
     }
-  }, [active, video, soundEnabled])
+  }, [active, video, soundEnabled, soundtrackVideo])
   useEffect(() => () => { if (audio.current) audio.current.pause() }, [])
   function step(delta) { setActive(index => (index + delta + slides.length) % slides.length) }
   if (!current) return null
@@ -46,7 +47,7 @@ function Story({ story }) {
       </div>
       <div className="studio-story-frame" key={current.url + active}>
         {video && current.kind === 'promotions'
-          ? <video controls preload="metadata" playsInline src={backendUrl(current.url)} aria-label={current.title} onPlay={() => audio.current?.pause()} />
+          ? <video controls preload="metadata" playsInline muted={Boolean(soundtrackVideo && soundEnabled)} src={backendUrl(current.url)} aria-label={current.title} onPlay={() => {if (!soundtrackVideo) audio.current?.pause()}} />
           : video && current.embed_url && safeEmbed(current.embed_url)
             ? playingVideo
               ? <iframe title={current.title} src={safeEmbed(current.embed_url)} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen loading="lazy" />
@@ -74,7 +75,7 @@ function Story({ story }) {
       <button type="button" onClick={() => {
         if (!audio.current) return
         if (soundEnabled) {audio.current.pause();setSoundEnabled(false)}
-        else {setSoundEnabled(true); if(!video) audio.current.play().catch(() => setSoundEnabled(false))}
+        else {setSoundEnabled(true); if(!video || soundtrackVideo) audio.current.play().catch(() => setSoundEnabled(false))}
       }} aria-pressed={soundEnabled}>{soundEnabled ? '♫ Turn soundtrack off' : '♫ Play optional soundtrack'}</button>
       <label>Volume <input type="range" min="0" max="1" step=".1" defaultValue=".65"
         onChange={e => {if (audio.current) audio.current.volume = Number(e.target.value)}} /></label>
