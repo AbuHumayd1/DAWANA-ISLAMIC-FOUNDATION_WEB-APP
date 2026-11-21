@@ -22,6 +22,7 @@ class Migration(migrations.Migration):
                 ('state', models.CharField(max_length=12, choices=[('draft', 'Draft'), ('published', 'Published'), ('withdrawn', 'Withdrawn')], default='draft')),
                 ('soundtrack', models.FileField(storage=dic.memory_storage.private_memory_storage, upload_to='studio-carousels/audio/%Y/%m/', blank=True, validators=[dic.studio_carousel_models.validate_carousel_audio])),
                 ('loop_audio', models.BooleanField(default=False)),
+                ('soundtrack_on_videos', models.BooleanField(default=False)),
                 ('published_at', models.DateTimeField(null=True, blank=True)),
                 ('deleted_at', models.DateTimeField(null=True, blank=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
