@@ -266,6 +266,15 @@ class PublicStudioCarouselAudioView(APIView):
         carousel = get_object_or_404(StudioCarousel, pk=carousel_id, state='published', deleted_at__isnull=True)
         if not carousel.soundtrack or not carousel.placements.exists():
             raise Http404
+        # Soundtracks must not outlive the approval of the slides they accompany.
+        visible = 0
+        for slide in carousel.slides.select_related('asset'):
+            asset = slide.asset
+            source = source_for(asset)
+            if source_published(asset, source) and published_url(asset, source):
+                visible += 1
+        if visible < 2:
+            raise Http404
         if not any(p.edition_id is None or p.edition.is_active for p in carousel.placements.select_related('edition')):
             raise Http404
         name = carousel.soundtrack.name.lower()
