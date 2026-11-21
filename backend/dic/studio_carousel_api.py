@@ -47,6 +47,7 @@ def serialize(carousel):
         'id': str(carousel.pk), 'title': carousel.title,
         'description': carousel.description, 'format': carousel.format,
         'state': carousel.state, 'loop_audio': carousel.loop_audio,
+        'soundtrack_on_videos': carousel.soundtrack_on_videos,
         'has_audio': bool(carousel.soundtrack),
         'deleted': carousel.deleted_at is not None,
         'slides': [{'asset_id': str(slide.asset_id), 'title': slide.asset.title,
@@ -169,6 +170,8 @@ class StudioCarouselDetailView(StudioView):
                 carousel.description = description
             if 'loop_audio' in request.data:
                 carousel.loop_audio = request.data['loop_audio'] in (True, 'true', '1')
+            if 'soundtrack_on_videos' in request.data:
+                carousel.soundtrack_on_videos = request.data['soundtrack_on_videos'] in (True, 'true', '1')
             if 'soundtrack' in request.FILES:
                 audio = request.FILES['soundtrack']
                 validate_carousel_audio(audio)
@@ -251,6 +254,7 @@ class PublicStudioCarouselsView(APIView):
             data.append({'id': str(carousel.pk), 'title': carousel.title,
                          'description': carousel.description, 'format': carousel.format,
                          'slides': slides, 'loop_audio': carousel.loop_audio,
+                         'soundtrack_on_videos': carousel.soundtrack_on_videos,
                          'audio_url': '/api/v1/dic/studio/public-carousels/' + str(carousel.pk) + '/audio/'
                                       if carousel.soundtrack else None})
         response = Response({'items': data})
