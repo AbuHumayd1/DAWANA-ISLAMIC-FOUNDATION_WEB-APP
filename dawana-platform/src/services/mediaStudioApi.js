@@ -127,3 +127,19 @@ export const studioPublishEditorialItem = (id, action) =>
 
 export const studioDeleteEditorialDraft = id =>
   studioRequest('/editorial/items/' + encodeURIComponent(id) + '/', { method: 'DELETE' })
+
+export const studioCarousels = () => studioRequest('/carousels/')
+export const studioCreateCarousel = fields => studioRequest('/carousels/', { method: 'POST', body: fields })
+export const studioUpdateCarousel = (id, fields) => studioRequest('/carousels/' + encodeURIComponent(id) + '/', {method: 'PATCH', body: fields})
+export const studioActOnCarousel = (id, fields) => studioRequest('/carousels/' + encodeURIComponent(id) + '/', {method: 'POST', body: fields})
+export async function studioUploadCarouselAudio(id, file, loopAudio = false) {
+  if (!csrf) await token()
+  const body = new FormData()
+  body.append('soundtrack', file)
+  body.append('loop_audio', loopAudio ? 'true' : 'false')
+  const response = await fetch(base + '/carousels/' + encodeURIComponent(id) + '/', {
+    method: 'PATCH', body, credentials: 'include', cache: 'no-store',
+    headers: {'X-CSRFToken': csrf},
+  })
+  return readApiResponse(response)
+}
