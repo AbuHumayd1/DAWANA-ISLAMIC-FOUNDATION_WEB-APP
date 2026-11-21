@@ -30,3 +30,5 @@
 .studio-story-audio input{width:68px}
 @keyframes studio-story-reveal{from{opacity:.75;transform:translateY(9px) rotateY(6deg)}to{opacity:1;transform:translateY(0) rotateY(0)}}
 @media (prefers-reduced-motion:reduce){.studio-story-frame{animation:none}.studio-stories-scroll{scroll-behavior:auto}}
+
+.studio-story-neighbour img{width:100%;height:100%;object-fit:cover;opacity:.8}
