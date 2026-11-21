@@ -1,3 +1,4 @@
+import PublishedCarousels from '../components/media/PublishedCarousels'
 import { Link } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
 import PublishedStudioArchive from '../components/media/PublishedStudioArchive'
@@ -37,6 +38,7 @@ function Home() {
 
     <section className="section media-section" id="media"><Container><SectionHeading eyebrow="Knowledge library" title="Learn. Listen. Watch."><Link className="button button-small" to="/media">Explore Media <Arrow /></Link></SectionHeading><p className="home-media-note">Watch approved video lectures and listen to published recordings in the Foundation Media Library.</p></Container></section>
 
+    <PublishedCarousels destination="foundation_home" />
     <PublishedStudioArchive destination="foundation_home" />
 
     <section className="impact-band"><Container><span className="eyebrow gold-eyebrow">Impact / community</span><h2>Knowledge That Transforms.<br /><em>Service That Matters.</em></h2><p>When beneficial knowledge is shared and lived, it becomes a source of strength for individuals, families and communities.</p></Container></section>
