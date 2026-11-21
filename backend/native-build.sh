@@ -5,6 +5,11 @@ cd "$(dirname "$0")/.."
 cd backend
 # Deliberately failed, owner-gated one-time schema application. This NEVER
 # promotes the candidate; it preserves the currently live web service.
+if [[ "${DAWANA_0048_APPROVAL:-}" == 'APPROVE-DAWANA-CAROUSELS-0048' ]]; then
+  # Only the exact approved one-time build can apply 0048; this wrapper
+  # intentionally fails after success so production remains on the prior code.
+  exec bash media-0048-migration-apply-build.sh
+fi
 if [[ "${DAWANA_AFTERCAMP_0046_APPROVAL:-}" == 'APPROVE-DAWANA-AFTERCAMP-0046' ]]; then
   if ! python -B -m config.aftercamp_0046_apply; then
     echo '[aftercamp-0046] STOP: schema application not confirmed; old runtime retained.' >&2

@@ -112,6 +112,7 @@ def graph(executor, pinned=True):
         ('dic', '0045_studio_hosted_video'),
         ('dic', '0046_aftercamp_assessments'),
         ('dic', '0047_studio_publications'),
+        ('dic', '0048_studio_carousels'),
     )
     for previous, current in zip((TARGET,) + successors, successors):
         if current in loader.graph.nodes:

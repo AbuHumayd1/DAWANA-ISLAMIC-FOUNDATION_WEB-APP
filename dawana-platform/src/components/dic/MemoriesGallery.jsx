@@ -65,7 +65,7 @@ export default function MemoriesGallery({ compact = false }) {
   }
 
   return <section className="dic-memories" ref={section} aria-labelledby="memories-title"><Container>
-    <div className="memories-heading"><div><span className="eyebrow">THE CAMP SCRAPBOOK</span><h2 id="memories-title">Moments worth keeping</h2><p>A window into past camp experiences, shared through approved photographs.</p></div><span className="memories-stamp" aria-hidden="true">Learning.<br />Belonging.<br />Memories.</span></div>
+    <div className="memories-heading"><div><span className="eyebrow">{compact ? "ARCHIVED CAMP PHOTOGRAPHS" : "THE CAMP SCRAPBOOK"}</span><h2 id="memories-title">{compact ? "More moments to remember" : "Moments worth keeping"}</h2><p>A window into past camp experiences, shared through approved photographs.</p></div><span className="memories-stamp" aria-hidden="true">Learning.<br />Belonging.<br />Memories.</span></div>
     {state === 'loading' && <p role="status">Opening the camp scrapbook…</p>}
     {state === 'error' && <p role="status">The scrapbook is temporarily unavailable. Please visit again later.</p>}
     {compact && localPreview && !photos.length && <div className="memories-board">{[0, 1, 2].map(index => <article className="memory-card" key={index} style={{ '--tilt': `${index % 2 ? 2 : -2}deg` }}><div className="memory-open"><span className="memory-pin" aria-hidden="true" /><div className="dic-preview-placeholder"><span aria-hidden="true">✧</span><strong>Awaiting approved photograph</strong><small>Local preview · camp scrapbook</small></div></div></article>)}</div>}

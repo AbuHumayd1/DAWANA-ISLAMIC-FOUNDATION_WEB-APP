@@ -366,3 +366,15 @@ urlpatterns += [
     path('studio/public-placements/', PublicStudioPlacementsView.as_view(), name='studio-public-placements'),
     path('studio/public-audio/<uuid:asset_id>/', PublicStudioAudioView.as_view(), name='studio-public-audio'),
 ]
+
+# Grouped multimedia publications with individually gated soundtrack delivery.
+from .studio_carousel_api import (
+    StudioCarouselsView, StudioCarouselDetailView,
+    PublicStudioCarouselsView, PublicStudioCarouselAudioView,
+)
+urlpatterns += [
+    path('studio/carousels/', StudioCarouselsView.as_view(), name='studio-carousels'),
+    path('studio/carousels/<uuid:carousel_id>/', StudioCarouselDetailView.as_view(), name='studio-carousel-detail'),
+    path('studio/public-carousels/', PublicStudioCarouselsView.as_view(), name='studio-public-carousels'),
+    path('studio/public-carousels/<uuid:carousel_id>/audio/', PublicStudioCarouselAudioView.as_view(), name='studio-public-carousel-audio'),
+]

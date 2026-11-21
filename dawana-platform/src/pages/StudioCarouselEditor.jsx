@@ -1,0 +1,163 @@
+import { useEffect, useState } from 'react'
+import { studioAssets, studioCarousels, studioCreateCarousel, studioUpdateCarousel,
+  studioActOnCarousel, studioUploadCarouselAudio } from '../services/mediaStudioApi'
+import './StudioCarouselEditor.css'
+
+const destinations = [
+  ['foundation_home', 'Foundation homepage'], ['foundation_archive', 'Foundation Media page'],
+  ['dic_landing', 'DIC landing page'], ['dic_memories', 'DIC Camp Scrapbook'],
+]
+
+export default function StudioCarouselEditor({user, editions=[]}) {
+  const [list, setList] = useState([])
+  const [assets, setAssets] = useState([])
+  const [selected, setSelected] = useState('')
+  const [format, setFormat] = useState('images')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [slides, setSlides] = useState([])
+  const [dest, setDest] = useState([])
+  const [edition, setEdition] = useState('')
+  const [audioFile, setAudioFile] = useState(null)
+  const [loopAudio, setLoopAudio] = useState(false)
+  const [soundtrackOnVideos, setSoundtrackOnVideos] = useState(false)
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [reload, setReload] = useState(0)
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([studioCarousels(),studioAssets(1)]).then(([data, catalogue]) => {
+      if (!cancelled) {setList(data.carousels || []);setAssets(catalogue.assets || [])}
+    }).catch(error => {if (!cancelled) setMessage(error.message)})
+    return () => {cancelled = true}
+  }, [reload])
+  const current = list.find(item=>item.id===selected)
+  const isDraft = !current || current.state !== 'published'
+  const choices = assets.filter(asset => !asset.archived &&
+    (format === 'images' ? ['photos','flyers','activities','appearances'].includes(asset.source_kind)
+      : format === 'videos' ? ['hosted','videos','promotions'].includes(asset.source_kind)
+        : ['photos','flyers','activities','appearances','hosted','videos','promotions'].includes(asset.source_kind)))
+  const canManage = user.can_manage_catalogue || user.can_publish_destinations
+  function load(item) {
+    setSelected(item?.id || '')
+    setFormat(item?.format || 'images')
+    setTitle(item?.title || '')
+    setDescription(item?.description || '')
+    setSlides(item?.slides?.map(s=>({asset_id:s.asset_id,caption:s.caption||'',title:s.title})) || [])
+    setDest(item?.destinations?.map(d=>d.destination) || [])
+    setEdition(String(item?.destinations?.find(d=>d.edition)?.edition || ''))
+    setLoopAudio(Boolean(item?.loop_audio))
+    setSoundtrackOnVideos(Boolean(item?.soundtrack_on_videos))
+    setAudioFile(null);setMessage('')
+  }
+  function addAsset(id) {
+    if (!id || slides.some(item=>item.asset_id===id)) return
+    const asset=assets.find(item=>item.id===id)
+    if (asset && slides.length < 40) setSlides(current=>[...current,{asset_id:id,caption:'',title:asset.title}])
+  }
+  function move(index,delta) {
+    const target=index+delta
+    if (target<0||target>=slides.length)return
+    setSlides(current=>{const copy=[...current];[copy[index],copy[target]]=[copy[target],copy[index]];return copy})
+  }
+  async function run(action) {
+    setBusy(true);setMessage('')
+    try {
+      const result=await action()
+      setMessage('Saved. Review publication destinations and approval before publishing.')
+      setReload(value=>value+1)
+      if(result?.carousel?.id)setSelected(result.carousel.id)
+      return result
+    } catch(error){setMessage(error.message);return null}
+    finally{setBusy(false)}
+  }
+  async function save() {
+    if (!title.trim()) {setMessage('Enter a publication title.');return}
+    if (slides.length<2) {setMessage('Choose at least two cards.');return}
+    if (format==='mixed' && (!slides.some(s=>['hosted','videos','promotions'].includes(assets.find(a=>a.id===s.asset_id)?.source_kind))
+      || !slides.some(s=>['photos','flyers','activities','appearances'].includes(assets.find(a=>a.id===s.asset_id)?.source_kind)))) {
+      setMessage('Mixed media needs both image and video cards.');return
+    }
+    setBusy(true);setMessage('')
+    try {
+      const id=current?.id || (await studioCreateCarousel({title,format})).carousel.id
+      const fields={title,description,slides:slides.map(({asset_id,caption})=>({asset_id,caption})),loop_audio:loopAudio,soundtrack_on_videos:soundtrackOnVideos}
+      await studioUpdateCarousel(id,fields)
+      if(audioFile)await studioUploadCarouselAudio(id,audioFile,loopAudio)
+      setSelected(id);setReload(v=>v+1)
+      setMessage('Carousel saved. Ready for publication after reviewing the destinations.')
+    }catch(error){setMessage(error.message)}
+    finally{setBusy(false)}
+  }
+  async function publish() {
+    if(!current){setMessage('Save the carousel before publishing.');return}
+    if(!dest.length){setMessage('Choose at least one destination.');return}
+    if(dest.some(d=>d.startsWith('dic_'))&&!edition){setMessage('Choose the DIC edition.');return}
+    if(!window.confirm('Publish this carousel to the selected website destinations?'))return
+    await run(()=>studioActOnCarousel(current.id,{action:'publish',destinations:dest.map(d=>({
+      destination:d,edition:d.startsWith('dic_')?Number(edition):null}))}))
+  }
+  return <section className="studio-carousel-editor" aria-labelledby="studio-carousel-heading">
+    <header><span className="studio-kicker">MULTIMEDIA PUBLISHING</span><h2 id="studio-carousel-heading">Carousel Library</h2>
+      <p>Combine existing approved media into image, video or mixed-media stories. Each group is one publication.</p></header>
+    {message && <p role="status" className="studio-carousel-notice">{message}</p>}
+    <div className="studio-carousel-shell">
+      <aside className="studio-carousel-list" aria-label="Saved carousels">
+        <button type="button" onClick={()=>load(null)}>+ New carousel</button>
+        {list.map(item=><button key={item.id} type="button" aria-pressed={item.id===selected} onClick={()=>load(item)}>
+          <strong>{item.title}</strong><small>{item.format} · {item.state}</small></button>)}
+      </aside>
+      <div className="studio-carousel-form">
+        <label>Publication format
+          <select disabled={Boolean(current)} value={format} onChange={e=>{setFormat(e.target.value);setSlides([])}}>
+            <option value="images">Image carousel</option><option value="videos">Video carousel</option>
+            <option value="mixed">Mixed media carousel</option>
+          </select>
+        </label>
+        <label>Publication title<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={300} disabled={!isDraft}/></label>
+        <label>Full publication caption<textarea rows={3} maxLength={5000} value={description} onChange={e=>setDescription(e.target.value)} disabled={!isDraft}/></label>
+        <fieldset disabled={!isDraft}>
+          <legend>Carousel cards — {slides.length} / 40</legend>
+          <p>Choose existing published assets. Upload new items in the appropriate Media Studio collection first.</p>
+          <select aria-label="Add existing media card" defaultValue="" onChange={e=>{addAsset(e.target.value);e.target.value=''}}>
+            <option value="">+ Add a card from the library</option>
+            {choices.filter(a=>!slides.some(s=>s.asset_id===a.id)).map(a=><option key={a.id} value={a.id}>{a.title} ({a.source_kind})</option>)}
+          </select>
+          {slides.map((item,i)=><div className="studio-carousel-slide" key={item.asset_id}>
+            <strong>{i+1}. {item.title}</strong>
+            <input aria-label={`Caption for card ${i+1}`} maxLength={300} placeholder="Optional slide caption" value={item.caption}
+              onChange={e=>setSlides(prev=>prev.map((s,j)=>j===i?{...s,caption:e.target.value}:s))}/>
+            <div><button type="button" disabled={i===0} onClick={()=>move(i,-1)}>↑</button>
+            <button type="button" disabled={i===slides.length-1} onClick={()=>move(i,1)}>↓</button>
+            <button type="button" onClick={()=>setSlides(prev=>prev.filter((_,j)=>i!==j))}>Remove</button></div>
+          </div>)}
+        </fieldset>
+        <fieldset disabled={!isDraft}><legend>Background audio (optional)</legend>
+          <label>Upload MP3, OGG or WAV (up to 12 MB)
+            <input type="file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" onChange={e=>setAudioFile(e.target.files?.[0]||null)} />
+          </label>
+          <label><input type="checkbox" checked={loopAudio} onChange={e=>setLoopAudio(e.target.checked)}/> Loop soundtrack</label>
+          {format !== 'images' && <label><input type="checkbox" checked={soundtrackOnVideos} onChange={e=>setSoundtrackOnVideos(e.target.checked)}/> Play soundtrack over muted uploaded promo video clips</label>}
+          {current?.has_audio && <p>Soundtrack saved. Audio starts only when a visitor chooses to play it.</p>}
+        </fieldset>
+        {isDraft && <button type="button" disabled={busy||!canManage} onClick={save}>Save carousel draft</button>}
+        <fieldset><legend>Where should this appear?</legend>
+          {destinations.map(([key,label])=><label key={key}><input type="checkbox" checked={dest.includes(key)} onChange={e=>setDest(current=>e.target.checked?[...current,key]:current.filter(d=>d!==key))}/>{label}</label>)}
+          {dest.some(d=>d.startsWith('dic_'))&&<label>Camp edition
+            <select value={edition} onChange={e=>setEdition(e.target.value)}><option value="">Select edition</option>
+            {editions.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+        </fieldset>
+        <div className="studio-carousel-actions">
+          {current && isDraft && user.can_publish_destinations && <button type="button" disabled={busy} onClick={publish}>Publish Now</button>}
+          {current && current.state==='published' && user.can_publish_destinations && <button type="button" disabled={busy}
+            onClick={()=>run(()=>studioActOnCarousel(current.id,{action:'withdraw'}))}>Withdraw publication</button>}
+          {current && user.can_publish_destinations && <button type="button" className="danger" disabled={busy} onClick={()=>{
+            if(window.confirm('Delete this carousel from all website destinations? Source media files and audit history will be retained.')) {
+              run(()=>studioActOnCarousel(current.id,{action:'delete'})).then(result=>{if(result){load(null)}})
+            }
+          }}>Delete publication</button>}
+        </div>
+      </div>
+    </div>
+  </section>
+}

@@ -19,6 +19,35 @@ export function LecturerCard({ lecturer, historical = false }) {
   </article>
 }
 
+
+/** An accessible, expanding editorial speaker rail; the source approval rules are unchanged. */
+function LecturerRail({ lecturers, historical = false }) {
+  const [active, setActive] = useState(0)
+  useEffect(() => { setActive(0) }, [lecturers])
+  if (!lecturers.length) return null
+  const selected = Math.min(active, lecturers.length - 1)
+  const move = offset => setActive(index => (index + offset + lecturers.length) % lecturers.length)
+  return <div className="showcase-rail" aria-label={historical ? 'Previous camp lecturers' : 'Upcoming camp lecturers'}>
+    <div className="showcase-rail-track">
+      {lecturers.map((lecturer, index) =>
+        <div key={lecturer.id} className={`showcase-rail-item${index === selected ? ' is-active' : ''}`}
+          data-distance={Math.min(Math.abs(index-selected), lecturers.length-Math.abs(index-selected))}>
+          {index === selected ? <LecturerCard lecturer={lecturer} historical={historical} /> :
+            <button className="showcase-rail-preview" type="button"
+              onClick={() => setActive(index)} aria-label={`View lecturer ${lecturer.name}`}>
+              <img src={resolveMediaUrl(lecturer.image_url)} alt="" loading="lazy" decoding="async" />
+              <span>{lecturer.name}</span>
+            </button>}
+        </div>)}
+    </div>
+    {lecturers.length > 1 && <div className="showcase-rail-controls">
+      <button type="button" onClick={() => move(-1)} aria-label="Previous lecturer">← Previous</button>
+      <span role="status" aria-live="polite">{selected + 1} / {lecturers.length}</span>
+      <button type="button" onClick={() => move(1)} aria-label="Next lecturer">Next →</button>
+    </div>}
+  </div>
+}
+
 export default function CampShowcase() {
   const [data, setData] = useState({ upcoming: [], previous: [], activities: [] })
   const [status, setStatus] = useState('loading')
@@ -51,13 +80,13 @@ export default function CampShowcase() {
     <section className="showcase-upcoming" aria-labelledby="showcase-upcoming-title"><Container><span className="eyebrow">KNOWLEDGE & REFLECTION</span><h2 id="showcase-upcoming-title">Meet the upcoming camp lecturers</h2><p className="showcase-intro">Approved profiles and topics, with participation status clearly stated.</p>
       {feedback && <p role="status">{feedback}</p>}
       {(status === 'ready' || localPreview) && !data.upcoming.length && <div className="showcase-empty"><h3>Meet the lecturers when details are approved</h3><p>Lecturer announcements will appear here after editorial approval. No participation is assumed.</p>{localPreview && <small>Local preview · awaiting approved lecturer profiles and topics</small>}</div>}
-      <div className="showcase-lecturer-grid">{data.upcoming.map(item => <LecturerCard key={item.id} lecturer={item} />)}</div>
+      <LecturerRail lecturers={data.upcoming} />
     </Container></section>
     <section className="showcase-previous" aria-labelledby="showcase-previous-title"><Container><span className="eyebrow">FROM THE CAMP ARCHIVE</span><h2 id="showcase-previous-title">Lecturers From Previous Editions</h2>
       {feedback && <p role="status">{feedback}</p>}
       {!!data.previous.length && <label className="showcase-filter">Past camp edition<select aria-label="Past lecturer edition" value={edition} onChange={event => setEdition(event.target.value)}><option value="">All past editions</option>{editions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select><span role="status">{previous.length} {previous.length === 1 ? 'profile' : 'profiles'}</span></label>}
       {(status === 'ready' || localPreview) && !previous.length && <div className="showcase-empty"><p>No approved historical lecturer profiles are available{edition ? ' for this edition' : ' yet'}.</p>{localPreview && <small>Local preview · previous lecturers</small>}</div>}
-      <div className="showcase-lecturer-grid">{previous.map(item => <LecturerCard key={item.id} lecturer={item} historical />)}</div>
+      <LecturerRail lecturers={previous} historical />
     </Container></section>
     <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container><span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to expect at camp</h2><p className="showcase-intro">Explore the activities approved for this edition. Programme details are shared only when authorized.</p>
       {feedback && <p role="status">{feedback}</p>}

@@ -189,7 +189,13 @@ export default function StudioDestinations({ user, editions, library, sourceLink
           <div className="studio-placement-buttons"><button type="submit" value="draft" disabled={busy}>Save draft placement</button>{user.can_publish_destinations && <button type="submit" value="publish" disabled={busy || current.archived}>Publish destination</button>}{user.can_publish_destinations && <button type="submit" value="withdraw" disabled={busy}>Withdraw destination</button>}</div>
           </form><small>Publishing requires the original media item to be approved. Private camper resources remain subject to camper entitlement; a placement cannot bypass it.</small>
           </div>
-          <div className="studio-archive-actions"><button type="button" disabled={busy} onClick={()=>run(()=>studioArchiveAsset(current.id,current.archived?'restore':'archive'))}>{current.archived?'Restore to drafts':'Archive and withdraw all destinations'}</button></div>
+          <div className="studio-archive-actions">
+            {user.can_manage_catalogue && <button type="button" disabled={busy} onClick={()=>run(()=>studioArchiveAsset(current.id,current.archived?'restore':'archive'))}>{current.archived?'Restore archived publication':'Archive and withdraw all destinations'}</button>}
+            {user.can_publish_destinations && !current.archived && <button type="button" disabled={busy} onClick={()=>{
+              if (!window.confirm('Delete this publication from every website destination? The source files and audit history will remain protected. The publication can be restored by authorized catalogue staff.')) return
+              run(()=>studioArchiveAsset(current.id,'delete_publication'))
+            }}>Delete publication from website</button>}
+          </div>
         </>}
       </div>
     </div>

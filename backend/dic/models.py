@@ -1568,3 +1568,6 @@ from .aftercamp_models import AftercampAssessment  # noqa: E402,F401
 
 # Foundation-wide articles, podcasts, dynamic collections, and live broadcasts.
 from .studio_publication_models import StudioCollection, StudioPublication  # noqa: E402,F401
+
+# Grouped, destination-aware media publications.
+from .studio_carousel_models import StudioCarousel, StudioCarouselSlide, StudioCarouselPlacement  # noqa: E402,F401

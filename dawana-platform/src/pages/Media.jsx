@@ -1,3 +1,4 @@
+import PublishedCarousels from '../components/media/PublishedCarousels'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
@@ -138,6 +139,7 @@ export default function Media() {
   const visualItems = items.filter(row => ['photos', 'flyers', 'activities', 'appearances'].includes(row.source_kind))
   return <div className="public-page media-page media-clean-page">
     <PageHero eyebrow="Foundation Media" title="Media Library" description="Lectures, reminders and programme recordings — organised in one simple archive."/>
+    <PublishedCarousels destination="foundation_archive" />
     <section className="media-clean-section"><Container>
       <MediaSubscribe />
       <div className="media-clean-intro"><h2>Explore the media library</h2></div>
