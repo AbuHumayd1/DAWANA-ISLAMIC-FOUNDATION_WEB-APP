@@ -3,7 +3,7 @@ import { Container } from '../layout/SiteChrome'
 import { backendUrl } from '../../services/productionContract'
 import './PublishedCarousels.css'
 
-const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\\/$/, '')
+const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 
 function safeEmbed(url) {
   try {
