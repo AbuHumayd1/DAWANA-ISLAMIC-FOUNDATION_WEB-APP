@@ -1,0 +1,20 @@
+.studio-carousel-editor{border:1px solid #d7e4d5;border-radius:22px;margin:30px 0;padding:clamp(16px,3vw,30px);background:var(--panel,#fff);color:var(--text,#20442f)}
+.studio-carousel-editor h2{font:normal clamp(1.7rem,3vw,2.3rem)/1.2 Georgia,serif;margin:8px 0}
+.studio-carousel-editor p{line-height:1.55}
+.studio-carousel-shell{display:grid;grid-template-columns:minmax(180px,28%) minmax(0,1fr);gap:25px;margin-top:25px}
+.studio-carousel-list{display:grid;align-content:start;gap:8px;max-height:650px;overflow:auto}
+.studio-carousel-list button{border:1px solid #cfdfd1;border-radius:13px;background:transparent;color:inherit;text-align:left;padding:13px;cursor:pointer}
+.studio-carousel-list button[aria-pressed=true]{border-color:#2e7550;background:#e4eee6;color:#19432d}
+.studio-carousel-list small{display:block;opacity:.7;margin-top:5px}
+.studio-carousel-form{display:grid;gap:15px;min-width:0}.studio-carousel-form label{display:grid;gap:8px;font-weight:600}
+.studio-carousel-form label:has(input[type=checkbox]){display:flex;align-items:center;gap:10px}
+.studio-carousel-form input:not([type=checkbox]),.studio-carousel-form textarea,.studio-carousel-form select{width:100%;max-width:100%;padding:11px;border:1px solid #b9cebd;border-radius:9px;font:inherit;color:inherit;background:transparent}
+.studio-carousel-form fieldset{border:1px solid #d0ddcf;border-radius:12px;min-width:0;padding:16px;display:grid;gap:12px}
+.studio-carousel-form legend{font-weight:700;padding:0 8px}
+.studio-carousel-slide{display:grid;gap:7px;border-radius:10px;background:#f1f6f1;color:#254735;padding:12px}
+.studio-carousel-slide strong{overflow-wrap:anywhere}.studio-carousel-slide div{display:flex;gap:10px}
+.studio-carousel-form button{padding:11px 15px;border:1px solid #8ba892;background:#214f36;color:#fff;border-radius:9px;cursor:pointer}
+.studio-carousel-form button:disabled{opacity:.45;cursor:not-allowed}.studio-carousel-actions{display:flex;flex-wrap:wrap;gap:10px}
+.studio-carousel-actions .danger{background:#87352a;border-color:#87352a}
+.studio-carousel-notice{padding:14px;border:1px solid #bacfbb;border-radius:10px}
+@media(max-width:720px){.studio-carousel-shell{grid-template-columns:1fr}.studio-carousel-list{display:flex;max-height:none;overflow-x:auto}.studio-carousel-list button{flex:0 0 160px}}
