@@ -418,7 +418,7 @@ test('homepage journal is bounded and mobile stories scroll horizontally without
   const css = read('../components/media/PublishedStudioArchive.css')
   const dicShowcase = read('../components/dic/CampShowcase.jsx')
   assert.match(gallery, /published-studio-journal-controls/)
-  assert.match(gallery, /ref=\{destination === 'foundation_home' \? journalRef : null\}/)
+  assert.match(gallery, /ref=\{isHighlight \? journalRef : null\}/)
   assert.match(gallery, /destination === 'foundation_home'[\s\S]*?published-studio-story-action/)
   assert.match(gallery, /role="dialog" aria-modal="true"/)
   assert.match(gallery, /storyCloseRef\.current\?\.focus\(\)/)
