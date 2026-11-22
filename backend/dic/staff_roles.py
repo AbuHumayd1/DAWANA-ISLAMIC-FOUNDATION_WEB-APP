@@ -21,6 +21,7 @@ ROLES={
      'dic.view_promovideo','dic.add_promovideo','dic.change_promovideo','dic.publish_promovideo',
      'dic.view_lecturer','dic.add_lecturer','dic.change_lecturer',
      'dic.view_lecturerappearance','dic.add_lecturerappearance','dic.change_lecturerappearance',
+     'dic.publish_lecturerappearance',
      'dic.view_campactivity','dic.add_campactivity','dic.change_campactivity','dic.publish_campactivity',
      'dic.view_studiohostedvideo','dic.add_studiohostedvideo','dic.change_studiohostedvideo',
      'dic.publish_studiohostedvideo',

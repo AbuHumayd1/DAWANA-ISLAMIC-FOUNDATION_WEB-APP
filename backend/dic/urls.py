@@ -356,6 +356,14 @@ urlpatterns += [
     path('studio/library/<str:kind>/<int:pk>/publication/', StudioPublicationView.as_view(), name='studio-publication'),
 ]
 
+# DIC lecturer appearances are authored and approved within Media Studio,
+# reusing the existing public showcase models and moderation contracts.
+from .studio_lecturer_api import StudioLecturerAppearancesView, StudioLecturerAppearanceDetailView
+urlpatterns += [
+    path('studio/lecturer-appearances/', StudioLecturerAppearancesView.as_view(), name='studio-lecturer-appearances'),
+    path('studio/lecturer-appearances/<int:pk>/', StudioLecturerAppearanceDetailView.as_view(), name='studio-lecturer-appearance-detail'),
+]
+
 # Unified DAWANA Media Studio catalogue and safe publication destinations.
 from .studio_catalogue_api import (StudioAssetsView, StudioAssetDetailView,
     StudioPlacementView, PublicStudioPlacementsView, PublicStudioAudioView)
