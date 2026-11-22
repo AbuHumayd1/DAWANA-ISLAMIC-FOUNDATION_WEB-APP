@@ -1,6 +1,7 @@
 """Media Studio lecturer appearance workflow acceptance and permission tests."""
 import json
 import tempfile
+from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -21,7 +22,8 @@ class MediaStudioLecturerAppearanceTests(TestCase):
         override.enable()
         self.addCleanup(override.disable)
         self.edition = CampEdition.objects.create(
-            name='Historical camp edition', year=2024, is_active=False)
+            name='Historical camp edition', year=2024, is_active=False,
+            camp_start_date=date(2024, 12, 23), camp_end_date=date(2025, 1, 1))
         self.lecturer = Lecturer.objects.create(
             name='Synthetic Historical Lecturer',
             photograph=image_file(),
@@ -150,6 +152,7 @@ class MediaStudioLecturerAppearanceTests(TestCase):
 
     def test_different_edition_transfer_rejected(self):
         record = self.make_record()
-        other = CampEdition.objects.create(name='Another edition', year=2023)
+        other = CampEdition.objects.create(name='Another edition', year=2023,
+            camp_start_date=date(2023, 12, 23), camp_end_date=date(2024, 1, 1))
         response = self.patch(self.detail_url(record), {'edition': other.pk}, self.editor)
         self.assertEqual(response.status_code, 400)
