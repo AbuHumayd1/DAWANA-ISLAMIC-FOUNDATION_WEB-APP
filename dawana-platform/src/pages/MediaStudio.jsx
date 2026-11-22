@@ -6,6 +6,7 @@ import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
 import StudioCarouselEditor from './StudioCarouselEditor'
+import StudioLecturerAppearances from './StudioLecturerAppearances'
 import StudioEditorial from './StudioEditorial'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
@@ -555,6 +556,7 @@ export default function MediaStudio() {
           {user.libraries?.includes('lecturers') && <button type="button" aria-pressed={library === 'lecturers'} onClick={() => chooseLibrary('lecturers')}>Lecturer profiles</button>}
           {user.libraries?.includes('appearances') && <button type="button" aria-pressed={library === 'appearances'} onClick={() => chooseLibrary('appearances')}>Camp appearances</button>}
         </div>}
+        {library === 'appearances' && <StudioLecturerAppearances />}
         <div className="studio-start-panel">
           <div className="studio-start-copy">
             <span className="studio-kicker">START HERE</span>
