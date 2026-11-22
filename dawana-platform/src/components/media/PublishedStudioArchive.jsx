@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { backendUrl } from '../../services/productionContract'
 import { hostedVideoThumbnail } from '../../services/hostedVideoThumbnail'
 import { Container } from '../layout/SiteChrome'
@@ -37,7 +37,33 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   const [pageError, setPageError] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [retry, setRetry] = useState(0)
-  useEffect(() => { setPage(1); setItems([]); setHasMore(false); setState('loading') }, [destination])
+  const [openStory, setOpenStory] = useState(null)
+  const journalRef = useRef(null)
+  const storyCloseRef = useRef(null)
+  const storyTriggerRef = useRef(null)
+  useEffect(() => { setPage(1); setItems([]); setHasMore(false); setState('loading'); setOpenStory(null) }, [destination])
+  useEffect(() => {
+    if (!openStory) return undefined
+    storyCloseRef.current?.focus()
+    function dismiss(event) { if (event.key === 'Escape') setOpenStory(null) }
+    document.addEventListener('keydown', dismiss)
+    return () => {
+      document.removeEventListener('keydown', dismiss)
+      storyTriggerRef.current?.focus()
+    }
+  }, [openStory])
+  function showStory(item, event) {
+    storyTriggerRef.current = event.currentTarget
+    setOpenStory(item)
+  }
+  function moveJournal(direction) {
+    const rail = journalRef.current
+    if (!rail) return
+    const card = rail.querySelector('.published-studio-card')
+    if (!card) return
+    const distance = card.getBoundingClientRect().width + 14
+    rail.scrollBy({ left: direction * distance, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+  }
   useEffect(() => {
     const controller = new AbortController()
     if (page === 1) { setActiveEmbed(''); setActiveAlbum(''); setState('loading') }
@@ -76,19 +102,29 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
       {destination === 'foundation_home' && <a className="published-studio-heading-link" href="/media">Explore the library <span aria-hidden="true">↗</span></a>}
     </div>
     {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
-    <div className="published-studio-grid">{visibleItems.map((item, i) => <article key={item.url + i} className={`published-studio-card${destination === 'foundation_home' && i === 0 ? ' published-studio-card--lead' : ''}`}>
+    {destination === 'foundation_home' && visibleItems.length > 1 && <div className="published-studio-journal-controls" aria-label="Browse featured publications"><span>Featured stories · Swipe to explore</span><div><button type="button" onClick={() => moveJournal(-1)} aria-label="Previous featured story">‹</button><button type="button" onClick={() => moveJournal(1)} aria-label="Next featured story">›</button></div></div>}
+    <div className="published-studio-grid" ref={destination === 'foundation_home' ? journalRef : null}>{visibleItems.map((item, i) => <article key={item.url + i} className={`published-studio-card${destination === 'foundation_home' && i === 0 ? ' published-studio-card--lead' : ''}`}>
       {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <HostedVideoCover item={item} embed={approvedVideoLink(item.embed_url)} active={activeEmbed === item.url} onPlay={() => setActiveEmbed(item.url)} /> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual published-studio-visual--original-ratio">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
       </div>}
-      <div className="published-studio-content"><span>{item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && (item.description.length > 340
-        ? <details className="published-studio-long-caption"><summary>Read full caption</summary><p>{item.description}</p></details>
-        : <p className="published-studio-caption">{item.description}</p>)}
+      <div className="published-studio-content"><span>{item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && (destination === 'foundation_home'
+        ? <button className="published-studio-story-action" type="button" onClick={event => showStory(item, event)}>Read story <span aria-hidden="true">↗</span></button>
+        : item.description.length > 340
+          ? <details className="published-studio-long-caption"><summary>Read full caption</summary><p>{item.description}</p></details>
+          : <p className="published-studio-caption">{item.description}</p>)}
       {(item.source_kind === 'hosted' || item.source_kind !== 'videos' || approvedVideoLink(item.embed_url)) ?
         <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</div>
     {pageError && <p role="alert">Could not load more publications. You can retry.</p>}
     {destination === 'foundation_home' && <a className="published-studio-load-more published-studio-home-cta" href="/media">Discover more publications <span aria-hidden="true">↗</span></a>}
+    {destination === 'foundation_home' && openStory && <div className="published-studio-story-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setOpenStory(null) }}>
+      <section role="dialog" aria-modal="true" aria-label={`Publication: ${openStory.title}`} className="published-studio-story-dialog">
+        <div className="published-studio-story-header"><div><span>DAWANA JOURNAL</span><h3>{openStory.title}</h3></div><button ref={storyCloseRef} type="button" onClick={() => setOpenStory(null)} aria-label="Close publication">✕</button></div>
+        <div className="published-studio-story-body"><p>{openStory.description}</p></div>
+        <div className="published-studio-story-footer"><button type="button" onClick={() => setOpenStory(null)}>Close story</button></div>
+      </section>
+    </div>}
     {destination !== 'foundation_home' && hasMore && <button type="button" className="published-studio-load-more" onClick={() => pageError ? setRetry(n => n + 1) : setPage(n => n + 1)} disabled={loadingMore || page >= 100}>{loadingMore ? 'Loading approved media…' : pageError ? 'Retry this page' : 'Load more approved media'}</button>}
   </Container></section>
 }
