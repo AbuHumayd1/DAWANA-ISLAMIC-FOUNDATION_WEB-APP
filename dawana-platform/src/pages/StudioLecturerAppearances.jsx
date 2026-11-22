@@ -20,7 +20,7 @@ function errorMessage(error) {
   return 'The requested operation could not be completed.'
 }
 
-export default function StudioLecturerAppearances() {
+export default function StudioLecturerAppearances({ onUpdated }) {
   const [data, setData] = useState({items: [], lecturers: [], editions: []})
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -77,6 +77,7 @@ export default function StudioLecturerAppearances() {
         setMessage('Appearance details saved. Published records return to review before republication.')
       }
       setEditing(null)
+      onUpdated?.()
       await refresh(1)
     } catch (error) { setMessage(errorMessage(error)) }
     finally { setBusy(false) }
@@ -90,6 +91,7 @@ export default function StudioLecturerAppearances() {
     try {
       await studioActOnLecturerAppearance(item.id, action)
       setMessage(actionLabel + ' completed.')
+      onUpdated?.()
       await refresh(page)
     } catch (error) { setMessage(errorMessage(error)) }
     finally { setBusy(false) }
