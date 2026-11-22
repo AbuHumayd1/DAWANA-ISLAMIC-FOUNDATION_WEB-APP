@@ -143,3 +143,12 @@ export async function studioUploadCarouselAudio(id, file, loopAudio = false) {
   })
   return readApiResponse(response)
 }
+
+export const studioLecturerAppearances = (page = 1) =>
+  studioRequest('/lecturer-appearances/?page=' + encodeURIComponent(page))
+export const studioCreateLecturerAppearance = fields =>
+  studioRequest('/lecturer-appearances/', { method: 'POST', body: fields })
+export const studioEditLecturerAppearance = (id, fields) =>
+  studioRequest('/lecturer-appearances/' + encodeURIComponent(id) + '/', { method: 'PATCH', body: fields })
+export const studioActOnLecturerAppearance = (id, action) =>
+  studioRequest('/lecturer-appearances/' + encodeURIComponent(id) + '/', { method: 'POST', body: { action } })
