@@ -72,6 +72,7 @@ export default function StudioLecturerAppearances() {
       } else {
         delete payload.lecturer
         delete payload.edition
+        if (payload.confirmation_status === 'confirmed') delete payload.confirmation_status
         await studioEditLecturerAppearance(editing, payload)
         setMessage('Appearance details saved. Published records return to review before republication.')
       }
@@ -133,6 +134,7 @@ export default function StudioLecturerAppearances() {
             <option value="pending">Pending verification</option>
             <option value="invited">Invited</option>
             <option value="declined">Declined</option>
+            {form.confirmation_status === 'confirmed' && <option value="confirmed" disabled>Confirmed — verified</option>}
           </select>
         </label>
         <label className="studio-appearance-wide">Lecture topic
