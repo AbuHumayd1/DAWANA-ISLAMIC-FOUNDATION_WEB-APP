@@ -486,3 +486,137 @@
 @media(prefers-reduced-motion:reduce){
   .published-studio-archive--foundation_home .published-studio-grid{scroll-behavior:auto}
 }
+
+
+/* DIC MEDIA HIGHLIGHTS — bounded editorial collection, independent of the
+   separately designed DIC lecturer showcase and full Media library. */
+.published-studio-archive--dic_landing{
+  padding:clamp(36px,5vw,65px) 0;
+}
+.published-studio-archive--dic_landing .published-studio-heading h2{
+  font-size:clamp(26px,3vw,37px);
+}
+.published-studio-archive--dic_landing .published-studio-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:auto;
+  align-items:stretch;
+  gap:15px;
+}
+.published-studio-archive--dic_landing .published-studio-card{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  min-width:0;
+  border-radius:16px;
+}
+.published-studio-archive--dic_landing .published-studio-card>.published-studio-visual,
+.published-studio-archive--dic_landing .published-studio-card>.published-studio-visual--original-ratio{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  width:100%;
+  height:250px !important;
+  min-height:0 !important;
+  max-height:250px;
+  aspect-ratio:auto !important;
+  overflow:hidden;
+  background:#e9f0e7;
+}
+.published-studio-archive--dic_landing .published-studio-card>.published-studio-visual img,
+.published-studio-archive--dic_landing .published-studio-card>.published-studio-visual--original-ratio img{
+  display:block;
+  width:100%;
+  height:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  object-position:center;
+}
+.published-studio-archive--dic_landing .published-studio-card>.published-studio-content{
+  display:flex;
+  flex:1 1 auto;
+  justify-content:flex-start;
+  align-items:flex-start;
+  flex-direction:column;
+  gap:9px;
+  padding:16px 17px 18px;
+}
+.published-studio-archive--dic_landing .published-studio-content h3{
+  font-size:clamp(17px,1.7vw,21px);
+}
+.published-studio-archive--dic_landing .published-studio-card>.published-studio-video{
+  aspect-ratio:auto;
+}
+.published-studio-archive--dic_landing .published-studio-video-cover,
+.published-studio-archive--dic_landing .published-studio-video iframe{
+  width:100%;
+  height:100%;
+  min-height:0;
+  aspect-ratio:auto;
+}
+.published-studio-archive--dic_landing .published-studio-video-cover img{
+  object-fit:contain;
+}
+.published-studio-archive--dic_landing .published-studio-content .published-studio-story-action{
+  border:0;
+  background:transparent;
+  padding:3px 0;
+  color:#195940;
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  cursor:pointer;
+}
+.published-studio-archive--dic_landing .published-studio-content .published-studio-story-action:focus-visible{
+  outline:2px solid currentColor;
+  outline-offset:3px;
+}
+.published-studio-archive--dic_landing .published-studio-home-cta{
+  width:max-content;max-width:100%;
+  margin:23px auto 4px;
+  padding:12px 22px;
+  background:#195940;color:#fff;border-color:#195940;
+  text-align:center;
+}
+:root[data-theme="dark"] .published-studio-archive--dic_landing .published-studio-story-action{color:#b5e4c3}
+:root[data-theme="dark"] .published-studio-archive--dic_landing .published-studio-home-cta{
+  background:#317451;color:#fff;border-color:#317451;
+}
+@media(min-width:651px) and (max-width:1050px){
+  .published-studio-archive--dic_landing .published-studio-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+  .published-studio-archive--dic_landing{overflow:hidden;padding:34px 0 43px}
+  .published-studio-archive--dic_landing .published-studio-heading{margin-bottom:14px}
+  .published-studio-archive--dic_landing .published-studio-grid{
+    display:flex;
+    gap:14px;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:x mandatory;
+    scroll-padding-inline:1px;
+    padding:0 0 14px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  .published-studio-archive--dic_landing .published-studio-grid>.published-studio-card{
+    flex:0 0 min(82vw,350px);
+    scroll-snap-align:start;
+    align-self:stretch;
+  }
+  .published-studio-archive--dic_landing .published-studio-card>.published-studio-visual,
+  .published-studio-archive--dic_landing .published-studio-card>.published-studio-visual--original-ratio{
+    height:220px !important;
+    max-height:220px;
+  }
+  .published-studio-archive--dic_landing .published-studio-card>.published-studio-content{
+    padding:14px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .published-studio-archive--dic_landing .published-studio-grid{scroll-behavior:auto}
+}
