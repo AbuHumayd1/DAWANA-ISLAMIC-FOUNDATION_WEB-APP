@@ -18,7 +18,7 @@ class MediaStudioLecturerAppearanceTests(TestCase):
         self.storage = tempfile.TemporaryDirectory()
         self.addCleanup(self.storage.cleanup)
         override = override_settings(
-            DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=self.storage.name)
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=self.storage.name)
         override.enable()
         self.addCleanup(override.disable)
         self.edition = CampEdition.objects.create(
