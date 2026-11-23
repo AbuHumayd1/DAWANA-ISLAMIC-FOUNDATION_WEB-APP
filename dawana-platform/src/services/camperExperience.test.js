@@ -155,9 +155,9 @@ test('iPhone Safari tab preview and browser tabs use DAWANA instead of the Vite 
   const logo = fs.readFileSync(new URL('../../public/dawana-official-logo.png', import.meta.url))
   const favicon = fs.readFileSync(new URL('../../public/favicon.svg', import.meta.url), 'utf8')
   assert.ok(logo.length > 1000)
-  assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/favicon\.svg\?v=20261118-dawana"/)
+  assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\/favicon\.svg\?v=20261123-official-logo"/)
   for (const relation of ['icon', 'shortcut icon', 'apple-touch-icon']) {
-    assert.match(html, new RegExp('<link rel="' + relation + '"[^>]+href="/dawana-official-logo\\.png\\?v=20261118-dawana"'))
+    assert.match(html, new RegExp('<link rel="' + relation + '"[^>]+href="/dawana-official-logo\\.png\\?v=20261123-official-logo"'))
   }
   assert.match(favicon, /DAWANA Islamic Foundation/)
   assert.match(html, /apple-mobile-web-app-title" content="DAWANA"/)
