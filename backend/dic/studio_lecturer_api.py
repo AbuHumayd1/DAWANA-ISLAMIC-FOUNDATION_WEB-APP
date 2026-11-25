@@ -224,7 +224,7 @@ class StudioSimpleLecturerView(StudioView):
             lecturer = Lecturer(name=name, biography=biography, designation='',
                                 alt_text='Flyer or portrait of ' + name, photograph=flyer)
             try:
-                lecturer.full_clean()
+                lecturer.full_clean(exclude=['biography'])
                 lecturer.save()
             except DjangoValidationError as error:
                 raise ValidationError({'flyer': 'Please select a valid JPEG, PNG or WebP image.'}) from error
@@ -265,7 +265,7 @@ class StudioSimpleLecturerDetailView(StudioView):
             if fields:
                 lecturer.alt_text = 'Flyer or portrait of ' + lecturer.name
                 try:
-                    lecturer.full_clean()
+                    lecturer.full_clean(exclude=['biography'])
                     lecturer.save()
                 except DjangoValidationError as error:
                     raise ValidationError({'flyer': 'Please select a valid JPEG, PNG or WebP image.'}) from error
