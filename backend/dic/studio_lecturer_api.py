@@ -4,6 +4,7 @@ Uses the same models, locks, verification, publisher grants and audit events as
 Django Admin. No duplicate publication database or public endpoint.
 """
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.urls import reverse
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -70,6 +71,7 @@ def serialize(item):
         'state': item.state, 'featured': item.featured,
         'display_order': item.display_order,
         'published_at': item.published_at,
+        'image_url': reverse('dic:showcase-image', args=['lecturer', item.pk]) + '?preview=1',
     }
 
 
@@ -106,7 +108,8 @@ class StudioLecturerAppearancesView(StudioView):
             'items': [serialize(x) for x in records[:30]],
             'has_more': len(records) > 30, 'page': page,
             'lecturers': profiles, 'editions': editions,
-            'can_create': grant(request.user, 'add'),
+            'can_create': grant(request.user, 'add') and grant(request.user, 'change') and grant(request.user, 'publish') and (request.user.is_superuser or request.user.has_perm('dic.add_lecturer')),
+            'can_delete': request.user.is_superuser or request.user.has_perm('dic.delete_lecturerappearance'),
             'can_edit': grant(request.user, 'change'),
             'can_verify': grant(request.user, 'change') and grant(request.user, 'verify'),
             'can_publish': grant(request.user, 'change') and grant(request.user, 'publish'),
