@@ -16,6 +16,7 @@ export default function StudioCampActivities({ editions = [], onUpdated, canPubl
     if (!title.trim()) return setFeedback('Enter the approved activity name.')
     if (!description.trim()) return setFeedback('Briefly describe the activity.')
     if (!photo) return setFeedback('Choose the activity flyer or photograph.')
+    const form = event.currentTarget
     setBusy(true); setFeedback('')
     let uploaded = null
     try {
@@ -27,7 +28,7 @@ export default function StudioCampActivities({ editions = [], onUpdated, canPubl
       await studioPublish('activities', uploaded.id, 'publish')
       setFeedback('Published to DIC → What to expect at camp.')
       setTitle(''); setDescription(''); setPhoto(null)
-      if (event.currentTarget) event.currentTarget.reset()
+      form?.reset()
       onUpdated?.()
     } catch (error) {
       setFeedback(uploaded
