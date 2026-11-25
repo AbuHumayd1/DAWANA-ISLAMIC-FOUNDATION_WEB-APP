@@ -109,7 +109,7 @@ class StudioLecturerAppearancesView(StudioView):
             'has_more': len(records) > 30, 'page': page,
             'lecturers': profiles, 'editions': editions,
             'can_create': grant(request.user, 'add') and grant(request.user, 'change') and grant(request.user, 'publish') and (request.user.is_superuser or request.user.has_perm('dic.add_lecturer')),
-            'can_delete': request.user.is_superuser or request.user.has_perm('dic.delete_lecturerappearance'),
+            'can_delete': grant(request.user, 'change') and grant(request.user, 'publish'),
             'can_edit': grant(request.user, 'change'),
             'can_verify': grant(request.user, 'change') and grant(request.user, 'verify'),
             'can_publish': grant(request.user, 'change') and grant(request.user, 'publish'),
@@ -280,8 +280,7 @@ class StudioSimpleLecturerDetailView(StudioView):
 
     def delete(self, request, pk):
         require_grant(request.user, 'change')
-        if not (request.user.is_superuser or request.user.has_perm('dic.delete_lecturerappearance')):
-            raise PermissionDenied('Ask an administrator for lecturer deletion access.')
+        require_grant(request.user, 'publish')
         with transaction.atomic():
             lecturer_id = LecturerAppearance.objects.filter(pk=pk).values_list('lecturer_id', flat=True).first()
             if lecturer_id is None:
