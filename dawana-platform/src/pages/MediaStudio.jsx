@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioDeleteDraft } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
 import StudioCarouselEditor from './StudioCarouselEditor'
 import StudioLecturerAppearances from './StudioLecturerAppearances'
+import StudioCampActivities from './StudioCampActivities'
 import StudioEditorial from './StudioEditorial'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
@@ -421,19 +422,19 @@ export default function MediaStudio() {
     } catch (error) { setMessage(error.message) }
     finally { setPending(null) }
   }
-  async function deleteDraft(item) {
-    if (item.state !== 'draft' || !canDelete) return
-    if (!window.confirm(`Delete draft “${item.title}” from Media Studio? This cannot be undone. If this item was published and later withdrawn, only a system administrator can remove it, and its publication history will be retained. Media linked to a publishing destination cannot be deleted.`)) return
+  async function removeMedia(item) {
+    if (!canDelete) return
+    if (!window.confirm(`Remove “${item.title}” from Media Studio and the public website? This removes it from staff lists and public destinations. Publication history and stored source files are kept securely.`)) return
     setPending(item.id); setMessage('')
     try {
-      await studioDeleteDraft(library, item.id, Boolean(user?.owner))
+      await studioRemoveMedia(library, item.id)
       setRows(previous => previous.filter(row => row.id !== item.id))
       if (editing === item.id) setEditing(null)
       if (itemToPublish === item.id) setItemToPublish(null)
-      setMessage('Draft deleted from the workspace. Existing public publications and shared storage files are unaffected.')
+      setMessage('Item removed from Media Studio and public destinations.')
       setRevision(current => current + 1)
     } catch (error) {
-      setMessage(error.message || 'Draft could not be deleted.')
+      setMessage(error.message || 'Could not remove this item. Please try again.')
     } finally { setPending(null) }
   }
   async function publishExisting(item, action, chosen = []) {
@@ -552,7 +553,7 @@ export default function MediaStudio() {
           {user.libraries?.includes('hosted') && <button type="button" aria-pressed={library === 'hosted'} onClick={() => chooseLibrary('hosted')}>YouTube / Vimeo link</button>}
           {user.libraries?.includes('videos') && <button type="button" aria-pressed={library === 'videos'} onClick={() => chooseLibrary('videos')}>Upload video file</button>}
         </div>}
-        {['lecturers', 'appearances'].includes(library) ? <StudioLecturerAppearances onUpdated={() => setRevision(n => n + 1)} /> : <>
+        {['lecturers', 'appearances'].includes(library) ? <StudioLecturerAppearances onUpdated={() => setRevision(n => n + 1)} /> : library === 'activities' ? <StudioCampActivities editions={uploadInfo.editions} canPublish={canCreate && canPublish} onUpdated={() => setRevision(n => n + 1)} /> : <>
         <div className="studio-start-panel">
           <div className="studio-start-copy">
             <span className="studio-kicker">START HERE</span>
@@ -630,7 +631,7 @@ export default function MediaStudio() {
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
             <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
           </div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : []); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canDelete && item.state === 'draft' && <button type="button" className="studio-delete-draft" disabled={pending !== null} onClick={() => deleteDraft(item)}>Delete draft</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : []); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canDelete && <button type="button" className="studio-delete-draft" disabled={pending !== null} onClick={() => removeMedia(item)}>Delete</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
           {itemToPublish === item.id && <div className="studio-item-publisher">
             <strong>Where should “{item.title}” appear?</strong>
              {['hosted','videos','recordings'].includes(library) && <><MediaCategoryInput value={itemMediaCategory} onChange={setItemMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
@@ -646,7 +647,7 @@ export default function MediaStudio() {
         {more && <div className="studio-pagination"><button type="button" disabled={loading || page >= 100} onClick={() => setPage(current => current + 1)}>{loading ? 'Loading…' : 'Load more media'}</button></div>}
         </>}
       </section>
-      {!['lecturers', 'appearances'].includes(library) && <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />}
+      {!['lecturers', 'appearances', 'activities'].includes(library) && <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />}
       {!['lecturers', 'appearances'].includes(library) && (user.can_manage_catalogue || user.can_publish_destinations) && <StudioCarouselEditor user={user} editions={uploadInfo.editions} />}
       {!['lecturers', 'appearances'].includes(library) && (user.can_manage_catalogue || user.can_publish_destinations) ? <details className="studio-advanced-publishing" open={Boolean(focusAsset)} onToggle={event => {if (!event.currentTarget.open && focusAsset) setFocusAsset('')}}><summary>Advanced: manage albums and publishing details</summary><StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /></details> : null}
       {preview && <div className="studio-preview-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setPreview(null) }}>
