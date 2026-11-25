@@ -72,7 +72,7 @@ def showcase_image(request, kind, pk):
     if not photograph:
         raise Http404
     image_type = {".png": "image/png", ".webp": "image/webp"}.get(
-        Path(photograph.name).suffix.lower(), "image/jpeg")
+        Path(photograph.name).suffix.lower() if isinstance(photograph.name, str) else "", "image/jpeg")
     response = FileResponse(photograph.open("rb"), content_type=image_type)
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
