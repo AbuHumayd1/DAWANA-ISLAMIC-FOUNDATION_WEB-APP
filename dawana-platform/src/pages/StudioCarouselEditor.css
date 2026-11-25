@@ -18,3 +18,9 @@
 .studio-carousel-actions .danger{background:#87352a;border-color:#87352a}
 .studio-carousel-notice{padding:14px;border:1px solid #bacfbb;border-radius:10px}
 @media(max-width:720px){.studio-carousel-shell{grid-template-columns:1fr}.studio-carousel-list{display:flex;max-height:none;overflow-x:auto}.studio-carousel-list button{flex:0 0 160px}}
+
+/* Clear, mobile-first direct upload; no image-size or pixel controls. */
+.studio-carousel-direct-upload { display:grid; gap:12px; min-width:0; padding:16px; background:var(--panel,#fff); border:1px solid #bdd4bf; border-radius:12px; }
+.studio-carousel-direct-upload label { min-width:0; }
+.studio-carousel-direct-upload input[type=file] { overflow:hidden; }
+@media(max-width:720px){.studio-carousel-direct-upload{padding:12px}}
