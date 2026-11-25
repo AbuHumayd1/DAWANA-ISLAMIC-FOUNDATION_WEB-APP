@@ -63,7 +63,7 @@ def read_fields(data, creating=False):
 
 def serialize(item):
     return {
-        'id': item.pk, 'lecturer': item.lecturer_id, 'lecturer_name': item.lecturer.name,
+        'id': item.pk, 'lecturer': item.lecturer_id, 'lecturer_name': item.lecturer.name, 'biography': item.lecturer.biography,
         'edition': item.edition_id, 'edition_name': item.edition.name,
         'participation_type': item.participation_type, 'topic': item.topic,
         'confirmation_status': item.confirmation_status,
