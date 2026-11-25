@@ -4,6 +4,20 @@ export function httpError(message, status) {
   return error
 }
 
+function describeValidation(data) {
+  if (!data || typeof data !== 'object') return ''
+  const errors = data.errors && typeof data.errors === 'object' ? data.errors : data
+  const labels = { photograph: 'Image', flyer: 'Flyer', alt_text: 'Image description',
+    biography: 'Biography', name: 'Lecturer name', edition: 'Camp year',
+    non_field_errors: 'Details', __all__: 'Details' }
+  return Object.entries(errors).filter(([key]) => key !== 'errors' && key !== 'detail')
+    .flatMap(([key, value]) => {
+      const content = Array.isArray(value) ? value : [value]
+      return content.filter(item => typeof item === 'string').map(item =>
+        (labels[key] || key.replaceAll('_', ' ')) + ': ' + item)
+    }).join(' ')
+}
+
 function responseError(response, message) {
   const error = httpError(message, response.status)
   if (response.status === 429) {
@@ -31,8 +45,11 @@ export async function readApiResponse(response) {
   }
   if (!response.ok) {
     const message = typeof data?.detail === 'string' ? data.detail
-      : data && typeof data === 'object' ? Object.values(data).flat().filter((value) => typeof value === 'string').join(' ') : ''
-    throw responseError(response, message || `Request failed (${response.status}). Please retry.`)
+      : describeValidation(data)
+    throw responseError(response, message || (response.status === 400
+      ? 'Please check the information you entered and try again.'
+      : response.status === 403 ? 'You do not have permission for this action. Please contact the administrator.'
+      : 'We could not complete your request. Please try again.'))
   }
   if (data === null || typeof data !== 'object' || Array.isArray(data)) {
     throw httpError('The server returned an unexpected response. Please retry.', response.status)

@@ -159,6 +159,10 @@ class StudioLibraryView(StudioView):
         if not request.user.is_superuser and not request.user.has_perm('dic.view_' + codename):
             raise PermissionDenied('Library permission required.')
         queryset = model.objects.all().order_by('-pk')
+        # Exclude source records intentionally removed from staff collections.
+        from .studio_models import StudioAsset
+        queryset = queryset.exclude(pk__in=StudioAsset.objects.filter(
+            source_kind=kind, archived_at__isnull=False).values('source_id'))
         term = request.query_params.get('q', '').strip()
         if len(term) > 100:
             raise ValidationError({'q': 'Search is limited to 100 characters.'})
@@ -291,6 +295,61 @@ class StudioPublicationView(StudioView):
                 target_type=model.__name__, target_id=str(item.pk),
                 details={'library': kind})
         return self.nocache({'id': item.pk, 'state': item.state})
+
+
+class StudioRemoveMediaView(StudioView):
+    """Remove a media entry from staff lists and public destinations safely.
+
+    Storage bytes and audit history are retained; source records referenced by
+    live carousels must first be removed from those carousels.
+    """
+    def post(self, request, kind, pk):
+        from django.utils import timezone
+        from rest_framework.exceptions import PermissionDenied, NotFound, ValidationError
+        from .studio_models import StudioAsset, StudioPlacement
+        from .studio_carousel_models import StudioCarouselSlide
+        supported = ('photos', 'videos', 'recordings', 'flyers',
+                     'promotions', 'activities', 'hosted')
+        if kind not in supported:
+            raise NotFound('Choose an available media collection.')
+        model, code, title_field = LIBRARIES[kind]
+        if not (request.user.is_active and request.user.is_staff
+                and (request.user.is_superuser or (
+                  request.user.has_perm('dic.manage_studio_assets')
+                  and request.user.has_perm('dic.change_' + code)
+                  and request.user.has_perm('dic.publish_' + code)))):
+            raise PermissionDenied('You do not have permission to remove this media.')
+        with transaction.atomic():
+            record = model.objects.select_for_update().filter(pk=pk).first()
+            if record is None:
+                raise NotFound('This item no longer exists.')
+            asset = StudioAsset.objects.select_for_update().filter(
+                source_kind=kind, source_id=pk).first()
+            if asset and StudioCarouselSlide.objects.filter(
+                    asset=asset, carousel__deleted_at__isnull=True).exists():
+                raise ValidationError({'detail':
+                    'This item belongs to a carousel. Remove it from that carousel first, then delete it here.'})
+            if record.state == 'published':
+                record.state = 'draft'
+                if kind == 'hosted':
+                    record.save()
+                else:
+                    record.save(actor=request.user)
+            if asset:
+                asset.archived_at = timezone.now()
+                asset.save(update_fields=['archived_at', 'updated_at'])
+                StudioPlacement.objects.filter(asset=asset).update(
+                    state='withdrawn', published_at=None, published_by=None)
+            else:
+                StudioAsset.objects.create(
+                    source_kind=kind, source_id=pk,
+                    title=str(getattr(record, title_field, '') or 'Removed media')[:300],
+                    archived_at=timezone.now(), created_by=request.user)
+            DICAdminAuditEvent.objects.create(
+                actor=request.user, action='studio_media_removed',
+                target_type=model.__name__, target_id=str(pk),
+                details={'library': kind, 'retained_storage_files': True})
+        return self.nocache({'removed': True, 'id': pk, 'library': kind})
 
 
 class StudioDraftDeleteView(StudioView):

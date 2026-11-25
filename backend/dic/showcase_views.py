@@ -1,4 +1,5 @@
 from django.http import FileResponse, Http404
+from pathlib import Path
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework.permissions import AllowAny
@@ -70,7 +71,9 @@ def showcase_image(request, kind, pk):
         raise Http404
     if not photograph:
         raise Http404
-    response = FileResponse(photograph.open("rb"), content_type="image/jpeg")
+    image_type = {".png": "image/png", ".webp": "image/webp"}.get(
+        Path(photograph.name).suffix.lower() if isinstance(photograph.name, str) else "", "image/jpeg")
+    response = FileResponse(photograph.open("rb"), content_type=image_type)
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     response["Content-Disposition"] = 'inline; filename="dic-showcase.jpg"'

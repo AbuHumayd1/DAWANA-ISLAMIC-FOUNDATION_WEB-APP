@@ -191,3 +191,54 @@ class StudioAccessTests(TestCase):
                                     {'action': 'publish'}, content_type='application/json',
                                     HTTP_X_CSRFTOKEN=token)
         self.assertEqual(response.status_code, 403)
+
+    def test_remove_photo_hides_old_drafts_without_deleting_private_file(self):
+        from dic.memory_models import CampPhotograph
+        from dic.studio_models import StudioAsset, StudioPlacement
+        self.client.force_login(self.operator)
+        edition = CampEdition.objects.create(
+            name='Media removal edition', year=2039,
+            camp_start_date='2039-12-23', camp_end_date='2040-01-01')
+        photo = CampPhotograph.objects.create(
+            edition=edition, caption='DIC theme image', alt_text='A green camp poster',
+            photograph='memories/old-dic-theme.jpg')
+        asset = StudioAsset.objects.create(
+            source_kind='photos', source_id=photo.pk, title='DIC theme image')
+        placement = StudioPlacement.objects.create(
+            asset=asset, destination='foundation_archive', state='draft')
+        token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
+        response = self.client.post(reverse('dic:studio-remove-media', args=['photos', photo.pk]),
+                                    {}, content_type='application/json', HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
+        asset.refresh_from_db()
+        placement.refresh_from_db()
+        self.assertIsNotNone(asset.archived_at)
+        self.assertEqual(placement.state, 'withdrawn')
+        listing = self.client.get(reverse('dic:studio-library'), {'library': 'photos'})
+        self.assertEqual(listing.status_code, 200)
+        self.assertNotIn(photo.pk, [item['id'] for item in listing.json()['items']])
+
+    def test_remove_photo_explains_carousel_reference_without_destroying_it(self):
+        from dic.memory_models import CampPhotograph
+        from dic.studio_models import StudioAsset
+        from dic.studio_carousel_models import StudioCarousel, StudioCarouselSlide
+        self.client.force_login(self.operator)
+        edition = CampEdition.objects.create(
+            name='Media carousel removal', year=2040,
+            camp_start_date='2040-12-23', camp_end_date='2041-01-01')
+        photo = CampPhotograph.objects.create(
+            edition=edition, caption='Used photo', alt_text='Camp audience',
+            photograph='memories/carousel-used.jpg')
+        asset = StudioAsset.objects.create(
+            source_kind='photos', source_id=photo.pk, title='Used photo')
+        carousel = StudioCarousel.objects.create(
+            title='Existing carousel', format='images', created_by=self.operator)
+        StudioCarouselSlide.objects.create(carousel=carousel, asset=asset, order=0)
+        token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
+        response = self.client.post(reverse('dic:studio-remove-media', args=['photos', photo.pk]),
+                                    {}, content_type='application/json', HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Remove it from that carousel first', response.content.decode())
+        asset.refresh_from_db()
+        self.assertIsNone(asset.archived_at)

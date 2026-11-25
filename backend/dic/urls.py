@@ -341,7 +341,7 @@ urlpatterns += [
 ]
 
 # Foundation-wide DAWANA Media Studio staff routes (separate from DIC Operations).
-from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, StudioMetadataView, StudioHostedLinksView, StudioPrivatePreviewView, StudioDraftDeleteView, studio_csrf
+from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, StudioMetadataView, StudioHostedLinksView, StudioPrivatePreviewView, StudioDraftDeleteView, StudioRemoveMediaView, studio_csrf
 urlpatterns += [
     path('studio/auth/csrf/', studio_csrf, name='studio-csrf'),
     path('studio/auth/login/', StudioLoginView.as_view(), name='studio-login'),
@@ -353,13 +353,17 @@ urlpatterns += [
     path('studio/hosted-links/', StudioHostedLinksView.as_view(), name='studio-hosted-links'),
     path('studio/library/<str:kind>/<int:pk>/metadata/', StudioMetadataView.as_view(), name='studio-metadata'),
     path('studio/library/<str:kind>/<int:pk>/draft/', StudioDraftDeleteView.as_view(), name='studio-draft-delete'),
+    path('studio/library/<str:kind>/<int:pk>/remove/', StudioRemoveMediaView.as_view(), name='studio-remove-media'),
     path('studio/library/<str:kind>/<int:pk>/publication/', StudioPublicationView.as_view(), name='studio-publication'),
 ]
 
 # DIC lecturer appearances are authored and approved within Media Studio,
 # reusing the existing public showcase models and moderation contracts.
-from .studio_lecturer_api import StudioLecturerAppearancesView, StudioLecturerAppearanceDetailView
+from .studio_lecturer_api import (StudioLecturerAppearancesView, StudioLecturerAppearanceDetailView,
+    StudioSimpleLecturerView, StudioSimpleLecturerDetailView)
 urlpatterns += [
+    path('studio/simple-lecturers/', StudioSimpleLecturerView.as_view(), name='studio-simple-lecturers'),
+    path('studio/simple-lecturers/<int:pk>/', StudioSimpleLecturerDetailView.as_view(), name='studio-simple-lecturer-detail'),
     path('studio/lecturer-appearances/', StudioLecturerAppearancesView.as_view(), name='studio-lecturer-appearances'),
     path('studio/lecturer-appearances/<int:pk>/', StudioLecturerAppearanceDetailView.as_view(), name='studio-lecturer-appearance-detail'),
 ]
