@@ -360,13 +360,17 @@ test('home media uses a lead story and two supporting cards with premium mobile 
   assert.match(css, /prefers-reduced-motion:no-preference/)
 })
 
-test('media staff have confirmed draft deletion without any published deletion action', () => {
+test('media staff can safely remove photos and published items without deleting source files', () => {
   const studio = read('../pages/MediaStudio.jsx')
   const editorial = read('../pages/StudioEditorial.jsx')
   const api = read('./mediaStudioApi.js')
   const backend = read('../../../backend/dic/studio_api.py')
   const role = read('../../../backend/dic/staff_roles.py')
-  assert.match(studio, /canDelete && item\.state === 'draft'/)
+  assert.match(studio, /studioRemoveMedia\(library, item\.id\)/)
+  assert.match(studio, /onClick=\{\(\) => removeMedia\(item\)\}/)
+  assert.match(api, /studioRemoveMedia/)
+  assert.match(backend, /class StudioRemoveMediaView\(StudioView\)/)
+  assert.match(backend, /StudioCarouselSlide\.objects\.filter/)
   assert.match(studio, /window\.confirm/)
   assert.match(editorial, /item\.state === 'draft'/)
   assert.match(api, /studioDeleteDraft/)
@@ -446,4 +450,26 @@ test('DIC media highlights stay compact with one or several published stories, w
   assert.match(css, /\.published-studio-archive--dic_landing \.published-studio-card>\.published-studio-visual--original-ratio\{/)
   assert.match(css, /object-fit:contain !important;/)
   assert.match(gallery, /destination === 'dic_landing' \? 'DIC media highlights'/)
+})
+
+test('carousel lets staff upload new images without using existing assets first', () => {
+  const editor = read('../pages/StudioCarouselEditor.jsx')
+  assert.match(editor, /Upload new images/)
+  assert.match(editor, /studioUpload\('photos'/)
+  assert.match(editor, /studioPublish\('photos'/)
+  assert.match(editor, /studioLinkAsset\('photos'/)
+  assert.match(editor, /Add images to carousel/)
+  assert.match(editor, /Search by title or image number/)
+})
+
+test('camp activity images are directed to the public What to expect section', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  const editor = read('../pages/StudioCampActivities.jsx')
+  const publicShowcase = read('../components/dic/CampShowcase.jsx')
+  assert.match(studio, /name: 'What to expect at camp'/)
+  assert.match(studio, /<StudioCampActivities/)
+  assert.match(editor, /studioUpload\('activities'/)
+  assert.match(editor, /studioPublish\('activities'/)
+  assert.match(publicShowcase, /What to expect at camp/)
+  assert.match(publicShowcase, /data\.activities\.map/)
 })
