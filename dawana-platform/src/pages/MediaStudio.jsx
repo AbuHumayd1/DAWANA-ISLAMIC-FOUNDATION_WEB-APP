@@ -27,8 +27,8 @@ const LIBRARIES = [
   { key: 'recordings', name: 'Lecture Audio', count: 'Recorded lectures', icon: '🎙' },
   { key: 'flyers', name: 'Official Camp Flyers', count: 'Approved DIC flyers', icon: '▧' },
   { key: 'promotions', name: 'Promotional Videos', count: 'DIC introductions and experiences', icon: '✦' },
-  { key: 'lecturers', name: 'Lecturer Profiles', count: 'Portraits and biographies', icon: '♙' },
-  { key: 'appearances', name: 'Lecturer Appearances', count: 'Existing lecturer programmes', icon: '◫' },
+  { key: 'lecturers', name: 'Lecturers', count: 'Upload and publish lecturer flyers', icon: '♙' },
+  { key: 'appearances', name: 'Lecturers', count: 'Upload and publish lecturer flyers', icon: '◫' },
   { key: 'activities', name: 'Camp Activities', count: 'Activities with optional photos', icon: '▤' },
 ]
 
@@ -489,7 +489,7 @@ export default function MediaStudio() {
 
   const selected = LIBRARIES.find(x => x.key === library)
   const displayName = ['hosted', 'videos'].includes(library) ? 'Videos & Livestreams'
-    : ['lecturers', 'appearances'].includes(library) ? 'Lecturer Profiles' : selected?.name
+    : ['lecturers', 'appearances'].includes(library) ? 'Lecturers' : selected?.name
   const showCollections = LIBRARIES.filter(x => !['hosted', 'appearances'].includes(x.key)
     && (user.libraries?.includes(x.key)
       || x.key === 'videos' && user.libraries?.includes('hosted')
@@ -552,11 +552,7 @@ export default function MediaStudio() {
           {user.libraries?.includes('hosted') && <button type="button" aria-pressed={library === 'hosted'} onClick={() => chooseLibrary('hosted')}>YouTube / Vimeo link</button>}
           {user.libraries?.includes('videos') && <button type="button" aria-pressed={library === 'videos'} onClick={() => chooseLibrary('videos')}>Upload video file</button>}
         </div>}
-        {['lecturers', 'appearances'].includes(library) && <div className="studio-media-mode" role="group" aria-label="Lecturer management">
-          {user.libraries?.includes('lecturers') && <button type="button" aria-pressed={library === 'lecturers'} onClick={() => chooseLibrary('lecturers')}>Lecturer profiles</button>}
-          {user.libraries?.includes('appearances') && <button type="button" aria-pressed={library === 'appearances'} onClick={() => chooseLibrary('appearances')}>Camp appearances</button>}
-        </div>}
-        {library === 'appearances' && <StudioLecturerAppearances onUpdated={() => setRevision(n => n + 1)} />}
+        {['lecturers', 'appearances'].includes(library) ? <StudioLecturerAppearances onUpdated={() => setRevision(n => n + 1)} /> : <>
         <div className="studio-start-panel">
           <div className="studio-start-copy">
             <span className="studio-kicker">START HERE</span>
@@ -648,10 +644,11 @@ export default function MediaStudio() {
           {editing === item.id && <form className="studio-edit-form" onSubmit={event => saveMetadata(event, item)}><strong>Editorial details</strong>{Object.entries(item.metadata || {}).map(([name,value]) => <label key={name}>{name.replaceAll('_',' ')}{typeof value === 'boolean' ? <input name={name} type="checkbox" defaultChecked={value} /> : <input name={name} type={typeof value === 'number' ? 'number' : 'text'} min={typeof value === 'number' ? 0 : undefined} maxLength={typeof value === 'number' ? undefined : 5000} defaultValue={value ?? ''} />}</label>)}<button type="submit" disabled={pending !== null}>Save changes</button></form>}</div>
         </article>)}</div> : <div className="studio-state"><strong>{q || state || edition ? 'No items match these filters.' : `No ${displayName?.toLowerCase()} saved here yet.`}</strong><p>{q || state || edition ? 'Open “Search and filter saved items” to change or clear your filters.' : isHosted ? 'Use “Add video links” above to save your first video or livestream.' : hasUploadForm ? 'When file uploads are activated, you can add new media using the upload action above. Any existing items will appear here.' : 'Speaker appearances will appear here when they are available.'}</p></div>}
         {more && <div className="studio-pagination"><button type="button" disabled={loading || page >= 100} onClick={() => setPage(current => current + 1)}>{loading ? 'Loading…' : 'Load more media'}</button></div>}
+        </>}
       </section>
-      <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />
-      {(user.can_manage_catalogue || user.can_publish_destinations) && <StudioCarouselEditor user={user} editions={uploadInfo.editions} />}
-      {(user.can_manage_catalogue || user.can_publish_destinations) ? <details className="studio-advanced-publishing" open={Boolean(focusAsset)} onToggle={event => {if (!event.currentTarget.open && focusAsset) setFocusAsset('')}}><summary>Advanced: manage albums and publishing details</summary><StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /></details> : null}
+      {!['lecturers', 'appearances'].includes(library) && <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />}
+      {!['lecturers', 'appearances'].includes(library) && (user.can_manage_catalogue || user.can_publish_destinations) && <StudioCarouselEditor user={user} editions={uploadInfo.editions} />}
+      {!['lecturers', 'appearances'].includes(library) && (user.can_manage_catalogue || user.can_publish_destinations) ? <details className="studio-advanced-publishing" open={Boolean(focusAsset)} onToggle={event => {if (!event.currentTarget.open && focusAsset) setFocusAsset('')}}><summary>Advanced: manage albums and publishing details</summary><StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /></details> : null}
       {preview && <div className="studio-preview-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setPreview(null) }}>
         <section className="studio-preview-dialog" role="dialog" aria-modal="true" aria-label={`Preview: ${preview.title}`}>
           <header><div><span className="studio-kicker">MEDIA PREVIEW</span><h2>{preview.title}</h2></div><button type="button" autoFocus onClick={() => setPreview(null)} aria-label="Close media preview">✕</button></header>
@@ -661,7 +658,7 @@ export default function MediaStudio() {
             : <img src={preview.url} alt={preview.title} />}
         </section>
       </div>}
-      <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>
+      {!['lecturers', 'appearances'].includes(library) && <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>}
     </main>
   </div>
 }
