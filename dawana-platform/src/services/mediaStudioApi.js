@@ -152,3 +152,22 @@ export const studioEditLecturerAppearance = (id, fields) =>
   studioRequest('/lecturer-appearances/' + encodeURIComponent(id) + '/', { method: 'PATCH', body: fields })
 export const studioActOnLecturerAppearance = (id, action) =>
   studioRequest('/lecturer-appearances/' + encodeURIComponent(id) + '/', { method: 'POST', body: { action } })
+
+async function lecturerFormRequest(path, method, fields = {}) {
+  if (!csrf) await token()
+  const data = new FormData()
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined && value !== null && value !== '') data.append(key, value)
+  }
+  const response = await fetch(base + path, {
+    method, body: method === 'DELETE' ? undefined : data,
+    credentials: 'include', cache: 'no-store', headers: { 'X-CSRFToken': csrf },
+  })
+  return readApiResponse(response)
+}
+export const studioAddSimpleLecturer = fields =>
+  lecturerFormRequest('/simple-lecturers/', 'POST', fields)
+export const studioUpdateSimpleLecturer = (id, fields) =>
+  lecturerFormRequest('/simple-lecturers/' + encodeURIComponent(id) + '/', 'PATCH', fields)
+export const studioDeleteSimpleLecturer = id =>
+  lecturerFormRequest('/simple-lecturers/' + encodeURIComponent(id) + '/', 'DELETE')
