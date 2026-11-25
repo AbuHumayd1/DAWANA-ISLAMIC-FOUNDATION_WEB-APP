@@ -30,7 +30,7 @@ const LIBRARIES = [
   { key: 'promotions', name: 'Promotional Videos', count: 'DIC introductions and experiences', icon: '✦' },
   { key: 'lecturers', name: 'Lecturers', count: 'Upload and publish lecturer flyers', icon: '♙' },
   { key: 'appearances', name: 'Lecturers', count: 'Upload and publish lecturer flyers', icon: '◫' },
-  { key: 'activities', name: 'Camp Activities', count: 'Activities with optional photos', icon: '▤' },
+  { key: 'activities', name: 'What to expect at camp', count: 'Publish approved activity flyers and photos here', icon: '▤' },
 ]
 
 // Destinations are restricted by the existing StudioPlacement backend allow-list.
