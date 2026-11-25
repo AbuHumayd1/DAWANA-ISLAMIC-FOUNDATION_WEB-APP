@@ -29,3 +29,9 @@
 .studio-appearance-pager{justify-content:center;margin:1rem 0}
 .studio-appearance-pager span{font-size:.8rem}
 @media(max-width:680px){.studio-appearance-workflow{padding:1rem}.studio-appearance-fields,.studio-appearance-list{grid-template-columns:minmax(0,1fr)}.studio-appearance-form-footer{align-items:stretch;flex-direction:column}.studio-appearance-workflow-head{align-items:stretch}.studio-appearance-primary{width:100%}}
+
+/* Staff-first lecturer cards; images remain uncropped, including full flyers. */
+.studio-lecturer-thumb { display:block; width:100%; max-height:360px; object-fit:contain; background:#f5f8f3; border-radius:12px; margin-bottom:12px; }
+.studio-appearance-form input[type="file"] { max-width:100%; min-width:0; }
+.studio-appearance-actions { flex-wrap:wrap; }
+.studio-appearance-actions .studio-delete-draft { color:#a83232; border-color:#d9a5a5; }
