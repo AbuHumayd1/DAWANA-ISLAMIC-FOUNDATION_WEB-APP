@@ -55,7 +55,8 @@ class SimpleStudioLecturerTests(TestCase):
                 action='studio_lecturer_created_published', target_id=str(item.pk)).count(), 1)
             # Preview/editing does not require creating a second identity.
             revised = self.client.patch(reverse('dic:studio-simple-lecturer-detail', args=[item.pk]),
-                data={'name': 'Shaykh Synthetic', 'biography': 'Brief approved description'})
+                data='{"name":"Shaykh Synthetic","biography":"Brief approved description"}',
+                content_type='application/json')
             self.assertEqual(revised.status_code, 200, revised.content)
             item.refresh_from_db()
             self.assertEqual(item.state, 'published')
