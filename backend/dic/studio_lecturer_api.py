@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import reverse
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from .models import CampEdition, DICAdminAuditEvent
@@ -237,7 +237,7 @@ class StudioSimpleLecturerView(StudioView):
 
 class StudioSimpleLecturerDetailView(StudioView):
     """Edit-and-publish or delete a lecturer through one staff action."""
-    parser_classes = (MultiPartParser, FormParser)
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def patch(self, request, pk):
         require_grant(request.user, 'change')
