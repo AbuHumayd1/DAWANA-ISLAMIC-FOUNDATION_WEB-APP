@@ -206,8 +206,9 @@ class StudioAccessTests(TestCase):
             source_kind='photos', source_id=photo.pk, title='DIC theme image')
         placement = StudioPlacement.objects.create(
             asset=asset, destination='foundation_archive', state='draft')
+        token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
         response = self.client.post(reverse('dic:studio-remove-media', args=['photos', photo.pk]),
-                                    {}, content_type='application/json')
+                                    {}, content_type='application/json', HTTP_X_CSRFTOKEN=token)
         self.assertEqual(response.status_code, 200, response.content)
         self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
         asset.refresh_from_db()
@@ -234,8 +235,9 @@ class StudioAccessTests(TestCase):
         carousel = StudioCarousel.objects.create(
             title='Existing carousel', format='images', created_by=self.operator)
         StudioCarouselSlide.objects.create(carousel=carousel, asset=asset, order=0)
+        token = self.client.get(reverse('dic:studio-csrf')).json()['csrfToken']
         response = self.client.post(reverse('dic:studio-remove-media', args=['photos', photo.pk]),
-                                    {}, content_type='application/json')
+                                    {}, content_type='application/json', HTTP_X_CSRFTOKEN=token)
         self.assertEqual(response.status_code, 400)
         self.assertIn('Remove it from that carousel first', response.content.decode())
         asset.refresh_from_db()
