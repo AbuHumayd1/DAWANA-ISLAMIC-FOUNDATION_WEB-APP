@@ -269,7 +269,9 @@ class StudioSimpleLecturerDetailView(StudioView):
                     lecturer.save()
                 except DjangoValidationError as error:
                     raise ValidationError({'flyer': 'Please select a valid JPEG, PNG or WebP image.'}) from error
-            if appearance.confirmation_status == 'declined':
+            if fields or appearance.confirmation_status == 'declined':
+                # Identity edits invalidate the previous participation verification;
+                # routine publication must never silently re-verify historical claims.
                 appearance.confirmation_status = 'pending'
             appearance.state = 'published'
             validate_and_save(appearance, request.user)
