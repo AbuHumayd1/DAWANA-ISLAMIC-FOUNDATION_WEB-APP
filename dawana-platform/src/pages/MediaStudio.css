@@ -361,3 +361,9 @@
 :root[data-theme="dark"] .studio-delete-draft{
   color:#fac4b7 !important;border-color:#b57c74 !important;
 }
+
+/* Simple DIC activity publishing panel used by the public What to expect section. */
+.studio-direct-activity { max-width:800px; margin:0 auto 20px; }
+.studio-direct-activity-heading h3 { font:600 clamp(1.15rem,2vw,1.55rem)/1.25 Georgia,serif; margin:0 0 8px; }
+.studio-direct-activity-heading p { max-width:56ch; line-height:1.5; margin:0 0 16px; }
+.studio-direct-activity .studio-appearance-fields input[type=file] { max-width:100%; min-width:0; }
