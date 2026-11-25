@@ -171,3 +171,9 @@ export const studioUpdateSimpleLecturer = (id, fields) =>
   lecturerFormRequest('/simple-lecturers/' + encodeURIComponent(id) + '/', 'PATCH', fields)
 export const studioDeleteSimpleLecturer = id =>
   lecturerFormRequest('/simple-lecturers/' + encodeURIComponent(id) + '/', 'DELETE')
+
+// User-facing removal retains private source media and audit history.
+export const studioRemoveMedia = (library, id) =>
+  studioRequest('/library/' + encodeURIComponent(library) + '/' + encodeURIComponent(id) + '/remove/', {
+    method: 'POST', body: {},
+  })
