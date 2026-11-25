@@ -358,8 +358,10 @@ urlpatterns += [
 
 # DIC lecturer appearances are authored and approved within Media Studio,
 # reusing the existing public showcase models and moderation contracts.
-from .studio_lecturer_api import StudioLecturerAppearancesView, StudioLecturerAppearanceDetailView
+from .studio_lecturer_api import (StudioLecturerAppearancesView, StudioLecturerAppearanceDetailView,\n    StudioSimpleLecturerView, StudioSimpleLecturerDetailView)
 urlpatterns += [
+    path('studio/simple-lecturers/', StudioSimpleLecturerView.as_view(), name='studio-simple-lecturers'),
+    path('studio/simple-lecturers/<int:pk>/', StudioSimpleLecturerDetailView.as_view(), name='studio-simple-lecturer-detail'),
     path('studio/lecturer-appearances/', StudioLecturerAppearancesView.as_view(), name='studio-lecturer-appearances'),
     path('studio/lecturer-appearances/<int:pk>/', StudioLecturerAppearanceDetailView.as_view(), name='studio-lecturer-appearance-detail'),
 ]
