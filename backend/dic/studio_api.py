@@ -159,6 +159,11 @@ class StudioLibraryView(StudioView):
         if not request.user.is_superuser and not request.user.has_perm('dic.view_' + codename):
             raise PermissionDenied('Library permission required.')
         queryset = model.objects.all().order_by('-pk')
+        if kind == 'photos':
+            # Hidden/removed photos are not shown again in the staff inventory.
+            from .studio_models import StudioAsset
+            queryset = queryset.exclude(pk__in=StudioAsset.objects.filter(
+                source_kind='photos', archived_at__isnull=False).values('source_id'))
         term = request.query_params.get('q', '').strip()
         if len(term) > 100:
             raise ValidationError({'q': 'Search is limited to 100 characters.'})
@@ -291,6 +296,55 @@ class StudioPublicationView(StudioView):
                 target_type=model.__name__, target_id=str(item.pk),
                 details={'library': kind})
         return self.nocache({'id': item.pk, 'state': item.state})
+
+
+class StudioRemovePhotoView(StudioView):
+    """Staff removal without deleting storage bytes or historical audit records.
+
+    A removed photo is withdrawn everywhere, archived in the catalogue, and
+    hidden from the ordinary studio inventory. Carousel references block removal
+    until the editor removes the card from its carousel.
+    """
+    def post(self, request, pk):
+        from django.utils import timezone
+        from rest_framework.exceptions import PermissionDenied, NotFound, ValidationError
+        from .studio_models import StudioAsset, StudioPlacement
+        from .studio_carousel_models import StudioCarouselSlide
+        if not (request.user.is_superuser or (request.user.is_staff
+                and request.user.has_perm('dic.manage_studio_assets')
+                and request.user.has_perm('dic.change_campphotograph')
+                and request.user.has_perm('dic.publish_campphotograph'))):
+            raise PermissionDenied('You do not have permission to remove photographs.')
+        with transaction.atomic():
+            photo = CampPhotograph.objects.select_for_update().filter(pk=pk).first()
+            if not photo:
+                raise NotFound('This photograph has already been removed.')
+            asset = StudioAsset.objects.select_for_update().filter(
+                source_kind='photos', source_id=pk).first()
+            if asset and StudioCarouselSlide.objects.filter(
+                    asset=asset, carousel__deleted_at__isnull=True).exists():
+                raise ValidationError({'detail':
+                    'This photograph is used in a carousel. Remove its carousel card first, then delete the photograph.'})
+            if photo.state == 'published':
+                photo.state = 'draft'
+                photo.save(actor=request.user)
+            if asset:
+                asset.archived_at = timezone.now()
+                asset.save(update_fields=['archived_at', 'updated_at'])
+                StudioPlacement.objects.filter(asset=asset).update(
+                    state='withdrawn', published_at=None, published_by=None)
+            else:
+                # Preserve an indexed tombstone so the original source can
+                # never reappear in Media Studio after a subsequent refresh.
+                StudioAsset.objects.create(
+                    source_kind='photos', source_id=pk,
+                    title=photo.caption[:300], archived_at=timezone.now(),
+                    created_by=request.user)
+            DICAdminAuditEvent.objects.create(
+                actor=request.user, action='studio_photo_removed',
+                target_type='CampPhotograph', target_id=str(pk),
+                details={'retained_source_file': True, 'withdrawn': True})
+        return self.nocache({'removed': True, 'id': pk})
 
 
 class StudioDraftDeleteView(StudioView):
