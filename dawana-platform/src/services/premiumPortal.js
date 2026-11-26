@@ -4,11 +4,11 @@ export const portalDestinations = [
 
 export function portalView(value) {
   const aliases = { timetables: 'day', houses: 'arena', points: 'arena', camp: 'explore', profile: 'me' }
-  return Object.hasOwn(aliases, value) ? aliases[value] : (['home', 'day', 'arena', 'explore', 'me', 'digital-id', 'feedback', 'announcements', 'activities', 'recordings', 'certificate', 'settings'].includes(value) ? value : 'home')
+  return Object.hasOwn(aliases, value) ? aliases[value] : (['home', 'day', 'arena', 'explore', 'me', 'digital-id', 'feedback', 'announcements', 'activities', 'recordings', 'certificate', 'tickets', 'settings'].includes(value) ? value : 'home')
 }
 
 export function activeDestination(view) {
-  if (['recordings','certificate','digital-id','settings'].includes(view)) return 'me'
+  if (['recordings','certificate','tickets','digital-id','settings'].includes(view)) return 'me'
   return ['feedback','announcements','activities'].includes(view) ? 'explore' : view
 }
 
