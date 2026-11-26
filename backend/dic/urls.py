@@ -1,3 +1,4 @@
+from .ticket_api import CamperTicketsView, PaymentReturnTicketsView
 from .camp_release_api import CamperResourcesView,CamperRecordingView,CamperCertificateView
 from django.urls import path
 from dic_finance.api import FinanceView
@@ -70,6 +71,8 @@ from .participant_api import (
 )
 
 urlpatterns = [
+    path('participant/tickets/', CamperTicketsView.as_view(), name='camper-tickets'),
+    path('payments/return/<uuid:public_id>/tickets/', PaymentReturnTicketsView.as_view(), name='payment-return-tickets'),
     path('studio/editorial/collections/', EditorialCollectionsView.as_view(), name='studio-editorial-collections'),
     path('studio/editorial/collections/<int:collection_id>/', EditorialCollectionDetailView.as_view(), name='studio-editorial-collection-detail'),
     path('studio/editorial/items/', EditorialItemsView.as_view(), name='studio-editorial-items'),
