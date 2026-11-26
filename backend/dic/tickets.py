@@ -112,7 +112,7 @@ def ticket_pdf(order, item_id=None):
         y-=124
     pdf.save()
     response=HttpResponse(buffer.getvalue(),content_type='application/pdf')
-    response['Content-Disposition']='attachment; filename="DIC-ticket-'+str(order.public_id)+'.pdf"'
+    response['Content-Disposition']='attachment; filename="DIC-ticket-'+str(item_id if individual else order.public_id)+'.pdf"'
     response['Cache-Control']='private, no-store'
     response['X-Content-Type-Options']='nosniff'
     return response
