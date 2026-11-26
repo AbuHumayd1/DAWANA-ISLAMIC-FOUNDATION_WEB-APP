@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Container } from '../layout/SiteChrome'
 import { backendUrl } from '../../services/productionContract'
 import './PublishedCarousels.css'
+import MediaGlide from './MediaGlide'
 
 const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
 
@@ -18,6 +19,10 @@ function Story({ story }) {
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [playingVideo, setPlayingVideo] = useState(false)
   const audio = useRef(null)
+  const touch = useRef(null)
+  const stage = useRef(null)
+  const [visible,setVisible]=useState(false)
+  const [paused,setPaused]=useState(false)
   const slides = story.slides || []
   const current = slides[active]
   const video = current && ['promotions', 'hosted', 'videos'].includes(current.kind)
@@ -30,6 +35,22 @@ function Story({ story }) {
     }
   }, [active, video, soundEnabled, soundtrackVideo])
   useEffect(() => () => { if (audio.current) audio.current.pause() }, [])
+  useEffect(()=>{
+    if(!stage.current || typeof IntersectionObserver==='undefined') return
+    const observer=new IntersectionObserver(entries=>setVisible(entries[0].isIntersecting),{threshold:.5})
+    observer.observe(stage.current)
+    return ()=>observer.disconnect()
+  },[slides.length])
+  useEffect(()=>{
+    if(!visible || paused || video || soundEnabled || slides.length<2) return
+    const timer=window.setInterval(()=>{
+      if(!document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+         !stage.current?.closest('article')?.matches(':hover, :focus-within')) {
+        setActive(index=>(index+1)%slides.length)
+      }
+    },5500)
+    return ()=>window.clearInterval(timer)
+  },[visible,paused,video,soundEnabled,slides.length])
   function step(delta) { setActive(index => (index + delta + slides.length) % slides.length) }
   if (!current) return null
   return <article className="studio-story" aria-label={story.title}>
@@ -37,7 +58,7 @@ function Story({ story }) {
       <span className="studio-story-kicker">{story.format === 'mixed' ? 'Mixed media story' : story.format === 'videos' ? 'Video story' : 'Photo story'}</span>
       <span className="studio-story-count" aria-live="polite">{active + 1} / {slides.length}</span>
     </header>
-    <div className="studio-story-stage" onKeyDown={event => {
+    <div ref={stage} className="studio-story-stage" onTouchStart={e=>{if(e.target.closest("video,button,iframe"))return;touch.current=[e.touches[0].clientX,e.touches[0].clientY];setPaused(true)}} onTouchEnd={e=>{if(!touch.current)return;const [x,y]=touch.current;touch.current=null;const dx=e.changedTouches[0].clientX-x,dy=e.changedTouches[0].clientY-y;if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy))step(dx<0?1:-1)}} onTouchCancel={()=>{touch.current=null}} onKeyDown={event => {
       if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1) }
       if (event.key === 'ArrowRight') { event.preventDefault(); step(1) }
     }} tabIndex={0} aria-label={`Carousel: ${story.title}, use left and right arrows`}>
@@ -69,6 +90,7 @@ function Story({ story }) {
           className={i === active ? 'active' : ''} onClick={() => setActive(i)} />)}</div>
       <button type="button" onClick={() => step(1)} aria-label="Next slide">→</button>
     </div>
+    {slides.length>1 && <button type="button" className="studio-story-motion" onClick={()=>setPaused(v=>!v)}>{paused?"Resume slideshow":"Pause slideshow"}</button>}
     <div className="studio-story-copy"><h3>{story.title}</h3>{current.caption && <p className="studio-story-slide-caption">{current.caption}</p>}{story.description && <p>{story.description}</p>}</div>
     {story.audio_url && <div className="studio-story-audio">
       <audio ref={audio} src={backendUrl(story.audio_url)} preload="none" loop={story.loop_audio} onEnded={() => setSoundEnabled(false)} />
@@ -105,7 +127,7 @@ export default function PublishedCarousels({ destination }) {
         <h2>{scrapbook ? 'Stories worth keeping' : 'Explore our stories'}</h2>
         <p>Swipe through each collection without leaving this page.</p>
       </header>
-      <div className="studio-stories-scroll">{items.map(story => <Story key={story.id} story={story} />)}</div>
+      <MediaGlide count={items.length} label="Media stories" className="studio-stories-scroll" auto={false}>{items.map(story => <Story key={story.id} story={story} />)}</MediaGlide>
     </Container>
   </section>
 }
