@@ -350,7 +350,7 @@ test('media team can write full 5000-character captions without placing text ove
 
 
 
-test('home media uses a lead story and two supporting cards with premium mobile stacking', () => {
+test('home media retains three featured stories in a horizontal rail', () => {
   const gallery = read('../components/media/PublishedStudioArchive.jsx')
   const css = read('../components/media/PublishedStudioArchive.css')
   assert.match(gallery, /Stories worth sharing/)
@@ -420,12 +420,12 @@ test('Events Annual Itinerary is public, year-filtered and Media Studio-controll
   assert.match(style, /\.annual-itinerary-scroll\{/)
 })
 
-test('homepage journal is bounded and mobile stories scroll horizontally without changing DIC media or lecturer layouts', () => {
+test('homepage journal and DIC highlights share a bounded horizontal rail', () => {
   const gallery = read('../components/media/PublishedStudioArchive.jsx')
   const css = read('../components/media/PublishedStudioArchive.css')
   const dicShowcase = read('../components/dic/CampShowcase.jsx')
-  assert.match(gallery, /published-studio-journal-controls/)
-  assert.match(gallery, /ref=\{isHighlight \? journalRef : null\}/)
+  assert.match(gallery, /<MediaGlide className="published-studio-grid"/)
+  assert.match(gallery, /count=\{visibleItems.length\}/)
   assert.match(gallery, /destination === 'foundation_home'[\s\S]*?published-studio-story-action/)
   assert.match(gallery, /role="dialog" aria-modal="true"/)
   assert.match(gallery, /storyCloseRef\.current\?\.focus\(\)/)
@@ -502,4 +502,29 @@ test('photo batches require selected files and derive optional captions from eac
   assert.match(studio, /photos\.map\(photograph =>/)
   assert.match(studio, /photograph\.name\.replace/)
   assert.match(studio, /Title \/ caption \(optional\)/)
+})
+
+test('all public visual rails remain horizontal at narrow phone widths and respect motion preferences', () => {
+  const rail=read('../components/media/MediaGlide.jsx')
+  const css=read('../components/media/MediaGlide.css')
+  const camp=read('../components/dic/CampShowcase.jsx')
+  const campCss=read('../components/dic/CampShowcase.css')
+  const archive=read('../components/media/PublishedStudioArchive.jsx')
+  const media=read('../pages/Media.jsx')
+  const stories=read('../components/media/PublishedCarousels.jsx')
+  assert.match(camp, /<MediaGlide count=\{data.activities.length\}/)
+  assert.doesNotMatch(campCss, /\.showcase-activity-grid\s*\{\s*grid-template-columns:1fr/)
+  assert.match(camp, /showcase-activity-description/)
+  assert.match(archive, /<MediaGlide className="published-studio-grid"/)
+  assert.match(media, /<MediaGlide className="media-clean-visual-grid"/)
+  assert.match(stories, /<MediaGlide count=\{items.length\}/)
+  assert.match(css, /flex-wrap:nowrap!important/)
+  assert.match(css, /overflow-x:auto/)
+  assert.match(css, /scroll-snap-type:x mandatory/)
+  assert.match(css, /calc\(\(100% - 10px\)\/2\)/)
+  assert.match(rail, /prefers-reduced-motion: reduce/)
+  assert.match(rail, /document.hidden/)
+  assert.match(rail, /Pause automatic movement/)
+  assert.match(rail, /onFocusCapture/)
+  assert.match(rail, /onPointerDown/)
 })
