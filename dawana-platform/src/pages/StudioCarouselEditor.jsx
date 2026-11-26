@@ -12,6 +12,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
   const [list, setList] = useState([])
   const [assets, setAssets] = useState([])
   const [selected, setSelected] = useState('')
+  const [open, setOpen] = useState(false)
   const [format, setFormat] = useState('images')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -47,7 +48,8 @@ export default function StudioCarouselEditor({user, editions=[]}) {
   async function uploadNewImages(event) {
     event.preventDefault()
     if (!newImages.length) return setMessage('Choose at least one image.')
-    if (!newImageEdition) return setMessage('Choose a camp year.')
+    const imageEdition = newImageEdition || edition || (editions.length === 1 ? String(editions[0].id) : '')
+    if (!imageEdition) return setMessage('Choose the camp edition for these photographs.')
     if (!canManage || format === 'videos') return setMessage('Choose image or mixed-media carousel first.')
     if (newImages.length + slides.length > 40) return setMessage('A carousel supports up to 40 cards.')
     setBusy(true); setMessage('')
@@ -57,7 +59,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
       for (const file of newImages) {
         const caption = (newImageTitle.trim() || file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g,' ') || 'Camp photograph').slice(0,300)
         const created = await studioUpload('photos', {
-          edition: newImageEdition, caption,
+          edition: imageEdition, caption,
           alt_text: 'Camp photograph: ' + caption.slice(0,200), photograph: file,
         })
         // A published image is required before it is eligible for a carousel.
@@ -89,6 +91,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
     } finally { setBusy(false) }
   }
   function load(item) {
+    setOpen(true)
     setSelected(item?.id || '')
     setFormat(item?.format || 'images')
     setTitle(item?.title || '')
@@ -122,7 +125,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
     finally{setBusy(false)}
   }
   async function publish() {
-    if (!title.trim()) return setMessage('Enter a carousel title.')
+    const publicationTitle = title.trim() || description.trim().slice(0, 100) || `Carousel — ${new Date().toISOString().slice(0,10)}`
     if (slides.length < 2) return setMessage('Add at least two images or videos.')
     if (format === 'mixed' && (!slides.some(s => ['hosted','videos','promotions'].includes(
       assets.find(a => a.id === s.asset_id)?.source_kind))
@@ -136,9 +139,9 @@ export default function StudioCarouselEditor({user, editions=[]}) {
     setBusy(true); setMessage('')
     let id = current?.id
     try {
-      if (!id) id = (await studioCreateCarousel({title, format})).carousel.id
+      if (!id) id = (await studioCreateCarousel({title: publicationTitle, format})).carousel.id
       await studioUpdateCarousel(id, {
-        title, description, slides: slides.map(({asset_id,caption})=>({asset_id,caption})),
+        title: publicationTitle, description, slides: slides.map(({asset_id,caption})=>({asset_id,caption})),
         loop_audio: loopAudio, soundtrack_on_videos: soundtrackOnVideos,
       })
       if (audioFile) await studioUploadCarouselAudio(id, audioFile, loopAudio)
@@ -155,7 +158,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
   }
   return <section className="studio-carousel-editor" aria-labelledby="studio-carousel-heading">
     <header><span className="studio-kicker">MULTIMEDIA PUBLISHING</span><h2 id="studio-carousel-heading">Carousel Library</h2>
-      <p>Combine existing approved media into image, video or mixed-media stories. Each group is one publication.</p></header>
+      </header>
     {message && <p role="status" className="studio-carousel-notice">{message}</p>}
     <div className="studio-carousel-shell">
       <aside className="studio-carousel-list" aria-label="Saved carousels">
@@ -163,15 +166,16 @@ export default function StudioCarouselEditor({user, editions=[]}) {
         {list.map(item=><button key={item.id} type="button" aria-pressed={item.id===selected} onClick={()=>load(item)}>
           <strong>{item.title}</strong><small>{item.format} · {item.state}</small></button>)}
       </aside>
-      <div className="studio-carousel-form">
+      {open && <div className="studio-carousel-form">
+        <button type="button" disabled={busy} onClick={()=>setOpen(false)}>Close editor</button>
         <label>Publication format
           <select disabled={Boolean(current)} value={format} onChange={e=>{setFormat(e.target.value);setSlides([])}}>
             <option value="images">Image carousel</option><option value="videos">Video carousel</option>
             <option value="mixed">Mixed media carousel</option>
           </select>
         </label>
-        <label>Publication title<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={300} disabled={!isDraft}/></label>
-        <label>Full publication caption<textarea rows={3} maxLength={5000} value={description} onChange={e=>setDescription(e.target.value)} disabled={!isDraft}/></label>
+        <details><summary>Title (optional)</summary><label>Title<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={300} disabled={!isDraft}/></label></details>
+        <label>Caption (optional)<textarea rows={3} maxLength={5000} value={description} onChange={e=>setDescription(e.target.value)} disabled={!isDraft}/></label>
         <fieldset disabled={!isDraft}>
           <legend>Carousel cards — {slides.length} / 40</legend>
           {format !== 'videos' && <form className="studio-carousel-direct-upload" onSubmit={uploadNewImages}>
@@ -180,45 +184,42 @@ export default function StudioCarouselEditor({user, editions=[]}) {
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy}
                 onChange={e=>setNewImages(Array.from(e.target.files||[]))}/>
             </label>
-            <label>Camp year
-              <select value={newImageEdition} required disabled={busy} onChange={e=>setNewImageEdition(e.target.value)}>
+            <label>Camp edition for photographs
+              <select value={newImageEdition || edition || (editions.length === 1 ? String(editions[0].id) : '')} disabled={busy} onChange={e=>setNewImageEdition(e.target.value)}>
                 <option value="">Choose year</option>
                 {editions.map(item=><option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}
               </select>
             </label>
-            <label>Title for uploaded images (optional)
-              <input value={newImageTitle} onChange={e=>setNewImageTitle(e.target.value)}
-                maxLength={300} placeholder="Defaults to the filename"/>
-            </label>
-            <button disabled={busy || !canManage || !newImages.length || !newImageEdition} type="submit">
+            <details><summary>Image title (optional)</summary><input aria-label="Image title" value={newImageTitle} onChange={e=>setNewImageTitle(e.target.value)} maxLength={300} placeholder="Defaults to filename"/></details>
+            <button disabled={busy || !canManage || !newImages.length} type="submit">
               {busy ? 'Adding images…' : 'Add images to carousel'}
             </button>
           </form>}
-          <label>Or use an image already uploaded
+          <label>Choose from saved media
             <input type="search" aria-label="Search existing media" value={librarySearch}
-              placeholder="Search by title or image number" onChange={e=>setLibrarySearch(e.target.value)}/>
+              placeholder="Search media" onChange={e=>setLibrarySearch(e.target.value)}/>
           </label>
           <select aria-label="Add existing media card" defaultValue="" onChange={e=>{addAsset(e.target.value);e.target.value=''}}>
-            <option value="">Choose an existing image</option>
-            {imageChoices.map(a=><option key={a.id} value={a.id}>{a.title} — {a.source_kind} #{a.source_id}</option>)}
+            <option value="">Choose saved media</option>
+            {imageChoices.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}
           </select>
           {slides.map((item,i)=><div className="studio-carousel-slide" key={item.asset_id}>
             <strong>{i+1}. {item.title}</strong>
-            <input aria-label={`Caption for card ${i+1}`} maxLength={300} placeholder="Optional slide caption" value={item.caption}
-              onChange={e=>setSlides(prev=>prev.map((s,j)=>j===i?{...s,caption:e.target.value}:s))}/>
+            <details><summary>Caption (optional)</summary><input aria-label={`Caption for card ${i+1}`} maxLength={300} placeholder="Optional slide caption" value={item.caption}
+              onChange={e=>setSlides(prev=>prev.map((s,j)=>j===i?{...s,caption:e.target.value}:s))}/></details>
             <div><button type="button" disabled={i===0} onClick={()=>move(i,-1)}>↑</button>
             <button type="button" disabled={i===slides.length-1} onClick={()=>move(i,1)}>↓</button>
             <button type="button" onClick={()=>setSlides(prev=>prev.filter((_,j)=>i!==j))}>Remove</button></div>
           </div>)}
         </fieldset>
-        <fieldset disabled={!isDraft}><legend>Background audio (optional)</legend>
+        <details><summary>Background audio (optional)</summary><fieldset disabled={!isDraft}>
           <label>Upload MP3, OGG or WAV (up to 12 MB)
             <input type="file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" onChange={e=>setAudioFile(e.target.files?.[0]||null)} />
           </label>
           <label><input type="checkbox" checked={loopAudio} onChange={e=>setLoopAudio(e.target.checked)}/> Loop soundtrack</label>
           {format !== 'images' && <label><input type="checkbox" checked={soundtrackOnVideos} onChange={e=>setSoundtrackOnVideos(e.target.checked)}/> Play soundtrack over muted uploaded promo video clips</label>}
           {current?.has_audio && <p>Soundtrack saved. Audio starts only when a visitor chooses to play it.</p>}
-        </fieldset>
+        </fieldset></details>
         
         <fieldset><legend>Where should this appear?</legend>
           {destinations.map(([key,label])=><label key={key}><input type="checkbox" checked={dest.includes(key)} onChange={e=>setDest(current=>e.target.checked?[...current,key]:current.filter(d=>d!==key))}/>{label}</label>)}
@@ -227,7 +228,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
             {editions.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
         </fieldset>
         <div className="studio-carousel-actions">
-          {isDraft && user.can_publish_destinations && <button type="button" disabled={busy||!canManage} onClick={publish}>{busy ? 'Publishing…' : 'Publish carousel'}</button>}
+          {isDraft && user.can_publish_destinations && <button type="button" disabled={busy||!canManage||slides.length<2||!dest.length||dest.some(d=>d.startsWith('dic_'))&&!edition} onClick={publish}>{busy ? 'Publishing…' : 'Publish carousel'}</button>}
           {current && current.state==='published' && user.can_publish_destinations && <button type="button" disabled={busy}
             onClick={()=>run(()=>studioActOnCarousel(current.id,{action:'withdraw'}))}>Withdraw publication</button>}
           {current && user.can_publish_destinations && <button type="button" className="danger" disabled={busy} onClick={()=>{
@@ -236,7 +237,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
             }
           }}>Delete publication</button>}
         </div>
-      </div>
+      </div>}
     </div>
   </section>
 }
