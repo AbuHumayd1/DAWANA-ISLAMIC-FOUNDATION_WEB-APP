@@ -47,7 +47,7 @@ export function LecturerRail({ lecturers, historical = false }) {
     <div className="showcase-rail-track">
       {slides.map(({ offset, lecturer }) => <div
         key={offset} className={`showcase-rail-item${offset === 0 ? ' is-active' : ''}`}
-        data-offset={offset} aria-hidden={offset === 0 ? undefined : true}>
+        data-offset={offset}>
         {offset === 0 ? <LecturerCard lecturer={lecturer} /> :
           <button className="showcase-rail-preview" type="button" tabIndex={-1}
             aria-label={`Show ${lecturer.name || 'lecturer'}`}
