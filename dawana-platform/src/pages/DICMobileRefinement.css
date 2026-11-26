@@ -115,3 +115,11 @@
   .dic-page .published-studio-content { padding:.85rem; }
 }
 @media(max-width:370px) { .dic-page .dic-area-grid { grid-template-columns:minmax(0,1fr); } }
+
+/* Strong enough to override older large showcase headings on the public landing page. */
+.dic-page .dic-showcase h2 { font-size:clamp(1.35rem,2.6vw,1.85rem); line-height:1.25; }
+.dic-page .dic-showcase section { padding-block:clamp(1.5rem,3.5vw,2.8rem); }
+@media(max-width:600px) {
+  .dic-page .dic-showcase h2 { font-size:clamp(1.3rem,5vw,1.55rem); }
+  .dic-page .dic-showcase section { padding-block:1.5rem; }
+}
