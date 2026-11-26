@@ -479,3 +479,27 @@ test('camp activity images are directed to the public What to expect section', (
   assert.match(publicShowcase, /What to expect at camp/)
   assert.match(publicShowcase, /data\.activities\.map/)
 })
+
+
+test('collection navigation clears stale capabilities and publishing is restricted to the current collection', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  const navigation = studio.split('function chooseLibrary(kind)')[1].split('useEffect(')[0]
+  for (const capability of ['Publish','Edit','Create','Delete']) {
+    assert.ok(navigation.includes('setCan' + capability + '(false)'))
+  }
+  assert.match(navigation, /setRows\(\[\]\)/)
+  assert.match(studio, /chosen\.some\(key => !\(PUBLISH_DESTINATIONS\[library\]/)
+  assert.match(studio, /<strong>Carousel Library<\/strong>/)
+  const flyerDestinations = studio.split('const PUBLISH_DESTINATIONS')[1].split('flyers:')[1].split('promotions:')[0]
+  assert.match(flyerDestinations, /foundation_archive/)
+  assert.doesNotMatch(flyerDestinations, /dic_landing/)
+})
+
+test('photo batches require selected files and derive optional captions from each file', () => {
+  const studio = read('../pages/MediaStudio.jsx')
+  assert.match(studio, /photos\.length > 20/)
+  assert.match(studio, /!photos\.length/)
+  assert.match(studio, /photos\.map\(photograph =>/)
+  assert.match(studio, /photograph\.name\.replace/)
+  assert.match(studio, /Title \/ caption \(optional\)/)
+})
