@@ -23,7 +23,31 @@ class ScanView(OperationsBaseView):
         action = request.data.get('action', 'preview')
         if action not in ('preview', 'arrive', 'departure', 'return'):
             raise ValidationError('Choose a supported scan action.')
-        enrollment = resolve_token(request.data.get('token'), edition, request.user)
+        token = request.data.get('token')
+        from dic.tickets import PREFIX, resolve_ticket
+        if isinstance(token, str) and token.startswith(PREFIX):
+            require(request.user, 'dic.can_check_in_dic_participants')
+            require_checkin_storage()
+            if action not in ('preview', 'arrive'):
+                raise ValidationError('Registration tickets support initial arrival only. Use the camper Digital ID for movements.')
+            from dic.models import CampCheckIn
+            from dic.checkin_services import check_in_participant
+            from django.db import transaction
+            from .services import lock_person
+            with transaction.atomic():
+                item = resolve_ticket(token, edition)
+                if action == 'arrive':
+                    if request.data.get('confirmed') is not True:
+                        raise ValidationError('Confirm initial arrival explicitly.')
+                    lock_person(edition, item.participant_id)
+                    item = resolve_ticket(token, edition)
+                    row, created = check_in_participant(edition, item.participant_id, request.user)
+                    return Response(dict(created=created, check_in=checkin_summary(row)), status=201 if created else 200)
+                row = CampCheckIn.objects.filter(edition=edition, participant_id=item.participant_id).select_related('checked_in_by').first()
+                return Response(dict(ticket=True, participant_id=str(item.participant_id),
+                    name=item.participant.full_name, participant_number='DIC-'+str(edition.year)+'-'+str(item.pk),
+                    edition_id=edition.pk, check_in=checkin_summary(row)))
+        enrollment = resolve_token(token, edition, request.user)
         if action == 'arrive':
             if request.data.get('confirmed') is not True:
                 raise ValidationError('Confirm initial arrival explicitly.')
