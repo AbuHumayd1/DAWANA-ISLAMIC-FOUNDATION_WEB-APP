@@ -279,7 +279,10 @@ test('Media Studio includes one classification choice independent from destinati
   assert.match(studio, /MEDIA_CATEGORIES/)
   assert.match(studio, /MediaCategoryInput/)
   assert.match(studio, /studioAssetMetadata\(asset\.id, categoryMetadata\(itemMediaCategory, itemProgrammeName\)\)/)
-  assert.match(studio, /Camper Portal — private lecture audio/)
+  assert.match(studio, /\['camper_resources', 'Camper Portal — Camp lecture recordings \(private\)'\]/)
+  assert.match(studio, /Foundation Media — \$\{audio \? 'All Audio' : 'All Videos'\}/)
+  assert.match(studio, /setPublishDestinations\(\[\]\)/)
+  assert.match(studio, /if \(!destinations\.length\) throw new Error/)
 })
 
 test('YouTube thumbnails are safe, shared across Studio and public placements, and use accessible fallbacks', () => {
@@ -459,7 +462,10 @@ test('carousel lets staff upload new images without using existing assets first'
   assert.match(editor, /studioPublish\('photos'/)
   assert.match(editor, /studioLinkAsset\('photos'/)
   assert.match(editor, /Add images to carousel/)
-  assert.match(editor, /Search by title or image number/)
+  assert.match(editor, /placeholder="Search media"/)
+  assert.match(editor, /aria-label="Search existing media"/)
+  assert.match(editor, /if \(!dest\.length\) return setMessage/)
+  assert.match(editor, /const publicationTitle = title\.trim\(\) \|\| description\.trim\(\)/)
 })
 
 test('camp activity images are directed to the public What to expect section', () => {
