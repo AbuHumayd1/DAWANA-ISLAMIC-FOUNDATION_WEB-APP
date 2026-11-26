@@ -13,10 +13,10 @@ import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
 const COMPOSER_FIELDS = {
   photos: [{ name: 'caption', label: 'Caption (optional)' }, { name: 'alt_text', label: 'Accessible description (optional)' }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
-  videos: [{ name: 'caption', label: 'Title / caption', required: true }, { name: 'alt_text', label: 'Thumbnail description', required: true }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
+  videos: [{ name: 'caption', label: 'Title / caption (optional)' }, { name: 'alt_text', label: 'Thumbnail description (optional)' }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
   recordings: [{ name: 'title', label: 'Recording title', required: true }, { name: 'lecturer', label: 'Lecturer' }, { name: 'description', label: 'Description' }, { name: 'audio', label: 'Audio recording', file: true, accept: 'audio/mpeg,audio/mp4,audio/wav,audio/ogg', required: true }],
   flyers: [{ name: 'title', label: 'Title (optional)' }, { name: 'alt_text', label: 'Accessible description (optional)' }, { name: 'image', label: 'Official camp flyer image', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
-  promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description', required: true }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
+  promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description (optional)' }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
   lecturers: [{ name: 'name', label: 'Lecturer name', required: true }, { name: 'designation', label: 'Designation' }, { name: 'biography', label: 'Biography', required: true }, { name: 'alt_text', label: 'Portrait description', required: true }, { name: 'photograph', label: 'Lecturer portrait', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   activities: [{ name: 'title', label: 'Activity title', required: true }, { name: 'category', label: 'Category', required: true }, { name: 'description', label: 'Description', required: true }, { name: 'alt_text', label: 'Photo description (if supplied)' }, { name: 'photograph', label: 'Optional activity photograph', file: true, accept: 'image/jpeg,image/png,image/webp' }],
 }
@@ -39,7 +39,7 @@ const PUBLISH_DESTINATIONS = {
   videos: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights']],
   hosted: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights'], ['dic_resources', 'DIC landing — Media library']],
   recordings: [['foundation_archive', 'Foundation Media — All Audio + selected collection'], ['camper_resources', 'Camper Portal — Camp lecture recordings (private)']],
-  flyers: [['foundation_archive', 'Foundation Media — selected collection'], ['dic_landing', 'DIC landing — Media highlights']],
+  flyers: [['foundation_archive', 'Foundation Media — selected collection']],
   promotions: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights']],
   lecturers: [], appearances: [],
   activities: [['foundation_archive', 'Foundation Media — selected collection'], ['dic_landing', 'DIC landing — Media highlights']],
@@ -318,12 +318,12 @@ export default function MediaStudio() {
     const formData = new FormData(form)
     const values = Object.fromEntries(formData)
     // Keep existing API-required source metadata without demanding duplicate input.
-    if (library === 'photos' || library === 'flyers') {
-      const file = values.photograph || values.image
+    if (['photos', 'flyers', 'videos', 'promotions'].includes(library)) {
+      const file = values.photograph || values.image || values.recording_file || values.video
       const fallback = String(file?.name || 'Camp media').replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200)
-      if (library === 'photos') values.caption = String(values.caption || '').trim() || fallback
+      if (['photos', 'videos'].includes(library)) values.caption = String(values.caption || '').trim() || fallback
       if (library === 'flyers') values.title = String(values.title || '').trim() || fallback
-      values.alt_text = String(values.alt_text || '').trim() || (values.caption || values.title).slice(0, 250)
+      values.alt_text = String(values.alt_text || '').trim() || String(values.caption || values.title || fallback).slice(0, 250)
     }
     const publicationDescription = String(values.publication_description || '').trim()
     delete values.publication_description
@@ -345,7 +345,7 @@ export default function MediaStudio() {
     setUploadBusy(true); setMessage('')
     let saved = 0, published = 0
     try {
-      const batch = photos.length > 1 ? photos.map(photograph => ({...values, photograph})) : [values]
+      const batch = photos.length > 1 ? photos.map(photograph => ({...values, photograph, caption: String(formData.get('caption') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200), alt_text: String(formData.get('alt_text') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 250)})) : [values]
       for (const fields of batch) {
         const created = await studioUpload(library, fields)
         saved++
@@ -574,7 +574,7 @@ export default function MediaStudio() {
           <div className="studio-hero-audio"><span className="studio-hero-audio-disc"><svg viewBox="0 0 24 24" fill="none"><path d="M9 4v11.5a3.5 3.5 0 1 1-2-3.16V7l10-2v8.5a3.5 3.5 0 1 1-2-3.16V3L9 4Z" fill="currentColor" /></svg></span><span className="studio-hero-wave">{Array.from({ length: 16 }, (_, i) => <i key={i} style={{ '--bar': i % 5, '--phase': i % 7 }} />)}</span></div>
           <span className="studio-hero-signal studio-hero-signal-one" /><span className="studio-hero-signal studio-hero-signal-two" />
         </div></div>}
-      {workspace === 'home' && <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{showCollections.map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key || x.key === 'videos' && library === 'hosted' || x.key === 'lecturers' && library === 'appearances' ? ' active' : '')} onClick={() => selectCollection(x.key)}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}{showPublishing && <><button className="studio-collection" type="button" onClick={() => openWorkspace('carousels')}><span className="studio-collection-icon">▤</span><strong>Carousels</strong><small>Photos, videos & stories</small></button><button className="studio-collection" type="button" onClick={() => openWorkspace('publishing')}><span className="studio-collection-icon">↗</span><strong>Publishing & albums</strong><small>Manage destinations</small></button></>}{user.can_manage_catalogue && <button className="studio-collection" type="button" onClick={() => openWorkspace('editorial')}><span className="studio-collection-icon">▧</span><strong>Articles, podcasts & events</strong></button>}</div></section>}
+      {workspace === 'home' && <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{showCollections.map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key || x.key === 'videos' && library === 'hosted' || x.key === 'lecturers' && library === 'appearances' ? ' active' : '')} onClick={() => selectCollection(x.key)}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}{showPublishing && <><button className="studio-collection" type="button" onClick={() => openWorkspace('carousels')}><span className="studio-collection-icon">▤</span><strong>Carousel Library</strong><small>Photos, videos & stories</small></button><button className="studio-collection" type="button" onClick={() => openWorkspace('publishing')}><span className="studio-collection-icon">↗</span><strong>Publishing & albums</strong><small>Manage destinations</small></button></>}{user.can_manage_catalogue && <button className="studio-collection" type="button" onClick={() => openWorkspace('editorial')}><span className="studio-collection-icon">▧</span><strong>Articles, podcasts & events</strong></button>}</div></section>}
       {workspace !== 'home' && <button type="button" className="studio-workspace-back" onClick={() => openWorkspace('home')}>← All collections</button>}
       {workspace === 'collection' && <section id="studio-library" className="studio-workspace" aria-labelledby="studio-library-title">
         <div className="studio-heading"><div><span className="studio-kicker">YOUR COLLECTION</span><h2 id="studio-library-title">{displayName}</h2>{!['lecturers', 'appearances'].includes(library) && <p>Start by adding something new, or browse items already saved here.</p>}</div>{!['lecturers', 'appearances'].includes(library) && <span className="studio-library-meta">{rows.length} loaded · {publishedInView} published · {draftsInView} drafts</span>}</div>
