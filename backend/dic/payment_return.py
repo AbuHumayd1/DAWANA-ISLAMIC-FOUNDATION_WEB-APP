@@ -66,7 +66,7 @@ def _summary(order):
         "total_amount_ngn": str(order.total_amount_ngn), "currency": "NGN",
         "processing": followup_status(order),
         "participants": [
-            {"name": item.participant.full_name, "category": item.category_name_snapshot,
+            {"item_id": item.pk, "name": item.participant.full_name, "category": item.category_name_snapshot,
              "occupation": item.participant.get_occupation_display(),
              "marital_status": item.participant.get_marital_status_display()}
             for item in order.items.select_related("participant").order_by("id")
