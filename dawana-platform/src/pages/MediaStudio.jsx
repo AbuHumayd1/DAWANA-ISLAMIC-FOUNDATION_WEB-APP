@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioArchiveAsset, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
@@ -12,11 +12,11 @@ import StudioEditorial from './StudioEditorial'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
 const COMPOSER_FIELDS = {
-  photos: [{ name: 'caption', label: 'Caption', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
-  videos: [{ name: 'caption', label: 'Title / caption', required: true }, { name: 'alt_text', label: 'Thumbnail description', required: true }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
+  photos: [{ name: 'caption', label: 'Caption (optional)' }, { name: 'alt_text', label: 'Accessible description (optional)' }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  videos: [{ name: 'caption', label: 'Title / caption (optional)' }, { name: 'alt_text', label: 'Thumbnail description (optional)' }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
   recordings: [{ name: 'title', label: 'Recording title', required: true }, { name: 'lecturer', label: 'Lecturer' }, { name: 'description', label: 'Description' }, { name: 'audio', label: 'Audio recording', file: true, accept: 'audio/mpeg,audio/mp4,audio/wav,audio/ogg', required: true }],
-  flyers: [{ name: 'title', label: 'Official flyer title', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'image', label: 'Official camp flyer image', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
-  promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description', required: true }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
+  flyers: [{ name: 'title', label: 'Title (optional)' }, { name: 'alt_text', label: 'Accessible description (optional)' }, { name: 'image', label: 'Official camp flyer image', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description (optional)' }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
   lecturers: [{ name: 'name', label: 'Lecturer name', required: true }, { name: 'designation', label: 'Designation' }, { name: 'biography', label: 'Biography', required: true }, { name: 'alt_text', label: 'Portrait description', required: true }, { name: 'photograph', label: 'Lecturer portrait', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   activities: [{ name: 'title', label: 'Activity title', required: true }, { name: 'category', label: 'Category', required: true }, { name: 'description', label: 'Description', required: true }, { name: 'alt_text', label: 'Photo description (if supplied)' }, { name: 'photograph', label: 'Optional activity photograph', file: true, accept: 'image/jpeg,image/png,image/webp' }],
 }
@@ -35,14 +35,14 @@ const LIBRARIES = [
 
 // Destinations are restricted by the existing StudioPlacement backend allow-list.
 const PUBLISH_DESTINATIONS = {
-  photos: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_memories', 'DIC memories gallery'], ['dic_landing', 'DIC landing page']],
-  videos: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_landing', 'DIC landing page']],
-  hosted: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_landing', 'DIC landing page'], ['dic_resources', 'DIC lecture resources']],
-  recordings: [['foundation_archive', 'Media page — All Audio + chosen collection'], ['camper_resources', 'Camper Portal — private lecture audio']],
-  flyers: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['dic_landing', 'DIC landing page']],
-  promotions: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['foundation_home', 'Homepage — Latest 3 featured media'], ['dic_landing', 'DIC landing page']],
+  photos: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_memories', 'DIC landing — Camp memories'], ['dic_landing', 'DIC landing — Media highlights']],
+  videos: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights']],
+  hosted: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights'], ['dic_resources', 'DIC landing — Media library']],
+  recordings: [['foundation_archive', 'Foundation Media — All Audio + selected collection'], ['camper_resources', 'Camper Portal — Camp lecture recordings (private)']],
+  flyers: [['foundation_archive', 'Foundation Media — selected collection']],
+  promotions: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights']],
   lecturers: [], appearances: [],
-  activities: [['foundation_archive', 'Media page — All Videos / All Audio + chosen collection'], ['dic_landing', 'DIC landing page']],
+  activities: [['foundation_archive', 'Foundation Media — selected collection'], ['dic_landing', 'DIC landing — Media highlights']],
 }
 const needsEdition = destination => destination.startsWith('dic_') || destination === 'camper_resources'
 const MEDIA_CATEGORIES = [['general','General Foundation media'],['dic','Darul Islam Camp'],['ramadan','Ramadan Tafseer'],['shorts','Short videos'],['other','Other programmes (youth outreach, podcasts, events)']]
@@ -58,16 +58,16 @@ function MediaCategoryInput({value, onChange, audio = false, customCollections =
   </label>
 }
 
-function StudioPublishChoices({choices, selected, setSelected, authorized}) {
+function StudioPublishChoices({choices, selected, setSelected, authorized, category, audio, customCollections = []}) {
   if (!authorized) return null
   return <fieldset className="studio-publish-choices">
     <legend>Where should this appear?</legend>
-    <p>Select <strong>Media page — All Videos / All Audio</strong> to show this in the appropriate format archive and the programme collection selected above. Select other destinations only when needed. Camper Portal audio stays private.</p>
+    
     <div className="studio-publish-options">{choices.map(([key, name]) =>
       <label key={key}><input type="checkbox" checked={selected.includes(key)} onChange={event =>
         setSelected(previous => event.target.checked
           ? [...previous.filter(value => value !== key), key]
-          : previous.filter(value => value !== key))} />{name}</label>
+          : previous.filter(value => value !== key))} />{key === 'foundation_archive' && category ? `Foundation Media — ${audio ? 'All Audio' : 'All Videos'}${category !== 'general' ? ' + ' + ([...MEDIA_CATEGORIES, ...customCollections.map(c => [c.slug,c.title])].find(([id]) => id === category)?.[1] || category) : ''}` : name}</label>
     )}</div>
   </fieldset>
 }
@@ -92,6 +92,8 @@ export default function MediaStudio() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [library, setLibrary] = useState('photos')
+  const [workspace, setWorkspace] = useState('home')
+  const [expandedItem, setExpandedItem] = useState(null)
   const [q, setQ] = useState('')
   const [state, setState] = useState('')
   const [edition, setEdition] = useState('')
@@ -132,7 +134,19 @@ export default function MediaStudio() {
   const seq = useRef(0)
   function chooseLibrary(kind) {
     setPage(1)
+    if (kind !== library) {
+      setRows([])
+      setMore(false)
+      setCanPublish(false)
+      setCanEdit(false)
+      setCanCreate(false)
+      setCanDelete(false)
+      setFailedThumbnails({})
+    }
+    setFocusAsset('')
     setLibrary(kind)
+    setWorkspace('collection')
+    setExpandedItem(null)
     setMessage('')
     setQ('')
     setState('')
@@ -163,8 +177,8 @@ export default function MediaStudio() {
     studioUploadStatus().then(setUploadInfo).catch(() => setUploadInfo({ enabled: false, editions: [], libraries: [], approved_providers: null }))
   }, [user])
   useEffect(() => {
-    setComposerOpen(false); setPreview(null); setEditing(null)
-    setPublishDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : [])
+    setComposerOpen(false); setPreview(null); setEditing(null); setExpandedItem(null)
+    setPublishDestinations([])
     setItemToPublish(null); setItemDestinations([]); setItemEdition('')
   }, [library])
   useEffect(() => {
@@ -303,10 +317,21 @@ export default function MediaStudio() {
     const form = event.currentTarget
     const formData = new FormData(form)
     const values = Object.fromEntries(formData)
+    // Keep existing API-required source metadata without demanding duplicate input.
+    if (['photos', 'flyers', 'videos', 'promotions'].includes(library)) {
+      const file = values.photograph || values.image || values.recording_file || values.video
+      const fallback = String(file?.name || 'Camp media').replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200)
+      if (['photos', 'videos'].includes(library)) values.caption = String(values.caption || '').trim() || fallback
+      if (library === 'flyers') values.title = String(values.title || '').trim() || fallback
+      values.alt_text = String(values.alt_text || '').trim() || String(values.caption || values.title || fallback).slice(0, 250)
+    }
     const publicationDescription = String(values.publication_description || '').trim()
     delete values.publication_description
     const photos = library === 'photos'
       ? formData.getAll('photograph').filter(file => file instanceof File && file.name && file.size) : []
+    if (library === 'photos' && !photos.length) {
+      setMessage('Choose at least one photograph.'); return
+    }
     if (library === 'photos' && photos.length > 20) {
       setMessage('Select up to 20 photographs per batch.'); return
     }
@@ -323,7 +348,7 @@ export default function MediaStudio() {
     setUploadBusy(true); setMessage('')
     let saved = 0, published = 0
     try {
-      const batch = photos.length > 1 ? photos.map(photograph => ({...values, photograph})) : [values]
+      const batch = photos.length > 0 ? photos.map(photograph => ({...values, photograph, caption: String(formData.get('caption') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200), alt_text: String(formData.get('alt_text') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 250)})) : [values]
       for (const fields of batch) {
         const created = await studioUpload(library, fields)
         saved++
@@ -422,6 +447,21 @@ export default function MediaStudio() {
     } catch (error) { setMessage(error.message) }
     finally { setPending(null) }
   }
+  async function archiveMedia(item) {
+    if (!canDelete || !user.can_manage_catalogue) return
+    if (!window.confirm('Archive this media? Its source file and history will be retained.')) return
+    setPending(item.id); setMessage('')
+    try {
+      if (item.state === 'published') await studioPublish(library, item.id, 'withdraw')
+      const {asset} = await studioLinkAsset(library, item.id)
+      if (!asset?.id) throw new Error('Could not locate the media in the catalogue.')
+      await studioArchiveAsset(asset.id, 'archive')
+      setRows(previous => previous.filter(row => row.id !== item.id))
+      setExpandedItem(null)
+      setMessage('Media archived. Restore it from Publishing & albums when needed.')
+    } catch (error) { setMessage(error.message) }
+    finally { setPending(null); setPage(1); setRevision(v => v + 1) }
+  }
   async function removeMedia(item) {
     if (!canDelete) return
     if (!window.confirm(`Remove “${item.title}” from Media Studio and the public website? This removes it from staff lists and public destinations. Publication history and stored source files are kept securely.`)) return
@@ -445,7 +485,7 @@ export default function MediaStudio() {
         setMessage(`${item.title} withdrawn. Previously published destinations have also been withdrawn.`)
       } else {
         if (!canPublishImmediately) throw new Error('Publication permission is required for this workflow.')
-        if (!chosen.length) throw new Error('Choose at least one destination.')
+        if (!chosen.length || chosen.some(key => !(PUBLISH_DESTINATIONS[library] || []).some(([id]) => id === key))) throw new Error('Choose at least one approved destination.')
         if (chosen.some(needsEdition) && !itemEdition) throw new Error('Choose the camp edition.')
         // Publish original only if still a draft. No automatic retry on failure.
         if (item.state !== 'published') await studioPublish(library, item.id, 'publish')
@@ -488,6 +528,8 @@ export default function MediaStudio() {
     <small>Authorized personnel only. Your existing DAWANA staff credentials are used.</small>
   </section></main>
 
+  const showPublishing = user.can_manage_catalogue || user.can_publish_destinations
+  const openWorkspace = next => { setFocusAsset(''); setWorkspace(next); setMenuOpen(false); setComposerOpen(false); setExpandedItem(null); window.scrollTo(0,0) }
   const selected = LIBRARIES.find(x => x.key === library)
   const displayName = ['hosted', 'videos'].includes(library) ? 'Videos & Livestreams'
     : ['lecturers', 'appearances'].includes(library) ? 'Lecturers' : selected?.name
@@ -523,6 +565,10 @@ export default function MediaStudio() {
       <div className="studio-nav-wrapper" ref={menuRef}><button className="studio-hamburger" aria-label={menuOpen ? 'Close Studio navigation' : 'Open Studio navigation'} aria-expanded={menuOpen} aria-controls="studio-menu" onClick={() => setMenuOpen(value => !value)}>{menuOpen ? '✕' : '☰'}</button>
       {menuOpen && <nav id="studio-menu" className="studio-popnav" aria-label="Media Studio sections">
         <strong>Media collections</strong>
+        <button type="button" onClick={() => openWorkspace('home')}>⌂ Collections</button>
+        {showPublishing && <button type="button" onClick={() => openWorkspace('carousels')}>▤ Carousels</button>}
+        {showPublishing && <button type="button" onClick={() => openWorkspace('publishing')}>↗ Publishing & albums</button>}
+        {user.can_manage_catalogue && <button type="button" onClick={() => openWorkspace('editorial')}>▧ Articles, podcasts & events</button>}
         {showCollections.map(x => <button type="button" key={x.key} onClick={() => selectCollection(x.key)} aria-current={library === x.key ? 'page' : undefined}><span>{x.icon}</span>{x.name}</button>)}
         <div className="studio-menu-account">
           <strong>Account</strong>
@@ -535,7 +581,7 @@ export default function MediaStudio() {
     </header>
     {passwordOpen && <StaffPasswordChange onChangePassword={changeStudioPassword} onClose={() => setPasswordOpen(false)} />}
     <main className="studio-main">
-      {!['lecturers', 'appearances'].includes(library) && <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-hero-art" aria-hidden="true">
+      {workspace === 'home' && <div className="studio-overview"><div><span className="studio-kicker">CREATIVE COMMAND CENTRE</span><h1>Capture. Curate. Share.</h1><p>One place for DAWANA's stories, lectures and memorable moments.</p></div><div className="studio-hero-art" aria-hidden="true">
           <div className="studio-hero-halo" />
           <svg className="studio-hero-trails" viewBox="0 0 420 260" fill="none" preserveAspectRatio="xMidYMid meet">
             <path className="studio-hero-trail studio-hero-trail-one" d="M18 172C100 164 86 46 208 58S332 172 405 92" />
@@ -546,8 +592,9 @@ export default function MediaStudio() {
           <div className="studio-hero-audio"><span className="studio-hero-audio-disc"><svg viewBox="0 0 24 24" fill="none"><path d="M9 4v11.5a3.5 3.5 0 1 1-2-3.16V7l10-2v8.5a3.5 3.5 0 1 1-2-3.16V3L9 4Z" fill="currentColor" /></svg></span><span className="studio-hero-wave">{Array.from({ length: 16 }, (_, i) => <i key={i} style={{ '--bar': i % 5, '--phase': i % 7 }} />)}</span></div>
           <span className="studio-hero-signal studio-hero-signal-one" /><span className="studio-hero-signal studio-hero-signal-two" />
         </div></div>}
-      <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{showCollections.map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key || x.key === 'videos' && library === 'hosted' || x.key === 'lecturers' && library === 'appearances' ? ' active' : '')} onClick={() => selectCollection(x.key)}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}</div></section>
-      <section id="studio-library" className="studio-workspace" aria-labelledby="studio-library-title">
+      {workspace === 'home' && <section className="studio-collections" aria-label="Media collections"><h2>Explore collections</h2><div className="studio-collection-grid">{showCollections.map(x => <button key={x.key} type="button" className={'studio-collection' + (library === x.key || x.key === 'videos' && library === 'hosted' || x.key === 'lecturers' && library === 'appearances' ? ' active' : '')} onClick={() => selectCollection(x.key)}><span className="studio-collection-icon">{x.icon}</span><strong>{x.name}</strong><small>{x.count}</small></button>)}{showPublishing && <><button className="studio-collection" type="button" onClick={() => openWorkspace('carousels')}><span className="studio-collection-icon">▤</span><strong>Carousel Library</strong><small>Photos, videos & stories</small></button><button className="studio-collection" type="button" onClick={() => openWorkspace('publishing')}><span className="studio-collection-icon">↗</span><strong>Publishing & albums</strong><small>Manage destinations</small></button></>}{user.can_manage_catalogue && <button className="studio-collection" type="button" onClick={() => openWorkspace('editorial')}><span className="studio-collection-icon">▧</span><strong>Articles, podcasts & events</strong></button>}</div></section>}
+      {workspace !== 'home' && <button type="button" className="studio-workspace-back" onClick={() => openWorkspace('home')}>← All collections</button>}
+      {workspace === 'collection' && <section id="studio-library" className="studio-workspace" aria-labelledby="studio-library-title">
         <div className="studio-heading"><div><span className="studio-kicker">YOUR COLLECTION</span><h2 id="studio-library-title">{displayName}</h2>{!['lecturers', 'appearances'].includes(library) && <p>Start by adding something new, or browse items already saved here.</p>}</div>{!['lecturers', 'appearances'].includes(library) && <span className="studio-library-meta">{rows.length} loaded · {publishedInView} published · {draftsInView} drafts</span>}</div>
         {['hosted', 'videos'].includes(library) && <div className="studio-media-mode" role="group" aria-label="Choose video format">
           {user.libraries?.includes('hosted') && <button type="button" aria-pressed={library === 'hosted'} onClick={() => chooseLibrary('hosted')}>YouTube / Vimeo link</button>}
@@ -575,7 +622,7 @@ export default function MediaStudio() {
             {(isHosted || hasUploadForm) && <small>{isHosted ? 'No file upload or R2 storage needed.' : canUploadFiles ? 'Saving drafts and publishing remain permission-controlled.' : 'Uploads will become available after approved storage activation.'}</small>}
           </div>
         </div>
-        <div className="studio-next-steps" aria-label="How Media Studio works"><span><b>1.</b> Add your media and choose destinations</span><span><b>2.</b> Save Draft or Publish Now</span></div>
+        
         {library === 'hosted' && composerOpen && canCreate && <form className="studio-composer studio-hosted-composer" onSubmit={addHostedLinks}>
           <div><span className="studio-kicker">YOUTUBE · LIVESTREAMS · VIMEO</span><h3>Add video links</h3><p>Give the video a title, paste its YouTube or Vimeo URL, then save it as a private draft. This works for livestreams too; no file upload or R2 storage required.</p></div>
           <div className="studio-hosted-mode" role="group" aria-label="Number of videos to add">
@@ -591,7 +638,7 @@ export default function MediaStudio() {
           <label className="studio-hosted-lines">Description for these entries (optional)<textarea rows={2} value={hostedDescription} onChange={e => setHostedDescription(e.target.value)} maxLength={5000}/></label>
           <MediaCategoryInput value={mediaCategory} onChange={setMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
             {['ramadan','other'].includes(mediaCategory) && <label>Programme / series (optional)<input value={mediaProgrammeName} onChange={e=>setMediaProgrammeName(e.target.value)} maxLength={150} placeholder="e.g. Ramadan Tafseer 2026, Youth Outreach, Podcast"/></label>}
-            <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} />
+            <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} category={['hosted','videos','recordings'].includes(library) ? mediaCategory : null} audio={library === 'recordings'} customCollections={customCollections} />
           <div className="studio-submit-actions">
             <button type="submit" value="draft" disabled={uploadBusy || hostedProviderDisabled}>{uploadBusy ? 'Saving…' : 'Save Draft'}</button>
             {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || hostedProviderDisabled || !selectedDestinations.length || selectionNeedsEdition && !hostedEdition}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
@@ -610,7 +657,7 @@ export default function MediaStudio() {
           {['videos','recordings'].includes(library) && <><MediaCategoryInput value={mediaCategory} onChange={setMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
             {['ramadan','other'].includes(mediaCategory) && <label>Programme / series (optional)<input value={mediaProgrammeName} onChange={e=>setMediaProgrammeName(e.target.value)} maxLength={150} placeholder="e.g. Ramadan Tafseer 2026, Youth Outreach, Podcast"/></label>}
             </>}
-            <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} />
+            <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} category={['hosted','videos','recordings'].includes(library) ? mediaCategory : null} audio={library === 'recordings'} customCollections={customCollections} />
           <div className="studio-submit-actions">
             <button type="submit" value="draft" disabled={uploadBusy}>{uploadBusy ? 'Saving…' : 'Save Draft'}</button>
             {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || !selectedDestinations.length}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
@@ -618,10 +665,10 @@ export default function MediaStudio() {
         </form>}
         <details className="studio-filters-toggle"><summary>Search and filter saved items</summary><div className="studio-filters"><label>Search<input aria-label="Search media" placeholder="Search titles and captions" value={q} onChange={e => { setPage(1); setQ(e.target.value) }} /></label>
           <label>Publication status<select aria-label="Filter publication status" value={state} onChange={e => { setPage(1); setState(e.target.value) }}><option value="">All statuses</option><option value="draft">Draft</option>{library !== 'hosted' && <option value="review">Review</option>}<option value="published">Published</option></select></label>
-          {!['lecturers'].includes(library) && <label>Camp edition ID<input aria-label="Filter edition" inputMode="numeric" placeholder="All editions" value={edition} onChange={e => { setPage(1); setEdition(e.target.value.replace(/[^0-9]/g,'')) }}/></label>}
+          {!['lecturers'].includes(library) && <label>Camp edition<select aria-label="Filter edition" value={edition} onChange={e => { setPage(1); setEdition(e.target.value) }}><option value="">All editions</option>{uploadInfo.editions.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}
         </div></details>
         {message && <p className="studio-notice" role="status">{message}</p>}
-        {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className="studio-item" key={item.id}>
+        {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className={'studio-item' + (expandedItem === item.id || editing === item.id || itemToPublish === item.id ? ' is-expanded' : '')} key={item.id}>
           <div className={'studio-art' + (item.preview_url || item.player_url ? ' studio-art-available' : '')}>
             {item.preview_url && item.preview_url.includes('/private-preview/') ? <button className="studio-preview-trigger studio-play-trigger" type="button" onClick={() => setPreview({kind: library === 'recordings' ? 'private-audio' : 'private-video', url: backendUrl(item.preview_url), title: item.title})} aria-label={`Preview private ${item.title}`}><span className="studio-play-icon" aria-hidden="true">{library === 'recordings' ? '♫' : '▶'}</span><strong>{library === 'recordings' ? 'Listen to protected recording' : 'Preview protected video'}</strong></button>
             : item.preview_url ? <button className="studio-preview-trigger" type="button" onClick={() => setPreview({kind: 'image', url: backendUrl(item.preview_url), title: item.title})} aria-label={`Preview ${item.title}`}><img src={backendUrl(item.preview_url)} loading="lazy" alt="" onError={(event) => { event.currentTarget.hidden = true }} /><span>View image</span></button>
@@ -629,14 +676,14 @@ export default function MediaStudio() {
               {hostedVideoThumbnail(safePlayer(item.player_url)) && !failedThumbnails[item.id] && <img src={hostedVideoThumbnail(safePlayer(item.player_url))} loading="lazy" alt="" referrerPolicy="no-referrer" onError={() => setFailedThumbnails(old => ({...old, [item.id]: true}))}/>}
               <span className="studio-play-icon" aria-hidden="true">▶</span><strong>Watch or preview stream</strong></button>
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
-            <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
+            <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()}</small>
           </div>
-          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations(['hosted','videos'].includes(library) ? ['foundation_archive'] : []); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canDelete && <button type="button" className="studio-delete-draft" disabled={pending !== null} onClick={() => removeMedia(item)}>Delete</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>
+          <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><button type="button" className="studio-item-manage" aria-expanded={expandedItem === item.id} onClick={() => {setExpandedItem(expandedItem === item.id ? null : item.id);setItemToPublish(null);setEditing(null)}}>{expandedItem === item.id ? 'Close' : 'Manage'}</button>{expandedItem === item.id && <div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations([]); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canDelete && user.can_manage_catalogue && <button type="button" disabled={pending !== null} onClick={() => archiveMedia(item)}>Archive</button>}{canDelete && <button type="button" className="studio-delete-draft" disabled={pending !== null} onClick={() => removeMedia(item)}>Delete</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Unpublish</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>}
           {itemToPublish === item.id && <div className="studio-item-publisher">
             <strong>Where should “{item.title}” appear?</strong>
              {['hosted','videos','recordings'].includes(library) && <><MediaCategoryInput value={itemMediaCategory} onChange={setItemMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
                {['ramadan','other'].includes(itemMediaCategory) && <label>Programme / series (optional)<input value={itemProgrammeName} onChange={e=>setItemProgrammeName(e.target.value)} maxLength={150}/></label>}</>}
-            <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={itemDestinations} setSelected={setItemDestinations} authorized={canPublishImmediately} />
+            <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={itemDestinations} setSelected={setItemDestinations} authorized={canPublishImmediately} category={['hosted','videos','recordings'].includes(library) ? itemMediaCategory : null} audio={library === 'recordings'} customCollections={customCollections} />
             {itemDestinations.some(needsEdition) && <label>Camp edition<select required value={itemEdition} onChange={event => setItemEdition(event.target.value)}>
               <option value="">Choose edition</option>{uploadInfo.editions.map(row => <option key={row.id} value={row.id}>{row.name} ({row.year})</option>)}
             </select></label>}
@@ -646,10 +693,10 @@ export default function MediaStudio() {
         </article>)}</div> : <div className="studio-state"><strong>{q || state || edition ? 'No items match these filters.' : `No ${displayName?.toLowerCase()} saved here yet.`}</strong><p>{q || state || edition ? 'Open “Search and filter saved items” to change or clear your filters.' : isHosted ? 'Use “Add video links” above to save your first video or livestream.' : hasUploadForm ? 'When file uploads are activated, you can add new media using the upload action above. Any existing items will appear here.' : 'Speaker appearances will appear here when they are available.'}</p></div>}
         {more && <div className="studio-pagination"><button type="button" disabled={loading || page >= 100} onClick={() => setPage(current => current + 1)}>{loading ? 'Loading…' : 'Load more media'}</button></div>}
         </>}
-      </section>
-      {!['lecturers', 'appearances', 'activities'].includes(library) && <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />}
-      {!['lecturers', 'appearances'].includes(library) && (user.can_manage_catalogue || user.can_publish_destinations) && <StudioCarouselEditor user={user} editions={uploadInfo.editions} />}
-      {!['lecturers', 'appearances'].includes(library) && (user.can_manage_catalogue || user.can_publish_destinations) ? <details className="studio-advanced-publishing" open={Boolean(focusAsset)} onToggle={event => {if (!event.currentTarget.open && focusAsset) setFocusAsset('')}}><summary>Advanced: manage albums and publishing details</summary><StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /></details> : null}
+      </section>}
+      {workspace === 'editorial' && user.can_manage_catalogue && <StudioEditorial user={user} onCollectionsChange={() => studioEditorialCollections().then(data => setCustomCollections(data.collections || [])).catch(() => {})} />}
+      {workspace === 'carousels' && showPublishing && <StudioCarouselEditor user={user} editions={uploadInfo.editions} />}
+      {((workspace === 'publishing') || (workspace === 'collection' && Boolean(focusAsset))) && showPublishing ? <details className="studio-advanced-publishing" open={workspace === 'publishing' || Boolean(focusAsset)} onToggle={event => {if (!event.currentTarget.open && focusAsset) setFocusAsset('')}}><summary>Advanced: manage albums and publishing details</summary><StudioDestinations user={user} editions={uploadInfo.editions} library={library} sourceLinkRefresh={revision} focusAsset={focusAsset} /></details> : null}
       {preview && <div className="studio-preview-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setPreview(null) }}>
         <section className="studio-preview-dialog" role="dialog" aria-modal="true" aria-label={`Preview: ${preview.title}`}>
           <header><div><span className="studio-kicker">MEDIA PREVIEW</span><h2>{preview.title}</h2></div><button type="button" autoFocus onClick={() => setPreview(null)} aria-label="Close media preview">✕</button></header>
@@ -659,7 +706,7 @@ export default function MediaStudio() {
             : <img src={preview.url} alt={preview.title} />}
         </section>
       </div>}
-      {!['lecturers', 'appearances'].includes(library) && <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>}
+      {workspace === 'publishing' && <aside className="studio-storage-note"><strong>Publishing and private storage</strong><p>All library records and publishing actions are authorized by the backend. New uploads are unavailable until owner-approved R2 activation; when activated, all uploads save as drafts.</p></aside>}
     </main>
   </div>
 }
