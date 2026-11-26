@@ -57,10 +57,10 @@ test('public camp details use API fees/theme without opening closed registration
   assert.match(unavailable, /temporarily unavailable/)
 })
 
-test('unpublished editorial is not replaced with preview media in production rendering', () => {
+test('unpublished editorial remains hidden rather than showing oversized empty sections or preview media', () => {
   const html = render(Editorial)
-  assert.match(html, /Loading approved camp media/)
-  assert.doesNotMatch(html, /<video|<img|Local preview/)
+  assert.equal(html, '')
+  assert.doesNotMatch(html, /<video|<img|Local preview|Loading approved camp media/)
 })
 
 test('anonymous staff probes and failed credentials reject without false session expiry; protected failures expire', async () => {
