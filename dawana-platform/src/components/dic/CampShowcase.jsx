@@ -4,54 +4,70 @@ import { Container } from '../layout/SiteChrome'
 import './CampShowcase.css'
 
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
-const localPreview = import.meta.env.DEV && typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
-export function LecturerCard({ lecturer, historical = false }) {
-  const verified = lecturer.confirmed === true
-  return <article className={`showcase-lecturer${lecturer.featured ? ' showcase-featured' : ''}`}>
-    <div className="showcase-portrait"><img src={resolveMediaUrl(lecturer.image_url)} alt={lecturer.alt_text} loading="lazy" decoding="async" width="640" height="720" />{lecturer.featured && <span>Featured lecturer</span>}</div>
-    <div className="showcase-profile"><small>{lecturer.edition.name}</small><h3>{lecturer.name}</h3>{lecturer.designation && <p className="showcase-designation">{lecturer.designation}</p>}
-      {!historical && <span className={`showcase-status${verified ? ' is-verified' : ''}`}>{verified ? 'Participation confirmed' : 'Participation awaiting confirmation'}</span>}
-      {historical && !verified && <span className="showcase-status">Historical profile · topic awaiting verification</span>}
-      {lecturer.topic && (!historical || verified) && <p className="showcase-topic"><strong>{historical ? 'Verified lecture topic' : 'Approved topic'}</strong>{lecturer.topic}</p>}
-      <p className="showcase-biography">{lecturer.biography}</p>
-    </div>
-  </article>
+/** Flyer-first, bounded carousel. No edition selector, status badges, or directory cards. */
+export function LecturerCard({ lecturer }) {
+  return <a className="showcase-flyer" href={resolveMediaUrl(lecturer.image_url)}
+    target="_blank" rel="noopener noreferrer"
+    aria-label={`Open full lecturer flyer for ${lecturer.name || 'camp lecturer'}`}>
+    <img src={resolveMediaUrl(lecturer.image_url)}
+      alt={lecturer.alt_text || lecturer.name || 'Camp lecturer flyer'}
+      loading="lazy" decoding="async" />
+  </a>
 }
 
-
-/** An accessible, expanding editorial speaker rail; the source approval rules are unchanged. */
-function LecturerRail({ lecturers, historical = false }) {
+export function LecturerRail({ lecturers, historical = false }) {
   const [active, setActive] = useState(0)
+  const touchStart = useRef(null)
+  const total = lecturers.length
   useEffect(() => { setActive(0) }, [lecturers])
-  if (!lecturers.length) return null
-  const selected = Math.min(active, lecturers.length - 1)
-  const move = offset => setActive(index => (index + offset + lecturers.length) % lecturers.length)
-  return <div className="showcase-rail" aria-label={historical ? 'Previous camp lecturers' : 'Upcoming camp lecturers'}>
+  if (!total) return null
+  const current = Math.min(active, total - 1)
+  const move = (step) => setActive(index => (index + step + total) % total)
+  // Only render visible neighbours, even when the library grows very large.
+  const positions = total === 1 ? [0] : total === 2 ? [-1, 0] : total === 3 ? [-1, 0, 1] : [-2, -1, 0, 1, 2]
+  const slides = positions.map(offset => ({
+    offset, lecturer: lecturers[(current + offset + total) % total],
+  }))
+  return <div className="showcase-rail" role="region"
+    aria-roledescription="carousel"
+    aria-label={historical ? 'Lecturers from earlier camp editions' : 'Upcoming camp lecturers'}
+    onKeyDown={event => {
+      if (event.target.closest('a')) return
+      if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1) }
+      if (event.key === 'ArrowRight') { event.preventDefault(); move(1) }
+    }}
+    onTouchStart={event => { touchStart.current = event.touches[0]?.clientX ?? null }}
+    onTouchEnd={event => {
+      if (touchStart.current === null) return
+      const delta = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current
+      touchStart.current = null
+      if (Math.abs(delta) > 45 && total > 1) move(delta < 0 ? 1 : -1)
+    }}>
     <div className="showcase-rail-track">
-      {lecturers.map((lecturer, index) =>
-        <div key={lecturer.id} className={`showcase-rail-item${index === selected ? ' is-active' : ''}`}
-          data-distance={Math.min(Math.abs(index-selected), lecturers.length-Math.abs(index-selected))}>
-          {index === selected ? <LecturerCard lecturer={lecturer} historical={historical} /> :
-            <button className="showcase-rail-preview" type="button"
-              onClick={() => setActive(index)} aria-label={`View lecturer ${lecturer.name}`}>
-              <img src={resolveMediaUrl(lecturer.image_url)} alt="" loading="lazy" decoding="async" />
-              <span>{lecturer.name}</span>
-            </button>}
-        </div>)}
+      {slides.map(({ offset, lecturer }) => <div
+        key={offset} className={`showcase-rail-item${offset === 0 ? ' is-active' : ''}`}
+        data-offset={offset}>
+        {offset === 0 ? <LecturerCard lecturer={lecturer} /> :
+          <button className="showcase-rail-preview" type="button" tabIndex={-1}
+            aria-label={`Show ${lecturer.name || 'lecturer'}`}
+            onClick={() => move(offset)}>
+            <img src={resolveMediaUrl(lecturer.image_url)} alt="" loading="lazy" decoding="async" />
+          </button>}
+      </div>)}
     </div>
-    {lecturers.length > 1 && <div className="showcase-rail-controls">
-      <button type="button" onClick={() => move(-1)} aria-label="Previous lecturer">← Previous</button>
-      <span role="status" aria-live="polite">{selected + 1} / {lecturers.length}</span>
-      <button type="button" onClick={() => move(1)} aria-label="Next lecturer">Next →</button>
+    {total > 1 && <div className="showcase-rail-controls">
+      <button type="button" onClick={() => move(-1)} aria-label="Previous lecturer">‹</button>
+      <span aria-live="polite" className="showcase-rail-count">{current + 1} / {total}</span>
+      <button type="button" onClick={() => move(1)} aria-label="Next lecturer">›</button>
     </div>}
+    <p className="showcase-rail-hint">Select the flyer to view it at full size.</p>
   </div>
 }
 
 export default function CampShowcase() {
   const [data, setData] = useState({ upcoming: [], previous: [], activities: [] })
   const [status, setStatus] = useState('loading')
-  const [edition, setEdition] = useState('')
   const activitiesSection = useRef(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -60,6 +76,7 @@ export default function CampShowcase() {
         if (!response.ok) throw new Error('Showcase unavailable')
         const result = await response.json()
         if (![result.upcoming, result.previous, result.activities].every(Array.isArray)) throw new Error('Invalid showcase')
+        if (controller.signal.aborted) return
         setData(result)
         setStatus('ready')
       }).catch(error => { if (error.name !== 'AbortError') setStatus('error') })
@@ -73,28 +90,25 @@ export default function CampShowcase() {
     activitiesSection.current.querySelectorAll('.showcase-activity').forEach(card => observer.observe(card))
     return () => observer.disconnect()
   }, [data.activities])
-  const editions = [...new Map(data.previous.map(item => [String(item.edition.id), item.edition.name])).entries()]
-  const previous = data.previous.filter(item => !edition || String(item.edition.id) === edition)
-  const feedback = status === 'loading' ? 'Loading approved camp content…' : status === 'error' ? 'Camp content is temporarily unavailable. Please visit again later.' : null
+  // Empty modules should not occupy full-screen placeholders in the public landing page.
+  if (status !== 'ready') return null
   return <div className="dic-showcase">
-    <section className="showcase-upcoming" aria-labelledby="showcase-upcoming-title"><Container><span className="eyebrow">KNOWLEDGE & REFLECTION</span><h2 id="showcase-upcoming-title">Meet the upcoming camp lecturers</h2><p className="showcase-intro">Approved profiles and topics, with participation status clearly stated.</p>
-      {feedback && <p role="status">{feedback}</p>}
-      {(status === 'ready' || localPreview) && !data.upcoming.length && <div className="showcase-empty"><h3>Meet the lecturers when details are approved</h3><p>Lecturer announcements will appear here after editorial approval. No participation is assumed.</p>{localPreview && <small>Local preview · awaiting approved lecturer profiles and topics</small>}</div>}
+    {data.upcoming.length > 0 && <section className="showcase-upcoming" aria-labelledby="showcase-upcoming-title"><Container>
+      <span className="eyebrow">DIC LECTURERS</span>
+      <h2 id="showcase-upcoming-title">Meet the camp lecturers</h2>
       <LecturerRail lecturers={data.upcoming} />
-    </Container></section>
-    <section className="showcase-previous" aria-labelledby="showcase-previous-title"><Container><span className="eyebrow">FROM THE CAMP ARCHIVE</span><h2 id="showcase-previous-title">Lecturers From Previous Editions</h2>
-      {feedback && <p role="status">{feedback}</p>}
-      {!!data.previous.length && <label className="showcase-filter">Past camp edition<select aria-label="Past lecturer edition" value={edition} onChange={event => setEdition(event.target.value)}><option value="">All past editions</option>{editions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select><span role="status">{previous.length} {previous.length === 1 ? 'profile' : 'profiles'}</span></label>}
-      {(status === 'ready' || localPreview) && !previous.length && <div className="showcase-empty"><p>No approved historical lecturer profiles are available{edition ? ' for this edition' : ' yet'}.</p>{localPreview && <small>Local preview · previous lecturers</small>}</div>}
-      <LecturerRail lecturers={previous} historical />
-    </Container></section>
-    <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container><span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to expect at camp</h2><p className="showcase-intro">Explore the activities approved for this edition. Programme details are shared only when authorized.</p>
-      {feedback && <p role="status">{feedback}</p>}
-      {(status === 'ready' || localPreview) && !data.activities.length && <div className="showcase-empty"><h3>The programme is being prepared</h3><p>Committee-approved activities will appear here when ready. No schedule has been announced in this section.</p>{localPreview && <small>Local preview · awaiting approved activities; photographs are optional</small>}</div>}
-      <div className="showcase-activity-grid">{data.activities.map(item => <article className={`showcase-activity${item.featured ? ' showcase-featured' : ''}`} key={item.id}>
-        {item.image_url && <img src={resolveMediaUrl(item.image_url)} alt={item.alt_text} loading="lazy" decoding="async" width="800" height="600" />}
-        <div><span className="dic-activity-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3 15 9 21 12 15 15 12 21 9 15 3 12 9 9Z" /><circle cx="12" cy="12" r="2" /></svg></span><small>{item.category}{item.featured ? ' · Featured activity' : ''}</small><h3>{item.title}</h3><p>{item.description}</p></div>
+    </Container></section>}
+    {data.previous.length > 0 && <section className="showcase-previous" aria-labelledby="showcase-previous-title"><Container>
+      <span className="eyebrow">FROM THE CAMP ARCHIVE</span>
+      <h2 id="showcase-previous-title">Lecturers from previous editions</h2>
+      <LecturerRail lecturers={data.previous} historical />
+    </Container></section>}
+    {data.activities.length > 0 && <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container>
+      <span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to expect at camp</h2>
+      <div className="showcase-activity-grid">{data.activities.map(item => <article className="showcase-activity" key={item.id}>
+        {item.image_url && <img src={resolveMediaUrl(item.image_url)} alt={item.alt_text || item.title} loading="lazy" decoding="async" />}
+        <div><small>{item.category}</small><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}</div>
       </article>)}</div>
-    </Container></section>
+    </Container></section>}
   </div>
 }
