@@ -134,6 +134,16 @@ export default function MediaStudio() {
   const seq = useRef(0)
   function chooseLibrary(kind) {
     setPage(1)
+    if (kind !== library) {
+      setRows([])
+      setMore(false)
+      setCanPublish(false)
+      setCanEdit(false)
+      setCanCreate(false)
+      setCanDelete(false)
+      setFailedThumbnails({})
+    }
+    setFocusAsset('')
     setLibrary(kind)
     setWorkspace('collection')
     setExpandedItem(null)
@@ -457,7 +467,7 @@ export default function MediaStudio() {
         setMessage(`${item.title} withdrawn. Previously published destinations have also been withdrawn.`)
       } else {
         if (!canPublishImmediately) throw new Error('Publication permission is required for this workflow.')
-        if (!chosen.length) throw new Error('Choose at least one destination.')
+        if (!chosen.length || chosen.some(key => !(PUBLISH_DESTINATIONS[library] || []).some(([id]) => id === key))) throw new Error('Choose at least one approved destination.')
         if (chosen.some(needsEdition) && !itemEdition) throw new Error('Choose the camp edition.')
         // Publish original only if still a draft. No automatic retry on failure.
         if (item.state !== 'published') await studioPublish(library, item.id, 'publish')
@@ -501,7 +511,7 @@ export default function MediaStudio() {
   </section></main>
 
   const showPublishing = user.can_manage_catalogue || user.can_publish_destinations
-  const openWorkspace = next => { setWorkspace(next); setMenuOpen(false); setComposerOpen(false); setExpandedItem(null); window.scrollTo(0,0) }
+  const openWorkspace = next => { setFocusAsset(''); setWorkspace(next); setMenuOpen(false); setComposerOpen(false); setExpandedItem(null); window.scrollTo(0,0) }
   const selected = LIBRARIES.find(x => x.key === library)
   const displayName = ['hosted', 'videos'].includes(library) ? 'Videos & Livestreams'
     : ['lecturers', 'appearances'].includes(library) ? 'Lecturers' : selected?.name
@@ -648,7 +658,7 @@ export default function MediaStudio() {
               {hostedVideoThumbnail(safePlayer(item.player_url)) && !failedThumbnails[item.id] && <img src={hostedVideoThumbnail(safePlayer(item.player_url))} loading="lazy" alt="" referrerPolicy="no-referrer" onError={() => setFailedThumbnails(old => ({...old, [item.id]: true}))}/>}
               <span className="studio-play-icon" aria-hidden="true">▶</span><strong>Watch or preview stream</strong></button>
             : <span className="studio-art-placeholder" aria-hidden="true">{selected?.icon}</span>}
-            <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()} · #{item.id}</small>
+            <small>{library === 'hosted' ? 'YOUTUBE / LIVE' : selected?.name.toUpperCase()}</small>
           </div>
           <div className="studio-item-body"><div className="studio-item-meta"><span className={'studio-status studio-status-' + item.state}>{item.state}</span>{item.edition && <span>Edition {item.edition}</span>}</div><h3>{item.title}</h3><button type="button" className="studio-item-manage" aria-expanded={expandedItem === item.id} onClick={() => {setExpandedItem(expandedItem === item.id ? null : item.id);setItemToPublish(null);setEditing(null)}}>{expandedItem === item.id ? 'Close' : 'Manage'}</button>{expandedItem === item.id && <div className="studio-item-actions">{canPublishImmediately ? <button type="button" disabled={pending !== null} onClick={() => {setItemToPublish(itemToPublish === item.id ? null : item.id); setItemDestinations([]); setItemEdition(item.edition ? String(item.edition) : ''); setItemMediaCategory([...MEDIA_CATEGORIES,...customCollections.map(c => [c.slug,c.title])].some(([key]) => key === item.programme) ? item.programme : 'general'); setItemProgrammeName(item.event || '')}}>{itemToPublish === item.id ? 'Close publishing' : 'Publish to website'}</button> : user.can_manage_catalogue ? <button type="button" disabled={pending !== null} onClick={() => addToFoundation(item)}>Add to Foundation catalogue</button> : null}{canEdit && item.metadata && <button type="button" disabled={pending !== null} onClick={() => setEditing(editing === item.id ? null : item.id)}>{editing === item.id ? 'Cancel edit' : 'Edit details'}</button>}{canDelete && <button type="button" className="studio-delete-draft" disabled={pending !== null} onClick={() => removeMedia(item)}>Delete</button>}{canPublish && item.state === 'published' && ['photos','videos','hosted','recordings','flyers','promotions','activities'].includes(library) && <button type="button" disabled={pending !== null} onClick={() => publishExisting(item, 'withdraw')}>Withdraw from website</button>}{!canEdit && !canPublish && <span>Read-only catalogue</span>}</div>}
           {itemToPublish === item.id && <div className="studio-item-publisher">
