@@ -68,7 +68,7 @@ function Flyer({ flyer, onRegister, canRegister }) {
 
 export default function DICEditorial({ onRegister, canRegister }) {
   const [data, setData] = useState(null)
-  const [status, setStatus] = useState('loading'), [revision, refresh] = useState(0)
+  const [, setStatus] = useState('loading'), [revision] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     fetch(`${base}/dic/editorial/`, { credentials: 'omit', cache: 'no-store', signal: controller.signal })
