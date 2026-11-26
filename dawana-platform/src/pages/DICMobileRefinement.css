@@ -84,3 +84,34 @@
 .dic-page .dic-camp-brief .dic-recovery-link { display:block; width:fit-content; padding-block:.5rem; line-height:1.5; }
 :is(.dic-flow,.dic-summary) .dic-primary-contact fieldset { grid-template-columns:minmax(0,1fr); }
 :is(.dic-flow,.dic-summary) .dic-primary-contact fieldset > label,:is(.dic-flow,.dic-summary) .dic-primary-contact .cp-password-field { min-width:0; }
+
+/* November 2026 DIC landing-page refinement: mobile-first editorial density.
+   These rules are intentionally scoped to the public landing page, not registration. */
+.dic-page .dic-areas { padding-block:clamp(1.5rem,3vw,2.5rem); }
+.dic-page .dic-areas h2 { font-size:clamp(1.4rem,2.6vw,1.85rem); line-height:1.22; margin:.35rem 0 .7rem; }
+.dic-page .dic-area-grid { gap:.8rem; margin-top:1rem; }
+.dic-page .dic-area-grid article { padding:.95rem 1rem; min-height:0; border-radius:.8rem; }
+.dic-page .dic-area-grid article > span { font-size:.78rem; }
+.dic-page .dic-area-grid h3 { font-size:.98rem; line-height:1.35; margin:.55rem 0 .3rem; }
+.dic-page .dic-area-grid p { font-size:.84rem; line-height:1.5; margin:0; }
+.dic-page :is(.dic-promo-section,.dic-official-flyer,.dic-memories,.dic-process) { padding-block:clamp(1.5rem,3.6vw,2.75rem); }
+.dic-page :is(.dic-memories h2,.dic-promo-section h2,.published-studio-heading h2) { font-size:clamp(1.4rem,2.8vw,1.9rem); line-height:1.25; }
+.dic-page :is(.dic-memories p,.dic-promo-section p) { font-size:clamp(.85rem,1.4vw,.96rem); line-height:1.55; }
+.dic-page .memories-heading { margin-bottom:1rem; }
+.dic-page .published-studio-archive { padding-block:clamp(1.5rem,3.5vw,2.6rem); }
+.dic-page .published-studio-card h3 { font-size:clamp(.98rem,1.7vw,1.2rem); line-height:1.35; }
+.dic-page .published-studio-content { padding:clamp(.75rem,1.7vw,1.1rem); }
+.dic-page .published-studio-content a { font-size:.86rem; }
+.dic-page .showcase-activities h2 { font-size:clamp(1.35rem,2.7vw,1.85rem); }
+@media(max-width:600px) {
+  .dic-page .dic-areas { padding-block:1.45rem; }
+  .dic-page .dic-area-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .dic-page .dic-area-grid article { padding:.8rem; min-width:0; }
+  .dic-page .dic-area-grid h3 { font-size:.92rem; margin:.4rem 0 .3rem; }
+  .dic-page .dic-area-grid p { font-size:.78rem; line-height:1.45; }
+  .dic-page .dic-hero-copy > p { font-size:.92rem; line-height:1.5; }
+  .dic-page :is(.dic-promo-section,.dic-official-flyer,.dic-memories,.dic-process) { padding-block:1.5rem; }
+  .dic-page .published-studio-archive { padding-block:1.4rem; }
+  .dic-page .published-studio-content { padding:.85rem; }
+}
+@media(max-width:370px) { .dic-page .dic-area-grid { grid-template-columns:minmax(0,1fr); } }
