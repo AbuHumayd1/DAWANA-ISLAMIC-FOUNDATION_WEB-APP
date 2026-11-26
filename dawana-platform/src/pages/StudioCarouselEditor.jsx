@@ -101,7 +101,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
     setEdition(String(item?.destinations?.find(d=>d.edition)?.edition || ''))
     setLoopAudio(Boolean(item?.loop_audio))
     setSoundtrackOnVideos(Boolean(item?.soundtrack_on_videos))
-    setAudioFile(null);setMessage('')
+    setAudioFile(null);setNewImages([]);setNewImageEdition('');setNewImageTitle('');setLibrarySearch('');setMessage('')
   }
   function addAsset(id) {
     if (!id || slides.some(item=>item.asset_id===id)) return
@@ -123,6 +123,25 @@ export default function StudioCarouselEditor({user, editions=[]}) {
       return result
     } catch(error){setMessage(error.message);return null}
     finally{setBusy(false)}
+  }
+  async function saveDraft() {
+    if (!user.can_manage_catalogue || busy) return
+    const draftTitle = title.trim() || description.trim().slice(0, 100) || 'Untitled carousel'
+    let id = current?.id
+    setBusy(true); setMessage('')
+    try {
+      if (!id) id = (await studioCreateCarousel({title: draftTitle, format})).carousel.id
+      await studioUpdateCarousel(id, {
+        title: draftTitle, description, slides: slides.map(({asset_id,caption})=>({asset_id,caption})),
+        loop_audio: loopAudio, soundtrack_on_videos: soundtrackOnVideos,
+      })
+      if (audioFile) await studioUploadCarouselAudio(id, audioFile, loopAudio)
+      setSelected(id); setAudioFile(null); setReload(n=>n+1)
+      setMessage('Carousel draft saved.')
+    } catch (error) {
+      if (id) {setSelected(id); setReload(n=>n+1)}
+      setMessage(error.message || 'Could not save the carousel draft.')
+    } finally {setBusy(false)}
   }
   async function publish() {
     const publicationTitle = title.trim() || description.trim().slice(0, 100) || `Carousel — ${new Date().toISOString().slice(0,10)}`
@@ -148,7 +167,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
       await studioActOnCarousel(id, {action:'publish', destinations:dest.map(d=>({
         destination:d, edition:d.startsWith('dic_')?Number(edition):null,
       }))})
-      setSelected(id);setReload(n=>n+1)
+      setSelected(id);setAudioFile(null);setReload(n=>n+1)
       setMessage('Carousel published successfully.')
     } catch (error) {
       if (id) {setSelected(id);setReload(n=>n+1)}
@@ -228,6 +247,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
             {editions.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
         </fieldset>
         <div className="studio-carousel-actions">
+          {isDraft && user.can_manage_catalogue && <button type="button" disabled={busy} onClick={saveDraft}>Save draft</button>}
           {isDraft && user.can_publish_destinations && <button type="button" disabled={busy||!canManage||slides.length<2||!dest.length||dest.some(d=>d.startsWith('dic_'))&&!edition} onClick={publish}>{busy ? 'Publishing…' : 'Publish carousel'}</button>}
           {current && current.state==='published' && user.can_publish_destinations && <button type="button" disabled={busy}
             onClick={()=>run(()=>studioActOnCarousel(current.id,{action:'withdraw'}))}>Withdraw publication</button>}
