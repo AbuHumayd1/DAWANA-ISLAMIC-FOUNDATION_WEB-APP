@@ -126,6 +126,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
   }
   async function saveDraft() {
     if (!user.can_manage_catalogue || busy) return
+    if (slides.length < 2) return setMessage('Add at least two cards before saving a draft.')
     const draftTitle = title.trim() || description.trim().slice(0, 100) || 'Untitled carousel'
     let id = current?.id
     setBusy(true); setMessage('')
@@ -247,7 +248,7 @@ export default function StudioCarouselEditor({user, editions=[]}) {
             {editions.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
         </fieldset>
         <div className="studio-carousel-actions">
-          {isDraft && user.can_manage_catalogue && <button type="button" disabled={busy} onClick={saveDraft}>Save draft</button>}
+          {isDraft && user.can_manage_catalogue && <button type="button" disabled={busy || slides.length < 2} onClick={saveDraft}>Save draft</button>}
           {isDraft && user.can_publish_destinations && <button type="button" disabled={busy||!canManage||slides.length<2||!dest.length||dest.some(d=>d.startsWith('dic_'))&&!edition} onClick={publish}>{busy ? 'Publishing…' : 'Publish carousel'}</button>}
           {current && current.state==='published' && user.can_publish_destinations && <button type="button" disabled={busy}
             onClick={()=>run(()=>studioActOnCarousel(current.id,{action:'withdraw'}))}>Withdraw publication</button>}
