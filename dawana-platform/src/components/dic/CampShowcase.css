@@ -43,10 +43,19 @@
   .showcase-rail-item { flex-basis:22vw; }
   .showcase-rail-item.is-active { flex-basis:55vw; }
   .showcase-rail-item[data-offset="-1"],.showcase-rail-item[data-offset="1"] { transform:scale(.94); }
-  .showcase-activity-grid { grid-template-columns:1fr; }
-  .showcase-activity img { max-height:280px; }
+
 }
 @media(prefers-reduced-motion:reduce) {
   .showcase-rail-item,.showcase-rail-preview img,.showcase-activity { transition:none; }
   .showcase-activity:hover { transform:none; }
 }
+
+/* The activity rail has a single bounded row at every viewport. */
+.dic-showcase .showcase-activity-grid{margin-top:0}
+.dic-showcase .showcase-activity{border-top:3px solid var(--accent,#b48a42);transform:none;min-width:0}
+.dic-showcase .showcase-activity-image{display:block;width:100%;aspect-ratio:4/3;background:var(--panel-green,#edf2ec)}
+.dic-showcase .showcase-activity-image img{height:100%;max-height:none;aspect-ratio:auto;object-fit:contain}
+.dic-showcase .showcase-activity-description summary{cursor:pointer;font-size:.78rem;font-weight:650;line-height:1.45}
+.dic-showcase .showcase-activity-description p{max-height:9rem;overflow:auto}
+.dic-showcase .showcase-activity h3{font-size:clamp(.85rem,2.5vw,1rem);overflow-wrap:anywhere}
+@media(max-width:760px){.dic-showcase .showcase-activity>div{padding:.65rem}.dic-showcase .showcase-activity small{font-size:.67rem}}
