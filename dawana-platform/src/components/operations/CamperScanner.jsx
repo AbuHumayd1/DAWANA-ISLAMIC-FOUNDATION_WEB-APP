@@ -110,22 +110,23 @@ export default function CamperScanner({ edition, user, participant = null, onClo
     } finally { pending.current = false; if (alive.current) setBusy(false) }
   }
   return <section className="ops-panel camper-scanner" aria-label="Camper scanning and movement">
-    <header><h2>{participant ? `Movements: ${participant.name}` : 'Scan camper ID'}</h2><button type="button" disabled={busy} onClick={() => { stop(); onClose() }}>Close</button></header>
+    <header><h2>{participant ? `Movements: ${participant.name}` : 'Scan camper ID or ticket'}</h2><button type="button" disabled={busy} onClick={() => { stop(); onClose() }}>Close</button></header>
     {!participant && <>
-      <p>Scanning only previews an ID. Confirm each arrival, authorized departure or return separately.</p>
+      <p>Scanning only previews an ID or registration ticket. Confirm each arrival, authorized departure or return separately.</p>
       <div className="camper-camera-frame"><video ref={video} muted playsInline aria-label="QR camera preview" /><span aria-hidden="true" /></div>
       <button type="button" disabled={busy} onClick={() => start()}>Start camera</button>
       <button type="button" onClick={stop}>Stop camera</button>
       <span role="status">{cameraOn ? 'Camera active — place one QR inside the frame.' : 'Camera stopped.'}</span>
       {devices.length > 0 && <label>Camera<select value={camera} disabled={busy} onChange={event => { setCamera(event.target.value); start(event.target.value) }}><option value="">Rear camera (preferred)</option>{devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}</select></label>}
-      <form onSubmit={event => { event.preventDefault(); const input = event.currentTarget.elements.qr; const value = input.value; input.value = ''; resolve(value) }}><label>Paste camper QR link or token<input name="qr" autoComplete="off" spellCheck={false} type="password" required maxLength={2048} /></label><button disabled={busy}>Preview ID</button></form>
+      <form onSubmit={event => { event.preventDefault(); const input = event.currentTarget.elements.qr; const value = input.value; input.value = ''; resolve(value) }}><label>Paste camper QR link or token<input name="qr" autoComplete="off" spellCheck={false} type="password" required maxLength={2048} /></label><button disabled={busy}>Preview ID or ticket</button></form>
     </>}
     {busy && <p role="status">Checking server…</p>}{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     {preview && <div className="camper-scan-result"><h3>{preview.name}</h3><p>{preview.participant_number}</p>
       <p>{preview.check_in ? `Initial arrival: ${checkInTime(preview.check_in.time)} · ${preview.check_in.staff}` : 'Not yet checked in'}</p>
       {preview.presence && <p>Presence: <strong>{preview.presence.replaceAll('_', ' ')}</strong></p>}
       {!participant && !preview.check_in && permissions.check_in && <button disabled={busy || Boolean(lockedAction && lockedAction !== 'arrive')} onClick={() => record('arrive')}>Confirm initial check-in</button>}
-      {permissions.movement_view && permissions.movement_record && <>
+      {preview.ticket && <p>Verified registration ticket. Use a Digital ID for departure or return.</p>}
+      {!preview.ticket && permissions.movement_view && permissions.movement_record && <>
         <label>Reason (optional)<textarea maxLength={1000} disabled={busy || Boolean(lockedAction)} value={reason} onChange={event => setReason(event.target.value)} /></label>
         {preview.presence === 'inside' && permissions.authorize_departure && <>
           <label>Approved release authorization reference<input maxLength={160} disabled={busy || Boolean(lockedAction)} value={reference} onChange={event => setReference(event.target.value)} /></label>
