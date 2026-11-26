@@ -10,20 +10,23 @@ before(async () => {
   LecturerCard = (await server.ssrLoadModule('/src/components/dic/CampShowcase.jsx')).LecturerCard
 })
 after(async () => { await server?.close() })
-const lecturer = { id: 1, name: '<Synthetic lecturer>', image_url: '/synthetic.jpg', alt_text: 'Synthetic portrait', edition: { name: 'Synthetic edition' }, biography: 'Synthetic bio', topic: 'Synthetic topic', confirmed: false }
-test('upcoming confirmation must be an explicit boolean and content is escaped', () => {
-  for (const confirmed of [false, undefined, 'true']) {
+const lecturer = { id: 1, name: '<Synthetic lecturer>', image_url: '/synthetic.jpg', alt_text: 'Synthetic flyer', edition: { name: 'Synthetic edition' }, biography: 'Synthetic bio', topic: 'Synthetic topic', confirmed: false }
+
+test('lecturer cards display the original full flyer without verification chatter or duplicate profile text', () => {
+  for (const confirmed of [false, undefined, 'true', true]) {
     const html = renderToStaticMarkup(createElement(LecturerCard, { lecturer: { ...lecturer, confirmed } }))
-    assert.match(html, /Participation awaiting confirmation/)
-    assert.doesNotMatch(html, /Participation confirmed/)
-    assert.match(html, /&lt;Synthetic lecturer&gt;/)
+    assert.match(html, /<img /)
     assert.match(html, /loading="lazy"/)
+    assert.match(html, /Synthetic flyer/)
+    assert.doesNotMatch(html, /Participation (confirmed|awaiting confirmation)/)
+    assert.doesNotMatch(html, /topic awaiting verification/)
+    assert.doesNotMatch(html, /Synthetic bio|Synthetic topic|Synthetic edition|Featured lecturer/)
+    assert.match(html, /&lt;Synthetic lecturer&gt;/)
   }
-  assert.match(renderToStaticMarkup(createElement(LecturerCard, { lecturer: { ...lecturer, confirmed: true } })), /Participation confirmed/)
 })
-test('historical lecture topics remain hidden until verified', () => {
+
+test('historical flyers use the identical compact visual treatment without archive status notices', () => {
   const html = renderToStaticMarkup(createElement(LecturerCard, { lecturer, historical: true }))
-  assert.doesNotMatch(html, /Synthetic topic/)
-  assert.match(html, /topic awaiting verification/)
-  assert.match(renderToStaticMarkup(createElement(LecturerCard, { lecturer: { ...lecturer, confirmed: true }, historical: true })), /Verified lecture topic/)
+  assert.match(html, /showcase-flyer/)
+  assert.doesNotMatch(html, /verification|status|Confirmed|approved/i)
 })
