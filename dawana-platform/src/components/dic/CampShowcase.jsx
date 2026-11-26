@@ -27,7 +27,7 @@ export function LecturerRail({ lecturers, historical = false }) {
   const total = lecturers.length
   useEffect(() => { setActive(0) }, [lecturers])
   useEffect(() => {
-    if(!railRef.current) return
+    if(!railRef.current || typeof IntersectionObserver==='undefined') return
     const observer = new IntersectionObserver(entries => setInView(entries[0].isIntersecting), {threshold:.3})
     observer.observe(railRef.current)
     return () => observer.disconnect()
@@ -54,12 +54,15 @@ export function LecturerRail({ lecturers, historical = false }) {
       if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1) }
       if (event.key === 'ArrowRight') { event.preventDefault(); move(1) }
     }}
-    onTouchStart={event => { setPaused(true); touchStart.current = event.touches[0]?.clientX ?? null }}
+    onTouchStart={event => { if(event.target.closest('button')) return; touchStart.current = [event.touches[0].clientX,event.touches[0].clientY] }}
+    onTouchCancel={()=>{touchStart.current=null}}
     onTouchEnd={event => {
       if (touchStart.current === null) return
-      const delta = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current
+      const [x,y] = touchStart.current
+      const delta = event.changedTouches[0].clientX-x
+      const vertical = event.changedTouches[0].clientY-y
       touchStart.current = null
-      if (Math.abs(delta) > 45 && total > 1) move(delta < 0 ? 1 : -1)
+      if (Math.abs(delta) > 45 && Math.abs(delta)>Math.abs(vertical) && total > 1) {setPaused(true);move(delta < 0 ? 1 : -1)}
     }}>
     <div className="showcase-rail-track">
       {slides.map(({ offset, lecturer }) => <div
