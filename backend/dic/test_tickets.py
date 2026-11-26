@@ -38,3 +38,11 @@ class TicketTests(APITestCase):
         self.order.save(update_fields=['payment_status'])
         with self.assertRaises(ValidationError):
             resolve_ticket(ticket_token(item), self.order.edition)
+
+    def test_single_booking_has_compact_landscape_ticket(self):
+        self.settle()
+        rows = ticket_rows(self.order)
+        if len(rows) == 1:
+            pdf = ticket_pdf(self.order)
+            self.assertIn(b'/MediaBox [ 0 0 648 324 ]', pdf.content)
+            self.assertIn(str(rows[0][0].pk)+'.pdf', pdf['Content-Disposition'])
