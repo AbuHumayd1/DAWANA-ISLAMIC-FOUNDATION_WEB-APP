@@ -12,10 +12,10 @@ import StudioEditorial from './StudioEditorial'
 import { hostedVideoThumbnail } from '../services/hostedVideoThumbnail'
 
 const COMPOSER_FIELDS = {
-  photos: [{ name: 'caption', label: 'Caption', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  photos: [{ name: 'caption', label: 'Caption (optional)' }, { name: 'alt_text', label: 'Accessible description (optional)' }, { name: 'photograph', label: 'Photograph', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   videos: [{ name: 'caption', label: 'Title / caption', required: true }, { name: 'alt_text', label: 'Thumbnail description', required: true }, { name: 'lecturer', label: 'Lecturer (optional)' }, { name: 'thumbnail', label: 'Thumbnail', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'recording_file', label: 'Video recording', file: true, accept: 'video/mp4,video/webm', required: true }],
   recordings: [{ name: 'title', label: 'Recording title', required: true }, { name: 'lecturer', label: 'Lecturer' }, { name: 'description', label: 'Description' }, { name: 'audio', label: 'Audio recording', file: true, accept: 'audio/mpeg,audio/mp4,audio/wav,audio/ogg', required: true }],
-  flyers: [{ name: 'title', label: 'Official flyer title', required: true }, { name: 'alt_text', label: 'Accessible description', required: true }, { name: 'image', label: 'Official camp flyer image', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
+  flyers: [{ name: 'title', label: 'Title (optional)' }, { name: 'alt_text', label: 'Accessible description (optional)' }, { name: 'image', label: 'Official camp flyer image', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   promotions: [{ name: 'title', label: 'Promotion title', required: true }, { name: 'description', label: 'Description' }, { name: 'alt_text', label: 'Poster description', required: true }, { name: 'poster', label: 'Poster', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }, { name: 'video', label: 'H.264/AAC MP4', file: true, accept: 'video/mp4', required: true }],
   lecturers: [{ name: 'name', label: 'Lecturer name', required: true }, { name: 'designation', label: 'Designation' }, { name: 'biography', label: 'Biography', required: true }, { name: 'alt_text', label: 'Portrait description', required: true }, { name: 'photograph', label: 'Lecturer portrait', file: true, accept: 'image/jpeg,image/png,image/webp', required: true }],
   activities: [{ name: 'title', label: 'Activity title', required: true }, { name: 'category', label: 'Category', required: true }, { name: 'description', label: 'Description', required: true }, { name: 'alt_text', label: 'Photo description (if supplied)' }, { name: 'photograph', label: 'Optional activity photograph', file: true, accept: 'image/jpeg,image/png,image/webp' }],
@@ -307,6 +307,14 @@ export default function MediaStudio() {
     const form = event.currentTarget
     const formData = new FormData(form)
     const values = Object.fromEntries(formData)
+    // Keep existing API-required source metadata without demanding duplicate input.
+    if (library === 'photos' || library === 'flyers') {
+      const file = values.photograph || values.image
+      const fallback = String(file?.name || 'Camp media').replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200)
+      if (library === 'photos') values.caption = String(values.caption || '').trim() || fallback
+      if (library === 'flyers') values.title = String(values.title || '').trim() || fallback
+      values.alt_text = String(values.alt_text || '').trim() || (values.caption || values.title).slice(0, 250)
+    }
     const publicationDescription = String(values.publication_description || '').trim()
     delete values.publication_description
     const photos = library === 'photos'
@@ -629,7 +637,7 @@ export default function MediaStudio() {
         </form>}
         <details className="studio-filters-toggle"><summary>Search and filter saved items</summary><div className="studio-filters"><label>Search<input aria-label="Search media" placeholder="Search titles and captions" value={q} onChange={e => { setPage(1); setQ(e.target.value) }} /></label>
           <label>Publication status<select aria-label="Filter publication status" value={state} onChange={e => { setPage(1); setState(e.target.value) }}><option value="">All statuses</option><option value="draft">Draft</option>{library !== 'hosted' && <option value="review">Review</option>}<option value="published">Published</option></select></label>
-          {!['lecturers'].includes(library) && <label>Camp edition ID<input aria-label="Filter edition" inputMode="numeric" placeholder="All editions" value={edition} onChange={e => { setPage(1); setEdition(e.target.value.replace(/[^0-9]/g,'')) }}/></label>}
+          {!['lecturers'].includes(library) && <label>Camp edition<select aria-label="Filter edition" value={edition} onChange={e => { setPage(1); setEdition(e.target.value) }}><option value="">All editions</option>{uploadInfo.editions.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}
         </div></details>
         {message && <p className="studio-notice" role="status">{message}</p>}
         {loading ? <p className="studio-state">Loading media catalogue…</p> : rows.length ? <div className="studio-item-grid">{rows.map(item => <article className={'studio-item' + (expandedItem === item.id || editing === item.id || itemToPublish === item.id ? ' is-expanded' : '')} key={item.id}>
