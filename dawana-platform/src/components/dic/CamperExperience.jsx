@@ -1,6 +1,7 @@
 import CamperDay from './CamperDay'
 import CamperApprovedActivities from './CamperApprovedActivities'
 import CamperResources from './CamperResources'
+import CamperTickets from './CamperTickets'
 import CamperSelect from './CamperSelect'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -45,11 +46,12 @@ export function ExperienceContent({ tab, participant: p, order, data, error, onN
   const scoreState = error ? <div className="participant-error" role="alert"><p>{error}</p><button className="cp-text-button" onClick={onRefresh}>Retry points</button></div> : !data ? <p className="cp-skeleton" role="status">Loading verified camp points…</p> : !data.ready ? <p className="participant-notice" role="status">{data.message}</p> : null
   if (view === 'settings') return null
   if (view === 'recordings') return <CamperResources key={p.registration_item_id} item={p.registration_item_id} />
+  if (view === 'tickets') return <CamperTickets key={p.registration_item_id} item={p.registration_item_id} />
   if (view === 'certificate') return <CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly />
   if (view === 'activities') return <CamperApprovedActivities onNavigate={onNavigate} />
   if (view === 'day') return <><div className="cp-section-heading cp-day-heading"><span className="cp-kicker">YOUR CAMP COMPANION</span><h1>My Day</h1><p>Your published programme and meals, in one place.</p></div><CamperDay key={p.registration_item_id} item={p.registration_item_id} /></>
   if (view === 'digital-id') return <><div className="cp-section-heading"><h1>My Digital ID</h1></div><DigitalIDStatus participant={p} onOpenID={onOpenID} busy={busy} /><button className="cp-text-button" onClick={() => onNavigate('me')}>Back to my profile</button></>
-  if (view === 'me') return <><CamperProfile participant={p} order={order} ID={DigitalIDStatus} Icon={PortalIcon} onOpenID={onOpenID} busy={busy} /><CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly /></>
+  if (view === 'me') return <><CamperProfile participant={p} order={order} ID={DigitalIDStatus} Icon={PortalIcon} onOpenID={onOpenID} busy={busy} /><CamperTickets key={'tickets-'+p.registration_item_id} item={p.registration_item_id} /><CamperResources key={p.registration_item_id} item={p.registration_item_id} certificateOnly /></>
   if (view === 'feedback') return <><div className="cp-section-heading"><span className="cp-kicker">WE ARE LISTENING</span><h1>Your voice matters</h1><p>Use your verified booking to share your experience.</p></div><div className="cp-explore-grid">{[['daily', 'Daily feedback', 'Reflect on your camp day.'], ['welfare', 'Submit a complaint', 'Raise a welfare concern securely.'], ['history', 'My complaints / complaint status', 'Follow updates on your existing concerns.'], ['final', 'Final camp evaluation', 'Help shape the next camp experience.']].map(([channel, title, text]) => <Link className="cp-card cp-link-card" key={channel} to={`/dic/feedback?channel=${channel}`}><div><h2>{title}</h2><p>{text}</p></div><span aria-hidden="true">↗</span></Link>)}</div></>
   if (view === 'announcements') return <><div className="cp-section-heading"><span className="cp-kicker">IN THE KNOW</span><h1>Camp announcements</h1></div><CampUpdates key={p.registration_item_id} item={p.registration_item_id} /></>
   if (view === 'explore') return <CamperExplore participant={p} camp={camp} onNavigate={onNavigate} Icon={PortalIcon} />

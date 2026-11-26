@@ -1,5 +1,6 @@
 export function scanToken(value) {
   const text = String(value || '').trim()
+  if (/^DIC-TICKET:[1-9]\d{0,17}:[A-Za-z0-9_-]{43}$/.test(text)) return text
   if (/^[A-Za-z0-9_-]{43}$/.test(text)) return text
   try {
     const url = new URL(text)

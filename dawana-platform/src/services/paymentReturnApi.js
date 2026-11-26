@@ -98,3 +98,19 @@ export function paystackCheckoutUrl(value) {
   } catch { /* Keep the existing registration; never navigate to an unsafe URL. */ }
   return ''
 }
+
+export async function downloadRegistrationTicket(orderId, itemId) {
+  if (!paymentReturnApiAllowed(base, window.location.href)) throw new Error('Secure ticket access is unavailable on this origin.')
+  const csrf = await getCsrfToken()
+  const suffix = itemId == null ? '' : '?ticket_item=' + encodeURIComponent(itemId)
+  const response = await fetch(base + '/dic/payments/return/' + encodeURIComponent(orderId) + '/tickets/' + suffix, {
+    method:'POST', credentials:'include', cache:'no-store',
+    headers:{'X-CSRFToken':csrf, 'Content-Type':'application/json',Accept:'application/pdf, application/json'}, body:'{}',
+  })
+  if (!response.ok || !response.headers.get('content-type')?.startsWith('application/pdf')) throw new Error('Verified ticket is unavailable. Refresh your registration or contact DIC support.')
+  const url=URL.createObjectURL(await response.blob())
+  const link=document.createElement('a')
+  link.href=url;link.download='DIC-ticket-'+(itemId ?? orderId)+'.pdf'
+  document.body.appendChild(link);link.click();link.remove()
+  setTimeout(()=>URL.revokeObjectURL(url),30000)
+}
