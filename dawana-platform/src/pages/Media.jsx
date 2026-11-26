@@ -1,3 +1,4 @@
+import MediaGlide from '../components/media/MediaGlide'
 import PublishedCarousels from '../components/media/PublishedCarousels'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -164,9 +165,9 @@ export default function Media() {
       </div>
       {visualItems.length > 0 && <section className="media-clean-visuals" aria-label="Published photographs and visuals">
         <div className="media-clean-results-header"><div><span className="eyebrow">Photography</span><h2>Photo gallery</h2></div></div>
-        <div className="media-clean-visual-grid">{visualItems.map((item, index) => <a key={item.url + index} href={backendUrl(item.url)} target="_blank" rel="noopener noreferrer">
+        <MediaGlide className="media-clean-visual-grid" count={visualItems.length} label="Photo gallery">{visualItems.map((item, index) => <a key={item.url + index} href={backendUrl(item.url)} target="_blank" rel="noopener noreferrer">
           <img src={backendUrl(item.url)} loading="lazy" alt={item.title}/><span>{item.title}</span>
-        </a>)}</div>
+        </a>)}</MediaGlide>
       </section>}
     </Container></section>
   </div>

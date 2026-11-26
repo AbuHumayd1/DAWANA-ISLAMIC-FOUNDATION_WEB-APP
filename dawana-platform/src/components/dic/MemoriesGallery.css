@@ -35,3 +35,10 @@
 @media (max-width:520px) { .memories-board { grid-template-columns:1fr; gap:2rem; padding:1rem; } .memories-stamp { display:none; } .memories-filters { align-items:stretch; } .memories-filters label { flex:1; min-width:0; } .memories-filters select { min-width:0; width:100%; } .memory-viewer-nav { gap:.5rem; } }
 @media (prefers-reduced-motion:reduce) { .memory-card, .memory-card.memories-visible { animation:none; transition:none; transform:none; opacity:1; } }
 @media (max-width:520px) { .memories-filters p { flex-basis:100%; margin:0; } }
+
+.dic-memories .media-glide .memory-card,.dic-memories .media-glide .memory-card.memories-visible{animation:none;transform:none;opacity:1}
+.dic-memories .media-glide .memory-open{height:100%;padding:.5rem;border-radius:10px}
+.dic-memories .media-glide .memory-open img{height:clamp(125px,22vw,240px);width:100%;object-fit:contain;background:var(--panel-green,#edf2ec)}
+.dic-memories .media-glide .memory-pin{display:none}
+.dic-memories .media-glide .memory-caption{padding:.55rem .15rem;gap:.25rem}
+.dic-memories .media-glide .memory-caption strong{font-size:clamp(.8rem,2.5vw,1rem)}

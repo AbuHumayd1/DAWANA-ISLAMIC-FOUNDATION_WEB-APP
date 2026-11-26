@@ -2,6 +2,7 @@ import { resolveMediaUrl } from '../../services/mediaUrl'
 import { useEffect, useRef, useState } from 'react'
 import { Container } from '../layout/SiteChrome'
 import './CampShowcase.css'
+import MediaGlide from '../media/MediaGlide'
 
 const base = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
 
@@ -19,8 +20,24 @@ export function LecturerCard({ lecturer }) {
 export function LecturerRail({ lecturers, historical = false }) {
   const [active, setActive] = useState(0)
   const touchStart = useRef(null)
+  const railRef = useRef(null)
+  const [paused,setPaused] = useState(false)
+  const [inView,setInView] = useState(false)
+  const [interacting,setInteracting] = useState(false)
   const total = lecturers.length
   useEffect(() => { setActive(0) }, [lecturers])
+  useEffect(() => {
+    if(!railRef.current || typeof IntersectionObserver==='undefined') return
+    const observer = new IntersectionObserver(entries => setInView(entries[0].isIntersecting), {threshold:.3})
+    observer.observe(railRef.current)
+    return () => observer.disconnect()
+  }, [total])
+  useEffect(() => {
+    if(total<2 || paused || interacting || !inView) return
+    const media=window.matchMedia('(prefers-reduced-motion: reduce)')
+    const timer=window.setInterval(()=>{if(!media.matches && !document.hidden)setActive(index=>(index+1)%total)},5500)
+    return ()=>window.clearInterval(timer)
+  },[total,paused,interacting,inView])
   if (!total) return null
   const current = Math.min(active, total - 1)
   const move = (step) => setActive(index => (index + step + total) % total)
@@ -29,7 +46,7 @@ export function LecturerRail({ lecturers, historical = false }) {
   const slides = positions.map(offset => ({
     offset, lecturer: lecturers[(current + offset + total) % total],
   }))
-  return <div className="showcase-rail" role="region"
+  return <div ref={railRef} className="showcase-rail" role="region" onPointerEnter={e=>{if(e.pointerType==='mouse')setInteracting(true)}} onPointerLeave={e=>{if(e.pointerType==='mouse')setInteracting(false)}} onFocusCapture={()=>setInteracting(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget))setInteracting(false)}}
     aria-roledescription="carousel"
     aria-label={historical ? 'Lecturers from earlier camp editions' : 'Upcoming camp lecturers'}
     onKeyDown={event => {
@@ -37,12 +54,15 @@ export function LecturerRail({ lecturers, historical = false }) {
       if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1) }
       if (event.key === 'ArrowRight') { event.preventDefault(); move(1) }
     }}
-    onTouchStart={event => { touchStart.current = event.touches[0]?.clientX ?? null }}
+    onTouchStart={event => { if(event.target.closest('button')) return; touchStart.current = [event.touches[0].clientX,event.touches[0].clientY] }}
+    onTouchCancel={()=>{touchStart.current=null}}
     onTouchEnd={event => {
       if (touchStart.current === null) return
-      const delta = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current
+      const [x,y] = touchStart.current
+      const delta = event.changedTouches[0].clientX-x
+      const vertical = event.changedTouches[0].clientY-y
       touchStart.current = null
-      if (Math.abs(delta) > 45 && total > 1) move(delta < 0 ? 1 : -1)
+      if (Math.abs(delta) > 45 && Math.abs(delta)>Math.abs(vertical) && total > 1) {setPaused(true);move(delta < 0 ? 1 : -1)}
     }}>
     <div className="showcase-rail-track">
       {slides.map(({ offset, lecturer }) => <div
@@ -58,7 +78,8 @@ export function LecturerRail({ lecturers, historical = false }) {
     </div>
     {total > 1 && <div className="showcase-rail-controls">
       <button type="button" onClick={() => move(-1)} aria-label="Previous lecturer">‹</button>
-      <span aria-live="polite" className="showcase-rail-count">{current + 1} / {total}</span>
+      <button type="button" onClick={()=>setPaused(v=>!v)} aria-label={paused?"Resume lecturer carousel":"Pause lecturer carousel"}>{paused?"▶":"Ⅱ"}</button>
+      <span aria-live={paused?"polite":"off"} className="showcase-rail-count">{current + 1} / {total}</span>
       <button type="button" onClick={() => move(1)} aria-label="Next lecturer">›</button>
     </div>}
     <p className="showcase-rail-hint">Select the flyer to view it at full size.</p>
@@ -68,7 +89,6 @@ export function LecturerRail({ lecturers, historical = false }) {
 export default function CampShowcase() {
   const [data, setData] = useState({ upcoming: [], previous: [], activities: [] })
   const [status, setStatus] = useState('loading')
-  const activitiesSection = useRef(null)
   useEffect(() => {
     const controller = new AbortController()
     fetch(`${base}/dic/showcase/`, { credentials: 'omit', cache: 'no-store', signal: controller.signal })
@@ -82,14 +102,6 @@ export default function CampShowcase() {
       }).catch(error => { if (error.name !== 'AbortError') setStatus('error') })
     return () => controller.abort()
   }, [])
-  useEffect(() => {
-    if (!activitiesSection.current || typeof IntersectionObserver === 'undefined') return undefined
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add('showcase-entered'); observer.unobserve(entry.target) } })
-    }, { threshold: .08 })
-    activitiesSection.current.querySelectorAll('.showcase-activity').forEach(card => observer.observe(card))
-    return () => observer.disconnect()
-  }, [data.activities])
   // Empty modules should not occupy full-screen placeholders in the public landing page.
   if (status !== 'ready') return null
   return <div className="dic-showcase">
@@ -103,12 +115,12 @@ export default function CampShowcase() {
       <h2 id="showcase-previous-title">Lecturers from previous editions</h2>
       <LecturerRail lecturers={data.previous} historical />
     </Container></section>}
-    {data.activities.length > 0 && <section className="showcase-activities" ref={activitiesSection} aria-labelledby="showcase-activities-title"><Container>
+    {data.activities.length > 0 && <section className="showcase-activities" aria-labelledby="showcase-activities-title"><Container>
       <span className="eyebrow">LEARN · CONNECT · GROW</span><h2 id="showcase-activities-title">What to expect at camp</h2>
-      <div className="showcase-activity-grid">{data.activities.map(item => <article className="showcase-activity" key={item.id}>
-        {item.image_url && <img src={resolveMediaUrl(item.image_url)} alt={item.alt_text || item.title} loading="lazy" decoding="async" />}
-        <div><small>{item.category}</small><h3>{item.title}</h3>{item.description && <p>{item.description}</p>}</div>
-      </article>)}</div>
+      <MediaGlide count={data.activities.length} label="Camp activities" className="showcase-activity-grid">{data.activities.map(item => <article className="showcase-activity" key={item.id}>
+        {item.image_url && <a className="showcase-activity-image" href={resolveMediaUrl(item.image_url)} target="_blank" rel="noopener noreferrer"><img src={resolveMediaUrl(item.image_url)} alt={item.alt_text || item.title} loading="lazy" decoding="async" /></a>}
+        <div><small>{item.category}</small><h3>{item.title}</h3>{item.description && <details className="showcase-activity-description"><summary>About this activity</summary><p>{item.description}</p></details>}</div>
+      </article>)}</MediaGlide>
     </Container></section>}
   </div>
 }

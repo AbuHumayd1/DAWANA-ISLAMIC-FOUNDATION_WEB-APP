@@ -620,3 +620,13 @@
 @media(prefers-reduced-motion:reduce){
   .published-studio-archive--dic_landing .published-studio-grid{scroll-behavior:auto}
 }
+
+/* Shared rail replaces stacked editorial grids, including desktop. */
+.published-studio-archive .media-glide .published-studio-grid>.published-studio-card{grid-row:auto;grid-column:auto;min-height:0;align-self:stretch}
+.published-studio-archive .media-glide .published-studio-card>.published-studio-visual,
+.published-studio-archive .media-glide .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual{height:clamp(130px,20vw,230px)!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important}
+.published-studio-archive .media-glide .published-studio-card>.published-studio-visual img{height:100%!important;max-height:100%!important;object-fit:contain!important}
+.published-studio-archive .media-glide .published-studio-card>.published-studio-content{padding:12px;gap:6px}
+.published-studio-archive .media-glide .published-studio-card h3{font-size:clamp(14px,2.4vw,20px);line-height:1.35}
+.published-studio-archive .media-glide .published-studio-video-cover{min-height:0}
+@media(max-width:760px){.published-studio-archive .media-glide .published-studio-card>.published-studio-content{padding:10px}.published-studio-archive .media-glide .published-studio-content a{font-size:12px}}

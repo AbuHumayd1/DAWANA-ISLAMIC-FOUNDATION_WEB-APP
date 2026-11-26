@@ -3,6 +3,7 @@ import { backendUrl } from '../../services/productionContract'
 import { hostedVideoThumbnail } from '../../services/hostedVideoThumbnail'
 import { Container } from '../layout/SiteChrome'
 import './PublishedStudioArchive.css'
+import MediaGlide from './MediaGlide'
 
 function HostedVideoCover({item, active, onPlay, embed}) {
   const [failed, setFailed] = useState(false)
@@ -39,7 +40,6 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   const [loadingMore, setLoadingMore] = useState(false)
   const [retry, setRetry] = useState(0)
   const [openStory, setOpenStory] = useState(null)
-  const journalRef = useRef(null)
   const storyCloseRef = useRef(null)
   const storyTriggerRef = useRef(null)
   useEffect(() => { setPage(1); setItems([]); setHasMore(false); setState('loading'); setOpenStory(null) }, [destination])
@@ -56,14 +56,6 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
   function showStory(item, event) {
     storyTriggerRef.current = event.currentTarget
     setOpenStory(item)
-  }
-  function moveJournal(direction) {
-    const rail = journalRef.current
-    if (!rail) return
-    const card = rail.querySelector('.published-studio-card')
-    if (!card) return
-    const distance = card.getBoundingClientRect().width + 14
-    rail.scrollBy({ left: direction * distance, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
   }
   useEffect(() => {
     const controller = new AbortController()
@@ -103,8 +95,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
       {destination === 'foundation_home' && <a className="published-studio-heading-link" href="/media">Explore the library <span aria-hidden="true">↗</span></a>}
     </div>
     {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
-    {isHighlight && visibleItems.length > 1 && <div className="published-studio-journal-controls" aria-label="Browse featured publications"><span>{destination === 'dic_landing' ? 'Camp highlights · Swipe to explore' : 'Featured stories · Swipe to explore'}</span><div><button type="button" onClick={() => moveJournal(-1)} aria-label="Previous featured story">‹</button><button type="button" onClick={() => moveJournal(1)} aria-label="Next featured story">›</button></div></div>}
-    <div className="published-studio-grid" ref={isHighlight ? journalRef : null}>{visibleItems.map((item, i) => <article key={item.url + i} className={`published-studio-card${destination === 'foundation_home' && i === 0 ? ' published-studio-card--lead' : ''}`}>
+    <MediaGlide className="published-studio-grid" count={visibleItems.length} label="Publications" auto={isHighlight && !openStory && !activeEmbed}>{visibleItems.map((item, i) => <article key={item.url + i} className={`published-studio-card${destination === 'foundation_home' && i === 0 ? ' published-studio-card--lead' : ''}`}>
       {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <HostedVideoCover item={item} embed={approvedVideoLink(item.embed_url)} active={activeEmbed === item.url} onPlay={() => setActiveEmbed(item.url)} /> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual published-studio-visual--original-ratio">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
@@ -116,7 +107,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
           : <p className="published-studio-caption">{item.description}</p>)}
       {(item.source_kind === 'hosted' || item.source_kind !== 'videos' || approvedVideoLink(item.embed_url)) ?
         <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
-    </article>)}</div>
+    </article>)}</MediaGlide>
     {pageError && <p role="alert">Could not load more publications. You can retry.</p>}
     {isHighlight && <a className="published-studio-load-more published-studio-home-cta" href="/media">Discover more publications <span aria-hidden="true">↗</span></a>}
     {isHighlight && openStory && <div className="published-studio-story-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setOpenStory(null) }}>

@@ -121,3 +121,6 @@
 :root[data-theme="dark"] .annual-itinerary-table th{background:#294433;color:#d9eadc}
 :root[data-theme="dark"] .annual-itinerary-table td{border-color:#435a47}
 :root[data-theme="dark"] .annual-itinerary-table td p,:root[data-theme="dark"] .annual-itinerary-end{color:#bed4c3}
+
+.media-clean-visuals .media-glide .media-clean-visual-grid img{height:clamp(135px,22vw,240px);object-fit:contain;background:var(--panel-green,#eaf2e8)}
+.media-clean-visuals .media-glide .media-clean-visual-grid a{min-width:0;overflow-wrap:anywhere}
