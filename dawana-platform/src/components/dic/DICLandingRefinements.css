@@ -57,7 +57,7 @@
 .dic-page .showcase-activity:nth-child(3n) { border-top:4px solid #b47763; background:var(--panel,#fbf2ec); }
 .dic-activity-icon { width:2.8rem; height:2.8rem; display:grid; place-items:center; border:1px solid currentColor; border-radius:.8rem; margin-bottom:1rem; color:var(--accent,#986e2e); }
 .dic-activity-icon svg { width:1.4rem; height:1.4rem; }
-.dic-page .showcase-activity p { display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+.dic-page .showcase-activity-description[open] p { display:block; -webkit-line-clamp:unset; line-clamp:unset; overflow:visible; max-height:none; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:800px) { .dic-page .dic-hero-grid { grid-template-columns:1fr; } .dic-page .memories-board { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:560px) { .dic-flyer-layout { grid-template-columns:1fr; } .dic-flyer-open { width:min(100%,330px); margin:auto; } .dic-brief-facts { gap:.8rem; } .dic-brief-actions { align-items:stretch; flex-direction:column; } .dic-page .memories-board { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .dic-page .showcase-activity { transition:none; transform:none; opacity:1; } }
