@@ -27,3 +27,17 @@
   .photo-mosaic-tile:last-child:nth-child(even){grid-column:1/-1}
 }
 @media(prefers-reduced-motion:reduce){.photo-mosaic-tile img{transition:none}.photo-mosaic-tile:hover img{transform:none}}
+
+/* Compact desktop editorial composition, including partially filled rows. */
+@media(min-width:701px){
+  .photo-mosaic-grid{grid-auto-rows:clamp(110px,15vw,175px)}
+  .photo-mosaic-grid>.photo-mosaic-tile{aspect-ratio:auto;height:100%}
+  .photo-mosaic-grid[data-count="1"]{grid-auto-rows:auto}
+  .photo-mosaic-grid[data-count="1"]>.photo-mosaic-tile{height:auto;aspect-ratio:16/10}
+  .photo-mosaic-grid[data-count="2"]>.photo-mosaic-tile:nth-child(2){grid-column:span 2;grid-row:span 2}
+  .photo-mosaic-grid[data-count="3"]>.photo-mosaic-tile:not(:first-child){grid-column:span 2}
+  .photo-mosaic-grid[data-count="4"]>.photo-mosaic-tile:nth-child(2){grid-column:span 2}
+  .photo-mosaic-grid[data-count="6"]>.photo-mosaic-tile:nth-child(6){grid-column:2/span 2}
+  .photo-mosaic-grid[data-count="7"]>.photo-mosaic-tile:nth-child(n+6){grid-column:span 2}
+  .photo-mosaic-grid[data-count="8"]>.photo-mosaic-tile:nth-child(6){grid-column:span 2}
+}
