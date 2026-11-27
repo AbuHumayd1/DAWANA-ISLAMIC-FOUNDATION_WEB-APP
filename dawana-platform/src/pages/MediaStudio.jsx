@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioArchiveAsset, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioDirectVideo, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioArchiveAsset, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
@@ -127,6 +127,7 @@ export default function MediaStudio() {
   const [uploadInfo, setUploadInfo] = useState({ enabled: false, editions: [], libraries: [], approved_providers: null })
   const [composerOpen, setComposerOpen] = useState(false)
   const [uploadBusy, setUploadBusy] = useState(false)
+  const [videoProgress, setVideoProgress] = useState(null)
   const [revision, setRevision] = useState(0)
   const [publishDestinations, setPublishDestinations] = useState([])
 
@@ -350,7 +351,9 @@ export default function MediaStudio() {
     try {
       const batch = photos.length > 0 ? photos.map(photograph => ({...values, photograph, caption: String(formData.get('caption') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200), alt_text: String(formData.get('alt_text') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 250)})) : [values]
       for (const fields of batch) {
-        const created = await studioUpload(library, fields)
+        const created = library === 'videos'
+          ? await studioDirectVideo(fields, (percent, label) => setVideoProgress({percent,label}), user.username)
+          : await studioUpload(library, fields)
         saved++
         setRevision(current => current + 1)
         if (action === 'publish') {
@@ -383,6 +386,7 @@ export default function MediaStudio() {
     } catch (error) {
       setMessage(failWithProgress(error, saved))
     } finally {
+      setVideoProgress(null)
       if (saved) setRevision(current => current + 1)
       setUploadBusy(false)
     }
@@ -660,6 +664,7 @@ export default function MediaStudio() {
             <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} category={['hosted','videos','recordings'].includes(library) ? mediaCategory : null} audio={library === 'recordings'} customCollections={customCollections} />
           <div className="studio-submit-actions">
             <button type="submit" value="draft" disabled={uploadBusy}>{uploadBusy ? 'Saving…' : 'Save Draft'}</button>
+            {videoProgress && <div role="status" className="studio-video-transfer"><strong>{videoProgress.label} · {videoProgress.percent}%</strong><progress max="100" value={videoProgress.percent} aria-label="Video transfer progress" style={{width:"100%"}} /></div>}
             {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || !selectedDestinations.length}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
           </div>
         </form>}
