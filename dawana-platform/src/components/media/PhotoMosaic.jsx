@@ -77,7 +77,7 @@ export default function PhotoMosaic({ destination }) {
         <h2 id={headingId}>{copy.title}</h2>
         <p>{copy.description}</p>
       </header>
-      <div className="photo-mosaic-grid">
+      <div className="photo-mosaic-grid" data-count={photos.length}>
         {photos.map((photo,index) => <button type="button" key={photo.url}
           className="photo-mosaic-tile" aria-label={`View photograph ${index+1}: ${photo.alt_text || photo.title || copy.label}`}
           onClick={event => { trigger.current = event.currentTarget; setSelected(index) }}>
