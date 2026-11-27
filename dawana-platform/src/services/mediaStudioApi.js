@@ -177,3 +177,59 @@ export const studioRemoveMedia = (library, id) =>
   studioRequest('/library/' + encodeURIComponent(library) + '/' + encodeURIComponent(id) + '/remove/', {
     method: 'POST', body: {},
   })
+
+ 
+// A retained ticket resumes the same transfer, including after a lost finish response.
+// No automatic retry of an ordinary non-idempotent publishing request.
+const videoTransfers = new Map()
+export async function studioDirectVideo(fields, onProgress, owner) {
+  const file = fields.recording_file
+  if (!file || !/\.(mp4|webm)$/i.test(file.name) || file.size <= 0 || file.size > 200*1024*1024)
+    throw new Error('Choose an MP4 or WebM video of at most 200 MB.')
+  const key = JSON.stringify([owner,file.name,file.size,file.lastModified])
+  let transfer = videoTransfers.get(key)
+  if (!transfer) {
+    transfer = await studioRequest('/video-transfer/', {method:'POST',body:{action:'start',name:file.name,size:file.size}})
+    videoTransfers.set(key,transfer)
+  }
+  const {ticket,part_size} = transfer
+  const action = (name, extra={}) => studioRequest('/video-transfer/',{method:'POST',body:{action:name,ticket,...extra}})
+  const {parts} = await action('status')
+  const completed = new Set(parts)
+  const count = Math.ceil(file.size/part_size)
+  let sent = parts.reduce((sum,n)=>sum+Math.min(part_size,file.size-(n-1)*part_size),0)
+  onProgress(Math.floor(100*sent/file.size),'Uploading video')
+  for (let number=1;number<=count;number++) {
+    if(completed.has(number)) continue
+    const chunk=file.slice((number-1)*part_size,number*part_size)
+    let done=false
+    for(let attempt=0;attempt<3&&!done;attempt++){
+      try {
+        const {url}=await action('part',{number})
+        await new Promise((resolve,reject)=>{
+          const xhr=new XMLHttpRequest()
+          xhr.open('PUT',url)
+          xhr.timeout=180000
+          xhr.upload.onprogress=e=>onProgress(Math.min(99,Math.floor(100*(sent+e.loaded)/file.size)),'Uploading video')
+          xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve():reject(new Error('Video part rejected by storage.'))
+          xhr.onerror=xhr.ontimeout=xhr.onabort=()=>reject(new Error('Video connection interrupted.'))
+          xhr.send(chunk)
+        })
+        done=true
+      }catch(error){if(attempt===2)throw new Error('Video transfer interrupted. Keep this form open and retry to resume completed parts.')}
+    }
+    sent+=chunk.size
+    onProgress(Math.floor(100*sent/file.size),'Uploading video')
+  }
+  onProgress(100,'Verifying video and saving draft')
+  await token()
+  const data=new FormData()
+  data.append('action','finish');data.append('ticket',ticket)
+  for(const [name,value] of Object.entries(fields)){
+    if(name!=='recording_file'&&value!==undefined&&value!==null)data.append(name,value)
+  }
+  const response=await fetch(base+'/video-transfer/',{method:'POST',credentials:'include',cache:'no-store',headers:{'X-CSRFToken':csrf},body:data})
+  const result=await readApiResponse(response)
+  videoTransfers.delete(key)
+  return result
+}
