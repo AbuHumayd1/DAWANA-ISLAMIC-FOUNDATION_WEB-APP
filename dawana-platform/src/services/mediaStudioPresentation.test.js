@@ -528,3 +528,18 @@ test('all public visual rails remain horizontal at narrow phone widths and respe
   assert.match(rail, /onFocusCapture/)
   assert.match(rail, /onPointerDown/)
 })
+
+test('image carousel motion uses words and expanded activity captions never truncate', () => {
+  const rail=read('../components/media/MediaGlide.jsx')
+  const camp=read('../components/dic/CampShowcase.jsx')
+  const css=read('../components/dic/CampShowcase.css')
+  const landing=read('../components/dic/DICLandingRefinements.css')
+  for(const source of [rail,camp]) {
+    assert.match(source,/Resume slides/)
+    assert.match(source,/Pause slides/)
+    assert.doesNotMatch(source,/▶/)
+  }
+  assert.match(css,/showcase-activity-description\[open\] p\{display:block;max-height:none;overflow:visible/)
+  assert.match(landing,/showcase-activity-description\[open\] p \{ display:block; -webkit-line-clamp:unset/)
+  assert.doesNotMatch(landing,/showcase-activity p \{[^}]*-webkit-line-clamp:4/)
+})

@@ -56,6 +56,8 @@
 .dic-showcase .showcase-activity-image{display:block;width:100%;aspect-ratio:4/3;background:var(--panel-green,#edf2ec)}
 .dic-showcase .showcase-activity-image img{height:100%;max-height:none;aspect-ratio:auto;object-fit:contain}
 .dic-showcase .showcase-activity-description summary{cursor:pointer;font-size:.78rem;font-weight:650;line-height:1.45}
-.dic-showcase .showcase-activity-description p{max-height:9rem;overflow:auto}
+.dic-showcase .showcase-activity-description[open] p{display:block;max-height:none;overflow:visible;white-space:pre-wrap;overflow-wrap:anywhere}
 .dic-showcase .showcase-activity h3{font-size:clamp(.85rem,2.5vw,1rem);overflow-wrap:anywhere}
 @media(max-width:760px){.dic-showcase .showcase-activity>div{padding:.65rem}.dic-showcase .showcase-activity small{font-size:.67rem}}
+
+.showcase-rail-controls .showcase-motion{width:auto;height:auto;min-height:36px;padding:4px 8px;border:0;border-radius:6px;background:transparent;font-size:.72rem;font-weight:650;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}

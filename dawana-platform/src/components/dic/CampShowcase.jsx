@@ -78,7 +78,7 @@ export function LecturerRail({ lecturers, historical = false }) {
     </div>
     {total > 1 && <div className="showcase-rail-controls">
       <button type="button" onClick={() => move(-1)} aria-label="Previous lecturer">‹</button>
-      <button type="button" onClick={()=>setPaused(v=>!v)} aria-label={paused?"Resume lecturer carousel":"Pause lecturer carousel"}>{paused?"▶":"Ⅱ"}</button>
+      <button className="showcase-motion" type="button" onClick={()=>setPaused(v=>!v)} aria-label={paused?"Resume lecturer carousel":"Pause lecturer carousel"}>{paused?"Resume slides":"Pause slides"}</button>
       <span aria-live={paused?"polite":"off"} className="showcase-rail-count">{current + 1} / {total}</span>
       <button type="button" onClick={() => move(1)} aria-label="Next lecturer">›</button>
     </div>}
