@@ -21,7 +21,7 @@ class StudioVideoTransferTests(TestCase):
         storage.return_value.generate_presigned_url.return_value = 'https://example.invalid/part'
         def post(data):
             return self.client.post(self.url, data, content_type='application/json')
-        self.assertEqual(post({'action':'start','name':'video.mp4','size':201*1024*1024}).status_code,400)
+        self.assertEqual(post({'action':'start','name':'video.mp4','size':1024*1024*1024+1}).status_code,400)
         start = post({'action':'start','name':'video.mp4','size':1024})
         self.assertEqual(start.status_code,200,start.content)
         ticket=start.json()['ticket']
