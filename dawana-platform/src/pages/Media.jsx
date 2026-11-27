@@ -46,7 +46,7 @@ function MediaEntry({item}) {
   return <article className="media-collection-entry">
     {audio ? <div className="media-collection-audio"><span aria-hidden="true">♫</span><audio controls preload="none" src={url} aria-label={'Listen to ' + item.title}/></div>
       : embed ? <div className="media-collection-screen">{playing ? <iframe title={item.title} src={embed} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/> : <button className="media-video-cover" type="button" onClick={() => setPlaying(true)} aria-label={'Play ' + item.title}>{thumbnail && !imageFailed && <img className="media-video-thumbnail" src={thumbnail} loading="lazy" alt="" onError={() => setImageFailed(true)} referrerPolicy="no-referrer"/>}<span className="media-video-play" aria-hidden="true">▶</span></button>}</div>
-      : <div className="media-collection-screen"><video controls preload="none" src={url} aria-label={item.title}/></div>}
+      : <div className="media-collection-screen"><video controls playsInline preload="none" src={url} poster={item.poster_url?.startsWith('/api/v1/dic/')?backendUrl(item.poster_url):undefined} aria-label={item.title}/></div>}
     <div className="media-collection-entry-copy">
       <span className="media-collection-type">{audio ? 'Audio recording' : 'Video'}{item.edition ? ' · ' + item.edition : ''}</span>
       <h3>{item.title}</h3>
