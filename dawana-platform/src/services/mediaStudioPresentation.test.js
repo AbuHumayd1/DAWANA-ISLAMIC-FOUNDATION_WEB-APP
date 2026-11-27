@@ -581,3 +581,13 @@ test('public media card previews fill their frames while original viewers remain
   assert.match(stories,/studio-story-frame>img\{object-fit:cover/)
   assert.match(stories,/studio-story-frame>video[^}]*object-fit:contain/)
 })
+
+test('public hosted video cards show one centered accessible play icon and a human-readable label', () => {
+  const archive=read('../components/media/PublishedStudioArchive.jsx')
+  const css=read('../components/media/PublishedStudioArchive.css')
+  assert.match(archive,/aria-label=\{`Play \$\{item.title\} on this page`\}/)
+  assert.match(archive,/className="published-studio-play" aria-hidden="true"><svg/)
+  assert.doesNotMatch(archive,/className="published-studio-video-action"/)
+  assert.match(archive,/'Video lecture'/)
+  assert.match(css,/published-studio-video-cover\{\s*position:absolute;inset:0;display:grid;place-items:center;padding:0;gap:0/)
+})
