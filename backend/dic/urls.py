@@ -344,6 +344,7 @@ urlpatterns += [
 ]
 
 # Foundation-wide DAWANA Media Studio staff routes (separate from DIC Operations).
+from .studio_video_upload import StudioVideoTransfer
 from .studio_api import StudioLoginView, StudioMeView, StudioLogoutView, StudioLibraryView, StudioPublicationView, StudioUploadView, StudioMetadataView, StudioHostedLinksView, StudioPrivatePreviewView, StudioDraftDeleteView, StudioRemoveMediaView, studio_csrf
 urlpatterns += [
     path('studio/auth/csrf/', studio_csrf, name='studio-csrf'),
@@ -353,6 +354,7 @@ urlpatterns += [
     path('studio/library/', StudioLibraryView.as_view(), name='studio-library'),
     path('studio/library/<str:kind>/<int:pk>/private-preview/', StudioPrivatePreviewView.as_view(), name='studio-private-preview'),
     path('studio/uploads/', StudioUploadView.as_view(), name='studio-uploads'),
+    path('studio/video-transfer/', StudioVideoTransfer.as_view(), name='studio-video-transfer'),
     path('studio/hosted-links/', StudioHostedLinksView.as_view(), name='studio-hosted-links'),
     path('studio/library/<str:kind>/<int:pk>/metadata/', StudioMetadataView.as_view(), name='studio-metadata'),
     path('studio/library/<str:kind>/<int:pk>/draft/', StudioDraftDeleteView.as_view(), name='studio-draft-delete'),
