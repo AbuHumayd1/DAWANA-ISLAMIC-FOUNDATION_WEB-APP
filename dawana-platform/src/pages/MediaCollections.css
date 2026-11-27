@@ -93,7 +93,7 @@
   object-fit:contain;
 }
 .media-collection-screen .media-video-thumbnail{
-  object-fit:contain;
+  object-fit:cover;
 }
 .media-collection-entry-copy p{
   white-space:pre-wrap;
@@ -122,5 +122,7 @@
 :root[data-theme="dark"] .annual-itinerary-table td{border-color:#435a47}
 :root[data-theme="dark"] .annual-itinerary-table td p,:root[data-theme="dark"] .annual-itinerary-end{color:#bed4c3}
 
-.media-clean-visuals .media-glide .media-clean-visual-grid img{height:clamp(135px,22vw,240px);object-fit:contain;background:var(--panel-green,#eaf2e8)}
+.media-clean-visuals .media-glide .media-clean-visual-grid img{height:auto;aspect-ratio:4/3;object-fit:cover;background:var(--panel-green,#eaf2e8)}
 .media-clean-visuals .media-glide .media-clean-visual-grid a{min-width:0;overflow-wrap:anywhere}
+
+.media-clean-grid>.media-collection-entry:only-child{grid-column:1/-1;width:min(100%,760px);justify-self:center}
