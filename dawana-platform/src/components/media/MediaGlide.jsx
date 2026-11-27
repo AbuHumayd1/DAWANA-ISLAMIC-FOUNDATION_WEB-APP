@@ -50,7 +50,7 @@ export default function MediaGlide({children, count, label, className='', auto=t
     onPointerDown={e=>{if(track.current?.contains(e.target))setPaused(true)}} onFocusCapture={()=>setFocused(true)}
     onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget))setFocused(false)}}>
     {count>1 && overflow && <div className="media-glide-controls"><span>Swipe to explore</span><div>
-      {auto && !reduced && <button type="button" onClick={()=>setPaused(v=>!v)} aria-label={paused?'Resume automatic movement':'Pause automatic movement'}>{paused?'▶':'Ⅱ'}</button>}
+      {auto && !reduced && <button className="media-glide-motion" type="button" onClick={()=>setPaused(v=>!v)} aria-label={paused?'Resume automatic movement':'Pause automatic movement'}>{paused?'Resume slides':'Pause slides'}</button>}
       <button type="button" onClick={()=>move(-1)} aria-label={'Previous '+label}>‹</button>
       <button type="button" onClick={()=>move(1)} aria-label={'Next '+label}>›</button>
     </div></div>}
