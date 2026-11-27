@@ -625,8 +625,19 @@
 .published-studio-archive .media-glide .published-studio-grid>.published-studio-card{grid-row:auto;grid-column:auto;min-height:0;align-self:stretch}
 .published-studio-archive .media-glide .published-studio-card>.published-studio-visual,
 .published-studio-archive .media-glide .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual{height:clamp(130px,20vw,230px)!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important}
-.published-studio-archive .media-glide .published-studio-card>.published-studio-visual img{height:100%!important;max-height:100%!important;object-fit:contain!important}
+.published-studio-archive .media-glide .published-studio-card>.published-studio-visual img{width:100%;height:100%!important;max-height:100%!important;object-fit:cover!important;object-position:center}
 .published-studio-archive .media-glide .published-studio-card>.published-studio-content{padding:12px;gap:6px}
 .published-studio-archive .media-glide .published-studio-card h3{font-size:clamp(14px,2.4vw,20px);line-height:1.35}
 .published-studio-archive .media-glide .published-studio-video-cover{min-height:0}
 @media(max-width:760px){.published-studio-archive .media-glide .published-studio-card>.published-studio-content{padding:10px}.published-studio-archive .media-glide .published-studio-content a{font-size:12px}}
+
+/* Full-bleed previews; original artwork and video playback remain accessible. */
+.published-studio-archive .media-glide .published-studio-card>.published-studio-visual,
+.published-studio-archive .media-glide .published-studio-card:not(.published-studio-card--lead)>.published-studio-visual{
+  height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:4/3!important;overflow:hidden;
+}
+.published-studio-archive .media-glide .published-studio-card>.published-studio-video{aspect-ratio:16/9!important}
+.published-studio-archive .media-glide .published-studio-video-cover,
+.published-studio-archive .media-glide .published-studio-video iframe{width:100%;height:100%;min-height:0;display:block}
+.published-studio-archive .media-glide .published-studio-video-cover img{object-fit:cover!important}
+.published-studio-archive .media-glide .published-studio-card:only-child{flex-basis:min(100%,640px)!important;margin-inline:auto}

@@ -385,7 +385,7 @@ test('media staff can safely remove photos and published items without deleting 
 })
 
 
-test('official flyers retain native proportions and no publication text covers imagery', () => {
+test('official originals remain accessible and public card previews fill their frames', () => {
   const cards = read('../components/media/PublishedStudioArchive.jsx')
   const cardCss = read('../components/media/PublishedStudioArchive.css')
   const archiveCss = read('../pages/MediaCollections.css')
@@ -397,7 +397,7 @@ test('official flyers retain native proportions and no publication text covers i
   assert.match(cardCss, /object-fit:contain !important/)
   assert.match(cardCss, /\.published-studio-video-cover img\{\s*object-fit:contain;/)
   assert.match(archiveCss, /\.media-clean-visual-grid img\{\s*display:block;\s*width:100%;\s*height:auto;/)
-  assert.match(archiveCss, /\.media-collection-screen \.media-video-thumbnail\{\s*object-fit:contain;/)
+  assert.match(archiveCss, /\.media-collection-screen \.media-video-thumbnail\{\s*object-fit:cover;/)
 })
 
 
@@ -566,4 +566,18 @@ test('editorial photo mosaics are the bounded caption-free exceptions to horizon
   assert.match(css,/object-fit:contain/)
   assert.match(studio,/Impact in pictures/)
   assert.match(studio,/Camp memories photo mosaic/)
+})
+
+
+test('public media card previews fill their frames while original viewers remain uncropped', () => {
+  const archive=read('../components/media/PublishedStudioArchive.css')
+  const camp=read('../components/dic/CampShowcase.css')
+  const media=read('../pages/MediaCollections.css')
+  const stories=read('../components/media/PublishedCarousels.css')
+  assert.match(archive,/published-studio-visual img\{[^}]*object-fit:cover!important/)
+  assert.match(archive,/published-studio-card:only-child\{flex-basis:min\(100%,640px\)!important;margin-inline:auto/)
+  assert.match(camp,/showcase-activity-image img\{[^}]*object-fit:cover/)
+  assert.match(media,/media-collection-screen \.media-video-thumbnail\{\s*object-fit:cover/)
+  assert.match(stories,/studio-story-frame>img\{object-fit:cover/)
+  assert.match(stories,/studio-story-frame>video[^}]*object-fit:contain/)
 })
