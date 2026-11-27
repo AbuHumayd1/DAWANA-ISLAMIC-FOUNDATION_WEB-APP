@@ -182,18 +182,18 @@ export const studioRemoveMedia = (library, id) =>
 // A retained ticket resumes the same transfer, including after a lost finish response.
 // No automatic retry of an ordinary non-idempotent publishing request.
 const videoTransfers = new Map()
-export async function studioDirectVideo(fields, onProgress, owner) {
-  const file = fields.recording_file
-  if (!file || !/\.(mp4|webm)$/i.test(file.name) || file.size <= 0 || file.size > 200*1024*1024)
-    throw new Error('Choose an MP4 or WebM video of at most 200 MB.')
-  const key = JSON.stringify([owner,file.name,file.size,file.lastModified])
+export async function studioDirectVideo(fields, onProgress, owner, collection='videos') {
+  const file = collection === 'promotions' ? fields.video : fields.recording_file
+  if (!file || !(collection === 'promotions' ? /\.(mp4|mov)$/i : /\.(mp4|webm|mov)$/i).test(file.name) || file.size <= 0 || file.size > 1024*1024*1024)
+    throw new Error('Choose a supported video of at most 1 GB.')
+  const key = JSON.stringify([owner,collection,file.name,file.size,file.lastModified])
   let transfer = videoTransfers.get(key)
   if (!transfer) {
-    transfer = await studioRequest('/video-transfer/', {method:'POST',body:{action:'start',name:file.name,size:file.size}})
+    transfer = await studioRequest('/video-transfer/', {method:'POST',body:{action:'start',collection,name:file.name,size:file.size}})
     videoTransfers.set(key,transfer)
   }
   const {ticket,part_size} = transfer
-  const action = (name, extra={}) => studioRequest('/video-transfer/',{method:'POST',body:{action:name,ticket,...extra}})
+  const action = (name, extra={}) => studioRequest('/video-transfer/',{method:'POST',body:{action:name,collection,ticket,...extra}})
   const {parts} = await action('status')
   const completed = new Set(parts)
   const count = Math.ceil(file.size/part_size)
@@ -224,12 +224,11 @@ export async function studioDirectVideo(fields, onProgress, owner) {
   onProgress(100,'Verifying video and saving draft')
   await token()
   const data=new FormData()
-  data.append('action','finish');data.append('ticket',ticket)
+  data.append('collection',collection);data.append('action','finish');data.append('ticket',ticket)
   for(const [name,value] of Object.entries(fields)){
-    if(name!=='recording_file'&&value!==undefined&&value!==null)data.append(name,value)
+    if(!['recording_file','video'].includes(name)&&value!==undefined&&value!==null)data.append(name,value)
   }
   const response=await fetch(base+'/video-transfer/',{method:'POST',credentials:'include',cache:'no-store',headers:{'X-CSRFToken':csrf},body:data})
   const result=await readApiResponse(response)
-  videoTransfers.delete(key)
   return result
 }
