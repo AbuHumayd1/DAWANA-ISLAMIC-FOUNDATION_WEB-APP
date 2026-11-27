@@ -1,3 +1,4 @@
+import PhotoMosaic from '../components/media/PhotoMosaic'
 import PublishedCarousels from '../components/media/PublishedCarousels'
 import { Link } from 'react-router-dom'
 import { Container } from '../components/layout/SiteChrome'
@@ -42,6 +43,8 @@ function Home() {
     <PublishedStudioArchive destination="foundation_home" />
 
     <section className="impact-band"><Container><span className="eyebrow gold-eyebrow">Impact / community</span><h2>Knowledge That Transforms.<br /><em>Service That Matters.</em></h2><p>When beneficial knowledge is shared and lived, it becomes a source of strength for individuals, families and communities.</p></Container></section>
+
+    <PhotoMosaic destination="foundation_home" />
 
     <section className="section involved-section" id="get-involved"><Container><SectionHeading eyebrow="Participate in the mission" title="Get Involved With Da&apos;wãnã"><Link className="button button-small" to="/get-involved">Get Involved <Arrow /></Link></SectionHeading><p className="section-copy">Every individual has talents, sincere effort, and resources to contribute toward elevating our communities. Join us across educational circles, scholarly partnerships, welfare operations, and community fellowship.</p></Container></section>
 
