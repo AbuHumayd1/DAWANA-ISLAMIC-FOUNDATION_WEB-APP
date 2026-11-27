@@ -1,5 +1,9 @@
 """Private direct multipart uploads; never publish or accept arbitrary object keys."""
 import math
+import subprocess
+import tempfile
+import os
+from django.conf import settings
 import uuid
 from pathlib import Path
 from django.core import signing
@@ -84,7 +88,7 @@ class StudioVideoTransfer(StudioView):
             # Serialize finalization for this staff identity, including a lost response.
             with transaction.atomic():
                 get_user_model().objects.select_for_update().get(pk=request.user.pk)
-                existing = model.objects.filter(**{field:key}).first()
+                existing = model.objects.filter(**{field+'__in': [key, key[:-4]+'.mp4'] if key.endswith('.mov') else [key]}).first()
                 if existing:
                     return self.nocache({'id': existing.pk, 'state': existing.state})
                 fields = ('edition','caption','alt_text','thumbnail','lecturer','description') if kind == 'videos' else ('edition','source_edition','kind','title','description','poster','alt_text')
@@ -109,6 +113,26 @@ class StudioVideoTransfer(StudioView):
                         validate_video(media)
                     else:
                         validate_mp4(media)
+                # MOV containers must be remuxed to MP4 for cross-browser delivery.
+                # Compatible H.264/AAC streams are copied, not re-encoded.
+                if key.endswith('.mov'):
+                    converted = key[:-4] + '.mp4'
+                    with tempfile.TemporaryDirectory() as directory:
+                        source = os.path.join(directory, 'source.mov')
+                        output = os.path.join(directory, 'output.mp4')
+                        with storage.open(key) as media, open(source, 'wb') as target:
+                            for chunk in media.chunks(): target.write(chunk)
+                        try:
+                            subprocess.run([getattr(settings,'DIC_FFMPEG_BINARY','ffmpeg'), '-nostdin','-v','error','-protocol_whitelist','file','-i',source,'-map','0:v:0','-map','0:a:0?','-c','copy','-movflags','+faststart',output], check=True, timeout=120, capture_output=True)
+                        except (OSError, subprocess.SubprocessError):
+                            raise ValidationError('This MOV cannot be converted safely on the server. Export H.264/AAC MP4 and retry.') from None
+                        from django.core.files import File
+                        with open(output,'rb') as raw:
+                            candidate=File(raw,name='converted.mp4')
+                            validate_mp4(candidate)
+                            client.put_object(Bucket=bucket,Key=converted,Body=candidate,ContentType='video/mp4')
+                        storage._verify_upload(converted, os.path.getsize(output))
+                    key=converted
                 item = form.instance
                 setattr(item, field, key)
                 item.state = 'draft'
