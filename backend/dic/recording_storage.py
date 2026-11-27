@@ -22,6 +22,7 @@ def safe_key(name):
 
 
 def validate_recording(upload, video=False):
+    if getattr(upload, '_committed', False): return
     if not 0 < upload.size <= MAX_RECORDING: raise ValidationError('Recordings must be nonempty and no larger than 1 GB.')
     suffix=Path(upload.name).suffix.lower()
     if suffix not in (['.mp4','.webm','.mov'] if video else ['.mp3','.m4a','.wav','.ogg']):
