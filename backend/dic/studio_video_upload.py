@@ -55,6 +55,17 @@ class StudioVideoTransfer(StudioView):
             key, upload, size = data['key'], data['upload'], data['size']
             params = {'Bucket': bucket, 'Key': key, 'UploadId': upload}
             count = math.ceil(size / PART)
+            if action == 'status':
+                try:
+                    head = client.head_object(Bucket=bucket, Key=key)
+                    if head['ContentLength'] != size:
+                        raise ValidationError('Uploaded video size does not match.')
+                    return self.nocache({'parts': list(range(1, count+1))})
+                except ClientError as error:
+                    if error.response.get('Error', {}).get('Code') not in ('404','NoSuchKey','NotFound'):
+                        raise
+                parts = client.list_parts(**params).get('Parts', [])
+                return self.nocache({'parts': [p['PartNumber'] for p in parts if 1 <= p['PartNumber'] <= count and p['Size'] == min(PART,size-(p['PartNumber']-1)*PART)]})
             if action == 'part':
                 number = request.data.get('number')
                 if type(number) is not int or not 1 <= number <= count:
@@ -71,12 +82,9 @@ class StudioVideoTransfer(StudioView):
                 if existing:
                     return self.nocache({'id': existing.pk, 'state': existing.state})
                 Form = modelform_factory(CampVideo, fields=('edition','caption','alt_text','thumbnail','lecturer','description'))
-                form = Form(request.data, request.FILES)
+                form = Form(request.data, request.FILES, instance=CampVideo(recording_file=key))
                 if not form.is_valid():
-                    # The model clean requires a recording; validate form fields separately below.
-                    errors = form.errors.as_data()
-                    if set(errors) - {'__all__'} or any('Choose one approved hosted video link' not in e.message for e in errors.get('__all__', [])):
-                        raise ValidationError({k: list(v) for k,v in form.errors.items()})
+                    raise ValidationError({k: list(v) for k,v in form.errors.items()})
                 try:
                     head = client.head_object(Bucket=bucket, Key=key)
                 except ClientError as error:
