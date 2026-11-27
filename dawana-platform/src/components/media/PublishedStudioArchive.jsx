@@ -97,7 +97,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
     </div>
     {canBrowseAlbums && <nav className="published-studio-albums" aria-label="Browse photo albums"><button type="button" aria-pressed={!activeAlbum} onClick={() => setActiveAlbum('')}>All publications</button>{albums.map(album => <button type="button" key={album} aria-pressed={activeAlbum === album} onClick={() => setActiveAlbum(album)}>{album}</button>)}</nav>}
     <MediaGlide className="published-studio-grid" count={visibleItems.length} label="Publications" auto={isHighlight && !openStory && !activeEmbed}>{visibleItems.map((item, i) => <article key={item.url + i} className={`published-studio-card${destination === 'foundation_home' && i === 0 ? ' published-studio-card--lead' : ''}`}>
-      {item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <HostedVideoCover item={item} embed={approvedVideoLink(item.embed_url)} active={activeEmbed === item.url} onPlay={() => setActiveEmbed(item.url)} /> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual published-studio-visual--original-ratio">
+      {item.playback_url?.startsWith('/api/v1/dic/') ? <div className="published-studio-visual published-studio-video"><video controls preload="none" playsInline src={backendUrl(item.playback_url)} poster={item.poster_url?.startsWith('/api/v1/dic/') ? backendUrl(item.poster_url) : undefined} aria-label={item.title} style={{width:'100%',height:'100%',objectFit:'contain'}}/></div> : item.source_kind === 'hosted' && approvedVideoLink(item.embed_url) ? <HostedVideoCover item={item} embed={approvedVideoLink(item.embed_url)} active={activeEmbed === item.url} onPlay={() => setActiveEmbed(item.url)} /> : ['photos', 'flyers', 'promotions', 'activities', 'videos', 'appearances'].includes(item.source_kind) && <div className="published-studio-visual published-studio-visual--original-ratio">
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
       </div>}
@@ -106,8 +106,8 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
         : item.description.length > 340
           ? <details className="published-studio-long-caption"><summary>Read full caption</summary><p>{item.description}</p></details>
           : <p className="published-studio-caption">{item.description}</p>)}
-      {(item.source_kind === 'hosted' || item.source_kind !== 'videos' || approvedVideoLink(item.embed_url)) ?
-        <a href={['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
+      {(item.playback_url || item.source_kind === 'hosted' || item.source_kind !== 'videos' || approvedVideoLink(item.embed_url)) ?
+        <a href={item.playback_url?.startsWith('/api/v1/dic/') ? backendUrl(item.playback_url) : ['hosted', 'videos'].includes(item.source_kind) ? approvedVideoLink(item.embed_url) : backendUrl(item.url)} target="_blank" rel="noopener noreferrer">{['promotions', 'videos', 'hosted'].includes(item.source_kind) ? 'Watch publication' : 'View publication'}</a> : null}</div>
     </article>)}</MediaGlide>
     {pageError && <p role="alert">Could not load more publications. You can retry.</p>}
     {isHighlight && <a className="published-studio-load-more published-studio-home-cta" href="/media">Discover more publications <span aria-hidden="true">↗</span></a>}

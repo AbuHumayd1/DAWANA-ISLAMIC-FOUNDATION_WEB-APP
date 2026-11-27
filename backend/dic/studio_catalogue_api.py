@@ -68,8 +68,9 @@ def published_url(asset, source):
         except ModelValidationError:
             return None
     if asset.source_kind == 'videos':
-        # Publicly approved hosted videos have a server-served thumbnail.
-        # Uploaded recordings stay on the camper-entitlement endpoint.
+        if source.recording_file and not source.session_id and source.thumbnail:
+            return reverse('dic:studio-public-video', args=[asset.pk])
+        # Session-linked recordings remain private.
         if source.video_url and not source.recording_file and source.thumbnail:
             from .video_providers import video_source
             from django.core.exceptions import ValidationError as ModelValidationError
@@ -346,8 +347,15 @@ class PublicStudioPlacementsView(APIView):
                 if placement.asset.source_kind == 'hosted':
                     item['embed_url'] = url
                 if placement.asset.source_kind == 'videos':
-                    from .video_providers import video_source
-                    item['embed_url'] = video_source(source.video_url)['embed_url']
+                    if source.recording_file:
+                        item['poster_url'] = reverse('dic:studio-public-video-poster', args=[placement.asset.pk])
+                        item['playback_url'] = url
+                    else:
+                        from .video_providers import video_source
+                        item['embed_url'] = video_source(source.video_url)['embed_url']
+                if placement.asset.source_kind == 'promotions':
+                    item['poster_url'] = reverse('dic:promo-poster', args=[source.pk])
+                    item['playback_url'] = url
                 if view == 'photos':
                     item['alt_text'] = getattr(source, 'alt_text', '') or placement.asset.title
                 rows.append(item)

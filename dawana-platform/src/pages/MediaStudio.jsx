@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link } from 'react-router-dom'
 import { backendUrl } from '../services/productionContract'
-import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioArchiveAsset, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
+import { studioSession, studioLogin, studioLogout, changeStudioPassword, studioLibrary, studioPublish, studioUpload, studioDirectVideo, studioUploadStatus, studioEdit, studioLinkAsset, studioAssetMetadata, studioHostedLinks, studioPlacement, studioEditorialCollections, studioArchiveAsset, studioDeleteDraft, studioRemoveMedia } from '../services/mediaStudioApi'
 import './MediaStudio.css'
 import StaffPasswordChange from '../components/StaffPasswordChange'
 import StudioDestinations from './StudioDestinations'
@@ -127,12 +127,19 @@ export default function MediaStudio() {
   const [uploadInfo, setUploadInfo] = useState({ enabled: false, editions: [], libraries: [], approved_providers: null })
   const [composerOpen, setComposerOpen] = useState(false)
   const [uploadBusy, setUploadBusy] = useState(false)
+  const [videoProgress, setVideoProgress] = useState(null)
+  const [videoSelection, setVideoSelection] = useState(null)
+  const [videoError, setVideoError] = useState('')
+  const [promoKind, setPromoKind] = useState('introduction')
+  const [videoEdition, setVideoEdition] = useState('')
   const [revision, setRevision] = useState(0)
   const [publishDestinations, setPublishDestinations] = useState([])
 
   const menuRef = useRef(null)
   const seq = useRef(0)
   function chooseLibrary(kind) {
+    if(uploadBusy) return
+    setVideoSelection(null); setVideoError(''); setPromoKind('introduction'); setVideoEdition('')
     setPage(1)
     if (kind !== library) {
       setRows([])
@@ -311,8 +318,48 @@ export default function MediaStudio() {
     } catch (error) { setMessage(error.message) }
     finally { setUploadBusy(false) }
   }
+  async function selectVideo(event) {
+    const file=event.target.files?.[0]
+    setVideoSelection(null);setVideoError('')
+    if(!file)return
+    if(!/\.(mp4|mov|webm)$/i.test(file.name) || (library==='promotions' && /\.webm$/i.test(file.name)) || !file.size || file.size>1024*1024*1024){
+      setVideoError('Choose a supported MP4 or MOV video (WebM also accepted for ordinary videos), up to 1 GB.');event.target.value='';return
+    }
+    setVideoSelection({name:file.name,size:file.size})
+    const url=URL.createObjectURL(file),probe=document.createElement('video')
+    probe.preload='metadata'
+    let timer
+    const cleanup=()=>{clearTimeout(timer);probe.removeAttribute('src');probe.load();URL.revokeObjectURL(url)}
+    probe.onloadedmetadata=()=>{const duration=probe.duration;setVideoSelection(old=>old?.name===file.name&&old?.size===file.size?{...old,duration}:old);cleanup()}
+    probe.onerror=cleanup
+    timer=setTimeout(cleanup,10000);probe.src=url
+  }
+  async function videoThumbnail(file) {
+    const url=URL.createObjectURL(file),video=document.createElement('video')
+    video.muted=true;video.playsInline=true;video.preload='auto'
+    try {
+      return await new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>reject(new Error('Could not generate a thumbnail. Choose one manually.')),12000)
+        const fail=()=>{clearTimeout(timer);reject(new Error('Could not generate a thumbnail. Choose one manually.'))}
+        video.onerror=fail
+        video.onloadeddata=()=>{
+          try{
+            const canvas=document.createElement('canvas')
+            const scale=Math.min(1,1280/video.videoWidth)
+            canvas.width=Math.max(1,Math.round(video.videoWidth*scale));canvas.height=Math.max(1,Math.round(video.videoHeight*scale))
+            canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height)
+            canvas.toBlob(blob=>{clearTimeout(timer);blob?resolve(new File([blob],'video-thumbnail.jpg',{type:'image/jpeg'})):fail()},'image/jpeg',.85)
+          }catch{fail()}
+        }
+        video.src=url
+      })
+    }finally{video.removeAttribute('src');video.load();URL.revokeObjectURL(url)}
+  }
   async function upload(event) {
     event.preventDefault()
+    if(uploadBusy)return
+    const direct=['videos','promotions'].includes(library)
+    if(direct)setVideoError('')
     const action = event.nativeEvent.submitter?.value === 'publish' ? 'publish' : 'draft'
     const form = event.currentTarget
     const formData = new FormData(form)
@@ -325,7 +372,13 @@ export default function MediaStudio() {
       if (library === 'flyers') values.title = String(values.title || '').trim() || fallback
       values.alt_text = String(values.alt_text || '').trim() || String(values.caption || values.title || fallback).slice(0, 250)
     }
-    const publicationDescription = String(values.publication_description || '').trim()
+    const publicationDescription = String(values.publication_description || (direct ? values.description : '') || '').trim()
+    if(library==='promotions')values.description=publicationDescription.slice(0,400)
+    if(direct){
+      const file=values.recording_file||values.video
+      if(!file?.size || file.size>1024*1024*1024 || !(library==='promotions'?/\.(mp4|mov)$/i:/\.(mp4|mov|webm)$/i).test(file.name)){setVideoError('Select a supported video up to 1 GB.');return}
+      if(library==='promotions'&&values.kind==='experience'&&!values.source_edition){setVideoError('Choose the earlier camp edition in Additional settings.');return}
+    }
     delete values.publication_description
     const photos = library === 'photos'
       ? formData.getAll('photograph').filter(file => file instanceof File && file.name && file.size) : []
@@ -348,9 +401,12 @@ export default function MediaStudio() {
     setUploadBusy(true); setMessage('')
     let saved = 0, published = 0
     try {
+      if(direct){const imageKey=library==='promotions'?'poster':'thumbnail';if(!values[imageKey]?.size){setVideoProgress({percent:0,label:'Preparing thumbnail'});values[imageKey]=await videoThumbnail(values.video||values.recording_file)}}
       const batch = photos.length > 0 ? photos.map(photograph => ({...values, photograph, caption: String(formData.get('caption') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 200), alt_text: String(formData.get('alt_text') || '').trim() || photograph.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').slice(0, 250)})) : [values]
       for (const fields of batch) {
-        const created = await studioUpload(library, fields)
+        const created = direct
+          ? await studioDirectVideo(fields, (percent, label) => setVideoProgress({percent,label}), user.username, library)
+          : await studioUpload(library, fields)
         saved++
         setRevision(current => current + 1)
         if (action === 'publish') {
@@ -358,7 +414,8 @@ export default function MediaStudio() {
             await publishCreated(library, created.id, null, placements, mediaCategory, mediaProgrammeName, publicationDescription)
             published++
           } catch (error) {
-            setMessage(`${saved} draft(s) saved, ${published} published. ${failWithProgress(error, saved)}`)
+            const failure=`${saved} draft(s) saved, ${published} published. ${failWithProgress(error, saved)}`
+            if(direct)setVideoError(failure);else setMessage(failure)
             return
           }
         } else if (user.can_manage_catalogue && (['videos','recordings'].includes(library) || publicationDescription)) {
@@ -379,10 +436,11 @@ export default function MediaStudio() {
       setMessage(action === 'publish'
         ? `${published} media item(s) published to ${placements.length} chosen destination(s).`
         : `${saved} media item(s) saved privately as drafts. You can publish them later.`)
-      setComposerOpen(false)
+      setVideoSelection(null);setVideoError('');setComposerOpen(false)
     } catch (error) {
-      setMessage(failWithProgress(error, saved))
+      if(direct)setVideoError(/failed to fetch|load failed|network/i.test(error.message)?'Connection interrupted. Your form is retained; retry to resume or check saved items.':failWithProgress(error,saved));else setMessage(failWithProgress(error, saved))
     } finally {
+      setVideoProgress(null)
       if (saved) setRevision(current => current + 1)
       setUploadBusy(false)
     }
@@ -617,9 +675,9 @@ export default function MediaStudio() {
           </div>
           <div className="studio-start-actions">
             {isHosted && canCreate ? <button className="studio-create" type="button" aria-expanded={composerOpen} onClick={() => setComposerOpen(open => !open)}>{composerOpen ? 'Close link form' : '+ Add video links'}</button>
-              : hasUploadForm ? <button className="studio-create" type="button" disabled={!canUploadFiles} aria-expanded={canUploadFiles && composerOpen} onClick={() => setComposerOpen(open => !open)}>{canUploadFiles ? composerOpen ? 'Close upload form' : `+ Upload ${uploadType}` : `Upload ${uploadType} — unavailable`}</button>
+              : hasUploadForm ? <button className="studio-create" type="button" disabled={!canUploadFiles || uploadBusy} aria-expanded={canUploadFiles && composerOpen} onClick={() => setComposerOpen(open => !open)}>{canUploadFiles ? composerOpen ? 'Close upload form' : `+ Upload ${uploadType}` : `Upload ${uploadType} — unavailable`}</button>
                 : null}
-            {(isHosted || hasUploadForm) && <small>{isHosted ? 'No file upload or R2 storage needed.' : canUploadFiles ? 'Saving drafts and publishing remain permission-controlled.' : 'Uploads will become available after approved storage activation.'}</small>}
+            {(isHosted || hasUploadForm) && <small>{isHosted ? 'No file upload or R2 storage needed.' : canUploadFiles ? 'Choose media and publish directly.' : 'Uploads will become available after approved storage activation.'}</small>}
           </div>
         </div>
         
@@ -644,7 +702,24 @@ export default function MediaStudio() {
             {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || hostedProviderDisabled || !selectedDestinations.length || selectionNeedsEdition && !hostedEdition}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
           </div>
         </form>}
-        {composerOpen && canUploadFiles && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Add {displayName}</h3><p>Your files are kept private while saving. Publish Now is available only to authorized staff with a selected destination.</p></div>
+        {composerOpen && canUploadFiles && ['videos','promotions'].includes(library) && <form className="studio-composer" onSubmit={upload}>
+          <h3>Upload a video</h3>
+          <label>Choose video<input name={library==='promotions'?'video':'recording_file'} type="file" accept={library==='promotions'?'.mp4,.mov':'.mp4,.mov,.webm'} required disabled={uploadBusy} onChange={selectVideo}/><small>Up to 1 GB. MP4 or MOV{library==='videos'?', or WebM':''}.</small></label>
+          {videoSelection && <p>{videoSelection.name} · {(videoSelection.size/1048576).toFixed(1)} MB{Number.isFinite(videoSelection.duration)?' · '+Math.floor(videoSelection.duration/60)+'m '+Math.round(videoSelection.duration%60)+'s':''}</p>}
+          <label>Video title<input name={library==='promotions'?'title':'caption'} required maxLength={200} disabled={uploadBusy}/></label>
+          <label>Description (optional)<textarea name="description" rows={3} maxLength={5000} placeholder="Write a caption or description…" disabled={uploadBusy}/></label>
+          <label>Thumbnail (optional)<input name={library==='promotions'?'poster':'thumbnail'} type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadBusy}/><small>Automatically generated when possible.</small></label>
+          <details><summary>Additional settings (optional)</summary>
+            <label>Camp edition<select name="edition" required value={videoEdition||String(uploadInfo.editions[0]?.id||'')} onChange={e=>setVideoEdition(e.target.value)} disabled={uploadBusy}>{uploadInfo.editions.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            {library==='promotions'?<><label>Promotion type<select name="kind" value={promoKind} onChange={e=>setPromoKind(e.target.value)} disabled={uploadBusy}><option value="introduction">Upcoming introduction</option><option value="experience">Previous participant experience</option></select></label>
+              {promoKind==='experience'&&<label>Previous camp edition<select name="source_edition" required defaultValue="" disabled={uploadBusy}><option value="">Choose previous edition</option>{uploadInfo.editions.filter(item=>item.year<(uploadInfo.editions.find(row=>String(row.id)===(videoEdition||String(uploadInfo.editions[0]?.id)))?.year||0)).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</>:<><label>Lecturer (optional)<input name="lecturer" maxLength={200} disabled={uploadBusy}/></label><MediaCategoryInput value={mediaCategory} onChange={setMediaCategory} customCollections={customCollections}/>{['ramadan','other'].includes(mediaCategory)&&<label>Programme / series<input value={mediaProgrammeName} onChange={e=>setMediaProgrammeName(e.target.value)} maxLength={150}/></label>}</>}
+          </details>
+          <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library]||[]} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} category={library==='videos'?mediaCategory:null} customCollections={customCollections}/>
+          {videoError&&<div className="studio-notice" role="alert">{videoError} <button type="button" onClick={()=>setVideoError('')}>Dismiss</button></div>}
+          {videoProgress&&<div role="status"><strong>{videoProgress.label} · {videoProgress.percent}%</strong><progress max="100" value={videoProgress.percent} style={{width:'100%'}}/></div>}
+          <div className="studio-submit-actions"><button type="submit" value="draft" disabled={uploadBusy||!videoSelection}>{uploadBusy?'Saving…':'Save Draft'}</button>{canPublishImmediately&&<button type="submit" value="publish" disabled={uploadBusy||!videoSelection||!selectedDestinations.length}>{uploadBusy?'Publishing…':'Publish Now'}</button>}</div>
+        </form>}
+        {composerOpen && canUploadFiles && !['videos','promotions'].includes(library) && <form className="studio-composer" onSubmit={upload} encType="multipart/form-data"><div><span className="studio-kicker">NEW MEDIA</span><h3>Add {displayName}</h3><p>Your files are kept private while saving. Publish Now is available only to authorized staff with a selected destination.</p></div>
           {library !== 'lecturers' && <label>Edition<select name="edition" required defaultValue=""><option value="">Select camp edition</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name} ({item.year})</option>)}</select></label>}
           {library === 'promotions' && <><label>Promotion type<select required name="kind"><option value="introduction">Upcoming introduction</option><option value="experience">Previous participant experience</option></select></label><label>Previous source edition (for experience videos)<select name="source_edition" defaultValue=""><option value="">Not applicable</option>{uploadInfo.editions.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}
           {COMPOSER_FIELDS[library]?.map(field => <label key={field.name}>{field.label}{['description','biography'].includes(field.name)
@@ -652,7 +727,7 @@ export default function MediaStudio() {
             : <input name={field.name} type={field.file ? 'file' : 'text'} multiple={library === 'photos' && field.name === 'photograph'} accept={field.accept} required={field.required} maxLength={field.file ? undefined : field.name === 'caption' ? 300 : field.name === 'alt_text' ? 250 : 2000} />}</label>)}
           {['photos','videos','promotions','activities','flyers'].includes(library) && <label className="studio-long-caption">Full publication caption / story (optional)
             <textarea name="publication_description" rows={7} maxLength={5000} placeholder="Write the complete message, announcement, context, or story. This will appear below the media, never over the image." />
-            <small>Up to 5,000 characters. The short title stays separate from the full caption. All selected photos in a batch receive this caption.</small>
+            <small>Up to 5,000 characters. The short title stays separate from the full caption. {library === 'photos' ? 'All selected photos in a batch receive this caption.' : ''}</small>
           </label>}
           {['videos','recordings'].includes(library) && <><MediaCategoryInput value={mediaCategory} onChange={setMediaCategory} audio={library === 'recordings'} customCollections={customCollections}/>
             {['ramadan','other'].includes(mediaCategory) && <label>Programme / series (optional)<input value={mediaProgrammeName} onChange={e=>setMediaProgrammeName(e.target.value)} maxLength={150} placeholder="e.g. Ramadan Tafseer 2026, Youth Outreach, Podcast"/></label>}
@@ -660,6 +735,7 @@ export default function MediaStudio() {
             <StudioPublishChoices choices={PUBLISH_DESTINATIONS[library] || []} selected={publishDestinations} setSelected={setPublishDestinations} authorized={canPublishImmediately} category={['hosted','videos','recordings'].includes(library) ? mediaCategory : null} audio={library === 'recordings'} customCollections={customCollections} />
           <div className="studio-submit-actions">
             <button type="submit" value="draft" disabled={uploadBusy}>{uploadBusy ? 'Saving…' : 'Save Draft'}</button>
+            {videoProgress && <div role="status" className="studio-video-transfer"><strong>{videoProgress.label} · {videoProgress.percent}%</strong><progress max="100" value={videoProgress.percent} aria-label="Video transfer progress" style={{width:"100%"}} /></div>}
             {canPublishImmediately && <button type="submit" value="publish" disabled={uploadBusy || !selectedDestinations.length}>{uploadBusy ? 'Publishing…' : 'Publish Now'}</button>}
           </div>
         </form>}

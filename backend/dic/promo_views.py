@@ -85,7 +85,12 @@ def parse_range(value, size):
 @safe_media
 def promo_stream(request, pk):
     obj = asset(request, PromoVideo, pk)
-    storage, key = obj.video.storage, obj.video.name
+    return stream_video_field(request, obj.video)
+
+
+def stream_video_field(request, field):
+    storage, key = field.storage, field.name
+    mime = 'video/webm' if key.endswith('.webm') else 'video/quicktime' if key.endswith('.mov') else 'video/mp4'
     backend = storage._backend()
     client = None if backend else storage._client()
     size = backend.size(key) if backend else client.head_object(Bucket=storage._bucket(), Key=key)['ContentLength']
@@ -99,18 +104,18 @@ def promo_stream(request, pk):
         return editorial_headers(response, request)
     length = end - start + 1
     if request.method == 'HEAD':
-        response = HttpResponse(content_type='video/mp4', status=206 if partial else 200)
+        response = HttpResponse(content_type=mime, status=206 if partial else 200)
     else:
         if backend:
             body = backend.open(key, 'rb')
             body.seek(start)
         else:
             body = client.get_object(Bucket=storage._bucket(), Key=key, Range=f'bytes={start}-{end}')['Body']
-        response = StreamingHttpResponse(media_chunks(body, length), content_type='video/mp4', status=206 if partial else 200)
+        response = StreamingHttpResponse(media_chunks(body, length), content_type=mime, status=206 if partial else 200)
         response._resource_closers.append(body.close)
     response['Content-Length'] = str(length)
     response['Accept-Ranges'] = 'bytes'
-    response['Content-Disposition'] = 'inline; filename="dic-promotion.mp4"'
+    response['Content-Disposition'] = 'inline'
     if partial:
         response['Content-Range'] = f'bytes {start}-{end}/{size}'
     return editorial_headers(response, request)
