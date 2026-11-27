@@ -13,6 +13,8 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .studio_api import StudioView, upload_enabled
 from .recording_storage import recording_storage, validate_video, MAX_RECORDING
 from .memory_models import CampVideo
+from .promo_models import PromoVideo
+from .promo_storage import validate_mp4, private_promo_storage
 from .models import DICAdminAuditEvent
 
 PART = 8 * 1024 * 1024
@@ -28,27 +30,31 @@ class StudioVideoTransfer(StudioView):
     parser_classes = (JSONParser, MultiPartParser, FormParser)
 
     def post(self, request):
-        if not request.user.has_perm('dic.add_campvideo'):
+        kind = request.data.get('collection', 'videos')
+        if kind not in ('videos','promotions'):
+            raise ValidationError('Unknown video collection.')
+        model, field, storage = (CampVideo, 'recording_file', recording_storage) if kind == 'videos' else (PromoVideo, 'video', private_promo_storage)
+        if not request.user.has_perm('dic.add_' + model._meta.model_name):
             raise PermissionDenied('Video upload access required.')
         if not upload_enabled():
             raise TransferUnavailable()
-        client = recording_storage._client()
-        bucket = recording_storage._bucket()
+        client = storage._client()
+        bucket = storage._bucket()
         action = request.data.get('action')
         try:
             if action == 'start':
                 size = request.data.get('size')
                 suffix = Path(str(request.data.get('name', ''))).suffix.lower()
-                if type(size) is not int or not 0 < size <= MAX_RECORDING or suffix not in ('.mp4', '.webm'):
-                    raise ValidationError('Choose an MP4 or WebM video of at most 200 MB.')
-                key = 'camp-recordings/' + uuid.uuid4().hex + suffix
-                mime = 'video/mp4' if suffix == '.mp4' else 'video/webm'
+                if type(size) is not int or not 0 < size <= MAX_RECORDING or suffix not in (('.mp4', '.webm', '.mov') if kind == 'videos' else ('.mp4', '.mov')):
+                    raise ValidationError('Choose a supported video of at most 1 GB.')
+                key = ('camp-recordings/' if kind == 'videos' else 'memories/promos/') + uuid.uuid4().hex + suffix
+                mime = {'.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime'}[suffix]
                 upload = client.create_multipart_upload(Bucket=bucket, Key=key, ContentType=mime)
-                ticket = signing.dumps({'user': request.user.pk, 'key': key, 'upload': upload['UploadId'], 'size': size}, salt=SALT)
+                ticket = signing.dumps({'user': request.user.pk, 'key': key, 'upload': upload['UploadId'], 'size': size, 'kind': kind}, salt=SALT)
                 return self.nocache({'ticket': ticket, 'part_size': PART})
             try:
                 data = signing.loads(request.data.get('ticket', ''), salt=SALT, max_age=86400)
-                if data['user'] != request.user.pk:
+                if data['user'] != request.user.pk or data.get('kind') != kind:
                     raise ValueError()
             except (signing.BadSignature, ValueError, TypeError, KeyError):
                 raise ValidationError('Upload session expired or invalid. Start a new upload.')
@@ -78,11 +84,12 @@ class StudioVideoTransfer(StudioView):
             # Serialize finalization for this staff identity, including a lost response.
             with transaction.atomic():
                 get_user_model().objects.select_for_update().get(pk=request.user.pk)
-                existing = CampVideo.objects.filter(recording_file=key).first()
+                existing = model.objects.filter(**{field:key}).first()
                 if existing:
                     return self.nocache({'id': existing.pk, 'state': existing.state})
-                Form = modelform_factory(CampVideo, fields=('edition','caption','alt_text','thumbnail','lecturer','description'))
-                form = Form(request.data, request.FILES, instance=CampVideo(recording_file=key))
+                fields = ('edition','caption','alt_text','thumbnail','lecturer','description') if kind == 'videos' else ('edition','source_edition','kind','title','description','poster','alt_text')
+                Form = modelform_factory(model, fields=fields)
+                form = Form(request.data, request.FILES, instance=model(**{field:key}))
                 if not form.is_valid():
                     raise ValidationError({k: list(v) for k,v in form.errors.items()})
                 try:
@@ -97,13 +104,16 @@ class StudioVideoTransfer(StudioView):
                     head = client.head_object(Bucket=bucket, Key=key)
                 if head['ContentLength'] != size:
                     raise ValidationError('Uploaded video size does not match the selected file.')
-                with recording_storage.open(key) as media:
-                    validate_video(media)
+                with storage.open(key) as media:
+                    if kind == 'videos':
+                        validate_video(media)
+                    else:
+                        validate_mp4(media)
                 item = form.instance
-                item.recording_file = key
+                setattr(item, field, key)
                 item.state = 'draft'
                 item.save(actor=request.user)
-                DICAdminAuditEvent.objects.create(actor=request.user, action='studio_media_draft_uploaded', target_type='CampVideo', target_id=str(item.pk), details={'library':'videos','direct':True})
+                DICAdminAuditEvent.objects.create(actor=request.user, action='studio_media_draft_uploaded', target_type=model.__name__, target_id=str(item.pk), details={'library':kind,'direct':True})
                 return self.nocache({'id':item.pk,'state':item.state},status=201)
         except ModelValidationError as error:
             raise ValidationError(error.messages) from error
