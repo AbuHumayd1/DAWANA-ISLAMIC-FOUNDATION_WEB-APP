@@ -12,7 +12,7 @@ function HostedVideoCover({item, active, onPlay, embed}) {
     {active ? <iframe title={item.title} src={embed} loading="lazy" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/> :
       <button className="published-studio-video-cover" type="button" onClick={onPlay} aria-label={`Play ${item.title} on this page`}>
         {thumbnail && !failed && <img src={thumbnail} alt="" loading="lazy" onError={() => setFailed(true)} referrerPolicy="no-referrer" />}
-        <span className="published-studio-play" aria-hidden="true">▶</span><span className="published-studio-video-action">Play video</span>
+        <span className="published-studio-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" focusable="false"><path d="M8 5.5v13l11-6.5z" /></svg></span>
       </button>}
   </div>
 }
@@ -101,7 +101,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
         {item.source_kind === 'promotions' ? <span aria-hidden="true">▶</span> :
           <img loading="lazy" src={backendUrl(item.url)} alt={item.title} />}
       </div>}
-      <div className="published-studio-content"><span>{item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && (isHighlight
+      <div className="published-studio-content"><span>{['hosted', 'videos'].includes(item.source_kind) ? 'Video lecture' : item.source_kind.replaceAll('_',' ')}</span><h3>{item.title}</h3>{item.description && (isHighlight
         ? <button className="published-studio-story-action" type="button" onClick={event => showStory(item, event)}>Read story <span aria-hidden="true">↗</span></button>
         : item.description.length > 340
           ? <details className="published-studio-long-caption"><summary>Read full caption</summary><p>{item.description}</p></details>
