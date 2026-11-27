@@ -35,7 +35,7 @@ const LIBRARIES = [
 
 // Destinations are restricted by the existing StudioPlacement backend allow-list.
 const PUBLISH_DESTINATIONS = {
-  photos: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_memories', 'DIC landing — Camp memories'], ['dic_landing', 'DIC landing — Media highlights']],
+  photos: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Impact in pictures'], ['dic_memories', 'DIC landing — Camp memories photo mosaic'], ['dic_landing', 'DIC landing — Media highlights']],
   videos: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights']],
   hosted: [['foundation_archive', 'Foundation Media — selected collection'], ['foundation_home', 'Foundation homepage — Stories worth sharing'], ['dic_landing', 'DIC landing — Media highlights'], ['dic_resources', 'DIC landing — Media library']],
   recordings: [['foundation_archive', 'Foundation Media — All Audio + selected collection'], ['camper_resources', 'Camper Portal — Camp lecture recordings (private)']],

@@ -63,7 +63,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
     else setLoadingMore(true)
     setPageError(false)
     const api = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
-    fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}&page=${page}`, {
+    fetch(`${api}/dic/studio/public-placements/?destination=${encodeURIComponent(destination)}&page=${page}${destination === 'foundation_home' ? '&view=editorial' : ''}`, {
       credentials: 'omit', cache: 'no-store', signal: controller.signal,
     }).then(async response => {
       if (!response.ok) throw new Error('Archive unavailable')
@@ -73,6 +73,7 @@ export default function PublishedStudioArchive({ destination = 'foundation_archi
       const accepted = data.items.filter(row =>
         // Safeguard while already-published legacy flyer placements are retired.
         !(destination === 'dic_landing' && row.source_kind === 'flyers') &&
+        !(destination === 'foundation_home' && row.source_kind === 'photos') &&
         typeof row.title === 'string' && typeof row.url === 'string' &&
         ((row.url.startsWith('/api/v1/dic/') && row.url.length < 400) ||
          (row.source_kind === 'hosted' && !!approvedVideoLink(row.embed_url))))

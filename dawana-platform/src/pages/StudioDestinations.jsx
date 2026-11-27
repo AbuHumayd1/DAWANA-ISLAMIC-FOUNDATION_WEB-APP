@@ -4,8 +4,8 @@ import './StudioDestinations.css'
 
 const destinationNames = {
   foundation_archive: 'Media page — collections',
-  foundation_home: 'Homepage — latest 3 featured media',
-  dic_memories: 'DIC memories gallery',
+  foundation_home: 'Homepage — 9 photos or 3 featured media',
+  dic_memories: 'DIC memories — photo mosaic',
   dic_landing: 'DIC landing page',
   dic_resources: 'DIC lecture resources',
   camper_resources: 'Camper Portal — private lecture audio',

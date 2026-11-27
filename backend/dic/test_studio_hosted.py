@@ -168,3 +168,24 @@ class HostedLinkPublishingTests(TestCase):
         denied = self.submit('studio-hosted-links', {'items': [
             {'title': 'Denied', 'video_url': 'https://youtu.be/abcDEFG1234'}]})
         self.assertEqual(denied.status_code, 403)
+
+
+    def test_home_editorial_carousel_retains_hosted_publications_outside_photo_mosaic(self):
+        response = self.submit('studio-hosted-links', {'items': [
+            {'title': 'Synthetic homepage lecture', 'video_url': 'https://youtu.be/abcDEFG1234'},
+        ]})
+        self.assertEqual(response.status_code, 201, response.content)
+        item = response.json()['items'][0]
+        self.assertEqual(self.submit('studio-publication', {'action': 'publish'},
+                                     ['hosted', item['id']]).status_code, 200)
+        self.assertEqual(self.submit('studio-placements',
+                                     {'destination': 'foundation_home', 'action': 'publish'},
+                                     [item['asset_id']]).status_code, 200)
+        endpoint = reverse('dic:studio-public-placements')
+        public = Client()
+        rows = public.get(endpoint, {'destination': 'foundation_home',
+                                    'view': 'editorial'}).json()['items']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['source_kind'], 'hosted')
+        self.assertEqual(public.get(endpoint, {'destination': 'foundation_home',
+                                             'view': 'photos'}).json()['items'], [])

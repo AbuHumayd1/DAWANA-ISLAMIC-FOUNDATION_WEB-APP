@@ -423,3 +423,65 @@ class StudioCatalogueTests(TestCase):
             self.assertEqual(denied_role.status_code, 403)
             self.assertTrue(CampPhotograph.objects.filter(pk=photo.pk).exists())
 
+
+
+    def test_photo_mosaic_is_bounded_and_keeps_default_home_feed_compatible(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            ids = []
+            for n in range(11):
+                photo = self.photo('Mosaic photo ' + str(n))
+                photo.state = 'published'
+                photo.save(actor=self.operator)
+                asset_id = self.post('studio-assets', {
+                    'source_kind': 'photos', 'source_id': photo.pk}).json()['asset']['id']
+                response = self.post('studio-placements', {
+                    'destination': 'foundation_home', 'action': 'publish'}, args=[asset_id])
+                self.assertEqual(response.status_code, 200, response.content)
+                ids.append(asset_id)
+            url = reverse('dic:studio-public-placements')
+            anonymous = Client()
+            params = {'destination': 'foundation_home', 'view': 'photos'}
+            feed = anonymous.get(url, params).json()
+            self.assertEqual(len(feed['items']), 9)
+            self.assertFalse(feed['has_more'])
+            self.assertEqual(len({row['url'] for row in feed['items']}), 9)
+            self.assertTrue(all(row['source_kind'] == 'photos' and row['alt_text']
+                                for row in feed['items']))
+            self.assertEqual(anonymous.get(url, {**params, 'page': 2}).json()['items'], [])
+            self.assertEqual(len(anonymous.get(url, {'destination': 'foundation_home'}).json()['items']), 3)
+            self.assertEqual(anonymous.get(url, {'destination': 'foundation_home',
+                                                'view': 'editorial'}).json()['items'], [])
+            self.post('studio-placements', {'destination': 'foundation_home',
+                      'action': 'withdraw'}, args=[ids[-1]])
+            updated = anonymous.get(url, params).json()['items']
+            self.assertEqual(len(updated), 9)
+            self.assertNotIn(feed['items'][0]['url'], [row['url'] for row in updated])
+            self.assertEqual(anonymous.get(url, {'destination': 'camper_resources',
+                                                'view': 'photos'}).status_code, 404)
+
+    def test_camp_mosaic_preserves_legacy_featured_photos_but_respects_withdrawal(self):
+        with TemporaryDirectory() as root, override_settings(
+            DEBUG=True, DIC_MEMORY_STORAGE='local', DIC_MEMORY_LOCAL_ROOT=root):
+            photo = self.photo('Legacy featured photograph')
+            photo.featured = True
+            photo.state = 'published'
+            photo.save(actor=self.operator)
+            draft = self.photo('Unpublished photograph')
+            draft.featured = True
+            draft.save()
+            url = reverse('dic:studio-public-placements')
+            params = {'destination': 'dic_memories', 'view': 'photos'}
+            anonymous = Client()
+            feed = anonymous.get(url, params).json()['items']
+            self.assertEqual(len(feed), 1)
+            self.assertEqual(feed[0]['title'], photo.caption)
+            asset_id = self.post('studio-assets', {'source_kind': 'photos',
+                         'source_id': photo.pk}).json()['asset']['id']
+            self.assertEqual(anonymous.get(url, params).json()['items'], [])
+            placement = {'destination': 'dic_memories', 'edition': self.edition.pk}
+            response = self.post('studio-placements', {**placement, 'action': 'publish'}, args=[asset_id])
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertEqual(len(anonymous.get(url, params).json()['items']), 1)
+            self.post('studio-placements', {**placement, 'action': 'withdraw'}, args=[asset_id])
+            self.assertEqual(anonymous.get(url, params).json()['items'], [])
