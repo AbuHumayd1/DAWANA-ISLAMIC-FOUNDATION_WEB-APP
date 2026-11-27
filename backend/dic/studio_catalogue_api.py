@@ -292,13 +292,16 @@ class PublicStudioPlacementsView(APIView):
         public = {'foundation_archive', 'foundation_home', 'dic_memories', 'dic_landing', 'dic_resources'}
         if destination not in public:
             raise NotFound()
+        view = request.query_params.get('view', '')
+        if view not in ('', 'photos', 'editorial') or (view and destination not in ('foundation_home', 'dic_memories')):
+            raise ValidationError({'view': 'Choose a supported showcase view.'})
         page_text = request.query_params.get('page', '1')
         if not page_text.isascii() or not page_text.isdigit() or not 1 <= len(page_text) <= 3:
             raise ValidationError({'page': 'Choose a valid archive page.'})
         page = int(page_text)
         if not 1 <= page <= 100:
             raise ValidationError({'page': 'Archive page out of range.'})
-        if destination == 'foundation_home' and page != 1:
+        if (destination == 'foundation_home' or view) and page != 1:
             return Response({'items': [], 'page': page, 'has_more': False})
         offset = (page - 1) * 200
         placements_query = StudioPlacement.objects.filter(
@@ -306,11 +309,16 @@ class PublicStudioPlacementsView(APIView):
         )
         # The dedicated DIC flyer block is the canonical home for official flyers.
         # Exclude them before pagination so no empty highlights section is rendered.
+        if view == 'photos':
+            placements_query = placements_query.filter(asset__source_kind='photos')
+        elif view == 'editorial':
+            placements_query = placements_query.exclude(asset__source_kind='photos')
         if destination == 'dic_landing':
             placements_query = placements_query.exclude(asset__source_kind='flyers')
         placements = list(placements_query.select_related('asset', 'edition')
                           .order_by('-published_at', '-pk')[offset:offset + 201])
         rows = []
+        seen = set()
         for placement in placements[:200]:
             if placement.edition_id and not placement.edition.is_active:
                 continue
@@ -323,6 +331,9 @@ class PublicStudioPlacementsView(APIView):
                 url = reverse('dic:studio-public-audio', args=[placement.asset.pk]) if (
                     source_published(placement.asset, source) and not source.session_id and source.audio) else None
             if url:
+                if view == 'photos' and url in seen:
+                    continue
+                seen.add(url)
                 item = {'title': placement.asset.title, 'description': placement.asset.description,
                         'programme': placement.asset.programme, 'event': placement.asset.event,
                         'edition': placement.edition.year if placement.edition_id else (
@@ -337,13 +348,31 @@ class PublicStudioPlacementsView(APIView):
                 if placement.asset.source_kind == 'videos':
                     from .video_providers import video_source
                     item['embed_url'] = video_source(source.video_url)['embed_url']
+                if view == 'photos':
+                    item['alt_text'] = getattr(source, 'alt_text', '') or placement.asset.title
                 rows.append(item)
                 # The homepage is deliberately capped, even when staff publish
                 # more placements. Additional items remain in the media archive.
-                if destination == 'foundation_home' and len(rows) == 3:
+                if view == 'photos' and len(rows) == 9:
                     break
+                if view != 'photos' and destination == 'foundation_home' and len(rows) == 3:
+                    break
+        if view == 'photos' and destination == 'dic_memories' and len(rows) < 9:
+            # Preserve already-public, featured legacy camp photographs. Once linked
+            # to Studio, the explicit destination controls visibility; withdrawal
+            # must never bring the same photo back through the legacy fallback.
+            from .memory_models import CampPhotograph
+            linked_ids = StudioAsset.objects.filter(source_kind='photos').values('source_id')
+            legacy = CampPhotograph.objects.filter(state='published',
+                published_at__isnull=False, featured=True).exclude(pk__in=linked_ids)
+            for photo in legacy[:9 - len(rows)]:
+                url = reverse('dic:memory-image', args=[photo.pk])
+                if url not in seen:
+                    rows.append({'source_kind': 'photos', 'url': url, 'title': photo.caption,
+                                 'alt_text': photo.alt_text or photo.caption})
+                    seen.add(url)
         response = Response({'items': rows, 'page': page,
-                             'has_more': destination != 'foundation_home' and len(placements) > 200})
+                             'has_more': not view and destination != 'foundation_home' and len(placements) > 200})
         response['Cache-Control'] = 'public, max-age=0, must-revalidate'
         return response
 
